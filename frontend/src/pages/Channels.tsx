@@ -323,11 +323,16 @@ export default function Channels() {
           <h1 className="fh-page-title">{translate('commerce:commerceHub.channels2')}</h1>
           <p className="fh-page-subtitle">{translate('commerce:commerceHub.channelOperationalSubtitle')}</p>
         </div>
-        {canManageCommerce && (
-          <button className="fh-button-primary" type="button" onClick={() => openSetup()}>
-            <Icon name="add" /> {translate('commerce:commerceHub.addChannel')}
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="fh-button-secondary" type="button" onClick={() => navigate('/docs/channels')}>
+            <Icon name="file" /> مستندات API
           </button>
-        )}
+          {canManageCommerce && (
+            <button className="fh-button-primary" type="button" onClick={() => openSetup()}>
+              <Icon name="add" /> {translate('commerce:commerceHub.addChannel')}
+            </button>
+          )}
+        </div>
       </div>
 
       <section className="fh-card fh-card-pad mb-5" aria-label={translate('commerce:commerceHub.channelOperationalFlow')}>

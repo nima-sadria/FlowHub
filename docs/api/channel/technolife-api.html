@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مستند فنی API فروشندگان تکنولایف — v1.0.0</title>
+<link rel="stylesheet" href="technolife-api.css">
+</head>
+<body>
+<div class="sheet">
+<div class="doc-header doc-header-inner">
+    <span>مستند فنی API فروشندگان تکنولایف</span>
+    <span class="doc-header-inner">OAS 3.0.0 · v1.0.0</span>
+  </div>
+
+<h1 class="s1">مستند فنی API فروشندگان تکنولایف</h1>
+  <p class="s2">راهنمای اتصال سیستم فروشنده به سرویس‌های تکنولایف برای مدیریت محصولات، تنوع و گارانتی، قیمت‌گذاری، تخفیف‌ها و سفارشات SBS.</p>
+  <div class="s3">
+    <span class="s4">نسخه ۱.۰.۰</span>
+    <span class="s5">REST · JSON · Bearer + encrypted-secret</span>
+  </div>
+
+  <h2 class="s6">۱ — احراز هویت</h2>
+
+  <h3 class="s7">۱-۱ — نشانی پایه (Base URL)</h3>
+  <div class="s8">baseUrl = https://seller-api.technolife.com</div>
+
+  <h3 class="s7">۱-۲ — هدرهای الزامی</h3>
+  <p class="s9">تمامی اندپوینت‌ها به دو هدر زیر نیاز دارند. بدون هر یک از این دو، پاسخ <span class="s10">401</span> بازگردانده می‌شود.</p>
+  <div class="s11">Authorization: Bearer {{API_KEY}}
+encrypted-secret: {{ENCRYPTED_SECRET}}</div>
+
+  <h3 class="s7">۱-۳ — ساخت مقدار <span class="s10">encrypted-secret</span></h3>
+  <p class="s9">مقدار این هدر، حاصل رمزنگاری <span class="s10">AES-128-GCM</span> روی نشانی همان اندپوینت با استفاده از کلید مخفی فروشنده است. خروجی به شکل زیر ساخته می‌شود.</p>
+  <div class="s12">base64(iv) : base64(tag) : base64(ciphertext)</div>
+  <div class="s13">توجه: متن رمزشده، نشانی همان درخواستی است که ارسال می‌کنید؛ بنابراین برای هر اندپوینت مقدار <span class="s10">encrypted-secret</span> متفاوت است و باید به ازای هر فراخوانی محاسبه شود.</div>
+
+  <h3 class="s7">۱-۴ — ساختار خطا</h3>
+  <p class="s9">تمامی اندپوینت‌ها سه وضعیت <span class="s10">200</span>، <span class="s10">400</span> و <span class="s10">401</span> را بازمی‌گردانند. بدنه‌ی خطا در هر دو حالت ۴۰۰ و ۴۰۱ یکسان است.</p>
+  <pre class="s14">{
+  "errorCode": "string",
+  "message": ["string"],
+  "statusCode": 400
+}</pre>
+
+  <h2 class="s15">۲ — فهرست اندپوینت‌ها</h2>
+  <table class="s16">
+    <thead>
+      <tr class="s17">
+        <th class="s18">متد</th>
+        <th class="s19">مسیر</th>
+        <th class="s20">پاسخ ۲۰۰</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s21">GET</td>
+        <td class="s22">/v1/products</td>
+        <td class="s21">ProductData</td>
+      </tr>
+      <tr>
+        <td class="s21">GET</td>
+        <td class="s22">/v1/products/{productCode}/items</td>
+        <td class="s21">SellerItemData</td>
+      </tr>
+      <tr>
+        <td class="s21">GET</td>
+        <td class="s22">/v1/products/{productCode}/variation</td>
+        <td class="s21">VariationData</td>
+      </tr>
+      <tr>
+        <td class="s21">GET</td>
+        <td class="s22">/v1/products/{productCode}/guarantees</td>
+        <td class="s21">GuaranteeData</td>
+      </tr>
+      <tr>
+        <td class="s21">PATCH</td>
+        <td class="s22">/v1/products/{sellerItemCode}/hide</td>
+        <td class="s21">OkeResponse</td>
+      </tr>
+      <tr>
+        <td class="s21">PATCH</td>
+        <td class="s22">/v1/products/{sellerItemCode}/show</td>
+        <td class="s21">OkeResponse</td>
+      </tr>
+      <tr>
+        <td class="s21">POST</td>
+        <td class="s22">/v1/products/create/variation</td>
+        <td class="s21">OkeResponse</td>
+      </tr>
+      <tr>
+        <td class="s21">PATCH</td>
+        <td class="s22">/v1/products/{sellerItemCode}/info</td>
+        <td class="s21">OkeResponse</td>
+      </tr>
+      <tr>
+        <td class="s21">PATCH</td>
+        <td class="s22">/v1/pricing/{sellerItemCode}/info</td>
+        <td class="s21">OkeResponse</td>
+      </tr>
+      <tr>
+        <td class="s21">GET</td>
+        <td class="s22">/v1/promotion/{productCode}/list</td>
+        <td class="s21">PromotionList</td>
+      </tr>
+      <tr>
+        <td class="s21">PUT</td>
+        <td class="s22">/v1/promotion/{sellerItemCode}/info</td>
+        <td class="s21">OkeResponse</td>
+      </tr>
+      <tr>
+        <td class="s21">GET</td>
+        <td class="s22">/v1/orders/sbs</td>
+        <td class="s21">SbsOrderData</td>
+      </tr>
+      <tr>
+        <td class="s21">GET</td>
+        <td class="s22">/v1/orders/sbs/{orderCode}</td>
+        <td class="s21">SbsOrderDetails</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="s15">۳ — محصولات</h2>
+
+  <h3 class="s7">۳-۱ — دریافت لیست محصولات</h3>
+  <div class="s23">
+    <span class="s24">GET</span>
+    <span class="s25">baseUrl/v1/products</span>
+  </div>
+  <p class="s26">پارامترهای کوئری</p>
+  <table class="s27">
+    <thead>
+      <tr class="s17">
+        <th class="s20">پارامتر</th>
+        <th class="s19">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s28">SalesCode</td>
+        <td class="s29">فیلتر بر اساس کد فروش فروشنده</td>
+      </tr>
+      <tr>
+        <td class="s28">search</td>
+        <td class="s29">جست‌وجوی متنی در محصولات</td>
+      </tr>
+      <tr>
+        <td class="s28">hasDiscount</td>
+        <td class="s29">فقط محصولات دارای تخفیف</td>
+      </tr>
+      <tr>
+        <td class="s28">isAvailable</td>
+        <td class="s29">فقط محصولات موجود</td>
+      </tr>
+      <tr>
+        <td class="s28">isHide</td>
+        <td class="s29">فقط محصولات مخفی‌شده</td>
+      </tr>
+      <tr>
+        <td class="s28">isWinner</td>
+        <td class="s29">فقط محصولات برنده باکس خرید</td>
+      </tr>
+      <tr>
+        <td class="s28">stock</td>
+        <td class="s29">فیلتر بر اساس موجودی</td>
+      </tr>
+      <tr>
+        <td class="s28">page</td>
+        <td class="s29">شماره صفحه</td>
+      </tr>
+      <tr>
+        <td class="s28">limit</td>
+        <td class="s29">تعداد آیتم در هر صفحه — حداکثر ۱۰۰</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="s30">Request Sample (cURL)</div>
+  <pre class="s31">curl 'https://seller-api.technolife.com/v1/products?SalesCode=&amp;search=&amp;hasDiscount=true&amp;isAvailable=true&amp;isHide=true&amp;isWinner=true&amp;stock=true&amp;page=1&amp;limit=1' \
+  --header 'Authorization: Bearer {{API_KEY}}' \
+  --header 'encrypted-secret: {{ENCRYPTED_SECRET}}'</pre>
+  <div class="s30">Response — ProductData</div>
+  <pre class="s14">{
+  "count": 0,
+  "products": [
+    {
+      "title": "string",
+      "code": "string",
+      "category": "string",
+      "brand": "string",
+      "totalAvailable": 0,
+      "totalStock": 0,
+      "referencePrice": 0,
+      "cashMaxTolerance": 0,
+      "cashMinTolerance": 0,
+      "leasingMaxTolerance": 0,
+      "leasingMinTolerance": 0,
+      "bnplMaxTolerance": 0,
+      "bnplMinTolerance": 0,
+      "count": 0
+    }
+  ]
+}</pre>
+  <div class="s13">فیلد <span class="s10">count</span> در سطح محصول اختیاری است و برای محصولات طلا مقدار می‌گیرد.</div>
+
+  <h3 class="s7">۳-۲ — دریافت آیتم‌های فروشنده برای یک محصول</h3>
+  <div class="s23">
+    <span class="s24">GET</span>
+    <span class="s25">baseUrl/v1/products/{productCode}/items</span>
+  </div>
+  <div class="s30">Response — SellerItemData</div>
+  <pre class="s14">{
+  "data": [
+    {
+      "code": "string",
+      "SalesCode": "string",
+      "stock": 0,
+      "available": 0,
+      "refundCount": 0,
+      "processingCount": 0,
+      "waitingCount": 0,
+      "waitingForPaymentCount": 0,
+      "isWinnerOfBuyBox": true,
+      "buyBoxWinnerPrice": 0,
+      "leaveTime": 0,
+      "maxBuyPerOrder": 0,
+      "guarantee": "string",
+      "variation": "string",
+      "hide": false,
+      "referencePrice": 0,
+      "hasDiscount": true,
+      "cash":    { "price": 0, "maxPrice": 0, "minPrice": 0, "wage": 0, "wagePercent": 0, "profitPercent": 0, "belongings": 0 },
+      "bnpl":    { "price": 0 },
+      "leasing": { "price": 0 },
+      "discount": {
+        "price": 0,
+        "count": 0,
+        "startDate": "2026-01-01T00:00:00Z",
+        "endDate": "2026-01-10T00:00:00Z",
+        "marketingGroup": "string"
+      }
+    }
+  ]
+}</pre>
+
+  <h3 class="s7">۳-۳ — تنوع‌ها و گارانتی‌های یک محصول</h3>
+  <div class="s32">
+    <span class="s24">GET</span>
+    <span class="s25">baseUrl/v1/products/{productCode}/variation</span>
+  </div>
+  <div class="s23">
+    <span class="s24">GET</span>
+    <span class="s25">baseUrl/v1/products/{productCode}/guarantees</span>
+  </div>
+  <pre class="s33">// VariationData
+{ "data": [ { "id": "string", "code": "string", "name": "string", "displayTitle": "string", "unitCode": "string", "unit": "string" } ] }
+
+// GuaranteeData
+{ "data": [ { "id": "string", "name": "string" } ] }</pre>
+  <p class="s34">در <span class="s10">VariationInfo</span> فیلدهای <span class="s10">unitCode</span> و <span class="s10">unit</span> اختیاری هستند؛ بقیه فیلدها الزامی‌اند.</p>
+
+  <h3 class="s7">۳-۴ — مخفی یا نمایان کردن آیتم</h3>
+  <div class="s32">
+    <span class="s35">PATCH</span>
+    <span class="s25">baseUrl/v1/products/{sellerItemCode}/hide</span>
+  </div>
+  <div class="s23">
+    <span class="s35">PATCH</span>
+    <span class="s25">baseUrl/v1/products/{sellerItemCode}/show</span>
+  </div>
+  <p class="s36">هر دو اندپوینت بدون بدنه فراخوانی می‌شوند و پاسخ آن‌ها <span class="s10">{ "message": "string" }</span> است.</p>
+
+  <h3 class="s7">۳-۵ — ایجاد تنوع جدید برای محصول</h3>
+  <div class="s23">
+    <span class="s37">POST</span>
+    <span class="s25">baseUrl/v1/products/create/variation</span>
+  </div>
+  <div class="s30">Request Sample (cURL) — SellerItemInput</div>
+  <pre class="s14">curl 'https://seller-api.technolife.com/v1/products/create/variation' \
+  --request POST \
+  --header 'Authorization: Bearer {{API_KEY}}' \
+  --header 'encrypted-secret: {{ENCRYPTED_SECRET}}' \
+  --header 'Content-Type: application/json' \
+  --data '{"productCode":"","guaranteeId":"","variationId":""}'</pre>
+
+  <h3 class="s7">۳-۶ — ویرایش اطلاعات آیتم</h3>
+  <div class="s23">
+    <span class="s35">PATCH</span>
+    <span class="s25">baseUrl/v1/products/{sellerItemCode}/info</span>
+  </div>
+  <table class="s27">
+    <thead>
+      <tr class="s17">
+        <th class="s38">فیلد</th>
+        <th class="s39">نوع</th>
+        <th class="s19">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s28">available</td>
+        <td class="s40">number</td>
+        <td class="s29">تعداد قابل فروش — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s28">leaveTime</td>
+        <td class="s40">number</td>
+        <td class="s29">زمان آماده‌سازی و خروج کالا — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s28">maxBuyPerOrder</td>
+        <td class="s40">number</td>
+        <td class="s29">حداکثر تعداد خرید در هر سفارش — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s28">SalesCode</td>
+        <td class="s40">string</td>
+        <td class="s29">کد فروش فروشنده — اختیاری</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="s15">۴ — قیمت‌گذاری</h2>
+  <div class="s23">
+    <span class="s35">PATCH</span>
+    <span class="s25">baseUrl/v1/pricing/{sellerItemCode}/info</span>
+  </div>
+  <p class="s9">بدنه‌ی درخواست (<span class="s10">PriceInput</span>) شامل سه خوشه‌ی قیمتی است: <span class="s10">cash</span> الزامی و <span class="s10">bnpl</span> و <span class="s10">leasing</span> اختیاری. در هر خوشه فقط <span class="s10">price</span> الزامی است.</p>
+  <pre class="s31">{
+  "cash": {
+    "price": 0,
+    "wage": 0,
+    "wagePercent": 0,
+    "profitPercent": 0,
+    "belongings": 0
+  },
+  "leasing": { "price": 0 },
+  "bnpl":    { "price": 0 }
+}</pre>
+  <table class="s16">
+    <thead>
+      <tr class="s17">
+        <th class="s38">فیلد</th>
+        <th class="s19">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s28">price</td>
+        <td class="s29">قیمت پایه — الزامی</td>
+      </tr>
+      <tr>
+        <td class="s28">wage</td>
+        <td class="s29">اجرت — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s28">wagePercent</td>
+        <td class="s29">درصد اجرت — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s28">profitPercent</td>
+        <td class="s29">درصد سود — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s28">belongings</td>
+        <td class="s29">متعلقات — اختیاری</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="s13">در پاسخ <span class="s10">SellerItemInfo</span> هر خوشه‌ی قیمتی (<span class="s10">PricingInfo</span>) علاوه بر موارد بالا می‌تواند <span class="s10">maxPrice</span> و <span class="s10">minPrice</span> نیز داشته باشد. سقف و کف مجاز هر خوشه در <span class="s10">ProductInfo</span> با فیلدهای <span class="s10">cash/leasing/bnpl MaxTolerance</span> و <span class="s10">MinTolerance</span> مشخص می‌شود.</div>
+
+  <h2 class="s15">۵ — تخفیف و کمپین‌ها</h2>
+
+  <h3 class="s7">۵-۱ — لیست گروه‌های مارکتینگ محصول</h3>
+  <div class="s23">
+    <span class="s24">GET</span>
+    <span class="s25">baseUrl/v1/promotion/{productCode}/list</span>
+  </div>
+  <pre class="s14">{ "data": [ { "id": "string", "name": "string" } ] }</pre>
+
+  <h3 class="s7">۵-۲ — ثبت یا ویرایش تخفیف</h3>
+  <div class="s23">
+    <span class="s35">PUT</span>
+    <span class="s25">baseUrl/v1/promotion/{sellerItemCode}/info</span>
+  </div>
+  <pre class="s31">{
+  "count": 0,
+  "discountedPercent": 0,
+  "discountedPrice": 0,
+  "marketingGroup": "string",
+  "startDate": "2026-01-01T00:00:00Z",
+  "endDate": "2026-01-10T00:00:00Z"
+}</pre>
+  <table class="s27">
+    <thead>
+      <tr class="s17">
+        <th class="s41">فیلد</th>
+        <th class="s19">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s28">count</td>
+        <td class="s29">تعداد موجودی مشمول تخفیف <span class="s42">(اجباری)</span></td>
+      </tr>
+      <tr>
+        <td class="s28">startDate</td>
+        <td class="s29">تاریخ شروع، به فرمت ISO و UTC <span class="s42">(اجباری)</span></td>
+      </tr>
+      <tr>
+        <td class="s28">endDate</td>
+        <td class="s29">تاریخ پایان، به فرمت ISO و UTC <span class="s42">(اجباری)</span></td>
+      </tr>
+      <tr>
+        <td class="s28">marketingGroup</td>
+        <td class="s29">شناسه گروه مارکتینگ از بخش ۵-۱ <span class="s42">(اجباری)</span></td>
+      </tr>
+      <tr>
+        <td class="s28">discountedPercent</td>
+        <td class="s29">درصد تخفیف — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s28">discountedPrice</td>
+        <td class="s29">قیمت پس از تخفیف — اختیاری</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="s43">اگر هر دو مقدار <span class="s10">discountedPercent</span> و <span class="s10">discountedPrice</span> ارسال شوند، درصد تخفیف اولویت دارد.</div>
+
+  <h2 class="s15">۶ — سفارشات SBS</h2>
+
+  <h3 class="s7">۶-۱ — لیست سفارشات</h3>
+  <div class="s23">
+    <span class="s24">GET</span>
+    <span class="s25">baseUrl/v1/orders/sbs</span>
+  </div>
+  <table class="s27">
+    <thead>
+      <tr class="s17">
+        <th class="s41">پارامتر کوئری</th>
+        <th class="s19">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s28">traceNumber</td>
+        <td class="s29">شماره رهگیری</td>
+      </tr>
+      <tr>
+        <td class="s28">productCode</td>
+        <td class="s29">کد محصول</td>
+      </tr>
+      <tr>
+        <td class="s28">orderCode</td>
+        <td class="s29">کد سفارش</td>
+      </tr>
+      <tr>
+        <td class="s28">orderStartDate</td>
+        <td class="s29">تاریخ شروع بازه (date-time، UTC)</td>
+      </tr>
+      <tr>
+        <td class="s28">orderEndDate</td>
+        <td class="s29">تاریخ پایان بازه (date-time، UTC)</td>
+      </tr>
+      <tr>
+        <td class="s28">page / limit</td>
+        <td class="s29">صفحه‌بندی — <span class="s10">limit</span> حداکثر ۱۰۰</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="s30">Response — SbsOrderData</div>
+  <pre class="s14">{
+  "count": 0,
+  "data": [
+    {
+      "code": "string",
+      "traceNumber": "string",
+      "orderDate": "2026-01-01T00:00:00Z",
+      "deliveryDate": "string",
+      "shipmentType": "string",
+      "status": "string",
+      "totalPrice": 0
+    }
+  ]
+}</pre>
+
+  <h3 class="s7">۶-۲ — جزئیات یک سفارش</h3>
+  <div class="s23">
+    <span class="s24">GET</span>
+    <span class="s25">baseUrl/v1/orders/sbs/{orderCode}</span>
+  </div>
+  <div class="s30">Response — SbsOrderDetails</div>
+  <pre class="s31">{
+  "orderCode": "string",
+  "traceNumber": "string",
+  "orderDate": "2026-01-01T00:00:00Z",
+  "deliveryDuration": "string",
+  "receiver": "string",
+  "shipmentType": "string",
+  "address": {
+    "city": "string",
+    "province": "string",
+    "postalCode": "string",
+    "postalAddress": "string",
+    "plaque": "string",
+    "unit": "string"
+  },
+  "products": [
+    {
+      "sellerItemCode": "string",
+      "productCode": "string",
+      "category": "string",
+      "brand": "string",
+      "title": "string",
+      "variation": "string",
+      "guarantee": "string",
+      "count": 0,
+      "price": 0,
+      "finalPrice": 0,
+      "discount": 0,
+      "discountedPrice": 0
+    }
+  ]
+}</pre>
+  <div class="s43">در مستند مرجع، نوع فیلد <span class="s10">address.province</span> به اشتباه <span class="s10">date-time</span> ذکر شده است؛ مقدار واقعی یک رشته است. در پیاده‌سازی این فیلد را رشته در نظر بگیرید.</div>
+
+  <h2 class="s15">۷ — مدل‌های داده</h2>
+  <table class="s44">
+    <thead>
+      <tr class="s17">
+        <th class="s45">مدل</th>
+        <th class="s19">فیلدها</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s28">ProductInfo</td>
+        <td class="s29">الزامی: <span class="s46">title, code, category, brand, totalAvailable, totalStock, referencePrice, cashMaxTolerance, cashMinTolerance, leasingMaxTolerance, leasingMinTolerance, bnplMaxTolerance, bnplMinTolerance</span> — اختیاری: <span class="s46">count</span></td>
+      </tr>
+      <tr>
+        <td class="s28">ProductData</td>
+        <td class="s29"><span class="s46">count: number, products: ProductInfo[]</span></td>
+      </tr>
+      <tr>
+        <td class="s28">PricingInfo</td>
+        <td class="s29">الزامی: <span class="s46">price</span> — اختیاری: <span class="s46">maxPrice, minPrice, wage, wagePercent, profitPercent, belongings</span></td>
+      </tr>
+      <tr>
+        <td class="s28">DiscountInfo</td>
+        <td class="s29"><span class="s46">price, count, startDate, endDate, marketingGroup</span> — تاریخ‌ها RFC 3339</td>
+      </tr>
+      <tr>
+        <td class="s28">SellerItemInfo</td>
+        <td class="s29"><span class="s46">code, refundCount, stock, processingCount, waitingCount, waitingForPaymentCount, isWinnerOfBuyBox, buyBoxWinnerPrice, available, leaveTime, maxBuyPerOrder, guarantee, hide, SalesCode, referencePrice, hasDiscount, variation, cash, bnpl, leasing, discount</span></td>
+      </tr>
+      <tr>
+        <td class="s28">VariationInfo</td>
+        <td class="s29">الزامی: <span class="s46">id, code, name, displayTitle</span> — اختیاری: <span class="s46">unitCode, unit</span></td>
+      </tr>
+      <tr>
+        <td class="s28">GuaranteeInfo</td>
+        <td class="s29"><span class="s46">id, name</span></td>
+      </tr>
+      <tr>
+        <td class="s28">ProductInfoInput</td>
+        <td class="s29">اختیاری: <span class="s46">available, leaveTime, maxBuyPerOrder, SalesCode</span></td>
+      </tr>
+      <tr>
+        <td class="s28">SellerItemInput</td>
+        <td class="s29"><span class="s46">productCode, guaranteeId, variationId</span> — همه الزامی</td>
+      </tr>
+      <tr>
+        <td class="s28">PriceInput</td>
+        <td class="s29">الزامی: <span class="s46">cash: PriceClusteringInput</span> — اختیاری: <span class="s46">bnpl, leasing</span></td>
+      </tr>
+      <tr>
+        <td class="s28">SbsOrderInfo</td>
+        <td class="s29">الزامی: <span class="s46">code, deliveryDate, orderDate, shipmentType, status, totalPrice</span> — اختیاری: <span class="s46">traceNumber</span></td>
+      </tr>
+      <tr>
+        <td class="s28">OrderAddress</td>
+        <td class="s29">الزامی: <span class="s46">city, province, postalCode, postalAddress</span> — اختیاری: <span class="s46">plaque, unit</span></td>
+      </tr>
+      <tr>
+        <td class="s28">OrderProduct</td>
+        <td class="s29"><span class="s46">sellerItemCode, productCode, category, brand, title, variation, guarantee, count, price, finalPrice, discount, discountedPrice</span></td>
+      </tr>
+      <tr>
+        <td class="s28">OkeResponse</td>
+        <td class="s29"><span class="s46">message: string</span></td>
+      </tr>
+    </tbody>
+  </table>
+<div class="doc-footer doc-footer-inner">
+    <span>تکنولایف — API فروشندگان</span>
+    <span class="doc-footer-inner">seller-api.technolife.com</span>
+  </div>
+
+</div>
+</body>
+</html>

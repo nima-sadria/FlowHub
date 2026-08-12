@@ -1,0 +1,44 @@
+/* Font stacks and text classes synchronized to FlowHub/frontend/src/globals.css.
+   Stacks, sizes, line-heights, weights and letter-spacing are the shipped values. */
+:root{
+  /* globals.css --fh-font-family */
+  --font-sans: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* globals.css --fh-font-family-persian, with Yekan Bakh kept ahead of Vazirmatn
+     per the declared official FlowHub RTL stack (see readme.md) */
+  --font-rtl: "Yekan Bakh", "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
+  /* globals.css --fh-font-family-mono — a system stack; the implementation ships
+     no webfont for mono, so none is loaded here either */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /* globals.css --fh-font-family-inter — added since last sync. Scoped to LTR
+     Dashboard content only (Figma Screen/Dashboard), not the app-wide sans.
+     No local file shipped yet ([dir="ltr"] .fh-dashboard-inter falls back
+     until uploaded); do not substitute another family. */
+  --font-inter: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+[dir="rtl"]{ --font-sans: var(--font-rtl); }
+/* globals.css: Dashboard-only override, [dir="ltr"] scoped; DS shell/buttons/RTL stay on --font-sans */
+[dir="ltr"] .fh-dashboard-inter,[dir="ltr"] .fh-dashboard-inter button,[dir="ltr"] .fh-dashboard-inter input,[dir="ltr"] .fh-dashboard-inter select{font-family:var(--font-inter)}
+[dir="ltr"] .fh-dashboard-inter .fh-button-primary,[dir="ltr"] .fh-dashboard-inter .fh-button-secondary,[dir="ltr"] .fh-dashboard-inter .fh-button-ghost,[dir="ltr"] .fh-dashboard-inter .fh-button-danger{font-family:var(--font-sans)}
+/* globals.css body: 14px/20px, weight 400 */
+body{font-family:var(--font-sans);font-size:14px;line-height:20px;font-weight:400;color:var(--color-text-primary);background:var(--color-bg-app);font-feature-settings:"locl" 0;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+:lang(fa),.fh-persian-panel,.fh-persian-text{font-family:var(--font-rtl);font-feature-settings:"locl" 1,"kern" 1}
+/* Figma display token — no implementation counterpart (see readme.md) */
+.fh-display{font:800 32px/40px var(--font-sans);letter-spacing:-0.01em}
+/* globals.css .fh-page-title */
+.fh-page-title{font:600 22px/28px var(--font-sans);letter-spacing:-0.01em;color:var(--color-text-primary)}
+/* globals.css .fh-page-subtitle */
+.fh-page-subtitle{font:400 12px/16px var(--font-sans);color:var(--color-text-secondary)}
+/* globals.css .fh-section-title */
+.fh-section-title{font:600 16px/24px var(--font-sans);letter-spacing:-0.01em;color:var(--color-text-primary)}
+/* globals.css .fh-section-subtitle */
+.fh-section-subtitle{font:400 14px/20px var(--font-sans);color:var(--color-text-muted)}
+/* globals.css .fh-section-label */
+.fh-section-label{font:600 12px/18px var(--font-sans);letter-spacing:0.08em;text-transform:uppercase;color:var(--color-text-muted)}
+/* globals.css .fh-text-body / .fh-text-body-sm / .fh-text-caption / .fh-text-mono */
+.fh-body{font:400 13px/20px var(--font-sans);color:var(--color-text-primary)}
+.fh-body-strong{font:600 13px/20px var(--font-sans);color:var(--color-text-primary)}
+.fh-body-sm{font:400 13px/18px var(--font-sans);color:var(--color-text-secondary)}
+.fh-caption{font:400 12px/18px var(--font-sans);color:var(--color-text-muted)}
+.fh-mono{font:400 12px/18px var(--font-mono);font-variant-numeric:tabular-nums}
+/* Figma micro token — no implementation counterpart except badge text (11px/16px) */
+.fh-micro{font:500 11px/16px var(--font-sans);color:var(--color-text-muted)}

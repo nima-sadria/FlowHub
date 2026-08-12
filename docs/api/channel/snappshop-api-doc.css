@@ -1,0 +1,97 @@
+@charset "utf-8";
+/* SnappShop vendor integration doc — FlowHub design tokens */
+@import url("tokens/fig-tokens.css");
+@import url("tokens/impl-sync.css");
+@import url("tokens/fonts.css");
+@import url("tokens/typography.css");
+
+html { direction: rtl; }
+body {
+  margin: 0;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  font-family: var(--font-rtl);
+  text-align: right;
+}
+a { color: var(--brand-600); text-decoration: none; }
+a:hover { color: var(--brand-700); text-decoration: underline; }
+
+.sheet {
+  box-sizing: border-box;
+  max-width: 8.27in;
+  margin: 32px auto;
+  padding: 0.7in;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+}
+.doc-header, .doc-footer { color: var(--color-text-muted); }
+.doc-header-inner, .doc-footer-inner {
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  font-size: 11px; color: var(--color-text-muted);
+}
+.doc-header-inner { padding-bottom: 8px; border-bottom: 1px solid var(--color-border-default); }
+.doc-footer-inner { padding-top: 8px; border-top: 1px solid var(--color-border-default); margin-top: 24px; }
+
+/* content rules (extracted from the design, one class per distinct rule set) */
+.s1 { font-family:var(--font-rtl); font-size:30px; line-height:40px; font-weight:700; letter-spacing:-0.01em; margin:24px 0 10px }
+.s2 { font-size:14px; line-height:1.7; color:var(--color-text-secondary); margin:0 0 6px }
+.s3 { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 28px }
+.s4 { font-size:12px; line-height:18px; padding:3px 10px; border-radius:9999px; background:var(--color-bg-selected); color:var(--brand-700); border:1px solid var(--brand-200) }
+.s5 { font-size:12px; line-height:18px; padding:3px 10px; border-radius:9999px; background:var(--color-bg-muted); color:var(--color-text-secondary); border:1px solid var(--color-border-default); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; direction:ltr }
+.s6 { font-size:20px; line-height:28px; font-weight:600; letter-spacing:-0.01em; margin:32px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--color-border-default) }
+.s7 { width:100%; border-collapse:collapse; font-size:13px; line-height:1.7; margin:0 0 8px }
+.s8 { background:var(--color-bg-subtle) }
+.s9 { text-align:right; font-weight:600; padding:8px 12px; border:1px solid var(--color-border-default); width:92px; white-space:nowrap }
+.s10 { text-align:right; font-weight:600; padding:8px 12px; border:1px solid var(--color-border-default) }
+.s11 { padding:8px 12px; border:1px solid var(--color-border-default); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; direction:ltr; text-align:left; vertical-align:top }
+.s12 { padding:8px 12px; border:1px solid var(--color-border-default); vertical-align:top }
+.s13 { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; direction:ltr }
+.s14 { font-size:16px; line-height:24px; font-weight:600; letter-spacing:-0.01em; margin:22px 0 8px }
+.s15 { font-size:14px; line-height:1.75; color:var(--color-text-secondary); margin:0 0 10px }
+.s16 { direction:ltr; text-align:left; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; line-height:1.6; background:var(--color-bg-subtle); border:1px solid var(--color-border-default); border-radius:8px; padding:10px 14px; margin:0 0 16px; break-inside:avoid }
+.s17 { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; direction:ltr; font-size:12.5px; background:var(--color-bg-muted); padding:1px 5px; border-radius:4px }
+.s18 { direction:ltr; text-align:left; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; line-height:1.6; background:var(--color-bg-subtle); border:1px solid var(--color-border-default); border-radius:8px; padding:10px 14px; margin:0 0 12px; break-inside:avoid }
+.s19 { margin:0 0 14px; padding-inline-start:20px; font-size:14px; line-height:1.8; color:var(--color-text-secondary) }
+.s20 { margin-bottom:6px }
+.s21 { font-size:12px; font-weight:600; color:var(--color-text-muted); margin:0 0 6px }
+.s22 { direction:ltr; text-align:left; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; line-height:1.65; background:var(--color-bg-subtle); border:1px solid var(--color-border-default); border-radius:8px; padding:12px 14px; margin:0 0 18px; white-space:pre-wrap; overflow-wrap:anywhere }
+.s23 { font-size:20px; line-height:28px; font-weight:600; letter-spacing:-0.01em; margin:34px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--color-border-default) }
+.s24 { font-size:14px; line-height:22px; font-weight:600; margin:18px 0 6px }
+.s25 { display:flex; align-items:center; gap:10px; direction:ltr; background:var(--color-bg-subtle); border:1px solid var(--color-border-default); border-radius:8px; padding:8px 12px; margin:0 0 12px; break-inside:avoid }
+.s26 { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; font-weight:700; letter-spacing:0.04em; color:#fff; background:var(--brand-500); border-radius:4px; padding:2px 7px }
+.s27 { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; overflow-wrap:anywhere; text-align:left; flex:1 }
+.s28 { margin:0 0 12px; padding-inline-start:20px; font-size:14px; line-height:1.8; color:var(--color-text-secondary) }
+.s29 { font-size:16px; line-height:24px; font-weight:600; letter-spacing:-0.01em; margin:26px 0 8px }
+.s30 { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; direction:ltr; font-size:12.5px; overflow-wrap:anywhere; text-align:left; flex:1 }
+.s31 { font-size:13px; line-height:1.7; color:var(--color-text-muted); margin:0 0 18px }
+.s32 { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; direction:ltr; font-size:12.5px }
+.s33 { font-size:14px; line-height:1.75; font-weight:600; margin:14px 0 8px }
+.s34 { width:100%; border-collapse:collapse; font-size:13px; line-height:1.65; margin:0 0 12px }
+.s35 { text-align:right; font-weight:600; padding:8px 12px; border:1px solid var(--color-border-default); width:190px }
+.s36 { text-align:right; font-weight:600; padding:8px 12px; border:1px solid var(--color-border-default); width:96px }
+.s37 { padding:7px 12px; border:1px solid var(--color-border-default); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; direction:ltr; text-align:left }
+.s38 { padding:7px 12px; border:1px solid var(--color-border-default) }
+.s39 { font-size:11px; color:var(--color-status-danger); font-weight:600 }
+.s40 { background:var(--color-status-info-surface); border:1px solid var(--color-border-default); border-radius:8px; padding:12px 14px; margin:0 0 14px; font-size:13px; line-height:1.75; color:var(--color-text-secondary); break-inside:avoid }
+.s41 { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; font-weight:700; letter-spacing:0.04em; color:#fff; background:var(--color-status-warning); border-radius:4px; padding:2px 7px }
+.s42 { direction:ltr; text-align:left; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; line-height:1.65; background:var(--color-bg-subtle); border:1px solid var(--color-border-default); border-radius:8px; padding:12px 14px; margin:0 0 14px; white-space:pre-wrap; overflow-wrap:anywhere }
+.s43 { direction:ltr; text-align:left; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; line-height:1.65; background:var(--color-bg-subtle); border:1px solid var(--color-border-default); border-radius:8px; padding:12px 14px; margin:0 0 16px; white-space:pre-wrap; overflow-wrap:anywhere }
+.s44 { display:flex; align-items:center; gap:10px; direction:ltr; background:var(--color-bg-subtle); border:1px solid var(--color-border-default); border-radius:8px; padding:8px 12px; margin:0 0 16px; break-inside:avoid }
+.s45 { width:100%; border-collapse:collapse; font-size:13px; line-height:1.65; margin:0 0 18px }
+.s46 { text-align:right; font-weight:600; padding:8px 12px; border:1px solid var(--color-border-default); width:210px }
+.s47 { padding:7px 12px; border:1px solid var(--color-border-default); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; direction:ltr; text-align:left; vertical-align:top }
+.s48 { margin:0 0 18px; padding-inline-start:20px; font-size:14px; line-height:1.8; color:var(--color-text-secondary) }
+.s49 { margin:0 0 8px; padding-inline-start:20px; font-size:14px; line-height:1.8; color:var(--color-text-secondary) }
+
+@page { size: A4; margin: 16mm 14mm; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background: #fff; }
+  .sheet { max-width: none; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  h1, h2, h3, h4 { break-after: avoid; }
+  pre, tr, table { break-inside: auto; }
+  p, li { orphans: 3; widows: 3; }
+  thead { display: table-header-group; }
+  .doc-header-inner, .doc-footer-inner { font-size: 9pt; }
+}

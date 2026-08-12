@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مستند فنی سرویس‌های وندور تپسی‌شاپ</title>
+<link rel="stylesheet" href="tapsishop-api-doc.css">
+</head>
+<body>
+<div class="sheet">
+<div class="doc-header doc-header-inner">
+    <span>مستند فنی سرویس‌های وندور تپسی‌شاپ</span>
+    <span class="doc-header-inner">vendorgw.tapsi.shop</span>
+  </div>
+
+<h1 class="s1">مستند فنی سرویس اطلاع‌رسانی ثبت سفارش (وب‌سرویس وندور – وب‌هوک)</h1>
+  <p class="s2">در پنل وندور، شما امکان فعال‌سازی سیستم ارسال تغییر موجودی محصولات و تنظیم اطلاعات وب‌سرویس خود را دارید. همچنین می‌توانید توکن مخصوص جهت اعتبارسنجی درخواست‌های ارسال‌شده از سوی ما را انتخاب نمایید.</p>
+  <div class="s3">
+    <span class="s4">وب‌هوک و وب‌سرویس وندور</span>
+    <span class="s5">REST · JSON · Token header</span>
+  </div>
+
+  <h2 class="s6">۱ — راه‌اندازی در پنل وندور</h2>
+  <table class="s7">
+    <thead>
+      <tr class="s8">
+        <th class="s9">مرحله</th>
+        <th class="s10">اقدام</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s11">مرحله ۱</td>
+        <td class="s11">در صورتی که توکنی ندارید، در تب «درخواست توکن» روی دکمه‌ی «درخواست توکن جدید» کلیک کنید و توکن ایجاد‌شده را کپی نمایید.</td>
+      </tr>
+      <tr>
+        <td class="s11">مرحله ۲</td>
+        <td class="s11">اطلاعات سرویس خود (با متد <span class="s12">POST</span>) را وارد کرده و از لیست توکن‌های فعال، توکن مورد نظر را جهت ارسال توسط تپسی‌شاپ انتخاب کنید و روی دکمه‌ی «ثبت درخواست» کلیک نمایید.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="s6">۲ — تاریخچه درخواست‌های فروشنده (WebService)</h2>
+  <p class="s13">در این قسمت امکان مدیریت و مانیتورینگ فراخوانی‌های ارسال‌شده از سمت وب‌سرویس فروشنده به زیرساخت تپسی‌شاپ فراهم شده است. هدف از این سرویس، ایجاد شفافیت در پردازش داده‌ها و تسریع عیب‌یابی تعاملات سیستمی است.</p>
+  <p class="s14">قابلیت‌های کلیدی</p>
+  <ul class="s15">
+    <li class="s16">مشاهده لیست درخواست‌ها: نمایش تمامی فراخوانی‌ها به همراه شناسه درخواست، شناسه محصول و وضعیت نهایی اجرا (موفق / خطا).</li>
+    <li class="s16">جزئیات تغییرات: با کلیک بر روی هر رکورد، کاربر به صفحه جزئیات هدایت شده و می‌تواند تغییرات دقیق اعمال‌شده بر روی قیمت اصلی، قیمت بعد از تخفیف و ظرفیت موجودی محصول را مشاهده نماید.</li>
+    <li>تاریخچه وضعیت: در جزئیات درخواست، امکان مشاهده زمان دقیق ارسال و زمان پاسخ در سیستم تپسی‌شاپ جهت تطبیق با لاگ‌های سمت وندور وجود دارد. همچنین در صورت دریافت خطا، امکان مشاهده‌ی علت آن فراهم شده است.</li>
+  </ul>
+
+  <h2 class="s6">۳ — اطلاع‌رسانی‌های تپسی‌شاپ (Webhook)</h2>
+  <p class="s13">این بخش به منظور آگاهی لحظه‌ای فروشندگان از تعاملات تجاری و مدیریت بهینه سفارشات طراحی شده است. تمامی رویدادهای مربوط به چرخه حیات یک سفارش در این قسمت به صورت متمرکز قابل رویت است.</p>
+  <ul class="s15">
+    <li class="s16">اعلان خریدهای جدید: به محض ثبت موفقیت‌آمیز سفارش توسط مشتری، تمامی جزئیات خرید شامل شماره سفارش، مشخصات اقلام و زمان ثبت در این بخش درج می‌گردد.</li>
+    <li class="s16">در صورت لغو سفارش، جزئیات لغو سفارش قابل مشاهده است.</li>
+    <li>جزئیات تراکنش: امکان مشاهده قیمت نهایی فروش و تخفیف‌های اعمال‌شده مربوط به هر سفارش جهت شفافیت مالی وجود دارد.</li>
+  </ul>
+
+  <h3 class="s17">۳-۱ — نمونه درخواست ارسالی</h3>
+  <p class="s13">در نمونه زیر آدرس سرویس به عنوان مثال آورده شده و با آدرس سرویس پیاده‌سازی‌شده توسط شما جایگزین می‌گردد.</p>
+  <div class="s18">
+    <span class="s19">POST</span>
+    <span class="s20">https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/webhook-test</span>
+  </div>
+  <div class="s21">Request Sample (cURL)</div>
+  <pre class="s22">curl --location 'https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/webhook-test' \
+--header 'accept: text/plain' \
+--header 'client-name: Swagger on HIT.Hastim.Hub.Endpoints.WebApi' \
+--header 'client-version: 1.0.0.0' \
+--header 'TapsiShop.Hub.Webhook-Authorization: {{YOUR_TOKEN}}' \
+--header 'Content-Type: application/json' \
+--data '{
+  "orderDetail": {
+    "orderId": 1039417456193437696,
+    "changeType": 1,
+    "createdOnTimestamp": "2025-05-31T09:24:30.764Z",
+    "receiverFullName": "string",
+    "customerFullName": "string",
+    "deliveryAddress": "string",
+    "customerMobile": "string",
+    "customerNationalCode": "string",
+    "receiverMobile": "string",
+    "orderNumber": "string",
+    "customerFirstName": "string",
+    "customerLastName": "string"
+  },
+  "items": [
+    {
+      "requestId": 2039417456193437696,
+      "orderItemId": 1039417456193437775,
+      "orderId": 1039417456193437696,
+      "tapsiShopProductId": 1034024501253242880,
+      "productId": "string",
+      "quantity": 0,
+      "changeType": 1,
+      "createdOnTimestamp": "2025-05-31T09:24:30.764Z",
+      "receiverFullName": "string",
+      "customerFullName": "string",
+      "deliveryAddress": "string",
+      "finalPrice": 0,
+      "originalPrice": 0,
+      "customerMobile": "string",
+      "customerNationalCode": "string",
+      "receiverMobile": "string"
+    }
+  ]
+}'</pre>
+
+  <h3 class="s17">۳-۲ — پارامترهای ارسالی: <span class="s12">orderDetail</span></h3>
+  <table class="s23">
+    <thead>
+      <tr class="s8">
+        <th class="s24">فیلد</th>
+        <th class="s25">نوع</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s26">orderId</td>
+        <td class="s27">long</td>
+        <td class="s28">شناسه‌ی سفارش</td>
+      </tr>
+      <tr>
+        <td class="s26">orderNumber</td>
+        <td class="s27">string</td>
+        <td class="s28">شماره سفارش</td>
+      </tr>
+      <tr>
+        <td class="s26">createdOnTimestamp</td>
+        <td class="s27">DateTimeOffset</td>
+        <td class="s28">زمان ثبت سفارش</td>
+      </tr>
+      <tr>
+        <td class="s26">receiverFullName</td>
+        <td class="s27">string</td>
+        <td class="s28">نام و نام خانوادگی تحویل‌گیرنده</td>
+      </tr>
+      <tr>
+        <td class="s26">receiverMobile</td>
+        <td class="s27">string</td>
+        <td class="s28">شماره تلفن همراه تحویل‌گیرنده</td>
+      </tr>
+      <tr>
+        <td class="s26">deliveryAddress</td>
+        <td class="s27">string</td>
+        <td class="s28">آدرس تحویل‌گیرنده</td>
+      </tr>
+      <tr>
+        <td class="s26">customerFullName</td>
+        <td class="s27">string</td>
+        <td class="s28">نام و نام خانوادگی خریدار</td>
+      </tr>
+      <tr>
+        <td class="s26">customerFirstName</td>
+        <td class="s27">string</td>
+        <td class="s28">نام خریدار</td>
+      </tr>
+      <tr>
+        <td class="s26">customerLastName</td>
+        <td class="s27">string</td>
+        <td class="s28">نام خانوادگی خریدار</td>
+      </tr>
+      <tr>
+        <td class="s26">customerMobile</td>
+        <td class="s27">string</td>
+        <td class="s28">شماره تلفن همراه خریدار</td>
+      </tr>
+      <tr>
+        <td class="s26">customerNationalCode</td>
+        <td class="s27">string</td>
+        <td class="s28">کد ملی خریدار</td>
+      </tr>
+      <tr>
+        <td class="s26">changeType</td>
+        <td class="s27">enum</td>
+        <td class="s28">دلیل نوتیفیکیشن — ۱: خرید، ۲: کنسل</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 class="s17">۳-۳ — پارامترهای ارسالی: <span class="s12">items</span></h3>
+  <p class="s13">به ازای هر درخواست ارسال‌شده توسط تپسی‌شاپ (که مربوط به یک سفارش است) لیستی از آیتم‌های آن سفارش با نام <span class="s29">items</span> داریم که شامل این اطلاعات است.</p>
+  <table class="s30">
+    <thead>
+      <tr class="s8">
+        <th class="s24">فیلد</th>
+        <th class="s25">نوع</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s26">orderItemId</td>
+        <td class="s27">long</td>
+        <td class="s28">شناسه آیتم سفارش در تپسی‌شاپ</td>
+      </tr>
+      <tr>
+        <td class="s26">tapsiShopProductId</td>
+        <td class="s27">long</td>
+        <td class="s28">شناسه محصول در تپسی‌شاپ</td>
+      </tr>
+      <tr>
+        <td class="s26">createdOnTimestamp</td>
+        <td class="s27">DateTimeOffset</td>
+        <td class="s28">زمان ثبت رکورد در تپسی‌شاپ</td>
+      </tr>
+      <tr>
+        <td class="s26">productId</td>
+        <td class="s27">string</td>
+        <td class="s28">شناسه محصول در سیستم وندور (همان <span class="s12">sku</span> ثبت‌شده در تپسی‌شاپ)</td>
+      </tr>
+      <tr>
+        <td class="s26">quantity</td>
+        <td class="s27">int</td>
+        <td class="s28">تعداد تغییر‌یافته — در صورت ثبت موفق سفارش: <span class="s12">-1</span>؛ در صورت کنسل شدن آیتم بعد از ثبت سفارش: <span class="s12">1</span></td>
+      </tr>
+      <tr>
+        <td class="s26">finalPrice</td>
+        <td class="s27">decimal</td>
+        <td class="s28">قیمت نهایی کالا (قیمت بعد از تخفیف)</td>
+      </tr>
+      <tr>
+        <td class="s26">originalPrice</td>
+        <td class="s27">decimal</td>
+        <td class="s28">قیمت اصلی کالا</td>
+      </tr>
+      <tr>
+        <td class="s26">requestId</td>
+        <td class="s27">long</td>
+        <td class="s28">شناسه درخواست، به منظور جلوگیری از پردازش درخواست تکراری (هرچند ما هر درخواست را تنها یک‌بار ارسال می‌کنیم)</td>
+      </tr>
+      <tr>
+        <td class="s26">changeType</td>
+        <td class="s27">enum</td>
+        <td class="s28">نوع فرآیند — عدد ۱ به معنای کاهش به دلیل خرید، عدد ۲ به معنای افزایش به دلیل کنسل شدن آیتم</td>
+      </tr>
+      <tr>
+        <td class="s26">receiverFullName / customerFullName / deliveryAddress / customerMobile / customerNationalCode / receiverMobile</td>
+        <td class="s27">string</td>
+        <td class="s28">مشخصات و آدرس تحویل‌گیرنده و خریدار، مطابق فیلدهای هم‌نام در <span class="s12">orderDetail</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <pre class="s31">public enum InventoryChangeTypeEnum : int
+{
+    DeductedDueToPurchase = 1,
+    AddedDueToCancellation = 2,
+}</pre>
+  <div class="s32">
+    <div>نوشت ۱: پارامتر <span class="s12">changeType</span> در آیتم‌های سفارش و جزئیات سفارش یکسان است و در آینده از آیتم‌های سفارش حذف خواهد شد.</div>
+    <div>نوشت ۲: با توجه به این که نام و نام خانوادگی خریدار برای ثبت سفارش الزامی نیست، ممکن است این پراپرتی بدون مقدار باشد.</div>
+    <div>نوشت ۳: دسترسی به اطلاعات کد ملی و شماره همراه خریدار، نیازمند تعریف تنظیمات لازم در قرارداد فروشنده توسط تپسی‌شاپ می‌باشد؛ اگر فروشنده‌ای این دسترسی را در قرارداد خود نداشته باشد این اطلاعات ارسال نمی‌شود.</div>
+  </div>
+
+  <h3 class="s17">۳-۴ — توکن اعتبارسنجی، پاسخ مورد انتظار و مدیریت خطا</h3>
+  <p class="s13">توکنی که شما در پنل وندور انتخاب می‌نمایید، با کلید زیر در هدر درخواست ارسال می‌شود.</p>
+  <div class="s33">TapsiShop.Hub.Webhook-Authorization: {{YOUR_TOKEN}}</div>
+  <p class="s13">در صورتی که پاسخ درخواست شما کد <span class="s12">200</span> و مقدار <span class="s12">succeed</span> برابر با <span class="s12">true</span> باشد، تمام محصولات ارسال‌شده با موفقیت پردازش شده‌اند.</p>
+  <div class="s21">Expected Response</div>
+  <pre class="s34">{
+  "message": "پیام شما اینجا قرار می‌گیرد!",
+  "succeed": true
+}</pre>
+  <div class="s35">مدیریت خطا: در صورت دریافت تعداد خطاهای بیش از حد مجاز، سیستم ما به طور خودکار ارسال تغییرات به سمت سرویس شما را غیرفعال خواهد کرد.</div>
+
+  <h2 class="s6">۴ — احراز هویت و تحویل سفارش</h2>
+
+  <h3 class="s17">۴-۱ — دریافت اطلاعات سفیر</h3>
+  <p class="s13">برای مشاهده اطلاعات سفیر مراجعه‌کننده، کافی است سرویس زیر را با متد <span class="s12">GET</span> و با استفاده از کد جمع‌آوری (<span class="s12">pickupCode</span>) فراخوانی کنید. این اطلاعات شامل نام، نام خانوادگی، عکس سفیر و شماره سفارش است تا فروشنده بتواند احراز هویت را انجام دهد.</p>
+  <div class="s18">
+    <span class="s36">GET</span>
+    <span class="s20">https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/courier/{pickupCode}</span>
+  </div>
+  <div class="s21">Response</div>
+  <pre class="s22">{
+  "success": true,
+  "messages": [
+    { "message": "string", "code": "string", "type": 1 }
+  ],
+  "data": {
+    "courierFirstname": "string",
+    "courierLastname": "string",
+    "courierAvatar": "string",
+    "orderNumber": "string"
+  }
+}</pre>
+
+  <h3 class="s17">۴-۲ — تایید یا رد سفیر</h3>
+  <p class="s13">پس از بررسی، برای اعلام نتیجه احراز هویت باید سرویس زیر را با بدنه‌ی مناسب فراخوانی کنید.</p>
+  <div class="s18">
+    <span class="s37">PUT</span>
+    <span class="s20">https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/review-courier</span>
+  </div>
+  <div class="s21">Request Body</div>
+  <pre class="s31">{
+  "pickupCode": "string",
+  "isAcceptableCourier": true,
+  "includeShippingBundleProductDetails": true
+}</pre>
+  <table class="s30">
+    <thead>
+      <tr class="s8">
+        <th class="s38">پارامتر</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s26">pickupCode</td>
+        <td class="s28">کد جمع‌آوری</td>
+      </tr>
+      <tr>
+        <td class="s26">isAcceptableCourier</td>
+        <td class="s28"><span class="s12">true</span>: سفیر تأیید شده و امکان جمع‌آوری وجود دارد. <span class="s12">false</span>: سفیر تأیید نشده؛ کالاها نباید تحویل داده شوند و مغایرت باید به پشتیبانی تپسی‌شاپ اطلاع داده شود.</td>
+      </tr>
+      <tr>
+        <td class="s26">includeShippingBundleProductDetails</td>
+        <td class="s28"><span class="s12">true</span>: جزئیات کالاهای سفارش در پاسخ سرویس نمایش داده می‌شود. در صورتی که سفیر احراز نشود، تحت هیچ شرایطی کالاها در خروجی سرویس ارسال نخواهند شد. <span class="s12">false</span>: اطلاعات کالا در خروجی سرویس ارسال نمی‌شود.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="s21">Response</div>
+  <pre class="s22">{
+  "success": true,
+  "messages": [
+    { "message": "string", "code": "string", "type": 1 }
+  ],
+  "data": {
+    "isPickupUpdateSuccessful": true,
+    "isDataRetrievalSuccessful": true,
+    "pickuResult": {
+      "isScheduled": true,
+      "shipmentOrderBundleId": "string"
+    },
+    "shipmentBundleProductDetails": {
+      "shippingProviderId": "string",
+      "shipmentOrderId": "string",
+      "shipmentOrderBundleId": "string",
+      "isShippingByVendor": true,
+      "pickupDate": "2025-08-04T07:53:58.860Z",
+      "fromHour": "string",
+      "toHour": "string",
+      "itemCount": 0,
+      "stateTitle": "string",
+      "bundleNumber": "string",
+      "customerFullName": "string",
+      "customerMobileNumber": "string",
+      "orderBundleProductDetails": [
+        {
+          "productId": "string",
+          "productName": "string",
+          "categoryName": "string",
+          "shouldDeliveryCount": 0,
+          "originalPrice": 0,
+          "finalPrice": 0,
+          "productDefaultImage": "string"
+        }
+      ],
+      "recipientDelivery": {
+        "fullName": "string",
+        "phone": "string",
+        "address": "string",
+        "isShow": true
+      }
+    }
+  }
+}</pre>
+
+  <h2 class="s6">۵ — ارسال تغییر موجودی و قیمت محصولات توسط وندور</h2>
+  <p class="s13">در پنل وندور، شما امکان دریافت توکن جهت ارسال تغییرات موجودی و قیمت از طریق فراخوانی سرویس‌های مشخص‌شده در این مستند را خواهید داشت. توکن با کلید <span class="s29">TapsiShop.Hub.Authorization</span> در هدر درخواست ارسال می‌شود.</p>
+
+  <h3 class="s17">۵-۱ — سرویس اول: تازه‌سازی توکن (Refresh Token)</h3>
+  <p class="s13">در صورت گرفتن خطای <span class="s12">unauthorized</span> می‌توانید از سرویس ذیل جهت دریافت توکن جدید بر اساس توکن قبلی استفاده نمایید.</p>
+  <ul class="s39">
+    <li class="s16"><span class="s29">name</span>: نام توکن — الزامی</li>
+    <li class="s16"><span class="s29">token</span>: توکن جاری — الزامی</li>
+    <li class="s16"><span class="s29">revokeCurrentToken</span>: مشخص‌کننده‌ی این که توکن جاری منقضی بشود یا نشود — غیر الزامی</li>
+    <li><span class="s29">expireAt</span>: زمان انقضا — غیر الزامی. در صورت مقداردهی نشدن، حداکثر زمان انقضا (در حال حاضر ۶ ماه) در نظر گرفته می‌شود.</li>
+  </ul>
+  <div class="s18">
+    <span class="s19">POST</span>
+    <span class="s20">https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/refresh-token</span>
+  </div>
+  <pre class="s31">curl --location 'https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/refresh-token' \
+--header 'accept: text/plain' \
+--header 'client-name: Swagger on HIT.Hastim.Hub.Endpoints.WebApi' \
+--header 'client-version: 1.0.0.0' \
+--header 'Content-Type: application/json' \
+--data '{
+  "token": "your token",
+  "name": "your token name",
+  "revokeCurrentToken": false,
+  "expiredAt": "2024-10-13T08:27:07.880Z"
+}'</pre>
+  <div class="s21">Response</div>
+  <pre class="s22">{
+  "success": true,
+  "messages": [
+    { "message": "string", "code": "string", "type": 1 }
+  ],
+  "data": {
+    "token": "string",
+    "expireDate": "2025-05-31T10:02:00.243Z"
+  }
+}</pre>
+
+  <h3 class="s17">۵-۲ — سرویس دوم: بروزرسانی قیمت و موجودی</h3>
+  <p class="s13">با فراخوانی سرویس ذیل می‌توانید برای بروزرسانی قیمت و موجودی محصولات خود در تپسی‌شاپ اقدام نمایید. پارامترهای ارسالی به ازای هر آیتم در لیست <span class="s12">products</span>:</p>
+  <ul class="s39">
+    <li class="s16"><span class="s29">id</span>: شناسه محصول سمت فروشنده (SKU محصول در تپسی‌شاپ)</li>
+    <li class="s16"><span class="s29">stock</span>: موجودی</li>
+    <li class="s16"><span class="s29">price</span>: قیمت اصلی — قیمت وارد‌شده می‌بایست مضربی از ۱۰ و به ریال باشد.</li>
+    <li class="s16"><span class="s29">specialPrice</span>: قیمت نهایی — قیمت وارد‌شده می‌بایست مضربی از ۱۰ و به ریال باشد.</li>
+    <li><span class="s29">referenceCode</span>: کد مرجع — در خروجی سرویس برای شناسایی وضعیت همان درخواست برای شما ارسال می‌شود.</li>
+  </ul>
+  <div class="s18">
+    <span class="s37">PUT</span>
+    <span class="s20">https://vendorgw.tapsi.shop/web/hub/vendors/v1/products</span>
+  </div>
+  <pre class="s31">curl --location --request PUT 'https://vendorgw.tapsi.shop/web/hub/vendors/v1/products' \
+--header 'accept: text/plain' \
+--header 'client-name: Swagger on HIT.Hastim.Hub.Endpoints.WebApi' \
+--header 'client-version: 1.0.0.0' \
+--header 'Content-Type: application/json' \
+--header 'TapsiShop.Hub.Authorization: {{token}}' \
+--data '{
+  "products": [
+    {
+      "id": "the sku of your product",
+      "stock": 10,
+      "price": 20000,
+      "specialPrice": 10000,
+      "referenceCode": "your request reference code"
+    }
+  ]
+}'</pre>
+  <p class="s14">پارامترهای مربوط به هر آیتم در لیست <span class="s12">data</span></p>
+  <table class="s30">
+    <thead>
+      <tr class="s8">
+        <th class="s40">فیلد</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s26">id</td>
+        <td class="s28">شناسه محصول در تپسی‌شاپ</td>
+      </tr>
+      <tr>
+        <td class="s26">sku</td>
+        <td class="s28">شناسه محصول در پلتفرم فروشنده</td>
+      </tr>
+      <tr>
+        <td class="s26">status</td>
+        <td class="s28">موفقیت‌آمیز بودن یا نبودن فرآیند</td>
+      </tr>
+      <tr>
+        <td class="s26">messages</td>
+        <td class="s28">لیست پیغام‌های مربوط به درخواست ارسال‌شده جهت بروزرسانی این آیتم</td>
+      </tr>
+      <tr>
+        <td class="s26">currentOriginalPrice</td>
+        <td class="s28">قیمت اصلی کنونی</td>
+      </tr>
+      <tr>
+        <td class="s26">currentFinalPrice</td>
+        <td class="s28">قیمت نهایی کنونی</td>
+      </tr>
+      <tr>
+        <td class="s26">currentOnHandQuantity</td>
+        <td class="s28">موجودی کنونی</td>
+      </tr>
+      <tr>
+        <td class="s26">referenceCode</td>
+        <td class="s28">کد مرجع ارسال‌شده توسط شما به ازای این آیتم</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="s21">Response</div>
+  <pre class="s22">{
+  "success": true,
+  "messages": [
+    { "message": "string", "code": "string", "type": 1 }
+  ],
+  "data": {
+    "status": true,
+    "data": [
+      {
+        "id": "string",
+        "sku": "string",
+        "status": true,
+        "messages": ["string"],
+        "currentOriginalPrice": 0,
+        "currentFinalPrice": 0,
+        "currentOnHandQuantity": 0,
+        "referenceCode": "string"
+      }
+    ]
+  }
+}</pre>
+
+  <h3 class="s17">۵-۳ — سرویس سوم: دریافت اطلاعات فروشگاه</h3>
+  <div class="s18">
+    <span class="s36">GET</span>
+    <span class="s20">https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/vendor-information</span>
+  </div>
+  <div class="s21">Response</div>
+  <pre class="s34">{
+  "data": {
+    "vendorId": "شناسه فروشگاه",
+    "vendorName": "نام فروشنده",
+    "storeName": "نام فروشگاه",
+    "storeLink": "لینک فروشگاه",
+    "storeNumber": "شماره فروشگاه"
+  },
+  "success": true,
+  "messages": []
+}</pre>
+  <div class="s41">نوشت: مقدار توکن برابر با توکنی است که در بخش «درخواست توکن» پنل وندور دریافت می‌کنید.</div>
+
+  <h3 class="s17">۵-۴ — سرویس چهارم: دریافت لیست محصولات</h3>
+  <p class="s13">این سرویس برای دریافت لیستی از محصولات یک فروشنده استفاده می‌شود. با استفاده از شماره صفحه و تعداد آیتم‌های هر صفحه، می‌توانید به محصولات خود به صورت صفحه‌بندی‌شده دسترسی داشته باشید.</p>
+  <div class="s18">
+    <span class="s36">GET</span>
+    <span class="s20">https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/products/{page}/{pageSize}</span>
+  </div>
+  <div class="s21">Response</div>
+  <pre class="s31">{
+  "data": {
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 3050,
+    "items": [
+      {
+        "id": "string",
+        "hsin": "string",
+        "sku": "string",
+        "originalPrice": 0,
+        "finalPrice": 0,
+        "minimalPerOrder": 0,
+        "maximalPerOrder": 0,
+        "onHandQuantity": 0
+      }
+    ]
+  },
+  "success": true,
+  "messages": []
+}</pre>
+  <table class="s23">
+    <thead>
+      <tr class="s8">
+        <th class="s42">نام فیلد</th>
+        <th class="s43">نوع داده</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s26">id</td>
+        <td class="s27">string</td>
+        <td class="s28">شناسه محصول در تپسی‌شاپ</td>
+      </tr>
+      <tr>
+        <td class="s26">hsin</td>
+        <td class="s27">string</td>
+        <td class="s28">کد HSIN محصول در تپسی‌شاپ</td>
+      </tr>
+      <tr>
+        <td class="s26">sku</td>
+        <td class="s27">string</td>
+        <td class="s28">شناسه محصول در سیستم فروشنده</td>
+      </tr>
+      <tr>
+        <td class="s26">originalPrice</td>
+        <td class="s27">decimal (nullable)</td>
+        <td class="s28">قیمت اصلی محصول</td>
+      </tr>
+      <tr>
+        <td class="s26">finalPrice</td>
+        <td class="s27">decimal (nullable)</td>
+        <td class="s28">قیمت نهایی محصول</td>
+      </tr>
+      <tr>
+        <td class="s26">minimalPerOrder</td>
+        <td class="s27">int (nullable)</td>
+        <td class="s28">حداقل تعداد قابل خرید در هر سفارش</td>
+      </tr>
+      <tr>
+        <td class="s26">maximalPerOrder</td>
+        <td class="s27">int (nullable)</td>
+        <td class="s28">حداکثر تعداد قابل خرید در هر سفارش</td>
+      </tr>
+      <tr>
+        <td class="s26">onHandQuantity</td>
+        <td class="s27">int (nullable)</td>
+        <td class="s28">موجودی فعلی محصول</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 class="s17">۵-۵ — سرویس پنجم: دریافت لیست سفارش‌ها</h3>
+  <p class="s13">این سرویس برای دریافت لیست سفارش‌های فروشنده استفاده می‌شود. با استفاده از شماره صفحه و تعداد آیتم‌های هر صفحه، می‌توانید به سفارش‌های خود به صورت صفحه‌بندی‌شده دسترسی داشته باشید.</p>
+  <div class="s18">
+    <span class="s19">POST</span>
+    <span class="s20">https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/orders</span>
+  </div>
+  <pre class="s31">curl -X 'POST' \
+'https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/orders' \
+-H 'accept: text/plain' \
+-H 'client-name: Swagger on HIT.Hastim.Hub.Endpoints.WebApi' \
+-H 'client-version: 1.0.0.0' \
+-H 'Content-Type: application/json' \
+-d '{
+  "pageNumber": 0,
+  "pageSize": 0,
+  "dateFilterTypeCode": 0,
+  "orderId": "string",
+  "orderNumber": "string",
+  "fromDate": "2026-04-26T07:41:29.627Z",
+  "toDate": "2026-04-26T07:41:29.627Z",
+  "bundleId": "string",
+  "shippingStatusType": ["string"],
+  "productId": ["string"],
+  "categoryIds": ["string"],
+  "orderStatusId": ["string"],
+  "deliveryMethod": "string"
+}'</pre>
+  <p class="s14">پارامترهای درخواست ورودی</p>
+  <table class="s30">
+    <thead>
+      <tr class="s8">
+        <th class="s42">فیلد</th>
+        <th class="s44">نوع</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s26">pageNumber</td>
+        <td class="s27">integer</td>
+        <td class="s28">شماره صفحه (شروع از ۰) — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s26">pageSize</td>
+        <td class="s27">integer</td>
+        <td class="s28">تعداد در هر صفحه (پیش‌فرض ۲۰) — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s26">fromDate</td>
+        <td class="s27">string</td>
+        <td class="s28">تاریخ شروع (DateTimeOffset) — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s26">toDate</td>
+        <td class="s27">string</td>
+        <td class="s28">تاریخ پایان (DateTimeOffset) — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s26">orderNumber</td>
+        <td class="s27">string</td>
+        <td class="s28">شماره سفارش دقیق — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s26">bundleId</td>
+        <td class="s27">string</td>
+        <td class="s28">شماره مرسوله — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s26">orderStatusId</td>
+        <td class="s27">array</td>
+        <td class="s28">لیست وضعیت سفارش — ۴: تایید سفارش، ۶: لغو سفارش، ۹: تحویل کامل</td>
+      </tr>
+      <tr>
+        <td class="s26">shippingStatusType</td>
+        <td class="s27">array</td>
+        <td class="s28">لیست وضعیت مرسوله — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s26">deliveryMethod</td>
+        <td class="s27">string</td>
+        <td class="s28">نوع تحویل — ۱: ارسال فروشنده، ۲: ارسال پلتفرم، ۳: تحویل حضوری</td>
+      </tr>
+      <tr>
+        <td class="s26">productId</td>
+        <td class="s27">array</td>
+        <td class="s28">لیستی از کالاهای انتخابی — اختیاری</td>
+      </tr>
+      <tr>
+        <td class="s26">categoryIds</td>
+        <td class="s27">array</td>
+        <td class="s28">لیستی از گروه کالاهای انتخابی — اختیاری</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="s14">لیست وضعیت مرسوله</p>
+  <table class="s30">
+    <thead>
+      <tr class="s8">
+        <th class="s44">کد</th>
+        <th class="s10">وضعیت</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s45">100</td>
+        <td class="s28">پیش‌سفارش</td>
+      </tr>
+      <tr>
+        <td class="s45">110</td>
+        <td class="s28">در انتظار تخصیص پیک</td>
+      </tr>
+      <tr>
+        <td class="s45">120</td>
+        <td class="s28">در انتظار آماده‌سازی</td>
+      </tr>
+      <tr>
+        <td class="s45">140</td>
+        <td class="s28">در انتظار تغییر نحوه ارسال</td>
+      </tr>
+      <tr>
+        <td class="s45">200</td>
+        <td class="s28">در انتظار جمع‌آوری</td>
+      </tr>
+      <tr>
+        <td class="s45">210</td>
+        <td class="s28">پیک در فروشگاه</td>
+      </tr>
+      <tr>
+        <td class="s45">300</td>
+        <td class="s28">آماده ارسال</td>
+      </tr>
+      <tr>
+        <td class="s45">310</td>
+        <td class="s28">ارسال شده</td>
+      </tr>
+      <tr>
+        <td class="s45">320</td>
+        <td class="s28">تحویل شده به مشتری</td>
+      </tr>
+      <tr>
+        <td class="s45">400</td>
+        <td class="s28">عدم تحویل موفق</td>
+      </tr>
+      <tr>
+        <td class="s45">410</td>
+        <td class="s28">لغو شده</td>
+      </tr>
+      <tr>
+        <td class="s45">420</td>
+        <td class="s28">منقضی</td>
+      </tr>
+      <tr>
+        <td class="s45">900</td>
+        <td class="s28">در انتظار استعلام مجدد</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="s21">Response</div>
+  <pre class="s31">{
+  "success": true,
+  "messages": [
+    { "message": "string", "code": "string", "type": 1 }
+  ],
+  "data": {
+    "pageNumber": 0,
+    "pageSize": 0,
+    "totalItems": 0,
+    "items": [
+      {
+        "id": "string",
+        "orderNumber": "string",
+        "shipmentOrderBundleNumbers": ["string"],
+        "persianDateTime": "string",
+        "stateCode": "string",
+        "stateTitle": "string",
+        "finalPrice": 0,
+        "serviceFee": 0,
+        "voucherTotalFee": 0,
+        "createdOn": "2026-04-26T07:43:49.117Z"
+      }
+    ]
+  }
+}</pre>
+  <table class="s23">
+    <thead>
+      <tr class="s8">
+        <th class="s46">فیلد</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s26">id</td>
+        <td class="s28">شناسه یکتای سفارش (برای دریافت جزئیات استفاده می‌شود)</td>
+      </tr>
+      <tr>
+        <td class="s26">orderNumber</td>
+        <td class="s28">شماره سفارش قابل نمایش</td>
+      </tr>
+      <tr>
+        <td class="s26">shipmentOrderBundleNumbers</td>
+        <td class="s28">شماره مرسوله</td>
+      </tr>
+      <tr>
+        <td class="s26">persianDateTime</td>
+        <td class="s28">تاریخ ثبت سفارش به شمسی</td>
+      </tr>
+      <tr>
+        <td class="s26">stateTitle</td>
+        <td class="s28">عنوان وضعیت سفارش (مثل «تایید سفارش»)</td>
+      </tr>
+      <tr>
+        <td class="s26">finalPrice</td>
+        <td class="s28">مبلغ کل نهایی (ریال)</td>
+      </tr>
+      <tr>
+        <td class="s26">serviceFee</td>
+        <td class="s28">هزینه عملیاتی (ریال)</td>
+      </tr>
+      <tr>
+        <td class="s26">voucherTotalFee</td>
+        <td class="s28">تخفیف</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 class="s17">۵-۶ — سرویس ششم: دریافت جزئیات سفارش</h3>
+  <p class="s13">دریافت تمام اطلاعات یک سفارش، شامل اطلاعات اصلی سفارش، صورت‌حساب‌ها، مرسوله‌ها و آیتم‌های کالا. مقدار <span class="s29">orderId</span> همان <span class="s12">id</span> از خروجی سرویس لیست سفارش‌ها است.</p>
+  <div class="s18">
+    <span class="s36">GET</span>
+    <span class="s20">https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/orders/{orderId}</span>
+  </div>
+  <div class="s21">Response</div>
+  <pre class="s31">{
+  "success": true,
+  "messages": [
+    { "message": "string", "code": "string", "type": 1 }
+  ],
+  "data": {
+    "order": {
+      "orderNumber": "string",
+      "orderDate": "string",
+      "originalAmount": "string",
+      "amountAfterDiscount": "string",
+      "coupon": "string",
+      "couponAmount": "string",
+      "buyerCity": "string",
+      "userRating": "string",
+      "status": "string",
+      "invoices": [
+        {
+          "number": "string",
+          "status": "string",
+          "invoiceDate": "string",
+          "settlementDate": "string"
+        }
+      ]
+    },
+    "shipments": [
+      {
+        "number": "string",
+        "status": "string",
+        "deliveryMethod": "string",
+        "sendDate": "string",
+        "fromHour": "string",
+        "toHour": "string"
+      }
+    ],
+    "items": [
+      {
+        "picture": "string",
+        "name": "string",
+        "sku": "string",
+        "price": "string",
+        "finalPrice": "string",
+        "vendorVoucherAmount": "string",
+        "vendorFinalPrice": "string",
+        "commissionPrice": "string",
+        "effectiveDate": "string",
+        "firstMileLastMile": "string",
+        "state": "string",
+        "cancelReason": "string"
+      }
+    ]
+  }
+}</pre>
+  <p class="s14">شرح فیلدهای مهم خروجی</p>
+  <table class="s30">
+    <thead>
+      <tr class="s8">
+        <th class="s46">مسیر</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s26">order.originalAmount</td>
+        <td class="s28">مبلغ اصلی سفارش بدون تخفیف</td>
+      </tr>
+      <tr>
+        <td class="s26">order.amountAfterDiscount</td>
+        <td class="s28">مبلغ پس از اعمال تخفیف‌ها</td>
+      </tr>
+      <tr>
+        <td class="s26">invoices[].status</td>
+        <td class="s28">وضعیت تسویه (تسویه‌شده / در انتظار)</td>
+      </tr>
+      <tr>
+        <td class="s26">shipments[].operationalCost</td>
+        <td class="s28">هزینه عملیاتی مرسوله (ریال)</td>
+      </tr>
+      <tr>
+        <td class="s26">items[].commissionPrice</td>
+        <td class="s28">کمیسیون پرداختی فروشنده</td>
+      </tr>
+      <tr>
+        <td class="s26">items[].effectiveDate</td>
+        <td class="s28">تاریخ مؤثر برای تسویه</td>
+      </tr>
+      <tr>
+        <td class="s26">items[].cancelReason</td>
+        <td class="s28">دلیل لغو آیتم (در صورت لغو)</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="s47">لیست کامل خروجی را می‌توانید از پنل فروشنده دریافت کنید.</p>
+
+  <div class="s48">
+    این مستند به منظور تسهیل همکاری فنی میان تیم‌های توسعه ارائه شده است. در صورت نیاز به توضیحات بیشتر، لطفاً با ما در ارتباط باشید. — تیم فنی تپسی‌شاپ
+  </div>
+<div class="doc-footer doc-footer-inner">
+    <span>تپسی‌شاپ — تیم فنی</span>
+    <span class="doc-footer-inner">vendorgw.tapsi.shop/Web/Hub/vendors/v1</span>
+  </div>
+
+</div>
+</body>
+</html>

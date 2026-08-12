@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>پیوست فنی یکپارچه‌سازی فروشندگان اسنپ‌شاپ — نسخه ۲.۱.۲</title>
+<link rel="stylesheet" href="snappshop-api-doc.css">
+</head>
+<body>
+<div class="sheet">
+<div class="doc-header doc-header-inner">
+    <span>پیوست فنی یکپارچه‌سازی فروشندگان اسنپ‌شاپ</span>
+    <span class="doc-header-inner">v2.1.2</span>
+  </div>
+
+<h1 class="s1">پیوست فنی یکپارچه‌سازی فروشندگان اسنپ‌شاپ</h1>
+  <p class="s2">راهنمای اتصال سیستم فروشنده به API های اسنپ‌شاپ برای مدیریت فروشگاه‌ها، محصولات، قیمت و موجودی، و سفارشات.</p>
+  <div class="s3">
+    <span class="s4">نسخه ۲.۱.۲</span>
+    <span class="s5">REST · JSON · Bearer Token</span>
+  </div>
+
+
+  <h2 class="s6">تاریخچه نسخه‌ها</h2>
+  <table class="s7">
+    <thead>
+      <tr class="s8">
+        <th class="s9">نسخه</th>
+        <th class="s10">توضیحات</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s11">1.0.0</td>
+        <td class="s12">احراز هویت بر پایه توکن معرفی شد. اندپوینت‌های مربوط به آپدیت قیمت و موجودی معرفی شدند.</td>
+      </tr>
+      <tr>
+        <td class="s11">1.1.0</td>
+        <td class="s12">قابلیت ویرایش قیمت و موجودی از طریق کد فروشنده ممکن شد.</td>
+      </tr>
+      <tr>
+        <td class="s11">1.2.0</td>
+        <td class="s12">بخش‌های مربوط به ورود و خروج از حساب حذف شدند. اطلاعات اضافی از پاسخ‌های سیستم حذف شدند.</td>
+      </tr>
+      <tr>
+        <td class="s11">1.3.0</td>
+        <td class="s12">کد یکتای شناسایی به روند احراز هویت افزوده شد.</td>
+      </tr>
+      <tr>
+        <td class="s11">2.1.0</td>
+        <td class="s12">بخش مدیریت سفارشات افزوده شد (رویدادها، جزئیات و تاریخچه سفارشات). مجموع آیتم‌های لغو‌شده در رویداد فعلی و رویدادهای قبلی در اندپوینت رویدادها نمایش داده شد. تعداد محصولات در اندپوینت مربوطه اصلاح شد.</td>
+      </tr>
+      <tr>
+        <td class="s11">2.1.1</td>
+        <td class="s12">فیلتر <span class="s13">start_date</span> و <span class="s13">end_date</span> به تاریخچه سفارشات افزوده شد. آدرس اندپوینت مربوط به تاریخچه سفارشات اصلاح شد.</td>
+      </tr>
+      <tr>
+        <td class="s11">2.1.2</td>
+        <td class="s12">پارامتر کد محصول به پاسخ اندپوینت‌های بخش محصولات و سفارشات افزوده شد.</td>
+      </tr>
+    </tbody>
+  </table>
+
+
+  <h2 class="s6">۱ — احراز هویت</h2>
+
+  <h3 class="s14">۱-۱ — نشانی پایه (BaseUrl)</h3>
+  <p class="s15">برای استفاده از هر کدام از اندپوینت‌ها می‌توانید درخواست خود را به نشانی زیر ارسال کنید. آدرس زیر به عنوان آدرس پایه برای تمامی درخواست‌ها استفاده می‌شود.</p>
+  <div class="s16">baseUrl = https://apix.snappshop.ir/automation/v1</div>
+
+  <h3 class="s14">۱-۲ — کد یکتای شناسایی</h3>
+  <p class="s15">به منظور شناسایی درخواست‌دهنده در ارتباط با API های این سند، لازم است مقدار کد یکتای خود را به عنوان <span class="s17">User-Agent</span> در قسمت Header استفاده کنید.</p>
+  <div class="s16">User-Agent: { کد یکتای شما }</div>
+
+  <h3 class="s14">۱-۳ — توکن دسترسی (Token)</h3>
+  <p class="s15">برای ارتباط با API های ذکر شده در این سند ابتدا باید یک توکن مربوط به مجموعه‌ی مورد نظر را دریافت کنید و در ادامه برای تمامی درخواست‌ها در قسمت Header از آن استفاده کنید.</p>
+  <div class="s18">Authorization: Bearer {Token}</div>
+  <p class="s15">توکن دریافتی از نوع Bearer Token است و برای دریافت آن می‌بایست وارد پنل فروشندگان شوید و از بخش تنظیمات فروشگاه، اقدام به دریافت توکن کنید.</p>
+  <ul class="s19">
+    <li class="s20">در صورتی که توکن مورد استفاده شما معتبر نباشد، برای هر یک از درخواست‌ها پاسخ زیر را دریافت می‌کنید.</li>
+    <li>توکن‌های دریافتی مدت زمان طولانی قابل استفاده هستند و در صورتی که منقضی شوند یا توکن را حذف کرده باشید، می‌توانید توکن جدید درخواست کنید.</li>
+  </ul>
+  <div class="s21">Response Sample (401 Unauthorized)</div>
+  <pre class="s22">{
+  "message": "عدم دسترسی! ابتدا لاگین نمایید.",
+  "code": 301008,
+  "trackId": "fr451727a1",
+  "status": false,
+  "errors": []
+}</pre>
+
+  <h2 class="s23">۲ — اندپوینت‌های در دسترس</h2>
+
+  <h3 class="s14">۲-۱ — فروشندگان (Vendors)</h3>
+
+  <h4 class="s24">۲-۱-۱ — دریافت اطلاعات مربوط به تمامی فروشگاه‌ها</h4>
+  <p class="s15">با استفاده از این اندپوینت می‌توانید لیستی از تمامی فروشگاه‌های مربوط به توکن احراز هویت‌شده را دریافت کنید.</p>
+  <div class="s25">
+    <span class="s26">GET</span>
+    <span class="s27">baseUrl/vendors</span>
+  </div>
+
+  <div class="s21">Response Sample (200 OK)</div>
+  <pre class="s22">{
+  "status": true,
+  "data": [
+    {
+      "id": "nel61b",
+      "title": "تهران شاپ",
+      "title_en": "tehranshop",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "fre4gf",
+      "title": "تهران بوک",
+      "title_en": "tehranbook",
+      "status": "ACTIVE"
+    }
+  ]
+}</pre>
+
+
+  <h4 class="s24">۲-۱-۲ — دریافت جزئیات مربوط به یک فروشگاه</h4>
+  <p class="s15">با استفاده از این اندپوینت می‌توانید جزئیات مربوط به یک فروشگاه را مشاهده کنید.</p>
+  <ul class="s28">
+    <li>برای مقدار <span class="s17">{vendor_id}</span> می‌توانید از فیلد <span class="s17">id</span> که از بخش ۲-۱-۱ دریافت کرده‌اید استفاده کنید.</li>
+  </ul>
+  <div class="s25">
+    <span class="s26">GET</span>
+    <span class="s27">baseUrl/vendors/{vendor_id}</span>
+  </div>
+
+  <div class="s21">Response Sample (200 OK)</div>
+  <pre class="s22">{
+  "status": true,
+  "data": {
+    "id": "nel61b",
+    "title": "تهران شاپ",
+    "title_en": "tehranshop",
+    "status": "ACTIVE"
+  }
+}</pre>
+
+
+  <h3 class="s29">۲-۲ — محصولات (Products)</h3>
+
+  <h4 class="s24">۲-۲-۱ — دریافت لیست محصولات یک فروشگاه (Vendor Products)</h4>
+  <p class="s15">با استفاده از این اندپوینت می‌توانید لیست تمامی محصولات مربوط به یک فروشگاه را دریافت کنید.</p>
+  <ul class="s28">
+    <li class="s20">برای مقدار <span class="s17">{vendor_id}</span> می‌توانید از فیلد <span class="s17">id</span> بخش ۲-۱-۱ استفاده کنید.</li>
+    <li>تعداد کالاهای دریافتی در هر ریکوئست ۲۰ عدد می‌باشد و می‌توانید با استفاده از کوئری <span class="s17">page</span> صفحات دیگر را دریافت کنید: <span class="s30">baseUrl/vendors/{vendor_id}/products?page=2</span></li>
+  </ul>
+  <div class="s25">
+    <span class="s26">GET</span>
+    <span class="s27">baseUrl/vendors/{vendor_id}/products</span>
+  </div>
+
+  <div class="s21">Response Sample (200 OK)</div>
+  <pre class="s22">{
+  "status": true,
+  "data": [
+    {
+      "id": "65M5J1",
+      "sku": "44ed8300-ed75-11ju-bc26-5b9fm866a82f",
+      "product_number": 135412856172254,
+      "parent_product_number": 135354856172246,
+      "active": true,
+      "capacity": null,
+      "stock": 7,
+      "warehouse_stock": 8,
+      "title": "تیشرت آستین کوتاه مردانه کد 22RA02D04M-2405-01 سایز 4XL مدل",
+      "title_en": "Tyshrt-Astyn-Kotah-Mrdanh-Kd-22Ra02D04M-2405-01-Sayz-4Xl-Mdl",
+      "thumbnail": null,
+      "price": 84233,
+      "warranty": null,
+      "discount": {
+        "id": "cdXw34",
+        "special_price": 77494,
+        "stock": 8,
+        "vendor_share": 228,
+        "percent": 8,
+        "start_at": "2023-05-06",
+        "end_at": "2023-05-11",
+        "created_at": "2023-05-08 15:41:59",
+        "updated_at": "2023-05-08 15:41:59"
+      },
+      "variation_attributes": [
+        {
+          "attribute": { "id": "45g6r1", "title": "رنگ", "unit": null },
+          "value": {
+            "id": "eSz70",
+            "title": "سبز",
+            "icon": "https://cdn-icons-png.flaticon.com/512/616/616532.png"
+          }
+        }
+      ],
+      "created_at": "2023-05-08 15:40:06"
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "total": 2201,
+      "count": 20,
+      "per_page": 20,
+      "current_page": 1,
+      "total_pages": 111,
+      "links": {
+        "next": "baseUrl/vendors/{vendor_id}/products?page=2",
+        "previous": null
+      }
+    }
+  }
+}</pre>
+
+
+  <h4 class="s24">۲-۲-۲ — دریافت اطلاعات مربوط به یک محصول (Vendor Product)</h4>
+  <p class="s15">با استفاده از این اندپوینت می‌توانید جزئیات مربوط به یکی از محصولات یک فروشگاه را مشاهده کنید. مقدار <span class="s17">{id}</span> از فیلد <span class="s17">id</span> بخش ۲-۲-۱ قابل دریافت است.</p>
+  <div class="s25">
+    <span class="s26">GET</span>
+    <span class="s27">baseUrl/vendors/{vendor_id}/products/{id}</span>
+  </div>
+  <p class="s31">ساختار پاسخ این اندپوینت دقیقاً مانند یک عضو از آرایه <span class="s32">data</span> در بخش ۲-۲-۱ است، با این تفاوت که <span class="s32">data</span> یک آبجکت است و بخش <span class="s32">meta</span> ندارد.</p>
+
+  <h4 class="s24">۲-۲-۳ — آپدیت محصول مربوط به یک فروشگاه</h4>
+  <p class="s15">با استفاده از این اندپوینت می‌توانید اطلاعاتی که در ادامه ذکر شده است را آپدیت کنید.</p>
+  <ul class="s28">
+    <li class="s20">مقادیر مربوط به قیمت باید به تومان وارد شوند.</li>
+    <li>حداکثر امکان ارسال ۵۰ محصول در هر ریکوئست وجود دارد.</li>
+  </ul>
+  <p class="s33">فیلدهایی که می‌توانند ارسال شوند</p>
+  <table class="s34">
+    <thead>
+      <tr class="s8">
+        <th class="s35">فیلد</th>
+        <th class="s36">نوع</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s37">id</td>
+        <td class="s38">رشته</td>
+        <td class="s38">شناسه‌ی منحصر به فرد محصول — قابل دریافت از بخش ۲-۲-۱ <span class="s39">(اجباری)</span></td>
+      </tr>
+      <tr>
+        <td class="s37">stock</td>
+        <td class="s38">عدد صحیح</td>
+        <td class="s38">موجودی <span class="s39">(اجباری)</span></td>
+      </tr>
+      <tr>
+        <td class="s37">price</td>
+        <td class="s38">عدد صحیح</td>
+        <td class="s38">قیمت پایه <span class="s39">(اجباری)</span></td>
+      </tr>
+      <tr>
+        <td class="s37">capacity</td>
+        <td class="s38">عدد صحیح</td>
+        <td class="s38">ظرفیت فروش برای هر سفارش</td>
+      </tr>
+      <tr>
+        <td class="s37">special_price</td>
+        <td class="s38">عدد صحیح</td>
+        <td class="s38">قیمت پس از تخفیف</td>
+      </tr>
+      <tr>
+        <td class="s37">special_price_start_at</td>
+        <td class="s38">رشته</td>
+        <td class="s38">تاریخ شروع اعمال تخفیف — مانند نمونه به میلادی وارد شود</td>
+      </tr>
+      <tr>
+        <td class="s37">special_price_end_at</td>
+        <td class="s38">رشته</td>
+        <td class="s38">تاریخ پایان اعمال تخفیف — مانند نمونه به میلادی وارد شود</td>
+      </tr>
+      <tr>
+        <td class="s37">special_price_stock</td>
+        <td class="s38">عدد صحیح</td>
+        <td class="s38">موجودی محصولات دارای تخفیف</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="s40">
+    در صورتی که برای محصول <span class="s32">sku</span> ثبت شده باشد می‌توانید به جای فیلد <span class="s32">id</span> فیلد <span class="s32">sku</span> را ارسال کنید. اگر برای یک محصول هر دو مقدار <span class="s32">id</span> و <span class="s32">sku</span> ارسال شود، مقدار <span class="s32">sku</span> آپدیت می‌شود.
+  </div>
+  <div class="s25">
+    <span class="s41">PATCH</span>
+    <span class="s27">baseUrl/vendors/{vendor_id}/products</span>
+  </div>
+  <div class="s21">Request Body Sample 1 — با <span class="s13">id</span></div>
+  <pre class="s42">{
+  "products": [
+    {
+      "id": "9ernro",
+      "stock": 15,
+      "price": 15000,
+      "capacity": 5,
+      "special_price": 12000,
+      "special_price_start_at": "2023-04-26",
+      "special_price_end_at": "2023-05-16",
+      "special_price_stock": 5
+    },
+    {
+      "id": "3r3not",
+      "stock": 5,
+      "price": 5000
+    }
+  ]
+}</pre>
+  <div class="s21">Request Body Sample 2 — با <span class="s13">sku</span></div>
+  <pre class="s42">{
+  "products": [
+    {
+      "sku": "31fea170-ed99-34ed-b08d-f7g54e2626a",
+      "stock": 15,
+      "price": 15000,
+      "capacity": 5,
+      "special_price": 12000,
+      "special_price_start_at": "2023-04-26",
+      "special_price_end_at": "2023-05-16",
+      "special_price_stock": 5
+    },
+    {
+      "sku": "44dea170-ed99-33ed-b08d-f72b2de626a",
+      "stock": 5,
+      "price": 5000
+    }
+  ]
+}</pre>
+
+  <div class="s21">Response Sample (200 OK)</div>
+  <pre class="s42">{
+  "status": true,
+  "data": [
+    {
+      "id": "zrXw70",
+      "sku": "31fea170-ed99-34ed-b08d-f7g54e2626a",
+      "status": true,
+      "messages": []
+    },
+    {
+      "id": "trCw30",
+      "sku": "44dea170-ed99-33ed-b08d-f72b2de626a",
+      "status": false,
+      "messages": [
+        "Invalid id/sku!"
+      ]
+    }
+  ]
+}</pre>
+  <div class="s21">Response Sample (422 Unprocessable Entity)</div>
+  <pre class="s22">{
+  "message": "the hashed field can not convert",
+  "code": 221004,
+  "trackId": "1af2df1c7b",
+  "status": false,
+  "errors": []
+}</pre>
+
+
+  <h3 class="s29">۲-۳ — سفارشات (Orders)</h3>
+
+  <h4 class="s24">۲-۳-۱ — دریافت رویدادهای مربوط به سفارشات (Order Events)</h4>
+  <p class="s15">از طریق این اندپوینت می‌توانید آخرین سفارشات ثبت‌شده و همچنین تغییرات وضعیت یا لغو سفارشات را به‌صورت پیوسته دریافت نمایید.</p>
+  <div class="s25">
+    <span class="s26">GET</span>
+    <span class="s27">baseUrl/vendors/{vendor_id}/orders/events</span>
+  </div>
+
+  <div class="s21">Response Sample (200 OK)</div>
+  <pre class="s43">{
+  "status": true,
+  "data": [
+    {
+      "event_type": "NEW_ORDER",
+      "order_number": 1216515253,
+      "event_at": "2025-11-01 17:51:47",
+      "items": [
+        {
+          "sku": null,
+          "vendor_product_info_id": "gvARRA",
+          "product_number": 135412856172254,
+          "parent_product_number": 135354856172246,
+          "canceled_quantity": 0,
+          "total_canceled_quantity": 0,
+          "deliverable_quantity": 1,
+          "final_price": 3020000,
+          "item_status": "CONFIRMED"
+        }
+      ]
+    },
+    {
+      "event_type": "CANCELLATION",
+      "order_number": 727971837,
+      "event_at": "2025-11-01 23:02:39",
+      "items": [
+        {
+          "sku": null,
+          "vendor_product_info_id": "geW1VB",
+          "product_number": 135654856172254,
+          "parent_product_number": 135125856172246,
+          "canceled_quantity": 1,
+          "total_canceled_quantity": 1,
+          "deliverable_quantity": 0,
+          "final_price": 0,
+          "item_status": "CANCELED"
+        }
+      ]
+    },
+    {
+      "event_type": "CHANGE_STATUS",
+      "order_number": 727971837,
+      "event_at": "2025-11-01 23:02:39",
+      "new_status": "CANCELED"
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "path": "{base_url}/vendors/{vendor_id}/orders/events",
+      "per_page": 20,
+      "count": 3,
+      "links": {
+        "next": "{base_url}/vendors/{vendor_id}/orders/events?cursor=eyJpZCI6MzgsIl9wb2ludHNUb05le"
+      },
+      "has_more": false,
+      "next_cursor": "eyJpZCI6MzgsIl9wb2ludHNUb05le"
+    }
+  }
+}</pre>
+
+  <p class="s33">توضیحات</p>
+  <ul class="s19">
+    <li class="s20">با اولین درخواست به این اندپوینت، قدیمی‌ترین رویدادهای مربوط به سفارشات برای شما بازگردانده می‌شود.</li>
+    <li class="s20">در هر فراخوانی، حداکثر ۵۰ رویداد اخیر بازگردانده خواهد شد.</li>
+    <li class="s20">در صورتی که تعداد کل رویدادها بیش از ۵۰ عدد باشد، مقدار <span class="s17">has_more</span> در بخش <span class="s17">meta.pagination</span> برابر با <span class="s32">true</span> خواهد بود.</li>
+    <li class="s20">برای دریافت ادامه رویدادها، مقدار <span class="s17">next_cursor</span> که در همان بخش قرار دارد باید در درخواست بعدی به‌صورت query parameter ارسال شود.</li>
+    <li class="s20">هر پاسخ دریافتی شامل مقدار <span class="s17">next_cursor</span> جدید است که مخصوص صفحه‌ی بعدی است؛ بنابراین در هر درخواست بعدی باید آخرین مقدار دریافتی از پاسخ قبلی ارسال شود.</li>
+    <li>آدرس کامل درخواست صفحه بعدی از طریق فیلد <span class="s17">meta.pagination.links.next</span> در پاسخ در دسترس است و نیازی به ساخت دستی URL بعدی نمی‌باشد.</li>
+  </ul>
+  <div class="s44">
+    <span class="s26">GET</span>
+    <span class="s27">baseUrl/vendors/{vendor_id}/orders/events?cursor=eyJpZCI6MzgsIl9wb2ludHNUb05le</span>
+  </div>
+  <p class="s33">نکات مهم در مورد فیلد آیتم‌ها (items)</p>
+  <table class="s45">
+    <thead>
+      <tr class="s8">
+        <th class="s46">فیلد</th>
+        <th class="s10">توضیح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="s47">canceled_quantity</td>
+        <td class="s38">تعداد آیتم‌هایی از این محصول که در رویداد جاری لغو شده‌اند.</td>
+      </tr>
+      <tr>
+        <td class="s47">total_canceled_quantity</td>
+        <td class="s38">مجموع تعداد آیتم‌های لغو‌شده از این محصول در رویداد جاری و تمامی رویدادهای قبلی مربوط به سفارش.</td>
+      </tr>
+      <tr>
+        <td class="s47">parent_product_number</td>
+        <td class="s38">شماره محصول اصلی یا همان کد SNP مربوط به آیتم؛ برابر با شماره محصول درج‌شده در وبسایت اصلی اسنپ‌شاپ است. این شماره به ازای هر محصول اصلی یکتاست و برای تنوع‌های مختلف یک محصول، مقدار یکسانی دارد.</td>
+      </tr>
+      <tr>
+        <td class="s47">product_number</td>
+        <td class="s38">شماره محصول مربوط به آیتم؛ برابر با شماره محصول درج‌شده در مرکز فروشندگان اسنپ‌شاپ است. این شماره به ازای هر تنوع از یک محصول اصلی یکتاست.</td>
+      </tr>
+      <tr>
+        <td class="s47">deliverable_quantity</td>
+        <td class="s38">تعداد آیتم‌هایی از این محصول که هنوز برای تحویل به خریدار باقی مانده‌اند.</td>
+      </tr>
+      <tr>
+        <td class="s47">final_price</td>
+        <td class="s38">مجموع قیمت آیتم‌های باقی‌مانده برای تحویل به خریدار. در صورتی که تمامی آیتم‌ها لغو شده باشند، مقدار این فیلد برابر با صفر خواهد بود.</td>
+      </tr>
+      <tr>
+        <td class="s47">item_status</td>
+        <td class="s38">وضعیت فعلی آیتم در سفارش. اگر تمام آیتم‌ها لغو شده باشند مقدار این فیلد <span class="s32">CANCELED</span> و در غیر این صورت <span class="s32">CONFIRMED</span> خواهد بود.</td>
+      </tr>
+      <tr>
+        <td class="s47">vendor_product_info_id</td>
+        <td class="s38">شناسه‌ی یکتای محصول در پلتفرم اسنپ‌شاپ که برای شناسایی دقیق محصول در سیستم مرکزی استفاده می‌شود.</td>
+      </tr>
+      <tr>
+        <td class="s47">sku</td>
+        <td class="s38">شناسه‌ی داخلی اختصاصی که فروشنده برای هر یک از محصولات خود تعریف کرده است.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h4 class="s24">۲-۳-۲ — دریافت آخرین جزئیات یک سفارش با شماره سفارش (order_number)</h4>
+  <p class="s15">از طریق این اندپوینت می‌توانید آخرین وضعیت سفارش ثبت‌شده و همچنین آیتم‌های خریداری‌شده، مشخصات خریدار، آدرس خریدار و … را مشاهده نمایید.</p>
+  <div class="s25">
+    <span class="s26">GET</span>
+    <span class="s27">baseUrl/vendors/{vendor_id}/orders/{order_number}</span>
+  </div>
+
+  <div class="s21">Response Sample (200 OK)</div>
+  <pre class="s43">{
+  "data": {
+    "order_number": {order_number},
+    "created_at": "2025-11-01 11:39:54",
+    "delivery_type": "NORMAL",
+    "order_status": "CONFIRMED",
+    "item_origin": "VENDOR",
+    "point_of_sales_at": null,
+    "pickup_time": {
+      "start": "2025-11-01 11:00:00",
+      "end": "2025-11-01 18:00:00"
+    },
+    "customer": {
+      "first_name": "مهسا",
+      "last_name": "رضایی",
+      "phone": null,
+      "national_id": null
+    },
+    "items": [
+      {
+        "sku": null,
+        "product_number": 1564841615164,
+        "parent_product_number": 1564841615160,
+        "item_status": "CONFIRMED",
+        "quantity": 1,
+        "canceled_quantity": 0,
+        "discount_amount": 13800000,
+        "final_price": 13799990
+      }
+    ]
+  }
+}</pre>
+
+  <ul class="s48">
+    <li class="s20">این اندپوینت اطلاعات کامل یک سفارش را بر اساس شماره سفارش (<span class="s32">order_number</span>) بازمی‌گرداند.</li>
+    <li class="s20">اطلاعات شامل مشخصات سفارش، وضعیت، زمان تحویل، اطلاعات مشتری و آیتم‌های سفارش است.</li>
+    <li class="s20">فیلد <span class="s17">address</span> در بخش <span class="s32">customer</span> تنها در صورتی دارای مقدار خواهد بود که نوع ارسال سفارش، ارسال توسط فروشنده باشد؛ در غیر این صورت مقدار آن برابر آرایه‌ی خالی <span class="s32">[]</span> خواهد بود.</li>
+    <li>فیلدهای <span class="s17">phone</span> و <span class="s17">national_id</span> تنها در صورتی نمایش داده می‌شوند که دسترسی مشاهده‌ی اطلاعات خریدار برای شما فعال شده باشد؛ در غیر این صورت مقدار این فیلدها برابر با <span class="s32">null</span> خواهد بود.</li>
+  </ul>
+
+  <h4 class="s24">۲-۳-۳ — دریافت تاریخچه سفارشات</h4>
+  <p class="s15">از طریق این اندپوینت می‌توانید تاریخچه‌ی کامل سفارشات خود را مشاهده کنید. خروجی شامل لیستی از سفارشات از قدیمی‌ترین تا جدیدترین سفارش است و برای هر سفارش آخرین وضعیت آیتم‌های خریداری‌شده، تغییرات زمان تحویل، مشخصات خریدار، آدرس خریدار و سایر اطلاعات مرتبط نمایش داده می‌شود.</p>
+  <div class="s25">
+    <span class="s26">GET</span>
+    <span class="s27">baseUrl/vendors/{vendor_id}/orders</span>
+  </div>
+
+  <div class="s21">Response Sample (200 OK)</div>
+  <pre class="s43">{
+  "status": true,
+  "data": [
+    {
+      "order_number": 1885177654,
+      "created_at": "2025-10-04 13:32:27",
+      "delivery_type": "EXPRESS",
+      "order_status": "CONFIRMED",
+      "item_origin": "VENDOR",
+      "point_of_sales_at": null,
+      "pickup_time": {
+        "start": "2025-10-04 13:00:00",
+        "end": "2025-10-04 14:51:00"
+      },
+      "customer": {
+        "first_name": "مهسا",
+        "last_name": "رضایی",
+        "phone": null,
+        "national_id": null,
+        "address": []
+      },
+      "items": [
+        {
+          "sku": null,
+          "vendor_product_info_id": "gwpGMM",
+          "product_number": 98456101161,
+          "parent_product_number": "68456101195",
+          "item_status": "CONFIRMED",
+          "quantity": 1,
+          "canceled_quantity": 0,
+          "original_price": 4500000,
+          "discount_amount": 13800000,
+          "final_price": 9300000
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "path": "{baseUrl}/vendors/{vendor_id}/orders",
+      "per_page": 20,
+      "count": 20,
+      "links": {
+        "next": "{baseUrl}/vendors/{vendor_id}/orders?cursor=eyJvcC5pZCI6MTA0MDk3MDksIl9wb2ludHNUb05leHRJdGVtcyI6dHJ1ZX0"
+      },
+      "has_more": true,
+      "next_cursor": "eyJvcC5pZCI6MTA0MDk3MDksIl9wb2ludHNUb05leHRJdGVtcyI6dHJ1ZX0"
+    }
+  }
+}</pre>
+
+  <p class="s33">نحوه دریافت داده‌ها</p>
+  <ul class="s28">
+    <li class="s20">در اولین فراخوانی، سفارشات موجود از ۱۴ روز اخیر برای شما ارسال خواهد شد.</li>
+    <li class="s20">در هر درخواست، حداکثر ۲۰ سفارش برای شما برگردانده می‌شود.</li>
+    <li class="s20">اگر تعداد سفارشات بیشتر از ۲۰ عدد باشد، در پاسخ مقدار <span class="s17">meta.pagination.has_more</span> برابر با <span class="s32">true</span> خواهد بود.</li>
+    <li class="s20">برای دریافت ادامه‌ی سفارشات، مقدار <span class="s17">cursor</span> موجود در پاسخ را به صورت پارامتر در درخواست بعدی ارسال نمایید.</li>
+    <li>توجه: لینک کامل درخواست صفحه‌ی بعدی از طریق <span class="s17">meta.pagination.links.next</span> نیز در پاسخ قابل دسترسی است و نیاز به ساخت دستی آدرس وجود ندارد.</li>
+  </ul>
+  <div class="s44">
+    <span class="s26">GET</span>
+    <span class="s27">{baseUrl}/vendors/{vendor_id}/orders?cursor=eyJvcC5pZCI6MTA</span>
+  </div>
+  <p class="s33">دریافت لیست سفارشات در بازه خاص</p>
+  <ul class="s28">
+    <li class="s20">در صورتی که نیاز به دریافت سفارشات یک بازه خاص دارید می‌توانید از فیلترهای <span class="s17">start_date</span> و <span class="s17">end_date</span> استفاده نمایید. به عنوان مثال برای دریافت سفارشات از ۱ مهر ۱۴۰۴ تا ۳۱ مهر ۱۴۰۴ درخواست شما باید به صورت زیر باشد.</li>
+  </ul>
+  <div class="s25">
+    <span class="s26">GET</span>
+    <span class="s27">{baseUrl}/vendors/{vendor_id}/orders?start_date=2025-09-23&amp;end_date=2025-10-22</span>
+  </div>
+  <ul class="s19">
+    <li class="s20">بعد از دریافت <span class="s17">cursor_id</span> می‌توانید از این پارامتر برای ادامه لیست سفارشات استفاده نمایید. در درخواست‌های بعدی در صورتی که <span class="s32">"has_more": false</span> دریافت شود، یعنی سفارشات بازه تاریخی به پایان رسیده است.</li>
+    <li>در صورتی که می‌خواهید لیست سفارشات از یک تاریخ خاص به بعد تا آخرین سفارش دریافتی تا الان را دریافت کنید، کافی است فقط فیلتر <span class="s17">start_date</span> را ارسال نمایید.</li>
+  </ul>
+  <p class="s33">نکات مهم در مورد اطلاعات مشتری</p>
+  <ul class="s49">
+    <li class="s20">فیلد <span class="s17">address</span> تنها در صورتی دارای مقدار خواهد بود که روش ارسال، ارسال توسط فروشنده باشد. در غیر این صورت مقدار آن برابر آرایه‌ی خالی <span class="s32">[]</span> خواهد بود.</li>
+    <li>فیلدهای <span class="s17">phone</span> و <span class="s17">national_id</span> تنها در صورتی نمایش داده می‌شوند که دسترسی مشاهده اطلاعات خریدار برای شما فعال شده باشد. در غیر این صورت مقدار این فیلدها برابر با <span class="s32">null</span> خواهند بود.</li>
+  </ul>
+<div class="doc-footer doc-footer-inner">
+    <span>اسنپ‌شاپ — مرکز فروشندگان</span>
+    <span class="doc-footer-inner">apix.snappshop.ir/automation/v1</span>
+  </div>
+
+</div>
+</body>
+</html>

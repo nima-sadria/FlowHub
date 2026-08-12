@@ -1,0 +1,67 @@
+/* Implementation-authoritative values, read from FlowHub/frontend/src/globals.css
+   (GitHub main). Where the Figma capture in fig-tokens.css and the shipped
+   implementation disagree, the implementation wins per the FlowHub authority
+   rule — those overrides live here, after fig-tokens.css in the import order.
+   Every value below is copied verbatim from globals.css; nothing is rounded. */
+
+:root{
+  /* Type scale — TailAdmin-aligned ramp the implementation ships.
+     Present in globals.css, absent from the Figma variable collections. */
+  --fh-text-title-2xl:72px; --fh-leading-title-2xl:90px;
+  --fh-text-title-xl:60px;  --fh-leading-title-xl:72px;
+  --fh-text-title-lg:48px;  --fh-leading-title-lg:60px;
+  --fh-text-title-md:36px;  --fh-leading-title-md:44px;
+  --fh-text-title-sm:30px;  --fh-leading-title-sm:38px;
+  --fh-text-xl:20px; --fh-leading-xl:30px;
+  --fh-text-lg:18px; --fh-leading-lg:28px;
+  --fh-text-md:16px; --fh-leading-md:24px;
+  --fh-text-sm:14px; --fh-leading-sm:20px;
+  --fh-text-xs:12px; --fh-leading-xs:18px;
+
+  /* Border tier the Figma set omits */
+  --color-border-emphasis:var(--gray-400);
+
+  /* Control sizing as shipped. The Figma Action/Button (Medium) 36px maps to
+     the implementation's .fh-button-sm; the DEFAULT shipped button is 44px. */
+  --size-control-touch:44;
+  --size-input-height:46;
+  --size-segmented-button:38;
+  --size-topbar-control:36;
+  --size-avatar-sm:32;
+  --size-brand-mark:34;
+
+  /* Elevation — the Figma file materialized no effect styles */
+  --shadow-xs:0 1px 2px rgba(16,24,40,0.05);
+  --shadow-sm:0 1px 3px rgba(16,24,40,0.1),0 1px 2px rgba(16,24,40,0.06);
+  --shadow-md:0 4px 8px -2px rgba(16,24,40,0.1),0 2px 4px -2px rgba(16,24,40,0.06);
+  --shadow-lg:0 12px 16px -4px rgba(16,24,40,0.08),0 4px 6px -2px rgba(16,24,40,0.03);
+  --shadow-xl:0 20px 24px -4px rgba(16,24,40,0.08),0 8px 8px -4px rgba(16,24,40,0.03);
+  --shadow-tooltip:0 4px 6px -2px rgba(16,24,40,0.05),-8px 0 20px 8px rgba(16,24,40,0.05);
+  --focus-ring:0 0 0 4px rgba(70,95,255,0.12);
+
+  --overlay-scrim:rgba(16,24,40,0.45);
+  --overlay-glass:rgba(255,255,255,0.72);
+  --gradient-primary:linear-gradient(180deg,var(--brand-400) 0%,var(--brand-500) 100%); /* @kind color */
+  --gradient-glass:linear-gradient(180deg,rgba(255,255,255,0.88) 0%,rgba(249,250,251,0.96) 100%); /* @kind color */
+
+  /* Motion — the only transition the implementation declares */
+  --transition-base:150ms ease; /* @kind other */
+}
+
+:root[data-theme="dark"], .dark{
+  /* globals.css .dark sets text-primary to 90% white, not pure white */
+  --color-text-primary:rgba(255,255,255,0.9);
+  --color-bg-elevated:var(--gray-dark);
+  --color-border-emphasis:var(--gray-600);
+
+  --shadow-xs:0 1px 2px rgba(0,0,0,0.18);
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.28),0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md:0 4px 8px -2px rgba(0,0,0,0.3),0 2px 4px -2px rgba(0,0,0,0.2);
+  --shadow-lg:0 12px 16px -4px rgba(0,0,0,0.32),0 4px 6px -2px rgba(0,0,0,0.2);
+  --shadow-xl:0 20px 24px -4px rgba(0,0,0,0.36),0 8px 8px -4px rgba(0,0,0,0.24);
+  --focus-ring:0 0 0 4px rgba(117,146,255,0.16);
+
+  --overlay-scrim:rgba(0,0,0,0.7);
+  --overlay-glass:rgba(16,24,40,0.78);
+  --gradient-glass:linear-gradient(180deg,rgba(29,41,57,0.94) 0%,rgba(16,24,40,0.98) 100%); /* @kind color */
+}
