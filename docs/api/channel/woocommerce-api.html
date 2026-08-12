@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>مستند فنی API فروشندگان ووکامرس — v3</title>
+  <link rel="stylesheet" href="woocommerce-api.css">
+</head>
+<body>
+  <main class="sheet">
+    <header class="doc-header"><span>مستند فنی API فروشندگان ووکامرس</span><span dir="ltr">WooCommerce REST API v3</span></header>
+    <h1>مستند فنی API فروشندگان ووکامرس</h1>
+    <p>راهنمای فارسی اتصال به WooCommerce REST API v3 برای مدیریت داده‌های فروشگاه، محصولات، مشتریان، سفارش‌ها و وب‌هوک‌ها.</p>
+    <blockquote>این مستند بر پایهٔ مرجع رسمی WooCommerce REST API v3 تهیه شده است و مسیرهای آن مربوط به API تاریخی <code>wc-api/v3</code> هستند.</blockquote>
+
+    <h2>۱ — پیش‌نیازها و نشانی پایه</h2>
+    <p>WooCommerce ۲.۱ یا جدیدتر، فعال‌بودن REST API و Pretty Permalinks الزامی است.</p>
+    <pre>baseUrl = https://www.your-store.com/wc-api/v3</pre>
+
+    <h2>۲ — الگوی درخواست و پاسخ</h2>
+    <p>بدنه و پاسخ API از JSON استفاده می‌کنند. تاریخ‌ها RFC 3339 در UTC، شناسه‌ها عددی و مبالغ اعشاری به‌صورت رشته با دو رقم اعشار بازگردانده می‌شوند.</p>
+
+    <h2>۳ — احراز هویت</h2>
+    <h3>۳-۱ — HTTPS</h3>
+    <p>Consumer Key و Consumer Secret را با HTTP Basic Auth ارسال کنید.</p>
+    <pre>curl https://www.example.com/wc-api/v3/orders \
+  -u consumer_key:consumer_secret</pre>
+    <h3>۳-۲ — HTTP</h3>
+    <p>در ارتباط بدون SSL از OAuth 1.0a یک‌طرفه استفاده کنید. پارامترهای <code>oauth_consumer_key</code>، <code>oauth_timestamp</code>، <code>oauth_nonce</code>، <code>oauth_signature</code> و <code>oauth_signature_method</code> الزامی‌اند.</p>
+
+    <h2>۴ — پارامترها و صفحه‌بندی</h2>
+    <pre>GET /orders?status=completed&amp;filter[created_at_min]=2013-11-01</pre>
+    <table><thead><tr><th>پارامتر یا هدر</th><th>کاربرد</th></tr></thead><tbody>
+      <tr><td><code>filter[limit]</code></td><td>تعداد آیتم هر صفحه</td></tr>
+      <tr><td><code>page</code></td><td>شمارهٔ صفحه، با شروع از ۱</td></tr>
+      <tr><td><code>filter[offset]</code></td><td>جابه‌جایی از نخستین منبع</td></tr>
+      <tr><td><code>X-WC-Total</code></td><td>تعداد کل منابع</td></tr>
+      <tr><td><code>X-WC-TotalPages</code></td><td>تعداد کل صفحه‌ها</td></tr>
+      <tr><td><code>Link</code></td><td>نشانی‌های first، prev، next و last</td></tr>
+    </tbody></table>
+
+    <h2>۵ — خطاها</h2>
+    <table><thead><tr><th>وضعیت</th><th>معنی</th></tr></thead><tbody>
+      <tr><td><code>400</code></td><td>درخواست یا متد نامعتبر</td></tr><tr><td><code>401</code></td><td>اعتبارنامه یا مجوز نامعتبر</td></tr><tr><td><code>404</code></td><td>منبع یافت نشد</td></tr><tr><td><code>500</code></td><td>خطای داخلی سرور</td></tr>
+    </tbody></table>
+    <pre>{
+  "errors": [{
+    "code": "woocommerce_api_authentication_error",
+    "message": "Consumer Key is invalid"
+  }]
+}</pre>
+
+    <h2>۶ — وب‌هوک‌ها</h2>
+    <p>وب‌هوک‌های فعال، payload JSON را با POST ارسال می‌کنند. برای راستی‌آزمایی درخواست، امضای Base64 شدهٔ HMAC-SHA256 در هدر <code>X-WC-Webhook-Signature</code> را با secret وب‌هوک و بدنهٔ خام مقایسه کنید.</p>
+    <table><thead><tr><th>هدر</th><th>توضیح</th></tr></thead><tbody>
+      <tr><td><code>X-WC-Webhook-Topic</code></td><td>نمونه: order.updated</td></tr><tr><td><code>X-WC-Webhook-Resource</code></td><td>نوع منبع</td></tr><tr><td><code>X-WC-Webhook-Event</code></td><td>نوع رویداد</td></tr><tr><td><code>X-WC-Webhook-Signature</code></td><td>امضای payload</td></tr>
+    </tbody></table>
+
+    <h2>۷ — عیب‌یابی</h2>
+    <ul><li>پیکربندی قدیمی Nginx ممکن است API را دچار اختلال کند.</li><li>ModSecurity ممکن است POST، PUT و DELETE را مسدود کند.</li><li>در خطای Consumer key is missing، عبور هدر Authorization را در وب‌سرور یا proxy بررسی کنید.</li></ul>
+    <footer class="doc-footer"><span>FlowHub — مستندات کانال‌ها</span><a href="https://github.com/woocommerce/woocommerce-rest-api-docs/blob/trunk/source/includes/v3/_introduction.md">منبع رسمی ووکامرس</a></footer>
+  </main>
+</body>
+</html>

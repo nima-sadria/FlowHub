@@ -38,6 +38,8 @@ describe('ChannelDocs', () => {
     expect(container.textContent).toContain('API اسنپ‌شاپ')
     expect(container.textContent).toContain('API تپسی‌شاپ')
     expect(container.textContent).toContain('API تکنولایف')
+    expect(container.textContent).toContain('API ووکامرس')
+    expect(container.textContent).toContain('API دیجی‌کالا')
   })
 
   it('renders the selected API document with a searchable content view', () => {
@@ -46,5 +48,21 @@ describe('ChannelDocs', () => {
     expect(container.textContent).toContain('API تکنولایف')
     expect(container.textContent).toContain('۴ — قیمت‌گذاری')
     expect(container.querySelector('input[type="search"]')?.getAttribute('aria-label')).toBe('جست‌وجو در مستندات')
+  })
+
+  it('renders the WooCommerce API v3 document', () => {
+    renderDocs('/docs/channels/woocommerce')
+
+    expect(container.textContent).toContain('API ووکامرس')
+    expect(container.textContent).toContain('۱ — پیش‌نیازها و نشانی پایه')
+    expect(container.textContent).toContain('۷ — وب‌هوک‌ها')
+  })
+
+  it('renders the Digikala Marketplace API document', () => {
+    renderDocs('/docs/channels/digikala')
+
+    expect(container.textContent).toContain('API دیجی‌کالا')
+    expect(container.textContent).toContain('۱ — پیش‌نیازها و نشانی پایه')
+    expect(container.textContent).toContain('۸ — وب‌هوک‌ها')
   })
 })

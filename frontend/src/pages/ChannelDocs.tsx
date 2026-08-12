@@ -5,6 +5,8 @@ import PageShell from '../components/PageShell'
 import snappshopMarkdown from '../../../docs/api/channel/snappshop-api-doc.md?raw'
 import tapsishopMarkdown from '../../../docs/api/channel/tapsishop-api-doc.md?raw'
 import technolifeMarkdown from '../../../docs/api/channel/technolife-api.md?raw'
+import woocommerceMarkdown from '../../../docs/api/channel/woocommerce-api.md?raw'
+import digikalaMarkdown from '../../../docs/api/channel/digikala-api.md?raw'
 
 type ChannelDocument = {
   id: string
@@ -45,6 +47,22 @@ const channelDocuments: ChannelDocument[] = [
     description: 'مدیریت محصول، تنوع، قیمت‌گذاری، تخفیف و سفارشات SBS.',
     protocol: 'REST · JSON · Bearer + encrypted-secret',
     markdown: technolifeMarkdown,
+  },
+  {
+    id: 'woocommerce',
+    title: 'API ووکامرس',
+    provider: 'WooCommerce',
+    description: 'مدیریت داده‌های فروشگاه، سفارش‌ها، محصولات و وب‌هوک‌های API v3.',
+    protocol: 'REST · JSON · Basic Auth / OAuth 1.0a',
+    markdown: woocommerceMarkdown,
+  },
+  {
+    id: 'digikala',
+    title: 'API دیجی‌کالا',
+    provider: 'Digikala',
+    description: 'مدیریت کالا، تنوع، موجودی، سفارش، بسته و وب‌هوک‌های فروشندگان.',
+    protocol: 'REST · JSON · JWT Bearer Token',
+    markdown: digikalaMarkdown,
   },
 ]
 

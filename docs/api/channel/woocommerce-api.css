@@ -1,0 +1,29 @@
+@charset "utf-8";
+/* WooCommerce API v3 — FlowHub documentation tokens */
+@import url("tokens/fig-tokens.css");
+@import url("tokens/impl-sync.css");
+@import url("tokens/fonts.css");
+@import url("tokens/typography.css");
+
+html { direction: rtl; }
+body { margin: 0; background: var(--color-bg-app); color: var(--color-text-primary); font-family: var(--font-rtl); text-align: right; }
+.sheet { box-sizing: border-box; max-width: 8.27in; margin: 32px auto; padding: .7in; background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: 8px; }
+.doc-header, .doc-footer { align-items: center; color: var(--color-text-muted); display: flex; font-size: 11px; gap: 16px; justify-content: space-between; }
+.doc-header { border-bottom: 1px solid var(--color-border-default); padding-bottom: 8px; }
+.doc-footer { border-top: 1px solid var(--color-border-default); margin-top: 24px; padding-top: 8px; }
+h1 { font: 700 30px/40px var(--font-rtl); letter-spacing: -.01em; margin: 24px 0 10px; }
+h2 { border-bottom: 1px solid var(--color-border-default); font-size: 20px; font-weight: 600; letter-spacing: -.01em; line-height: 28px; margin: 34px 0 12px; padding-bottom: 8px; }
+h3 { font-size: 16px; font-weight: 600; line-height: 24px; margin: 22px 0 8px; }
+p, li { color: var(--color-text-secondary); font-size: 14px; line-height: 1.8; }
+ul { margin: 0 0 14px; padding-inline-start: 20px; }
+code { background: var(--color-bg-muted); border-radius: 4px; direction: ltr; font-family: var(--font-mono); font-size: 12px; padding: 1px 5px; unicode-bidi: plaintext; }
+pre { background: var(--color-bg-subtle); border: 1px solid var(--color-border-default); border-radius: 8px; direction: ltr; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.65; margin: 0 0 18px; overflow-wrap: anywhere; padding: 12px 14px; text-align: left; white-space: pre-wrap; }
+pre code { background: transparent; padding: 0; }
+table { border-collapse: collapse; font-size: 13px; line-height: 1.65; margin: 0 0 18px; width: 100%; }
+th, td { border: 1px solid var(--color-border-default); padding: 8px 12px; text-align: right; vertical-align: top; }
+th { background: var(--color-bg-subtle); font-weight: 600; }
+td code, th code { white-space: nowrap; }
+blockquote { background: var(--color-status-info-surface); border: 1px solid var(--color-border-default); border-inline-start: 3px solid var(--brand-500); border-radius: 8px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.75; margin: 14px 0; padding: 12px 14px; }
+a { color: var(--brand-600); }
+@page { size: A4; margin: 16mm 14mm; }
+@media print { body { background: #fff; } .sheet { border: 0; border-radius: 0; margin: 0; max-width: none; padding: 0; } h1, h2, h3 { break-after: avoid; } pre, table, tr { break-inside: avoid; } thead { display: table-header-group; } }

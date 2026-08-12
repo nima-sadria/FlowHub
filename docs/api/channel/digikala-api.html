@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>مستند فنی API فروشندگان دیجی‌کالا</title>
+  <link rel="stylesheet" href="digikala-api.css">
+</head>
+<body>
+  <main class="sheet">
+    <header class="doc-header"><span>مستند فنی API فروشندگان دیجی‌کالا</span><span dir="ltr">DK Marketplace Open API v1</span></header>
+    <h1>مستند فنی API فروشندگان دیجی‌کالا</h1>
+    <p>راهنمای فارسی اتصال به API فروشندگان دیجی‌کالا برای مدیریت کالا، تنوع، قیمت، موجودی، سفارش، بسته و رخدادها.</p>
+    <blockquote>این راهنما از مشخصات رسمی OpenAPI دیجی‌کالا تهیه شده است. برای جزئیات هر مسیر و سطح دسترسی، مرجع رسمی را کنترل کنید.</blockquote>
+
+    <h2>۱ — پیش‌نیازها و نشانی پایه</h2>
+    <p>یک Active Client ثبت‌شده و Scopeهای لازم برای استفاده از API ضروری است.</p>
+    <pre>baseUrl = https://seller.digikala.com/open-api/v1</pre>
+
+    <h2>۲ — دریافت و نوسازی توکن</h2>
+    <p>پس از تأیید دسترسی فروشنده، <code>authorization_code</code> را برای دریافت توکن ارسال کنید.</p>
+    <pre>POST /auth/token
+Content-Type: application/json
+
+{ "authorization_code": "CODE_FROM_CALLBACK" }</pre>
+    <p>برای نوسازی، توکن دسترسی منقضی‌شده و Refresh Token را به <code>POST /auth/refresh-token</code> بفرستید و هر دو توکن جدید را ذخیره کنید.</p>
+
+    <h2>۳ — احراز هویت و Scope</h2>
+    <pre>curl 'https://seller.digikala.com/open-api/v1/orders' \
+  -H 'Authorization: Bearer ACCESS_TOKEN' \
+  -H 'Content-Type: application/json'</pre>
+    <table><thead><tr><th>مسیر</th><th>کاربرد</th></tr></thead><tbody>
+      <tr><td><code>GET /auth/scopes</code></td><td>فهرست Scopeهای سرویس</td></tr>
+      <tr><td><code>GET /auth/scopes/{client_code}</code></td><td>Scopeهای فعال برای Client</td></tr>
+      <tr><td><code>POST /auth/revoke</code></td><td>لغو دسترسی برنامه</td></tr>
+    </tbody></table>
+
+    <h2>۴ — صفحه‌بندی</h2>
+    <p>در پاسخ‌های فهرستی، اطلاعات صفحه‌بندی در <code>data.pager</code> است. نام پارامترها را برای هر endpoint در Swagger بررسی کنید.</p>
+    <pre>{
+  "status": "ok",
+  "data": { "pager": { "page": 1, "item_per_page": 50, "total_pages": 4, "total_rows": 183 }, "items": [] }
+}</pre>
+
+    <h2>۵ — حوزه‌های اصلی API</h2>
+    <table><thead><tr><th>حوزه</th><th>مسیر نمونه</th></tr></thead><tbody>
+      <tr><td>کالا و دسته‌بندی</td><td><code>/categories/tree</code>، <code>/products/seller</code></td></tr>
+      <tr><td>تنوع و قیمت</td><td><code>/variants/*</code></td></tr>
+      <tr><td>سفارش</td><td><code>/orders</code>، <code>/orders/{order_item_id}</code></td></tr>
+      <tr><td>موجودی</td><td><code>/inventories/*</code></td></tr>
+      <tr><td>بسته و ارسال</td><td><code>/packages/*</code>، <code>/shipments/*</code></td></tr>
+      <tr><td>وب‌هوک</td><td><code>/webhook/*</code></td></tr>
+    </tbody></table>
+
+    <h2>۶ — خطاها و محدودیت درخواست</h2>
+    <table><thead><tr><th>وضعیت</th><th>اقدام</th></tr></thead><tbody>
+      <tr><td><code>400</code></td><td>بدنه و خطاهای اعتبارسنجی را اصلاح کنید.</td></tr>
+      <tr><td><code>401</code></td><td>توکن را نوسازی کنید.</td></tr>
+      <tr><td><code>403</code></td><td>Scope Client را بررسی کنید.</td></tr>
+      <tr><td><code>429</code></td><td>با backoff و پس از زمان مجاز تلاش کنید.</td></tr>
+      <tr><td><code>500</code></td><td>برای عملیات idempotent با backoff دوباره تلاش کنید.</td></tr>
+    </tbody></table>
+    <footer class="doc-footer"><span>FlowHub — مستندات کانال‌ها</span><a href="https://seller.digikala.com/open-api/v1/doc/#/">مرجع رسمی دیجی‌کالا</a></footer>
+  </main>
+</body>
+</html>
