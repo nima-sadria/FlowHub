@@ -175,6 +175,134 @@ def test_integration_platform_canonical_contracts_and_write_guard(client, auth_h
     }
 
 
+def test_digikala_is_coming_soon_on_every_public_integration_platform_path(db, client, auth_headers):
+    """The retained backend definition must not create a second configurable UI/API path."""
+    from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+    from app.flowhub.integration_platform.registry import registry
+
+    # The internal foundation is intentionally retained for future conformance
+    # work, including its OAuth declaration.  Public API projections must not
+    # expose it as an actionable capability.
+    internal = registry.get_definition("digikala")
+    assert internal is not None
+    assert internal.connector.capabilities.oauth is True
+    assert internal.settings_schema
+
+    canonical_definition = client.get(
+        "/api/v2/integration-platform/registry/digikala",
+        headers=auth_headers,
+    )
+    assert canonical_definition.status_code == 200
+    public = canonical_definition.json()
+    assert public["status"] == "coming_soon"
+    assert public["availability"] == "coming_soon"
+    assert public["actionable"] is False
+    assert public["implementation_status"] == "IMPLEMENTED_UNVERIFIED"
+    assert not any(public["capabilities"].values())
+    assert public["settings_schema"] == []
+    assert public["secret_fields"] == []
+    assert public["diagnostic_checks"] == []
+
+    legacy_definition = client.get(
+        "/api/v2/integrations/registry/digikala",
+        headers=auth_headers,
+    )
+    assert legacy_definition.status_code == 200
+    legacy_public = legacy_definition.json()
+    assert legacy_public["availability"] == "coming_soon"
+    assert legacy_public["actionable"] is False
+    assert not any(legacy_public["connector"]["capabilities"].values())
+    assert legacy_public["settings_schema"] == []
+
+    instance = IntegrationConnectorInstance(
+        id="digikala:retained-foundation",
+        connector_type="digikala",
+        name="Digikala",
+        version="1.0.0",
+        enabled=True,
+        read_only=True,
+        status="healthy",
+    )
+    db.add(instance)
+    db.commit()
+
+    canonical_instance = client.get(
+        "/api/v2/integration-platform/connectors/digikala:retained-foundation/health",
+        headers=auth_headers,
+    )
+    assert canonical_instance.status_code == 200
+    assert canonical_instance.json()["status"] == "coming_soon"
+    assert canonical_instance.json()["error_code"] == "channel_coming_soon"
+
+    canonical_instances = client.get(
+        "/api/v2/integration-platform/connectors",
+        headers=auth_headers,
+    )
+    assert canonical_instances.status_code == 200
+    canonical_item = next(
+        item
+        for item in canonical_instances.json()["items"]
+        if item["id"] == "digikala:retained-foundation"
+    )
+    assert canonical_item["status"] == "coming_soon"
+    assert canonical_item["availability"] == "coming_soon"
+    assert canonical_item["actionable"] is False
+    assert not any(canonical_item["capabilities"].values())
+
+    legacy_instance = client.get(
+        "/api/v2/integrations/connectors/digikala:retained-foundation",
+        headers=auth_headers,
+    )
+    assert legacy_instance.status_code == 200
+    legacy_instance_body = legacy_instance.json()
+    assert legacy_instance_body["availability"] == "coming_soon"
+    assert legacy_instance_body["actionable"] is False
+    assert legacy_instance_body["connector"]["identity"]["enabled"] is False
+    assert not any(legacy_instance_body["connector"]["capabilities"].values())
+    assert legacy_instance_body["settings"] == []
+
+    blocked = [
+        ("post", "/api/v2/integration-platform/connectors", {"connector_type": "digikala", "id": "digikala:new", "name": "Digikala"}),
+        ("post", "/api/v2/integrations/connectors", {"connector_type": "digikala", "id": "digikala:legacy-new", "name": "Digikala"}),
+        ("put", "/api/v2/integration-platform/connectors/digikala:retained-foundation", {"name": "Changed"}),
+        ("get", "/api/v2/integration-platform/connectors/digikala:retained-foundation/settings", None),
+        ("get", "/api/v2/integrations/connectors/digikala:retained-foundation/settings", None),
+        ("put", "/api/v2/integration-platform/connectors/digikala:retained-foundation/settings", {"settings": {}}),
+        ("patch", "/api/v2/integrations/connectors/digikala:retained-foundation/settings", {"settings": []}),
+        ("patch", "/api/v2/integration-platform/connectors/digikala:retained-foundation/enable", None),
+        ("patch", "/api/v2/integration-platform/connectors/digikala:retained-foundation/disable", None),
+        ("delete", "/api/v2/integration-platform/connectors/digikala:retained-foundation", None),
+        ("post", "/api/v2/integration-platform/connectors/digikala:retained-foundation/test", None),
+        ("post", "/api/v2/integration-platform/connectors/digikala:retained-foundation/detect-capabilities", None),
+        ("post", "/api/v2/integration-platform/connectors/digikala:retained-foundation/diagnostics/run", None),
+        ("put", "/api/v2/integration-platform/connectors/digikala:retained-foundation/polling", {"enabled": True}),
+        ("post", "/api/v2/integration-platform/connectors/digikala:retained-foundation/write-test", {"operation": "write_prices"}),
+    ]
+    for method, url, body in blocked:
+        response = (
+            getattr(client, method)(url, headers=auth_headers, json=body)
+            if body is not None
+            else getattr(client, method)(url, headers=auth_headers)
+        )
+        assert response.status_code == 409, (method, url, response.text)
+        assert response.json()["detail"]["code"] == "CHANNEL_COMING_SOON"
+
+    all_diagnostics = client.post(
+        "/api/v2/integration-platform/diagnostics/run",
+        headers=auth_headers,
+    )
+    assert all_diagnostics.status_code == 200
+    assert all(check["target"] != "digikala" for check in all_diagnostics.json()["checks"])
+
+    db.expire_all()
+    persisted = db.get(IntegrationConnectorInstance, "digikala:retained-foundation")
+    assert persisted is not None
+    assert persisted.name == "Digikala"
+    assert persisted.enabled is True
+    assert db.get(IntegrationConnectorInstance, "digikala:new") is None
+    assert db.get(IntegrationConnectorInstance, "digikala:legacy-new") is None
+
+
 def test_internal_connector_metadata_is_hidden_from_all_public_setting_contracts(db):
     from app.flowhub.integration_platform.models import (
         IntegrationConnectorInstance,

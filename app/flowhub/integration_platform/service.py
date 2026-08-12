@@ -32,9 +32,11 @@ from app.flowhub.data_layer.models import (
 from app.flowhub.integration_platform.contracts import (
     ConnectorCategoryListResponse,
     ConnectorCategoryShape,
+    ConnectorCapabilities,
     ConnectorCreateRequest,
     ConnectorDefinition,
     ConnectorDescriptor,
+    ConnectorDiagnosticsContract,
     ConnectorHealthStatus,
     ConnectorIdentity,
     ConnectorInstanceShape,
@@ -79,6 +81,12 @@ _SECRET_KEYS = {
 # settings APIs, exports, or Settings-page summaries.
 _INTERNAL_SETTING_KEYS = frozenset({"_flowhub_display_name_custom"})
 
+# A connector can remain in the internal registry while FlowHub deliberately
+# withholds every public operational action until the provider contract has
+# been verified with Owner credentials.
+_PUBLIC_COMING_SOON_CONNECTOR_TYPES = frozenset({"digikala"})
+_COMING_SOON_IMPLEMENTATION_STATUS = "IMPLEMENTED_UNVERIFIED"
+
 logger = logging.getLogger(__name__)
 
 
@@ -89,7 +97,9 @@ class IntegrationPlatformService:
 
     # Registry and instances
     def list_registry(self) -> ConnectorRegistryResponse:
-        return ConnectorRegistryResponse(items=registry.list_definitions())
+        return ConnectorRegistryResponse(
+            items=[self._public_definition(item) for item in registry.list_definitions()]
+        )
 
     def list_registry_contract(self) -> dict:
         return {
@@ -103,6 +113,10 @@ class IntegrationPlatformService:
         if definition is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector definition not found.")
         return definition
+
+    def get_public_registry_definition(self, connector_type: str) -> ConnectorDefinition:
+        """Return the registry projection safe for user-facing API clients."""
+        return self._public_definition(self.get_registry_definition(connector_type))
 
     def get_registry_contract(self, connector_type: str) -> dict:
         return self._definition_to_contract(self.get_registry_definition(connector_type), detail=True)
@@ -153,6 +167,7 @@ class IntegrationPlatformService:
         }
 
     def create_instance(self, body: ConnectorCreateRequest) -> ConnectorInstanceShape:
+        self._require_public_operation_available(body.connector_type)
         definition = self.get_registry_definition(body.connector_type)
         existing = self.db.get(IntegrationConnectorInstance, body.id)
         if existing is not None:
@@ -181,6 +196,7 @@ class IntegrationPlatformService:
         connector_type = str(body.get("connector_type") or "").strip()
         if not connector_type:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "connector_type is required.")
+        self._require_public_operation_available(connector_type)
         definition = self.get_registry_definition(connector_type)
         connector_id = str(body.get("id") or f"{connector_type}:{uuid.uuid4().hex[:12]}")
         existing = self.db.get(IntegrationConnectorInstance, connector_id)
@@ -228,6 +244,7 @@ class IntegrationPlatformService:
         row = self.db.get(IntegrationConnectorInstance, connector_id)
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        self._require_public_operation_available(row.connector_type)
         if "name" in body:
             row.name = str(body["name"])
         if "enabled" in body:
@@ -265,6 +282,7 @@ class IntegrationPlatformService:
         row = self.db.get(IntegrationConnectorInstance, connector_id)
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        self._require_public_operation_available(row.connector_type)
         row.enabled = enabled
         row.read_only = True
         row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -283,6 +301,7 @@ class IntegrationPlatformService:
         row = self.db.get(IntegrationConnectorInstance, connector_id)
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        self._require_public_operation_available(row.connector_type)
         self.db.delete(row)
         self.record_event(
             connector_id=connector_id,
@@ -303,17 +322,15 @@ class IntegrationPlatformService:
 
     def latest_health(self, connector_id: str) -> DlConnectorHealth | None:
         self.bootstrap_from_app_config()
-        if self.db.get(IntegrationConnectorInstance, connector_id) is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        self._get_instance_for_public_operation(connector_id)
         return self._latest_health(connector_id)
 
     def get_settings(self, connector_id: str) -> list[ConnectorSettingValue]:
-        return self.get_instance(connector_id).settings
+        row = self._get_instance_for_public_operation(connector_id)
+        return self._instance_to_shape(row).settings
 
     def get_settings_contract(self, connector_id: str) -> dict:
-        row = self.db.get(IntegrationConnectorInstance, connector_id)
-        if row is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        row = self._get_instance_for_public_operation(connector_id)
         settings: dict[str, object] = {}
         secrets: dict[str, dict[str, str | None]] = {}
         for item in row.settings:
@@ -344,9 +361,7 @@ class IntegrationPlatformService:
 
     def stage_settings_contract(self, connector_id: str, body: dict) -> None:
         """Stage connector settings and audit metadata without owning the transaction."""
-        row = self.db.get(IntegrationConnectorInstance, connector_id)
-        if row is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        row = self._get_instance_for_public_operation(connector_id)
         entries: list[ConnectorSettingValue] = []
         settings = self._normalize_connector_settings(
             row.connector_type,
@@ -383,9 +398,7 @@ class IntegrationPlatformService:
         self.db.flush()
 
     def update_settings(self, connector_id: str, settings: list[ConnectorSettingValue]) -> ConnectorInstanceShape:
-        row = self.db.get(IntegrationConnectorInstance, connector_id)
-        if row is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        row = self._get_instance_for_public_operation(connector_id)
         if row.connector_type == "nextcloud":
             normalized = self._normalize_connector_settings(
                 row.connector_type,
@@ -414,6 +427,39 @@ class IntegrationPlatformService:
         )
         self.db.refresh(row)
         return self._instance_to_shape(row)
+
+    def test_connection_contract(self, connector_id: str) -> dict:
+        """Return local health evidence without allowing Coming Soon connectors to test."""
+        self.bootstrap_from_app_config()
+        row = self._get_instance_for_public_operation(connector_id)
+        instance = self._instance_to_shape(row)
+        health = self._latest_health(connector_id)
+        status_value = instance.connector.status.value
+        return {
+            "ok": status_value not in {"error", "authentication_failed"},
+            "status": status_value,
+            "latency_ms": health.latency_ms if health else None,
+            "connector_version": instance.connector.identity.version,
+            "detected_capabilities": instance.connector.capabilities.model_dump(),
+            "authentication_valid": status_value != "authentication_failed",
+            "error_code": None,
+            "message": "Connection test used local Integration Platform/Data Layer records only.",
+            "correlation_id": self._correlation_id(),
+        }
+
+    def detect_capabilities_contract(self, connector_id: str) -> dict:
+        """Expose registry capabilities only for publicly operational connectors."""
+        self.bootstrap_from_app_config()
+        row = self._get_instance_for_public_operation(connector_id)
+        instance = self._instance_to_shape(row)
+        return {
+            "canonical_capabilities": instance.connector.capabilities.model_dump(),
+            "native_capabilities": {},
+            "detected_at": instance.updated_at,
+            "confidence": "registry",
+            "warnings": ["Capability detection does not grant authorization."],
+            "correlation_id": self._correlation_id(),
+        }
 
     # Legacy config bootstrap. This is local DB metadata only, no external calls.
     def bootstrap_from_app_config(self) -> None:
@@ -697,9 +743,21 @@ class IntegrationPlatformService:
         started = datetime.now(timezone.utc).replace(tzinfo=None)
         definitions = registry.list_definitions()
         if target != "all":
+            self._require_public_operation_available(target)
             definitions = [d for d in definitions if d.connector.identity.type == target]
             if not definitions:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Diagnostic target not found.")
+        else:
+            # Retained Coming Soon foundations are not public diagnostics
+            # targets.  Do not expose their raw health/configuration contract
+            # through the all-connectors convenience endpoint either.
+            definitions = [
+                definition
+                for definition in definitions
+                if not self._is_publicly_coming_soon(
+                    definition.connector.identity.type
+                )
+            ]
         instances = {
             row.connector_type: row
             for row in self.db.query(IntegrationConnectorInstance).all()
@@ -746,9 +804,7 @@ class IntegrationPlatformService:
     def diagnostics_contract(self, connector_id: str | None = None) -> dict:
         target = "all"
         if connector_id:
-            row = self.db.get(IntegrationConnectorInstance, connector_id)
-            if row is None:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+            row = self._get_instance_for_public_operation(connector_id)
             target = row.connector_type
         run = self.diagnostics_run(target)
         status_value = self._diagnostic_status(run["overall_status"])
@@ -826,9 +882,8 @@ class IntegrationPlatformService:
         raw_body: bytes,
         signature: str | None,
     ) -> dict:
-        instance = self.db.get(IntegrationConnectorInstance, connector_id)
-        if instance is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        instance = self._get_instance_for_public_operation(connector_id)
+        self._require_public_operation_available(connector_type)
         webhook_secret = self._secret_configured(instance, "webhook_secret")
         if not webhook_secret:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Webhook signature verifier is not configured.")
@@ -864,7 +919,7 @@ class IntegrationPlatformService:
         }
 
     def get_polling_contract(self, connector_id: str) -> dict:
-        self.get_instance(connector_id)
+        self._get_instance_for_public_operation(connector_id)
         policy = self.db.get(IntegrationPollingPolicy, connector_id)
         if policy is None:
             policy = IntegrationPollingPolicy(connector_id=connector_id, enabled=False)
@@ -874,7 +929,7 @@ class IntegrationPlatformService:
         return self._polling_to_contract(policy)
 
     def update_polling_contract(self, connector_id: str, body: dict) -> dict:
-        self.get_instance(connector_id)
+        self._get_instance_for_public_operation(connector_id)
         policy = self.db.get(IntegrationPollingPolicy, connector_id)
         if policy is None:
             policy = IntegrationPollingPolicy(connector_id=connector_id)
@@ -896,7 +951,8 @@ class IntegrationPlatformService:
         return self._polling_to_contract(policy)
 
     def write_guard_contract(self, connector_id: str, operation: str) -> dict:
-        instance = self.get_instance(connector_id)
+        row = self._get_instance_for_public_operation(connector_id)
+        instance = self._instance_to_shape(row)
         capabilities = instance.connector.capabilities.model_dump()
         self.record_event(
             connector_id=connector_id,
@@ -940,8 +996,107 @@ class IntegrationPlatformService:
         return event
 
     # Internal mapping helpers
+    @staticmethod
+    def _is_publicly_coming_soon(connector_type: str) -> bool:
+        return connector_type in _PUBLIC_COMING_SOON_CONNECTOR_TYPES
+
+    def _require_public_operation_available(self, connector_type: str) -> None:
+        """Keep public API operations aligned with the Channel availability model."""
+        if not self._is_publicly_coming_soon(connector_type):
+            return
+        definition = registry.get_definition(connector_type)
+        name = definition.connector.identity.name if definition else connector_type
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "CHANNEL_COMING_SOON",
+                "message": (
+                    f"{name} is Coming Soon. Public configuration, connection tests, and capability "
+                    "detection are unavailable until live read-only conformance is verified."
+                ),
+            },
+        )
+
+    def _get_instance_for_public_operation(self, connector_id: str) -> IntegrationConnectorInstance:
+        row = self.db.get(IntegrationConnectorInstance, connector_id)
+        if row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        self._require_public_operation_available(row.connector_type)
+        return row
+
+    def _public_definition(self, definition: ConnectorDefinition) -> ConnectorDefinition:
+        """Remove operational metadata from a retained Coming Soon connector."""
+        if not self._is_publicly_coming_soon(definition.connector.identity.type):
+            return definition
+        public_connector = definition.connector.model_copy(
+            update={
+                "identity": definition.connector.identity.model_copy(update={"enabled": False}),
+                "capabilities": ConnectorCapabilities(),
+                "status": ConnectorHealthStatus.DISABLED,
+            }
+        )
+        return definition.model_copy(
+            update={
+                "connector": public_connector,
+                "settings_schema": [],
+                "diagnostics_contract": ConnectorDiagnosticsContract(),
+                "availability": "coming_soon",
+                "actionable": False,
+                "implementation_status": _COMING_SOON_IMPLEMENTATION_STATUS,
+            }
+        )
+
+    def _coming_soon_instance_contract(self, row: IntegrationConnectorInstance) -> dict:
+        return {
+            "id": row.id,
+            "connector_type": row.connector_type,
+            "name": row.name,
+            "enabled": False,
+            "read_only": True,
+            "status": "coming_soon",
+            "availability": "coming_soon",
+            "actionable": False,
+            "implementation_status": _COMING_SOON_IMPLEMENTATION_STATUS,
+            "health": {
+                "healthy": False,
+                "last_checked_at": None,
+                "latency_ms": None,
+                "error_code": "channel_coming_soon",
+                "message": "Digikala is Coming Soon and has no publicly actionable health state.",
+            },
+            "capabilities": ConnectorCapabilities().model_dump(),
+            "created_at": _iso(row.created_at),
+            "updated_at": _iso(row.updated_at),
+            "last_checked_at": None,
+            "runtime_write_blocked": True,
+            "capability_authorizes_write": False,
+        }
+
     def _instance_to_shape(self, row: IntegrationConnectorInstance) -> ConnectorInstanceShape:
         definition = self.get_registry_definition(row.connector_type)
+        if self._is_publicly_coming_soon(row.connector_type):
+            definition = self._public_definition(definition)
+            descriptor = ConnectorDescriptor(
+                identity=ConnectorIdentity(
+                    id=row.id,
+                    name=row.name,
+                    type=row.connector_type,
+                    version=row.version,
+                    enabled=False,
+                    read_only=True,
+                ),
+                capabilities=definition.connector.capabilities,
+                status=ConnectorHealthStatus.DISABLED,
+            )
+            return ConnectorInstanceShape(
+                connector=descriptor,
+                settings=[],
+                created_at=_iso(row.created_at),
+                updated_at=_iso(row.updated_at),
+                availability="coming_soon",
+                actionable=False,
+                implementation_status=_COMING_SOON_IMPLEMENTATION_STATUS,
+            )
         health_status = self._health_status_for(row)
         descriptor = ConnectorDescriptor(
             identity=ConnectorIdentity(
@@ -967,6 +1122,51 @@ class IntegrationPlatformService:
         )
 
     def _definition_to_contract(self, definition: ConnectorDefinition, detail: bool = False) -> dict:
+        if self._is_publicly_coming_soon(definition.connector.identity.type):
+            capabilities = ConnectorCapabilities().model_dump()
+            body = {
+                "connector_type": definition.connector.identity.type,
+                "name": definition.connector.identity.name,
+                "version": definition.connector.identity.version,
+                "description": (
+                    f"{definition.connector.identity.name} is Coming Soon. "
+                    "Its backend foundation is retained, but public configuration and operations are unavailable."
+                ),
+                "capabilities": capabilities,
+                "authentication_types": [],
+                "supported_operations": [],
+                "supported_transports": [],
+                "read_only_supported": True,
+                "write_supported": False,
+                "FLOWHUB_write_blocked": True,
+                "status": "coming_soon",
+                "availability": "coming_soon",
+                "actionable": False,
+                "settings_available": False,
+                "implemented": True,
+                "implementation_status": _COMING_SOON_IMPLEMENTATION_STATUS,
+            }
+            if detail:
+                body.update(
+                    {
+                        "settings_schema": [],
+                        "secret_fields": [],
+                        "health_checks": [],
+                        "diagnostic_checks": [],
+                        "webhook_events": [],
+                        "polling_defaults": {
+                            "enabled": False,
+                            "interval_seconds": None,
+                            "scheduler_implemented": False,
+                        },
+                        "rate_limit_policy": {"local_api_limit": "standard", "connector_limits_honored": True},
+                        "data_layer_mappings": [],
+                        "known_limitations": [
+                            "Digikala is Coming Soon until Owner credentials and live read-only conformance are verified."
+                        ],
+                    }
+                )
+            return body
         connector = definition.connector
         capabilities = connector.capabilities.model_dump()
         body = {
@@ -982,6 +1182,9 @@ class IntegrationPlatformService:
             "write_supported": bool(capabilities.get("write_prices") or capabilities.get("write_inventory")),
             "FLOWHUB_write_blocked": True,
             "status": "current" if connector.identity.type in {"woocommerce", "nextcloud"} else "future",
+            "availability": "available",
+            "actionable": True,
+            "implementation_status": definition.implementation_status,
         }
         if detail:
             body.update(
@@ -1000,6 +1203,8 @@ class IntegrationPlatformService:
         return body
 
     def _instance_to_contract(self, row: IntegrationConnectorInstance) -> dict:
+        if self._is_publicly_coming_soon(row.connector_type):
+            return self._coming_soon_instance_contract(row)
         definition = self.get_registry_definition(row.connector_type)
         health_status = self._health_status_for(row).value
         health = self._latest_health(row.id)
@@ -1026,6 +1231,8 @@ class IntegrationPlatformService:
         }
 
     def _instance_error_contract(self, row: IntegrationConnectorInstance) -> dict:
+        if self._is_publicly_coming_soon(row.connector_type):
+            return self._coming_soon_instance_contract(row)
         return {
             "id": row.id,
             "connector_type": row.connector_type,

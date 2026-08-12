@@ -10,6 +10,7 @@ export interface SystemHealth {
 export type DiagnosticState =
   | 'HEALTHY'
   | 'INFO'
+  | 'COMING_SOON'
   | 'NOT_CHECKED'
   | 'NOT_APPLICABLE'
   | 'DISABLED'
@@ -19,6 +20,7 @@ export type DiagnosticState =
 export type ChannelHealthLevel =
   | 'Operational'
   | 'Information'
+  | 'Coming Soon'
   | 'Not checked'
   | 'Not applicable'
   | 'Warning'

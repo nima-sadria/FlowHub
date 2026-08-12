@@ -6,13 +6,16 @@ import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import { ManagementResourceSections } from '../components/ResourceOrdering'
-import OperationalResourceCard, { type OperationalResourceAction } from '../components/OperationalResourceCard'
+import OperationalResourceCard, { type OperationalResourceAction, type OperationalResourceState } from '../components/OperationalResourceCard'
 import {
+  commerceChannelSignals,
+  isCommerceChannelComingSoon,
+  isCommerceTypeComingSoon,
   prepareResourceCollection,
   type ResourceBadge,
-  type ResourceOrderingSignals,
   type ResourceTier,
 } from '../features/resourceOrdering/resourceOrdering'
+import { connectionExceptionMessage, connectionResultMessage } from '../features/diagnostics/connectionErrorPresentation'
 import { translate } from '../i18n'
 import { formatCapabilityList, formatStatus } from '../i18n/display'
 import { formatNumber, formatRelativeTime } from '../i18n/format'
@@ -39,51 +42,56 @@ function matchesFilter(
   resource: { tier: ResourceTier; badge: ResourceBadge; item: CommerceChannel },
   filter: ChannelFilter,
 ): boolean {
+  const state = channelCardState(resource.item, resource.tier)
   if (filter === 'all') return true
-  if (filter === 'connected') {
-    return resource.item.implemented
-      && resource.item.enabled
-      && resource.item.credential_status === 'configured'
-  }
-  if (filter === 'active') return resource.badge === 'healthy'
-    || resource.badge === 'configured'
-    || resource.badge === 'warning'
-  if (filter === 'healthy') return resource.badge === 'healthy'
-  if (filter === 'attention') return resource.tier === 'attention' || resource.tier === 'disabled'
-  return resource.tier === filter
+  if (filter === 'connected') return state === 'connected'
+  if (filter === 'active') return state !== 'disabled' && state !== 'comingSoon'
+  if (filter === 'healthy') return state === 'connected' && resource.badge === 'healthy'
+  if (filter === 'attention') return state === 'needsAttention'
+  if (filter === 'disabled') return state === 'disabled'
+  return state === 'comingSoon'
 }
 
 function channelBadgeTone(badge: ResourceBadge): BadgeVariant {
   if (badge === 'healthy') return 'success'
-  if (badge === 'warning' || badge === 'disabled') return 'warning'
+  if (badge === 'warning') return 'warning'
+  if (badge === 'disabled') return 'disabled'
   return 'neutral'
 }
 
-function channelBadgeLabel(badge: ResourceBadge): string {
-  if (badge === 'healthy') return translate('common:status.healthy')
-  if (badge === 'configured') return translate('common:status.configured')
-  if (badge === 'warning') return translate('common:resourceBadge.warning')
-  if (badge === 'disabled') return translate('common:status.setupRequired')
-  return translate('common:resourceBadge.comingSoon')
+function normalizedChannelState(value: string | null | undefined): string {
+  return String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_')
 }
 
-function channelLifecycleSignals(channel: CommerceChannel): ResourceOrderingSignals {
-  return {
-    id: channel.id,
-    displayName: channelDisplayName(channel),
-    status: channel.status,
-    healthStatus: channel.health.status === 'unknown' ? null : channel.health.status,
-    credentialStatus: channel.credential_status,
-    enabled: channel.enabled,
-    configured: channel.credential_status === 'configured',
-    implemented: channel.implemented,
-    placeholder: channel.placeholder,
-  }
+function channelRequiresSetup(channel: CommerceChannel): boolean {
+  const configurationState = normalizedChannelState(channel.configuration_state)
+  return channel.credential_status !== 'configured'
+    || ['not_configured', 'setup_required'].includes(configurationState)
+}
+
+function channelCardState(channel: CommerceChannel, tier: ResourceTier): OperationalResourceState {
+  if (isCommerceChannelComingSoon(channel) || tier === 'comingSoon') return 'comingSoon'
+  if (tier === 'disabled') return 'disabled'
+  if (channelRequiresSetup(channel)) return 'setupRequired'
+  if (tier === 'attention') return 'needsAttention'
+  return 'connected'
+}
+
+function channelStatusPresentation(
+  state: OperationalResourceState,
+  badge: ResourceBadge,
+): { label: string; variant: BadgeVariant } {
+  if (state === 'comingSoon') return { label: translate('common:resourceBadge.comingSoon'), variant: 'neutral' }
+  if (state === 'disabled') return { label: translate('common:status.disabled'), variant: 'disabled' }
+  if (state === 'setupRequired') return { label: translate('common:status.setupRequired'), variant: 'warning' }
+  if (state === 'needsAttention') return { label: translate('commerce:commerceHub.needsAttentionKpi'), variant: 'warning' }
+  if (badge === 'healthy') return { label: translate('common:status.healthy'), variant: 'success' }
+  return { label: translate('common:status.configured'), variant: channelBadgeTone(badge) }
 }
 
 function channelNeedsOperationalAttention(channel: CommerceChannel): boolean {
   return ['degraded', 'error', 'failed', 'partial_failed', 'unhealthy'].includes(channel.health.status)
-    || ['failed', 'partial_failed', 'completed_with_errors'].includes(channel.cache_refresh_status)
+    || ['failed', 'partial_failed', 'completed_with_errors', 'completed_with_warnings', 'refresh_failed', 'stale'].includes(normalizedChannelState(channel.cache_refresh_status))
 }
 
 function todayIsoDate(): string {
@@ -116,12 +124,19 @@ export default function Channels() {
   const setupTarget = searchParams.get('setup')
   const setupResourceId = setupTarget && setupTarget !== 'new' ? setupTarget : null
   const qaFixture = resourceQaFixtureState(`?${searchParams.toString()}`)
-  const setupResourceUnavailable = Boolean(setupResourceId && channelTypes.length > 0 && !channelTypes.some(item => item.id === setupResourceId))
 
   const channelResources = useMemo(
-    () => prepareResourceCollection(channels, channelLifecycleSignals),
+    () => prepareResourceCollection(channels, commerceChannelSignals),
     [channels],
   )
+  const setupResourceType = setupResourceId
+    ? channelTypes.find(item => item.id === setupResourceId)
+    : undefined
+  const setupResourceUnavailable = Boolean(setupResourceId && channelTypes.length > 0 && !setupResourceType)
+  const setupResourceComingSoon = Boolean(setupResourceId && (
+    channelResources.ordered.find(item => item.id === setupResourceId)?.tier === 'comingSoon'
+    || (setupResourceType && isCommerceTypeComingSoon(setupResourceType))
+  ))
   const visibleChannels = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase()
     return channelResources.ordered
@@ -131,18 +146,16 @@ export default function Channels() {
         || resource.item.provider.toLocaleLowerCase().includes(normalizedQuery))
   }, [channelResources, filter, query])
   const needsAttentionCount = useMemo(
-    () => channelResources.ordered.filter(resource => resource.tier === 'attention' || resource.tier === 'disabled').length,
+    () => channelResources.ordered.filter(resource => channelCardState(resource.item, resource.tier) === 'needsAttention').length,
     [channelResources],
   )
   const connectedChannelsCount = useMemo(
-    () => channelResources.ordered.filter(resource => resource.item.implemented
-      && resource.item.enabled
-      && resource.item.credential_status === 'configured').length,
+    () => channelResources.ordered.filter(resource => channelCardState(resource.item, resource.tier) === 'connected').length,
     [channelResources],
   )
   const healthyListingsTotal = useMemo(
     () => channelResources.ordered
-      .filter(resource => resource.badge === 'healthy')
+      .filter(resource => channelCardState(resource.item, resource.tier) === 'connected' && resource.badge === 'healthy')
       .reduce((sum, resource) => sum + (resource.item.cached_products || 0), 0),
     [channelResources],
   )
@@ -235,6 +248,8 @@ export default function Channels() {
   }, [channelTypes.length, setupError, setupLoading, setupTarget])
 
   function openSetup(resourceId?: string) {
+    const channel = resourceId ? channels.find(item => item.id === resourceId) : undefined
+    if (channel && isCommerceChannelComingSoon(channel)) return
     setupTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const next = new URLSearchParams(searchParams)
     next.set('setup', resourceId ?? 'new')
@@ -272,14 +287,14 @@ export default function Channels() {
       } else {
         notify.error({
           title: translate('commerce:commerceHub.unableToConnectToTheChannel'),
-          description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+          description: connectionResultMessage(result),
         })
       }
       await load()
-    } catch {
+    } catch (error) {
       notify.error({
         title: translate('commerce:commerceHub.unableToConnectToTheChannel'),
-        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+        description: connectionExceptionMessage(error),
       })
     } finally {
       setTestingId(null)
@@ -325,7 +340,7 @@ export default function Channels() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button className="fh-button-secondary" type="button" onClick={() => navigate('/docs/channels')}>
-            <Icon name="file" /> مستندات API
+            <Icon name="file" /> {translate('commerce:commerceHub.channelDocumentation')}
           </button>
           {canManageCommerce && (
             <button className="fh-button-primary" type="button" onClick={() => openSetup()}>
@@ -453,33 +468,36 @@ export default function Channels() {
       {loading ? <p className="fh-card fh-card-pad fh-text-caption" role="status" aria-live="polite" aria-busy="true">{translate('commerce:commerceHub.loadingCommerceHub')}</p> : loadError ? null : visibleChannels.length === 0 ? (
         <div className="fh-card fh-card-pad"><Empty title={translate('commerce:commerceHub.noChannelsFound')} description={translate('commerce:commerceHub.channelOperationalSubtitle')} action={canManageCommerce ? { label: translate('commerce:commerceHub.addChannel'), onClick: () => openSetup() } : undefined} /></div>
       ) : (
-        <ManagementResourceSections resources={prepareResourceCollection(visibleChannels.map(resource => resource.item), channelLifecycleSignals)} className="fh-sources-grid fh-channels-grid" renderItem={resource => {
+        <ManagementResourceSections
+          resources={prepareResourceCollection(visibleChannels.map(resource => resource.item), commerceChannelSignals)}
+          className="fh-sources-grid fh-channels-grid"
+          groupFor={resource => channelCardState(resource.item, resource.tier)}
+          renderItem={resource => {
           const channel = resource.item
-          const state = resource.tier === 'comingSoon'
-            ? 'comingSoon'
-            : channel.enabled && channel.credential_status === 'configured'
-              ? 'connected'
-              : 'setupRequired'
-          const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop', 'technolife'].includes(channel.provider) && !channel.placeholder
-          const lastActivityAt = channel.last_cache_refresh ?? channel.last_health_check
+          const state = channelCardState(channel, resource.tier)
+          const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop', 'technolife'].includes(channel.provider)
+            && state !== 'comingSoon'
           const accessMode = channel.read_only || channel.write_blocked
             ? translate('commerce:commerceHub.readOnly2')
             : translate('commerce:commerceHub.writeEnabled2')
+          const configurationState = channel.configuration_state
+            ?? (channel.credential_status === 'configured' ? 'configured' : 'not_configured')
           const capabilities = channel.capabilities_summary.length > 0
             ? formatCapabilityList(channel.capabilities_summary.slice(0, 3))
             : translate('common:status.unavailable')
-          const setupReason = !channel.enabled || channel.status === 'disabled' || channel.status === 'inactive'
-            ? translate('commerce:commerceHub.setupReasonDisabled')
-            : translate('commerce:commerceHub.setupReasonCredentials')
-          const facts = state === 'comingSoon' ? [] : state === 'setupRequired'
+          const cachedProducts = `${formatNumber(channel.cached_products)} (${formatStatus(channel.cache_refresh_status)})`
+          const facts = state === 'comingSoon' ? [] : state === 'setupRequired' || state === 'disabled'
             ? [
               { label: translate('commerce:commerceHub.accessMode'), value: accessMode },
+              { label: translate('commerce:commerceHub.setupState'), value: formatStatus(configurationState) },
             ]
             : [
               { label: translate('commerce:commerceHub.accessMode'), value: accessMode },
               { label: translate('commerce:commerceHub.channelHealthLabel'), value: formatStatus(channel.health.status) },
-              { label: translate('commerce:commerceHub.channelLastActivity'), value: lastActivityAt ? formatRelativeTime(lastActivityAt) : translate('commerce:commerceHub.noRecentActivity') },
-              { label: translate('commerce:commerceHub.cachedProducts'), value: formatNumber(channel.cached_products) },
+              { label: translate('commerce:commerceHub.setupState'), value: formatStatus(configurationState) },
+              { label: translate('commerce:commerceHub.refreshStatus'), value: formatStatus(channel.cache_refresh_status) },
+              { label: translate('commerce:commerceHub.lastCacheRefresh'), value: channel.last_cache_refresh ? formatRelativeTime(channel.last_cache_refresh) : translate('commerce:commerceHub.notRefreshed') },
+              { label: translate('commerce:commerceHub.cachedProducts'), value: cachedProducts },
               { label: translate('commerce:commerceHub.channelCapabilitiesLabel'), value: capabilities },
               ...(channel.cached_variations > 0 ? [{ label: translate('commerce:commerceHub.cachedVariations'), value: formatNumber(channel.cached_variations) }] : []),
             ]
@@ -487,12 +505,13 @@ export default function Channels() {
             ? canManageCommerce ? [{ label: translate('common:action.setupNow'), icon: 'settings', primary: true, onClick: () => openSetup(channel.id) }] : []
             : state === 'comingSoon' ? [] : [
               { label: translate('common:action.open'), icon: 'preview', onClick: () => navigate(`/channels/${encodeURIComponent(channel.id)}`) },
-              ...(canManageCommerce ? [{ label: testingId === channel.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection'), icon: 'testConnection' as const, disabled: testingId === channel.id, onClick: () => void handleTest(channel.id) }] : []),
-              ...(canManageCommerce && supportsProductCache ? [{ label: refreshingId === channel.id ? translate('commerce:commerceHub.refreshing') : translate('commerce:commerceHub.refreshCache'), icon: 'refresh' as const, disabled: refreshingId === channel.id, onClick: () => void handleRefresh(channel.id) }] : []),
+              ...(canManageCommerce && state !== 'disabled' ? [{ label: testingId === channel.id ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection'), icon: 'testConnection' as const, disabled: testingId === channel.id, onClick: () => void handleTest(channel.id) }] : []),
+              ...(canManageCommerce && state !== 'disabled' && supportsProductCache ? [{ label: refreshingId === channel.id ? translate('commerce:commerceHub.refreshing') : translate('commerce:commerceHub.refreshCache'), icon: 'refresh' as const, disabled: refreshingId === channel.id, onClick: () => void handleRefresh(channel.id) }] : []),
               ...(canViewActivity ? [{ label: translate('common:action.viewActivity'), icon: 'preview' as const, onClick: () => navigate(`/activity?channel=${encodeURIComponent(channel.id)}`) }] : []),
               ...(canViewDiagnostics ? [{ label: translate('common:action.diagnostics'), icon: 'diagnostics' as const, onClick: () => navigate(`/diagnostics#channel-${channel.id}`) }] : []),
-              ...(canManageCommerce ? [{ label: translate('common:action.settings'), icon: 'settings' as const, onClick: () => openSetup(channel.id) }] : []),
+              ...(canManageCommerce && channel.settings_available ? [{ label: translate('common:action.settings'), icon: 'settings' as const, onClick: () => openSetup(channel.id) }] : []),
             ]
+          const status = channelStatusPresentation(state, resource.badge)
           return (
             <OperationalResourceCard
               resourceId={channel.id}
@@ -501,21 +520,21 @@ export default function Channels() {
               name={channelDisplayName(channel)}
               description={formatStatus(channel.provider)}
               state={state}
-              statusLabel={channelBadgeLabel(resource.badge)}
-              statusVariant={channelBadgeTone(resource.badge)}
-              statusDetail={state === 'connected'
-                ? lastActivityAt ? formatRelativeTime(lastActivityAt) : translate('commerce:commerceHub.noRecentActivity')
-                : undefined}
+              statusLabel={status.label}
+              statusVariant={status.variant}
               facts={facts}
               issue={state === 'setupRequired'
-                ? setupReason
-                : channelNeedsOperationalAttention(channel)
+                ? translate('commerce:commerceHub.setupReasonCredentials')
+                : state === 'disabled'
+                  ? translate('commerce:commerceHub.setupReasonDisabled')
+                  : state === 'needsAttention' || channelNeedsOperationalAttention(channel)
                   ? translate('commerce:commerceHub.channelOperationalIssue')
                   : undefined}
               actions={actions}
             />
           )
-        }} />
+          }}
+        />
       )}
 
       {setupTarget && canManageCommerce && (
@@ -531,6 +550,17 @@ export default function Channels() {
             {setupLoading ? (
               <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm" role="status" aria-live="polite" aria-busy="true">
                 {translate('commerce:commerceHub.loadingChannelConfiguration')}
+              </div>
+            ) : setupResourceComingSoon ? (
+              <div className="fh-card fh-card-pad" role="status" data-testid="channel-coming-soon-notice">
+                <h2 className="fh-section-title">{translate('common:resourceBadge.comingSoon')}</h2>
+                <p className="fh-section-subtitle mt-1">{translate('commerce:commerceHub.plannedChannel')}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" className="fh-button-secondary" onClick={closeSetup}>{translate('commerce:commerceHub.close')}</button>
+                  <button type="button" className="fh-button-secondary" onClick={() => navigate('/docs/channels')}>
+                    <Icon name="file" /> {translate('commerce:commerceHub.channelDocumentation')}
+                  </button>
+                </div>
               </div>
             ) : setupError || setupResourceUnavailable ? (
               <div className="fh-card fh-card-pad" role="alert">

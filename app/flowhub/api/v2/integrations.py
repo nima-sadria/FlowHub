@@ -46,7 +46,7 @@ async def get_connector_definition(
     _: FlowHubUser = Depends(get_current_user),
     service: IntegrationPlatformService = Depends(_service),
 ) -> ConnectorDefinition:
-    return service.get_registry_definition(connector_type)
+    return service.get_public_registry_definition(connector_type)
 
 
 @router.get("/connectors", response_model=ConnectorListResponse)

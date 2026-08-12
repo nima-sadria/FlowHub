@@ -282,7 +282,15 @@ def test_all_unconfigured_channels_return_normalized_disabled_health(client, aut
             "technolife:main",
         }
     )
-    assert all(item["status"] == "Disabled" for item in items)
+    assert all(
+        item["status"] == "Disabled"
+        for item in items
+        if item["channelId"] != "digikala:main"
+    )
+    digikala = next(item for item in items if item["channelId"] == "digikala:main")
+    assert digikala["status"] == "Coming Soon"
+    assert digikala["state"] == "COMING_SOON"
+    assert digikala["connectionTestSupported"] is False
     assert all(
         item["connectionTestSupported"] is True
         for item in items
@@ -311,6 +319,42 @@ def test_technolife_diagnostics_exposes_its_real_connection_probe(db):
     assert item["connectionTestSupported"] is True
     assert item["credentialsConfigured"] is True
     assert item["dimensions"]["externalApi"]["state"] == "NOT_CHECKED"
+
+
+@pytest.mark.parametrize(
+    ("channel_id", "connector_type", "settings"),
+    [
+        (
+            "woocommerce:primary",
+            "woocommerce",
+            {"url": "https://store.example", "key": None, "secret": None},
+        ),
+        (
+            "technolife:main",
+            "technolife",
+            {"api_key": None, "encryption_secret": None},
+        ),
+    ],
+)
+def test_diagnostics_recognizes_scheduled_woocommerce_and_technolife_reconciliation(
+    db, channel_id, connector_type, settings
+):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    _seed_channel(
+        db,
+        channel_id,
+        connector_type,
+        enabled=True,
+        settings=settings,
+    )
+    _seed_order_sync(db, channel_id, connector_type, now)
+
+    item = _item(ChannelHealthReporter(db).report(), channel_id)
+
+    assert item["dimensions"]["lastOrderSync"]["state"] == "HEALTHY"
+    assert item["dimensions"]["lastOrderSync"]["reason_code"] == "order_sync_fresh"
 
 
 def test_source_connector_instances_do_not_appear_in_channel_health(db):

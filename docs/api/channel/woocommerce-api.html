@@ -8,6 +8,7 @@
 </head>
 <body>
   <main class="sheet">
+    <aside dir="ltr"><strong>FlowHub contract notice:</strong> configure the Store URL as the site origin only. FlowHub calls <code>/wp-json/wc/v3</code> over HTTPS with HTTP Basic authentication using the Consumer Key and Consumer Secret. Use <code>per_page</code>/<code>page</code> for pagination and <code>after</code>/<code>before</code> for date filtering. Historical <code>wc-api/v3</code> examples below are retained only as reference and are not used by FlowHub.</aside>
     <header class="doc-header"><span>مستند فنی API فروشندگان ووکامرس</span><span dir="ltr">WooCommerce REST API v3</span></header>
     <h1>مستند فنی API فروشندگان ووکامرس</h1>
     <p>راهنمای فارسی اتصال به WooCommerce REST API v3 برای مدیریت داده‌های فروشگاه، محصولات، مشتریان، سفارش‌ها و وب‌هوک‌ها.</p>
@@ -15,7 +16,8 @@
 
     <h2>۱ — پیش‌نیازها و نشانی پایه</h2>
     <p>WooCommerce ۲.۱ یا جدیدتر، فعال‌بودن REST API و Pretty Permalinks الزامی است.</p>
-    <pre>baseUrl = https://www.your-store.com/wc-api/v3</pre>
+    <pre>storeUrl = https://www.your-store.com
+apiBase = https://www.your-store.com/wp-json/wc/v3</pre>
 
     <h2>۲ — الگوی درخواست و پاسخ</h2>
     <p>بدنه و پاسخ API از JSON استفاده می‌کنند. تاریخ‌ها RFC 3339 در UTC، شناسه‌ها عددی و مبالغ اعشاری به‌صورت رشته با دو رقم اعشار بازگردانده می‌شوند.</p>
@@ -23,13 +25,13 @@
     <h2>۳ — احراز هویت</h2>
     <h3>۳-۱ — HTTPS</h3>
     <p>Consumer Key و Consumer Secret را با HTTP Basic Auth ارسال کنید.</p>
-    <pre>curl https://www.example.com/wc-api/v3/orders \
+    <pre>curl https://www.example.com/wp-json/wc/v3/orders \
   -u consumer_key:consumer_secret</pre>
     <h3>۳-۲ — HTTP</h3>
     <p>در ارتباط بدون SSL از OAuth 1.0a یک‌طرفه استفاده کنید. پارامترهای <code>oauth_consumer_key</code>، <code>oauth_timestamp</code>، <code>oauth_nonce</code>، <code>oauth_signature</code> و <code>oauth_signature_method</code> الزامی‌اند.</p>
 
     <h2>۴ — پارامترها و صفحه‌بندی</h2>
-    <pre>GET /orders?status=completed&amp;filter[created_at_min]=2013-11-01</pre>
+    <pre>GET /orders?status=completed&amp;after=2013-11-01T00:00:00Z&amp;per_page=100&amp;page=1</pre>
     <table><thead><tr><th>پارامتر یا هدر</th><th>کاربرد</th></tr></thead><tbody>
       <tr><td><code>filter[limit]</code></td><td>تعداد آیتم هر صفحه</td></tr>
       <tr><td><code>page</code></td><td>شمارهٔ صفحه، با شروع از ۱</td></tr>

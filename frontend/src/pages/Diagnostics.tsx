@@ -30,11 +30,15 @@ import {
   diagnosticSourceSignals,
   prepareResourceCollection,
 } from '../features/resourceOrdering/resourceOrdering'
+import {
+  connectionExceptionMessage,
+  connectionResultMessage,
+} from '../features/diagnostics/connectionErrorPresentation'
 
 const REQUEST_TIMEOUT_MS = 10_000
 const SOURCE_CONNECTOR_TYPES = new Set(['nextcloud', 'csv', 'gsheets', 'erp'])
 const SEVERITY_RANK: Record<DiagnosticState, number> = {
-  ERROR: 0, WARNING: 1, NOT_CHECKED: 2, INFO: 3, HEALTHY: 4, DISABLED: 5, NOT_APPLICABLE: 6,
+  ERROR: 0, WARNING: 1, NOT_CHECKED: 2, INFO: 3, HEALTHY: 4, DISABLED: 5, NOT_APPLICABLE: 6, COMING_SOON: 7,
 }
 const RECENT_CHECKS_LIMIT = 8
 
@@ -292,78 +296,6 @@ function connectionTestUnavailableReason({
     })
   }
   return null
-}
-
-type ConnectionResultIdentity = Pick<
-  ConnectionCheckResult,
-  'ok' | 'status' | 'code' | 'error_class'
->
-
-function connectionResultMessage(result: ConnectionResultIdentity): string {
-  if (result.ok) {
-    return translate('diagnostics:diagnostics.connectionTestResult.success')
-  }
-
-  // Provider messages are deliberately excluded from presentation. They can
-  // be English in a Persian session and may contain upstream diagnostics or
-  // credential fragments. Stable structured fields select a localized copy.
-  const identity = [result.status, result.code, result.error_class]
-    .filter((value): value is string => Boolean(value))
-    .join(' ')
-    .trim()
-    .toLowerCase()
-    .replace(/[\s.-]+/g, '_')
-
-  if (/unsafe_destination|ssrf|private_network|trusted_network|blocked_destination/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.unsafeDestination')
-  }
-  if (/timeout|timed_out|deadline|gateway_timeout|http_504/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.timeout')
-  }
-  if (/authentication|auth_failed|unauthorized|invalid_credentials|credential_rejected|authentication_rejected/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.authenticationRejected')
-  }
-  if (/authorization|permission|forbidden|access_denied/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.permissionDenied')
-  }
-  if (/not_configured|required_settings_missing|credentials_missing|configuration_incomplete/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.notConfigured')
-  }
-  if (/invalid_url|malformed_url|channel_invalid_url/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.invalidUrl')
-  }
-  if (/invalid_webdav|invalid_path|malformed_path|webdav_path/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.invalidPath')
-  }
-  if (/resource_not_found|file_not_found|spreadsheet_not_found|missing_resource|http_404/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.resourceNotFound')
-  }
-  if (/rate_limit|too_many_requests|http_429/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.rateLimited')
-  }
-  if (/unsupported|not_implemented/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.unsupported')
-  }
-  if (/unreachable|connection_failed|dns|network|tls|certificate|upstream_unavailable|http_50[23]/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.unreachable')
-  }
-  if (/validation|invalid_configuration|unprocessable|http_422/.test(identity)) {
-    return translate('diagnostics:diagnostics.connectionTestResult.invalidConfiguration')
-  }
-  return translate('diagnostics:diagnostics.connectionTestResult.failed')
-}
-
-function connectionExceptionMessage(error: unknown): string {
-  return connectionResultMessage({
-    ok: false,
-    status: error instanceof Error && error.message === 'request_timeout'
-      ? 'timeout'
-      : error instanceof ApiError
-        ? `http_${error.status}`
-        : 'error',
-    code: error instanceof ApiError ? error.code : undefined,
-    error_class: error instanceof Error ? error.name : undefined,
-  })
 }
 
 const DIAGNOSTIC_GROUPS = [

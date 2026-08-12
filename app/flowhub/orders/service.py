@@ -99,9 +99,13 @@ def resolve_order_sync_settings(
             continue
         value = setting.value_json
         app_config_key = secret_config_keys.get(setting.key)
-        if setting.secret and value in (None, "") and app_config_key:
+        if setting.secret and app_config_key:
             config = config or AppConfigService(db)
-            value = config.get(app_config_key)
+            # AppConfig is the shared runtime source used by Channel tests and
+            # product cache refreshes. Prefer it when present so an older
+            # Integration Platform copy can never make Orders use a different
+            # credential after rotation.
+            value = config.get(app_config_key) or value
         if value not in (None, ""):
             resolved[setting.key] = value
     return resolved
@@ -395,33 +399,115 @@ class OrderSyncService:
         )
         processed = 0
         try:
-            self.heartbeat_checkpoint_lease(lease, lease_seconds=lease_seconds)
-            page = await connector.list_orders(PageNumberPagination(page=1, page_size=page_size))
-            for item in page.items:
-                if not isinstance(item, ChannelOrder):
-                    continue
-                before = (
-                    self.db.query(ChannelOrderRecord)
-                    .filter_by(channel_id=channel_id, provider_order_id=_provider_order_id(item))
-                    .first()
+            pagination = _reconciliation_initial_pagination(connector, page_size)
+            seen_pages: set[tuple[str, str | int | None]] = set()
+            while True:
+                request_marker = _reconciliation_pagination_marker(pagination)
+                if request_marker in seen_pages:
+                    raise HTTPException(
+                        status.HTTP_502_BAD_GATEWAY,
+                        "Connector returned a repeating order reconciliation page.",
+                    )
+                seen_pages.add(request_marker)
+                self.heartbeat_checkpoint_lease(lease, lease_seconds=lease_seconds)
+                page = await connector.list_orders(pagination)
+                if not isinstance(page, PaginatedResult):
+                    raise HTTPException(
+                        status.HTTP_502_BAD_GATEWAY,
+                        "Connector returned malformed order reconciliation page.",
+                    )
+                for listed_order in page.items:
+                    if not isinstance(listed_order, ChannelOrder):
+                        continue
+                    item = await self._hydrate_reconciliation_order(
+                        connector, listed_order
+                    )
+                    before = (
+                        self.db.query(ChannelOrderRecord)
+                        .filter_by(
+                            channel_id=channel_id,
+                            provider_order_id=_provider_order_id(item),
+                        )
+                        .first()
+                    )
+                    previous_raw_hash = before.raw_hash if before is not None else None
+                    row = self.upsert_order(
+                        item,
+                        source="reconciliation",
+                        source_event_id=f"reconcile:{_provider_order_id(item)}",
+                        commit=False,
+                    )
+                    if before is None or previous_raw_hash != row.raw_hash:
+                        self._audit(
+                            channel_id,
+                            item.connector_type,
+                            row.internal_id,
+                            "order_reconciliation_repair",
+                            "Reconciliation repaired missing or stale order state.",
+                            {},
+                        )
+                    processed += 1
+                now = _utcnow()
+                checkpoint.last_run_at = now
+                checkpoint.last_success_at = now
+                checkpoint.last_failure_category = None
+                checkpoint.next_run_at = now + timedelta(
+                    seconds=checkpoint.interval_seconds
                 )
-                row = self.upsert_order(item, source="reconciliation", source_event_id=f"reconcile:{_provider_order_id(item)}", commit=False)
-                if before is None or before.raw_hash != row.raw_hash:
-                    self._audit(channel_id, item.connector_type, row.internal_id, "order_reconciliation_repair", "Reconciliation repaired missing or stale order state.", {})
-                processed += 1
-            now = _utcnow()
-            checkpoint.last_run_at = now
-            checkpoint.last_success_at = now
-            checkpoint.last_failure_category = None
-            checkpoint.next_run_at = now + timedelta(seconds=checkpoint.interval_seconds)
-            checkpoint.updated_at = now
-            self._commit_checkpoint_progress(checkpoint, lease)
+                checkpoint.updated_at = now
+                self._commit_checkpoint_progress(checkpoint, lease)
+                next_pagination = _next_reconciliation_pagination(page.pagination)
+                if next_pagination is None:
+                    break
+                pagination = next_pagination
             return OrderSyncResult(channel_id, "reconciliation", processed, 0, 0)
         except Exception as exc:
             self._mark_checkpoint_failure(lease, _lease_failure_category(exc, "reconciliation_failed"))
             raise
         finally:
             self.release_checkpoint_lease(lease)
+
+    async def _hydrate_reconciliation_order(
+        self, connector: Any, listed_order: ChannelOrder
+    ) -> ChannelOrder:
+        """Fetch a detail record only when a connector's list contract omits items.
+
+        Technolife's documented order-list endpoint is summary-only.  Persisting
+        that response directly would replace previously stored line items with an
+        empty collection, so reconciliation must use the read-only detail route.
+        Other connectors can opt in with ``reconciliation_requires_order_detail``
+        without changing the shared pagination flow.
+        """
+
+        requires_detail = getattr(
+            connector, "reconciliation_requires_order_detail", None
+        )
+        if requires_detail is None:
+            requires_detail = listed_order.connector_type == "technolife"
+        if not requires_detail:
+            return listed_order
+
+        get_order = getattr(connector, "get_order", None)
+        if not callable(get_order):
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY,
+                "Connector requires order detail reconciliation but does not provide it.",
+            )
+        order_number = listed_order.identifiers.order_number
+        external_id = listed_order.identifiers.external_product_id
+        detail = await get_order(
+            {
+                "orderCode": order_number or external_id or "",
+                "order_number": order_number or external_id or "",
+                "id": external_id or order_number or "",
+            }
+        )
+        if not isinstance(detail, ChannelOrder):
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY,
+                "Connector returned malformed order detail during reconciliation.",
+            )
+        return detail
 
     def list_orders(
         self,
@@ -946,6 +1032,52 @@ def _provider_order_id(order: ChannelOrder) -> str:
         or _to_str(order.raw.get("order_number") if isinstance(order.raw, dict) else None)
         or "unknown"
     )
+
+
+def _reconciliation_initial_pagination(connector: Any, page_size: int) -> PageNumberPagination:
+    """Use the first page documented by each provider's order-list contract."""
+
+    connector_type = str(getattr(connector, "connector_type", "")).lower()
+    # TapsiShop explicitly numbers its order pages from zero.  The other
+    # page-based connectors begin at one; cursor-based connectors accept this
+    # first request and return their cursor pagination metadata.
+    first_page = 0 if connector_type == "tapsishop" else 1
+    return PageNumberPagination(page=first_page, page_size=max(1, int(page_size)))
+
+
+def _reconciliation_pagination_marker(
+    pagination: PageNumberPagination | CursorPagination,
+) -> tuple[str, str | int | None]:
+    if isinstance(pagination, CursorPagination):
+        return ("cursor", pagination.cursor)
+    return ("page", pagination.page)
+
+
+def _next_reconciliation_pagination(
+    pagination: PageNumberPagination | CursorPagination,
+) -> PageNumberPagination | CursorPagination | None:
+    """Advance only with an explicit, non-repeating provider continuation."""
+
+    if isinstance(pagination, CursorPagination):
+        if not pagination.has_more:
+            return None
+        next_cursor = pagination.next_cursor
+        if not next_cursor or next_cursor == pagination.cursor:
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY,
+                "Connector order pagination is missing a safe next cursor.",
+            )
+        return CursorPagination(cursor=next_cursor, limit=pagination.limit)
+
+    if not pagination.has_more:
+        return None
+    next_page = pagination.next_page
+    if next_page is None or next_page <= pagination.page:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Connector order pagination is missing a safe next page.",
+        )
+    return PageNumberPagination(page=next_page, page_size=pagination.page_size)
 
 
 def _normalize_status(connector_type: str, status_value: str) -> str:

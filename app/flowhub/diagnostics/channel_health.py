@@ -29,6 +29,7 @@ from app.flowhub.diagnostics.semantics import (
     DiagnosticState,
     diagnostic_presentation,
 )
+from app.flowhub.integration_platform.contracts import ConnectorCapabilities
 from app.flowhub.integration_platform.models import (
     IntegrationConnectorEvent,
     IntegrationConnectorInstance,
@@ -46,6 +47,7 @@ DEFAULT_CHANNEL_IDS = (
     "technolife:main",
     "digikala:main",
 )
+COMING_SOON_CHANNEL_IDS = frozenset({"digikala:main"})
 SOURCE_CONNECTOR_TYPES = frozenset({"nextcloud", "csv", "gsheets", "erp"})
 CONNECTION_TEST_CHANNEL_TYPES = frozenset(
     {"woocommerce", "snappshop", "tapsishop", "technolife", "digikala"}
@@ -156,6 +158,10 @@ class ChannelHealthReporter:
         return payload
 
     async def _refresh_one(self, channel_id: str) -> bool:
+        if self._is_coming_soon(channel_id):
+            # A planned connector has no customer-facing probe.  Do not turn a
+            # Coming Soon label into persisted provider health evidence.
+            return False
         service = CommerceHubService(self.db)
         started = monotonic()
         try:
@@ -177,7 +183,7 @@ class ChannelHealthReporter:
             error_class = "not_configured"
         elif external_status in {"authentication_failed"}:
             dl_status = "unhealthy"
-            error_class = "authentication"
+            error_class = error_class or "authentication_failed"
         elif error_class == "timeout":
             dl_status = "unknown"
         else:
@@ -192,6 +198,8 @@ class ChannelHealthReporter:
         return bool(result.get("external_call_performed"))
 
     def _channel_shape(self, channel_id: str) -> dict[str, Any]:
+        if self._is_coming_soon(channel_id):
+            return self._coming_soon_channel_shape(channel_id)
         instance = self.db.get(IntegrationConnectorInstance, channel_id)
         connector_type = channel_id.split(":", 1)[0]
         definition = registry.get_definition(connector_type)
@@ -284,6 +292,7 @@ class ChannelHealthReporter:
                     recommended_action="" if vendor_selected else "Select a vendor before product synchronization.",
                 )
             )
+        if product_read_supported:
             dimensions["productCache"] = self._product_cache_dimension(enabled, latest_product_refresh)
         state, controlling_dimension = _channel_state(enabled, dimensions, self._core_dimension_names(
             product_read_supported=product_read_supported,
@@ -335,15 +344,24 @@ class ChannelHealthReporter:
             "dimensions": dimensions,
             "lastProductRead": _iso(product_read),
             "credentialsConfigured": credentials_configured,
-            "credentialsVerified": bool(health and health.last_success_at),
+            # Historical success remains visible as a timestamp, but a newer
+            # failed probe must not be represented as current verification.
+            "credentialsVerified": bool(
+                health and health.status == "healthy" and health.last_success_at
+            ),
             "vendorSelected": vendor_selected,
             "vendorAccessible": bool(vendor_selected and health and health.status == "healthy") if connector_type == "snappshop" else None,
             "productReadStatus": latest_product_refresh.status if latest_product_refresh else "not_run",
             "cachedProductCount": cached_product_count,
             "lastProductSync": _iso(product_read),
             "lastSyncErrorCategory": (
-                str(cast(dict[str, Any], latest_product_refresh.meta or {}).get("error_category") or "") or None
-                if latest_product_refresh and latest_product_refresh.status == "failed"
+                (
+                    "completed_with_warnings"
+                    if latest_product_refresh.status == "completed_with_warnings"
+                    else str(cast(dict[str, Any], latest_product_refresh.meta or {}).get("error_category") or "") or None
+                )
+                if latest_product_refresh
+                and latest_product_refresh.status in {"failed", "partial_failed", "completed_with_warnings"}
                 else None
             ),
             "lastProductWrite": _iso(product_write),
@@ -359,6 +377,146 @@ class ChannelHealthReporter:
             },
             "orderSync": self._order_sync_state(channel_id),
             "webhooks": webhook,
+        }
+
+    @staticmethod
+    def _is_coming_soon(channel_id: str) -> bool:
+        return channel_id in COMING_SOON_CHANNEL_IDS
+
+    def _coming_soon_channel_shape(self, channel_id: str) -> dict[str, Any]:
+        """Expose a planned connector without implying it can be configured.
+
+        The Digikala backend foundation remains registered, but no user-facing
+        credential, provider-health, product, or order claim is made until its
+        documented live conformance has been completed.
+        """
+
+        connector_type = channel_id.split(":", 1)[0]
+        definition = registry.get_definition(connector_type)
+        display_name = (
+            definition.connector.identity.name if definition else connector_type
+        )
+        planned = _dimension(
+            DiagnosticState.COMING_SOON,
+            f"{display_name} is Coming Soon. Live provider conformance has not been verified.",
+            reason_code="channel_coming_soon",
+            checked_at=None,
+            evidence_source="channel_catalog",
+            is_actionable=False,
+        )
+
+        def unavailable(message: str, reason_code: str) -> DiagnosticPresentation:
+            return _dimension(
+                DiagnosticState.NOT_APPLICABLE,
+                message,
+                reason_code=reason_code,
+                checked_at=None,
+                evidence_source="channel_catalog",
+                is_actionable=False,
+            )
+
+        dimensions = {
+            "configuration": planned,
+            "credentials": unavailable(
+                "Credential configuration is unavailable while this Channel is Coming Soon.",
+                "credentials_coming_soon",
+            ),
+            "externalApi": unavailable(
+                "A provider connection test is unavailable while this Channel is Coming Soon.",
+                "external_api_coming_soon",
+            ),
+            "readCapability": unavailable(
+                "Products and orders are not available until this Channel is verified.",
+                "read_capability_coming_soon",
+            ),
+            "writeCapability": unavailable(
+                "Writes are unavailable for this Coming Soon Channel.",
+                "write_capability_coming_soon",
+            ),
+            "lastProductSync": unavailable(
+                "Product synchronization is unavailable while this Channel is Coming Soon.",
+                "product_sync_coming_soon",
+            ),
+            "lastOrderSync": unavailable(
+                "Order synchronization is unavailable while this Channel is Coming Soon.",
+                "order_sync_coming_soon",
+            ),
+            "webhookReceipt": unavailable(
+                "Webhooks are unavailable while this Channel is Coming Soon.",
+                "webhook_coming_soon",
+            ),
+            "webhookProcessing": unavailable(
+                "Webhook processing is unavailable while this Channel is Coming Soon.",
+                "webhook_processing_coming_soon",
+            ),
+            "queueDeadLetter": unavailable(
+                "Recovery queues are unavailable while this Channel is Coming Soon.",
+                "queue_coming_soon",
+            ),
+            "tokenRefresh": unavailable(
+                "Token refresh is unavailable while this Channel is Coming Soon.",
+                "token_refresh_coming_soon",
+            ),
+            "polling": unavailable(
+                "Order polling is unavailable while this Channel is Coming Soon.",
+                "polling_coming_soon",
+            ),
+        }
+        return {
+            "channelId": channel_id,
+            "channelType": connector_type,
+            "displayName": display_name,
+            "displayNameCustom": False,
+            "enabled": False,
+            "availability": "coming_soon",
+            "accessMode": "read_only",
+            "status": "Coming Soon",
+            "state": DiagnosticState.COMING_SOON.value,
+            "reason_code": planned["reason_code"],
+            "checked_at": planned["checked_at"],
+            "evidence_source": planned["evidence_source"],
+            "is_actionable": False,
+            "recommended_action": "",
+            "summary": planned["message"],
+            "lastChecked": None,
+            "lastSuccessfulVerification": None,
+            "latency": None,
+            "lastSuccessfulOperation": None,
+            "lastSuccessfulSyncOrRead": None,
+            "lastErrorCategory": None,
+            # Preserve the internal registry foundation without claiming that
+            # any provider operation is currently available to users.
+            "capabilityState": ConnectorCapabilities().model_dump(),
+            "connectionTestSupported": False,
+            "credentialsConfigured": False,
+            "credentialsVerified": False,
+            "nextRecommendedAction": "",
+            "dimensions": dimensions,
+            "lastProductRead": None,
+            "lastProductWrite": None,
+            "lastOrderSync": None,
+            "productReadStatus": "not_applicable",
+            "cachedProductCount": 0,
+            "lastProductSync": None,
+            "lastSyncErrorCategory": None,
+            "polling": {"enabled": False, "cursor": None, "lastRunAt": None, "nextRunAt": None},
+            "orderSync": {
+                "lastRunPerSource": {},
+                "lastSuccess": None,
+                "lastFailure": None,
+                "lastFailureCategory": None,
+                "nextScheduledRun": None,
+            },
+            "webhooks": {
+                "supported": False,
+                "enabled": False,
+                "received": 0,
+                "queued": 0,
+                "processed": 0,
+                "deadLetter": 0,
+                "lastReceivedAt": None,
+                "lastProcessedAt": None,
+            },
         }
 
     def _record_health(self, channel_id: str, health_status: str, latency_ms: float | None, detail: str, error_class: str | None) -> None:
@@ -426,6 +584,10 @@ class ChannelHealthReporter:
     ) -> bool:
         if not parse_config_bool(os.environ.get("FLOWHUB_ORDER_SYNC_ENABLED"), default=True):
             return False
+        # The runner reconciles these read-only providers on its scheduled
+        # reconciliation interval; they are not event/webhook-driven.
+        if connector_type in {"woocommerce", "technolife"}:
+            return True
         if connector_type == "snappshop":
             return bool(polling_policy and polling_policy.enabled)
         if connector_type == "tapsishop":
@@ -552,9 +714,9 @@ class ChannelHealthReporter:
             )
         if last_at is None:
             return _dimension(
-                DiagnosticState.WARNING,
-                "No successful order synchronization has been recorded.",
-                reason_code="order_sync_never_succeeded",
+                DiagnosticState.NOT_CHECKED,
+                "Order synchronization has not run successfully yet.",
+                reason_code="order_sync_not_checked",
                 checked_at=None,
                 evidence_source="order_sync_checkpoint",
                 is_actionable=True,
@@ -581,7 +743,12 @@ class ChannelHealthReporter:
         )
 
     def _connector_has_order_sync(self, connector_type: str) -> bool:
-        return connector_type in {"snappshop", "tapsishop"}
+        return connector_type in {
+            "woocommerce",
+            "snappshop",
+            "tapsishop",
+            "technolife",
+        }
 
     def _core_dimension_names(
         self,
@@ -591,17 +758,18 @@ class ChannelHealthReporter:
         external_probe_supported: bool,
         connector_type: str,
     ) -> tuple[str, ...]:
+        # Channel health is connection/configuration evidence.  Product and
+        # order synchronization are deliberately reported as separate
+        # dimensions: an unrun sync must not make a successfully verified
+        # connection look unhealthy (or vice versa).
+        del product_read_supported, order_sync_expected
         # Preserve a stable controlling-check order so identical evidence always
         # produces the same summary reason and recommended action.
         names = ["configuration", "credentials"]
         if external_probe_supported:
             names.append("externalApi")
-        if product_read_supported:
-            names.append("lastProductSync")
-        if order_sync_expected:
-            names.append("lastOrderSync")
         if connector_type == "snappshop":
-            names.extend(("vendorSelection", "productCache"))
+            names.append("vendorSelection")
         return tuple(names)
 
     def _state_summary(
@@ -654,11 +822,31 @@ class ChannelHealthReporter:
                 checked_at=_iso(refresh.completed_at or refresh.created_at),
                 evidence_source="data_layer_refresh_job",
             )
+        if refresh.status == "completed_with_warnings":
+            return _dimension(
+                DiagnosticState.WARNING,
+                "The local product cache refresh completed with warnings; review the result before relying on all records.",
+                reason_code="product_cache_refresh_completed_with_warnings",
+                checked_at=_iso(refresh.completed_at or refresh.created_at),
+                evidence_source="data_layer_refresh_job",
+                is_actionable=True,
+                recommended_action="Review the synchronization warnings and retry product refresh if needed.",
+            )
         if refresh.status == "failed":
             return _dimension(
                 DiagnosticState.ERROR,
                 "The latest product synchronization failed; the previous cache was preserved.",
                 reason_code="product_cache_refresh_failed",
+                checked_at=_iso(refresh.completed_at or refresh.created_at),
+                evidence_source="data_layer_refresh_job",
+                is_actionable=True,
+                recommended_action="Review the synchronization error and retry product refresh.",
+            )
+        if refresh.status == "partial_failed":
+            return _dimension(
+                DiagnosticState.WARNING,
+                "The latest product synchronization stored some data but did not finish; verify the cache and retry.",
+                reason_code="product_cache_refresh_partial_failed",
                 checked_at=_iso(refresh.completed_at or refresh.created_at),
                 evidence_source="data_layer_refresh_job",
                 is_actionable=True,
@@ -682,7 +870,11 @@ class ChannelHealthReporter:
         cache_time = self.db.query(func.max(DlProductCache.last_successful_read)).filter(DlProductCache.connector_id == channel_id).scalar()
         job_time = (
             self.db.query(func.max(DlRefreshJob.completed_at))
-            .filter(DlRefreshJob.connector_id == channel_id, DlRefreshJob.entity_type == "products", DlRefreshJob.status == "completed")
+            .filter(
+                DlRefreshJob.connector_id == channel_id,
+                DlRefreshJob.entity_type == "products",
+                DlRefreshJob.status.in_(["completed", "completed_with_warnings"]),
+            )
             .scalar()
         )
         return _max_dt(cache_time, job_time)
@@ -1341,6 +1533,7 @@ def _legacy_channel_status(state: DiagnosticState) -> str:
     return {
         DiagnosticState.HEALTHY: "Operational",
         DiagnosticState.INFO: "Information",
+        DiagnosticState.COMING_SOON: "Coming Soon",
         DiagnosticState.NOT_CHECKED: "Not checked",
         DiagnosticState.NOT_APPLICABLE: "Not applicable",
         DiagnosticState.DISABLED: "Disabled",
@@ -1353,6 +1546,7 @@ def _summary(items: list[dict[str, Any]]) -> dict[str, Any]:
     counts = {
         "Operational": 0,
         "Information": 0,
+        "Coming Soon": 0,
         "Not checked": 0,
         "Not applicable": 0,
         "Warning": 0,
@@ -1377,6 +1571,8 @@ def _summary(items: list[dict[str, Any]]) -> dict[str, Any]:
         overall_state = DiagnosticState.INFO
     elif state_counts[DiagnosticState.DISABLED.value]:
         overall_state = DiagnosticState.DISABLED
+    elif state_counts[DiagnosticState.COMING_SOON.value]:
+        overall_state = DiagnosticState.COMING_SOON
     else:
         overall_state = DiagnosticState.NOT_APPLICABLE
     return {
@@ -1388,6 +1584,13 @@ def _summary(items: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _error_category_from_result(result: dict[str, Any]) -> str | None:
+    explicit = str(result.get("error_class") or "").strip().lower()
+    if explicit:
+        # Keep the safe connector classification intact.  The error is already
+        # normalized by the connector/service and callers need to distinguish
+        # malformed URLs, DNS/TLS failures, 401/403, rate limits, and provider
+        # validation instead of seeing one generic health failure.
+        return CommerceHubService._health_error_class(explicit)
     value = str(result.get("code") or result.get("error_code") or result.get("status") or "").lower()
     if "auth" in value or result.get("authenticated") is False:
         return str(ConnectorErrorCategory.AUTHENTICATION.value)

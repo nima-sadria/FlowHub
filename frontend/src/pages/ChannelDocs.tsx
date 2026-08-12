@@ -1,7 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import Badge from '../components/Badge'
+import BrandIcon from '../components/BrandIcon'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
+import { translate } from '../i18n'
 import snappshopMarkdown from '../../../docs/api/channel/snappshop-api-doc.md?raw'
 import tapsishopMarkdown from '../../../docs/api/channel/tapsishop-api-doc.md?raw'
 import technolifeMarkdown from '../../../docs/api/channel/technolife-api.md?raw'
@@ -15,6 +18,7 @@ type ChannelDocument = {
   description: string
   protocol: string
   markdown: string
+  comingSoon?: boolean
 }
 
 type DocumentSection = {
@@ -23,48 +27,51 @@ type DocumentSection = {
   content: string
 }
 
-const channelDocuments: ChannelDocument[] = [
-  {
-    id: 'snappshop',
-    title: 'API اسنپ‌شاپ',
-    provider: 'SnappShop',
-    description: 'مدیریت فروشگاه‌ها، محصولات، قیمت و موجودی و سفارشات.',
-    protocol: 'REST · JSON · Bearer Token',
-    markdown: snappshopMarkdown,
-  },
-  {
-    id: 'tapsishop',
-    title: 'API تپسی‌شاپ',
-    provider: 'TapsiShop',
-    description: 'وب‌هوک سفارش، تحویل سفارش و به‌روزرسانی قیمت و موجودی.',
-    protocol: 'REST · JSON · Token Header',
-    markdown: tapsishopMarkdown,
-  },
-  {
-    id: 'technolife',
-    title: 'API تکنولایف',
-    provider: 'Technolife',
-    description: 'مدیریت محصول، تنوع، قیمت‌گذاری، تخفیف و سفارشات SBS.',
-    protocol: 'REST · JSON · Bearer + encrypted-secret',
-    markdown: technolifeMarkdown,
-  },
-  {
-    id: 'woocommerce',
-    title: 'API ووکامرس',
-    provider: 'WooCommerce',
-    description: 'مدیریت داده‌های فروشگاه، سفارش‌ها، محصولات و وب‌هوک‌های API v3.',
-    protocol: 'REST · JSON · Basic Auth / OAuth 1.0a',
-    markdown: woocommerceMarkdown,
-  },
-  {
-    id: 'digikala',
-    title: 'API دیجی‌کالا',
-    provider: 'Digikala',
-    description: 'مدیریت کالا، تنوع، موجودی، سفارش، بسته و وب‌هوک‌های فروشندگان.',
-    protocol: 'REST · JSON · JWT Bearer Token',
-    markdown: digikalaMarkdown,
-  },
-]
+function channelDocuments(): ChannelDocument[] {
+  return [
+    {
+      id: 'snappshop',
+      title: translate('commerce:commerceHub.channelDocs.snappshop.title'),
+      provider: 'SnappShop',
+      description: translate('commerce:commerceHub.channelDocs.snappshop.description'),
+      protocol: translate('commerce:commerceHub.channelDocs.snappshop.protocol'),
+      markdown: snappshopMarkdown,
+    },
+    {
+      id: 'tapsishop',
+      title: translate('commerce:commerceHub.channelDocs.tapsishop.title'),
+      provider: 'TapsiShop',
+      description: translate('commerce:commerceHub.channelDocs.tapsishop.description'),
+      protocol: translate('commerce:commerceHub.channelDocs.tapsishop.protocol'),
+      markdown: tapsishopMarkdown,
+    },
+    {
+      id: 'technolife',
+      title: translate('commerce:commerceHub.channelDocs.technolife.title'),
+      provider: 'Technolife',
+      description: translate('commerce:commerceHub.channelDocs.technolife.description'),
+      protocol: translate('commerce:commerceHub.channelDocs.technolife.protocol'),
+      markdown: technolifeMarkdown,
+    },
+    {
+      id: 'woocommerce',
+      title: translate('commerce:commerceHub.channelDocs.woocommerce.title'),
+      provider: 'WooCommerce',
+      description: translate('commerce:commerceHub.channelDocs.woocommerce.description'),
+      protocol: translate('commerce:commerceHub.channelDocs.woocommerce.protocol'),
+      markdown: woocommerceMarkdown,
+    },
+    {
+      id: 'digikala',
+      title: translate('commerce:commerceHub.channelDocs.digikala.title'),
+      provider: 'Digikala',
+      description: translate('commerce:commerceHub.channelDocs.digikala.description'),
+      protocol: translate('commerce:commerceHub.channelDocs.digikala.protocol'),
+      markdown: digikalaMarkdown,
+      comingSoon: true,
+    },
+  ]
+}
 
 function sectionsFromMarkdown(markdown: string): DocumentSection[] {
   const body = markdown.replace(/^#\s+.+\n+/, '')
@@ -125,7 +132,9 @@ function MarkdownContent({ content }: { content: string }) {
       blocks.push(
         <div className="fh-docs-code" key={`code-${codeId}`} dir="ltr">
           <button className="fh-docs-copy" type="button" onClick={() => void copyCode(code, codeId)}>
-            <Icon name="copy" /> {copiedBlock === codeId ? 'کپی شد' : 'کپی'}
+            <Icon name="copy" /> {copiedBlock === codeId
+              ? translate('commerce:commerceHub.channelDocs.copied')
+              : translate('commerce:commerceHub.channelDocs.copy')}
           </button>
           <pre><code>{code}</code></pre>
         </div>,
@@ -198,26 +207,39 @@ function MarkdownContent({ content }: { content: string }) {
 
 function DocsIndex() {
   const navigate = useNavigate()
+  const documents = channelDocuments()
   return (
     <PageShell>
       <div className="fh-page-header">
         <div>
-          <h1 className="fh-page-title">مستندات API کانال‌ها</h1>
-          <p className="fh-page-subtitle">راهنمای اتصال و مدیریت یکپارچه‌سازی کانال‌های فروش در FlowHub.</p>
+          <h1 className="fh-page-title">{translate('commerce:commerceHub.channelDocs.indexTitle')}</h1>
+          <p className="fh-page-subtitle">{translate('commerce:commerceHub.channelDocs.indexSubtitle')}</p>
         </div>
       </div>
-      <section className="fh-docs-grid" aria-label="مستندات کانال‌ها">
-        {channelDocuments.map(document => (
-          <article className="fh-card fh-card-pad fh-docs-card" key={document.id}>
+      <section className="fh-docs-grid" aria-label={translate('commerce:commerceHub.channelDocs.indexAriaLabel')}>
+        {documents.map(document => (
+          <article className="fh-card fh-card-pad fh-docs-card" data-testid={`channel-docs-${document.id}`} key={document.id}>
             <div className="fh-docs-card-topline">
-              <span className="fh-docs-provider">{document.provider}</span>
-              <span className="fh-docs-status">آماده استفاده</span>
+              <div className="flex items-center gap-2">
+                <BrandIcon identity={{ provider: document.id }} label={document.provider} size={36} />
+                <span className="fh-docs-provider">{document.provider}</span>
+              </div>
+              {document.comingSoon ? (
+                <Badge variant="neutral">{translate('common:resourceBadge.comingSoon')}</Badge>
+              ) : (
+                <span className="fh-docs-status">{translate('commerce:commerceHub.channelDocs.documentationAvailable')}</span>
+              )}
             </div>
             <h2 className="fh-section-title mt-4">{document.title}</h2>
             <p className="fh-section-subtitle mt-2">{document.description}</p>
+            {document.comingSoon && (
+              <p className="fh-alert-warning mt-3" data-testid={`channel-docs-coming-soon-disclaimer-${document.id}`} role="note">
+                {translate('commerce:commerceHub.channelDocs.digikala.disclaimer')}
+              </p>
+            )}
             <p className="fh-docs-protocol" dir="ltr">{document.protocol}</p>
             <button className="fh-button-secondary mt-5" type="button" onClick={() => navigate(`/docs/channels/${document.id}`)}>
-              <Icon name="file" /> مشاهده مستندات
+              <Icon name="file" /> {translate('commerce:commerceHub.channelDocs.viewDocumentation')}
             </button>
           </article>
         ))}
@@ -229,7 +251,7 @@ function DocsIndex() {
 export default function ChannelDocs() {
   const { channelId } = useParams()
   const navigate = useNavigate()
-  const channelDocument = channelDocuments.find(item => item.id === channelId)
+  const channelDocument = channelDocuments().find(item => item.id === channelId)
   const [query, setQuery] = useState('')
 
   const sections = useMemo(() => channelDocument ? sectionsFromMarkdown(channelDocument.markdown) : [], [channelDocument])
@@ -247,28 +269,43 @@ export default function ChannelDocs() {
       <div className="fh-page-header fh-docs-header">
         <div>
           <button className="fh-docs-back" type="button" onClick={() => navigate('/docs/channels')}>
-            <Icon name="previous" mirrorRtl /> همهٔ مستندات
+            <Icon name="previous" mirrorRtl /> {translate('commerce:commerceHub.channelDocs.backToDocuments')}
           </button>
-          <h1 className="fh-page-title mt-2">{channelDocument.title}</h1>
+          <div className="mt-2 flex items-center gap-3">
+            <BrandIcon identity={{ provider: channelDocument.id }} label={channelDocument.provider} size={36} />
+            <h1 className="fh-page-title">{channelDocument.title}</h1>
+            {channelDocument.comingSoon && <Badge variant="neutral">{translate('common:resourceBadge.comingSoon')}</Badge>}
+          </div>
           <p className="fh-page-subtitle">{channelDocument.description}</p>
+          {channelDocument.comingSoon && (
+            <p className="fh-alert-warning mt-3" data-testid="channel-docs-coming-soon-disclaimer" role="note">
+              {translate('commerce:commerceHub.channelDocs.digikala.disclaimer')}
+            </p>
+          )}
         </div>
         <span className="fh-docs-protocol fh-docs-protocol-header" dir="ltr">{channelDocument.protocol}</span>
       </div>
 
       <div className="fh-docs-search">
         <Icon name="search" size="sm" className="fh-docs-search-icon" />
-        <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="جست‌وجو در مستندات" aria-label="جست‌وجو در مستندات" />
-        {query && <button className="fh-docs-search-clear" type="button" onClick={() => setQuery('')} aria-label="پاک کردن جست‌وجو"><Icon name="close" /></button>}
+        <input
+          type="search"
+          value={query}
+          onChange={event => setQuery(event.target.value)}
+          placeholder={translate('commerce:commerceHub.channelDocs.searchPlaceholder')}
+          aria-label={translate('commerce:commerceHub.channelDocs.searchPlaceholder')}
+        />
+        {query && <button className="fh-docs-search-clear" type="button" onClick={() => setQuery('')} aria-label={translate('commerce:commerceHub.channelDocs.clearSearch')}><Icon name="close" /></button>}
       </div>
 
       <div className="fh-docs-layout">
-        <aside className="fh-docs-toc" aria-label="فهرست بخش‌ها">
-          <p className="fh-docs-toc-label">فهرست محتوا</p>
+        <aside className="fh-docs-toc" aria-label={translate('commerce:commerceHub.channelDocs.tableOfContents')}>
+          <p className="fh-docs-toc-label">{translate('commerce:commerceHub.channelDocs.tableOfContents')}</p>
           {visibleSections.map(section => <button key={section.id} type="button" onClick={() => window.document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{section.title}</button>)}
         </aside>
         <article className="fh-card fh-card-pad fh-docs-document">
           {visibleSections.length === 0 ? (
-            <div className="fh-docs-empty"><Icon name="search" size="md" /><p>بخشی مطابق با جست‌وجوی شما پیدا نشد.</p></div>
+            <div className="fh-docs-empty"><Icon name="search" size="md" /><p>{translate('commerce:commerceHub.channelDocs.noSearchResults')}</p></div>
           ) : visibleSections.map(section => (
             <section className="fh-docs-section" id={section.id} key={section.id}>
               <h2 className="fh-section-title">{section.title}</h2>

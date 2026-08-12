@@ -13,7 +13,7 @@ os.environ.setdefault("FLOWHUB_DATABASE_URL", "sqlite:///:memory:")
 
 from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
-from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache
+from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
 from app.flowhub.database import FlowHubBase
 from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
 from app.flowhub.integration_platform import models as _integration_models  # noqa: F401
@@ -92,21 +92,12 @@ def test_unsupported_optional_capabilities_are_not_applicable_and_do_not_lower_h
     item = _item(db, "woocommerce:primary")
 
     assert item["state"] == "HEALTHY"
-    for key in ("lastOrderSync", "webhookReceipt", "webhookProcessing", "queueDeadLetter", "tokenRefresh", "polling"):
+    for key in ("webhookReceipt", "webhookProcessing", "queueDeadLetter", "tokenRefresh", "polling"):
         assert item["dimensions"][key]["state"] == "NOT_APPLICABLE"
+    assert item["dimensions"]["lastOrderSync"]["state"] == "NOT_CHECKED"
 
 
-def test_digikala_documented_read_only_external_probe_requires_access_token(db):
-    _seed_channel(db, "digikala:main", "digikala", settings={})
-
-    external = _item(db, "digikala:main")["dimensions"]["externalApi"]
-
-    assert external["state"] == "NOT_CHECKED"
-    assert external["reason_code"] == "external_api_not_checked_configuration_incomplete"
-    assert external["is_actionable"] is True
-
-
-def test_digikala_diagnostics_uses_persisted_read_only_probe_evidence(db):
+def test_digikala_diagnostics_is_coming_soon_even_when_legacy_evidence_exists(db):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(
         db,
@@ -124,9 +115,14 @@ def test_digikala_diagnostics_uses_persisted_read_only_probe_evidence(db):
 
     item = _item(db, "digikala:main")
 
-    assert item["connectionTestSupported"] is True
-    assert item["credentialsConfigured"] is True
-    assert item["dimensions"]["externalApi"]["state"] == "HEALTHY"
+    assert item["status"] == "Coming Soon"
+    assert item["state"] == "COMING_SOON"
+    assert item["connectionTestSupported"] is False
+    assert item["credentialsConfigured"] is False
+    assert item["credentialsVerified"] is False
+    assert not any(item["capabilityState"].values())
+    assert item["dimensions"]["configuration"]["state"] == "COMING_SOON"
+    assert item["dimensions"]["externalApi"]["state"] == "NOT_APPLICABLE"
     assert item["dimensions"]["lastProductSync"]["state"] == "NOT_APPLICABLE"
     assert item["dimensions"]["lastOrderSync"]["state"] == "NOT_APPLICABLE"
 
@@ -148,7 +144,33 @@ def test_fresh_and_stale_product_sync_have_evidence_based_states(db):
     assert "within 24 hours" in stale["message"]
 
 
-def test_required_order_sync_without_success_is_warning_but_woocommerce_is_not_applicable(db):
+def test_completed_with_warnings_product_refresh_is_warning_not_in_progress(db):
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_health(db, "woocommerce:primary", "healthy", now, last_success_at=now)
+    db.add(
+        DlRefreshJob(
+            job_type="manual",
+            entity_type="products",
+            connector_id="woocommerce:primary",
+            status="completed_with_warnings",
+            started_at=now - timedelta(minutes=1),
+            completed_at=now,
+            created_at=now - timedelta(minutes=1),
+            meta={"products_stored": 4},
+        )
+    )
+    db.commit()
+
+    item = _item(db, "woocommerce:primary")
+    cache = item["dimensions"]["productCache"]
+    assert cache["state"] == "WARNING"
+    assert cache["reason_code"] == "product_cache_refresh_completed_with_warnings"
+    assert cache["checked_at"]
+    assert item["lastSyncErrorCategory"] == "completed_with_warnings"
+
+
+def test_required_order_sync_without_success_is_not_checked_for_snappshop_and_woocommerce(db):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     _seed_channel(db, "snappshop:main", "snappshop")
     _seed_polling_policy(db, "snappshop:main", enabled=True)
@@ -156,13 +178,14 @@ def test_required_order_sync_without_success_is_warning_but_woocommerce_is_not_a
     _seed_product_read(db, "snappshop:main", now)
 
     snapp = _item(db, "snappshop:main")
-    assert snapp["dimensions"]["lastOrderSync"]["state"] == "WARNING"
-    assert snapp["dimensions"]["lastOrderSync"]["reason_code"] == "order_sync_never_succeeded"
+    assert snapp["dimensions"]["lastOrderSync"]["state"] == "NOT_CHECKED"
+    assert snapp["dimensions"]["lastOrderSync"]["reason_code"] == "order_sync_not_checked"
     assert snapp["dimensions"]["polling"]["reason_code"] == "polling_never_succeeded"
 
     _seed_channel(db, "woocommerce:primary", "woocommerce")
     woo = _item(db, "woocommerce:primary")
-    assert woo["dimensions"]["lastOrderSync"]["state"] == "NOT_APPLICABLE"
+    assert woo["dimensions"]["lastOrderSync"]["state"] == "NOT_CHECKED"
+    assert woo["dimensions"]["lastOrderSync"]["reason_code"] == "order_sync_not_checked"
 
 
 def test_unused_order_sync_is_not_applicable_and_absent_polling_policy_is_disabled(db):

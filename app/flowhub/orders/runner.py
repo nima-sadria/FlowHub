@@ -44,6 +44,7 @@ from app.flowhub.orders.service import (
     resolve_order_sync_settings,
 )
 from app.flowhub.security.redaction import redact_sensitive
+from app.flowhub.setup.service import AppConfigService
 
 LOGGER = logging.getLogger("flowhub.orders.runner")
 RUNNER_EVENT_NAME = "order_sync_runner_heartbeat"
@@ -357,7 +358,33 @@ class OrderSyncRunner:
 
         def update_token(new_token: str) -> None:
             with self.session_factory() as db:
-                _upsert_setting(db, channel_id, "token", new_token, secret=True)
+                try:
+                    AppConfigService(db).set(
+                        "tapsishop.token",
+                        new_token,
+                        updated_by="tapsishop_order_refresh",
+                        commit=False,
+                    )
+                    _upsert_setting(
+                        db,
+                        channel_id,
+                        "token",
+                        new_token,
+                        secret=True,
+                        commit=False,
+                    )
+                    db.add(
+                        IntegrationConnectorEvent(
+                            connector_id=channel_id,
+                            event_name="tapsishop_token_refreshed",
+                            message="TapsiShop credential was refreshed; replacement value remains write-only.",
+                            metadata_json={"secret_values_returned": False},
+                        )
+                    )
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                    raise
 
         return TapsiShopConnector(channel_id=channel_id, config=config, token_updater=update_token)
 
@@ -450,16 +477,30 @@ def main() -> None:
     asyncio.run(main_async())
 
 
-def _upsert_setting(db: Session, channel_id: str, key: str, value: Any, *, secret: bool) -> None:
+def _upsert_setting(
+    db: Session,
+    channel_id: str,
+    key: str,
+    value: Any,
+    *,
+    secret: bool,
+    commit: bool = True,
+) -> None:
     row = db.query(IntegrationConnectorSetting).filter_by(connector_id=channel_id, key=key).first()
     if row is None:
         row = IntegrationConnectorSetting(connector_id=channel_id, key=key, secret=secret)
         db.add(row)
-    row.value_json = value
+    # The runner may receive a rotated provider token, but Integration Platform
+    # metadata must remain write-only. The caller persists the secret itself in
+    # AppConfig in the same transaction.
+    row.value_json = None if secret else value
     row.configured = value not in (None, "")
     row.secret = secret
     row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
 
 
 def _env_int(name: str, default: int) -> int:

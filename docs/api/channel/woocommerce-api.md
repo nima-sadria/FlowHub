@@ -10,7 +10,12 @@
 
 نشانی پایهٔ API به شکل زیر است:
 
-`baseUrl = https://www.your-store.com/wc-api/v3`
+`baseUrl = https://www.your-store.com`
+
+> **FlowHub contract:** configure the store origin only. FlowHub builds its
+> read-only WooCommerce requests below `https://www.your-store.com/wp-json/wc/v3`.
+> The historical `wc-api/v3` paths described elsewhere in this document are
+> reference material, not FlowHub request paths.
 
 نسخهٔ `v3` در ابتدای همهٔ مسیرها قرار می‌گیرد. این نسخه در مرجع اصلی برای WooCommerce `2.4.x` و `2.5.x` ذکر شده است.
 
@@ -33,7 +38,7 @@ API از JSON برای پاسخ‌ها و بدنهٔ درخواست‌هایی �
 در HTTPS از HTTP Basic Auth استفاده کنید: Consumer Key نام کاربری و Consumer Secret رمز عبور است.
 
 ```shell
-curl https://www.example.com/wc-api/v3/orders \
+curl https://www.example.com/wp-json/wc/v3/orders \
   -u consumer_key:consumer_secret
 ```
 
@@ -115,6 +120,38 @@ GET /orders?fields=id,status,payment_details.method_title
 | `401 Unauthorized` | اعتبارنامه نادرست یا مجوز ناکافی |
 | `404 Not Found` | منبع یا پارامتر لازم یافت نشد |
 | `500 Internal Server Error` | خطای پردازش در سرور |
+
+## FlowHub implementation contract
+
+The historical `wc-api/v3` material in this guide is retained only as
+background. It is **not** the contract used by the FlowHub connector.
+
+FlowHub uses the current WooCommerce REST API v3 endpoints beneath the store
+origin:
+
+```text
+https://store.example/wp-json/wc/v3
+```
+
+The configured base URL is the store origin (for example,
+`https://store.example`), not an API path. All FlowHub marketplace reads use
+HTTPS HTTP Basic authentication with the WooCommerce consumer key as the user
+name and consumer secret as the password. Secrets are write-only in FlowHub
+and are never returned by configuration APIs.
+
+| FlowHub operation | Method | Provider request | Success evidence |
+| --- | --- | --- | --- |
+| Test connection | `GET` | `/products?per_page=1&_fields=id` | HTTP `200` and a JSON response |
+| Read products | `GET` | `/products` | HTTP `200`; `X-WP-Total` and `X-WP-TotalPages` drive pagination |
+| Read orders | `GET` | `/orders` | HTTP `200`; `page` starts at `1`, `per_page` is at most `100` |
+| Read one order | `GET` | `/orders/{id}` | HTTP `200` and a JSON object |
+
+FlowHub does not send consumer credentials in query parameters and does not
+use the historical unauthenticated-HTTP/OAuth compatibility flow. Its
+connection check and marketplace synchronization are read-only. HTTP `401`,
+`403`, `404`, and `429` are surfaced as authentication, permission, endpoint,
+and rate-limit errors respectively; timeouts and connection failures remain
+distinct from provider HTTP responses.
 
 ```json
 {

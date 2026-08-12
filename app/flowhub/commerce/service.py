@@ -115,9 +115,13 @@ _CHANNELS = [
         "id": "digikala:main",
         "provider": "digikala",
         "name": "Digikala",
-        "status": "current",
+        # Keep the connector foundation discoverable to internal/API consumers,
+        # but do not present it as an operational channel until Owner credentials
+        # and the documented Products/Orders contract have been verified live.
+        "status": "coming_soon",
+        "availability": "coming_soon",
         "implemented": True,
-        "placeholder": False,
+        "placeholder": True,
         "implementation_status": "IMPLEMENTED_UNVERIFIED",
     },
     {
@@ -274,6 +278,10 @@ class CommerceHubService:
         item = self._channel_contract(self._channel_meta(channel_id), detail=True)
         return {
             "channel_id": channel_id,
+            "status": item["status"],
+            "availability": item["availability"],
+            "operational_available": item["operational_available"],
+            "actionable": item["actionable"],
             "capabilities": item["capabilities"],
             "capabilities_summary": item["capabilities_summary"],
             "runtime_write_blocked": True,
@@ -282,6 +290,8 @@ class CommerceHubService:
 
     async def test_channel_connection(self, channel_id: str, body: dict | None = None) -> dict:
         meta = self._channel_meta(channel_id)
+        if self._is_coming_soon(meta):
+            return self._coming_soon_connection_result(str(meta["name"]))
         item = self._channel_contract(meta)
         configured = item["credential_status"] == "configured" or self._has_submitted_credentials(meta, body)
         record_health = self._channel_test_matches_stored_configuration(meta, body)
@@ -300,6 +310,10 @@ class CommerceHubService:
             result = await self._test_digikala_channel_connection(configured, body)
         else:
             return self._unsupported_connection_result()
+        # Safe, non-secret evidence for the UI: a draft probe can succeed, but
+        # only a probe of the persisted configuration can make the channel
+        # ready/verified or update its health record.
+        result["configuration_matches_saved"] = record_health
         if record_health:
             self._record_channel_test_health(meta, result)
         return result
@@ -312,6 +326,14 @@ class CommerceHubService:
         before_cache_write: Callable[[str, str], None] | None = None,
     ) -> dict:
         meta = self._channel_meta(channel_id)
+        if self._is_coming_soon(meta):
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                {
+                    "code": "CHANNEL_COMING_SOON",
+                    "message": f"{meta['name']} is Coming Soon. Product refresh is not available yet.",
+                },
+            )
         provider = str(meta["provider"])
         if provider == "snappshop" and not bool(meta.get("placeholder")):
             return await self._refresh_snappshop_channel_cache(channel_id, actor)
@@ -683,15 +705,25 @@ class CommerceHubService:
     ) -> dict:
         meta = self._channel_meta(channel_id)
         provider = str(meta["provider"])
+        if self._is_coming_soon(meta):
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                {
+                    "code": "CHANNEL_COMING_SOON",
+                    "message": f"{meta['name']} is Coming Soon. Channel configuration is not available yet.",
+                },
+            )
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
         if bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
         access_mode = self._requested_channel_access_mode(meta, body)
         self._validate_channel_configuration(meta, body)
-        if provider == "snappshop":
-            await self._validate_snappshop_vendor_selection(body)
-        if provider in {"snappshop", "tapsishop", "technolife", "digikala"}:
+        # Marketplace configuration, including WooCommerce, is persisted as a
+        # single transaction.  In particular, do not commit AppConfig secrets
+        # before the corresponding write-only connector setting has staged
+        # successfully.
+        if provider in {"woocommerce", "snappshop", "tapsishop", "technolife", "digikala"}:
             result = self._update_marketplace_channel_settings(
                 channel_id,
                 meta,
@@ -746,9 +778,15 @@ class CommerceHubService:
     ) -> dict:
         provider = str(meta["provider"])
         changed_fields = self._configuration_changed_fields(body)
+        # Health is evidence for a particular saved connection identity.  Keep
+        # it for display-only/blank-secret saves, but remove it atomically when
+        # any value exercised by Test Connection actually changes.
+        previous_connection_identity = self._channel_connection_identity(provider, {})
         try:
             self._ensure_instance(meta, commit=False)
-            if provider == "snappshop":
+            if provider == "woocommerce":
+                self._persist_woocommerce_app_config(body, commit=False)
+            elif provider == "snappshop":
                 self._persist_snappshop_app_config(body, commit=False)
             elif provider == "tapsishop":
                 self._persist_tapsishop_app_config(body, commit=False)
@@ -770,6 +808,8 @@ class CommerceHubService:
                 },
                 commit=False,
             )
+            if previous_connection_identity != self._channel_connection_identity(provider, {}):
+                self._clear_channel_health(channel_id, commit=False)
             self.db.flush()
             self.db.commit()
         except Exception:
@@ -869,6 +909,14 @@ class CommerceHubService:
 
     def get_channel_configuration(self, channel_id: str) -> dict:
         meta = self._channel_meta(channel_id)
+        if self._is_coming_soon(meta):
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                {
+                    "code": "CHANNEL_COMING_SOON",
+                    "message": f"{meta['name']} is Coming Soon. Channel configuration is not available yet.",
+                },
+            )
         if bool(meta.get("placeholder")) or registry.get_definition(str(meta["provider"])) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel settings are not available.")
         if meta["provider"] == "woocommerce":
@@ -1103,6 +1151,7 @@ class CommerceHubService:
 
     def _channel_contract(self, meta: dict, detail: bool = False) -> dict:
         provider = str(meta["provider"])
+        coming_soon = self._is_coming_soon(meta)
         definition = registry.get_definition(provider)
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         if provider == "woocommerce":
@@ -1111,9 +1160,17 @@ class CommerceHubService:
         health = self._health(str(meta["id"]))
         configured = self._instance_configured(instance)
         secret_status = self._secret_status(instance)
-        access_mode = self._access_mode(instance)
-        write_pipeline_eligible = self._write_pipeline_eligible(meta, instance)
-        capabilities = definition.connector.capabilities if definition else ConnectorCapabilities()
+        access_mode = (
+            ACCESS_MODE_READ_ONLY if coming_soon else self._access_mode(instance)
+        )
+        write_pipeline_eligible = (
+            False if coming_soon else self._write_pipeline_eligible(meta, instance)
+        )
+        capabilities = (
+            ConnectorCapabilities()
+            if coming_soon
+            else definition.connector.capabilities if definition else ConnectorCapabilities()
+        )
         cache_rows = (
             self.db.query(DlProductCache)
             .filter(DlProductCache.connector_id == str(meta["id"]), DlProductCache.exists.is_(True))
@@ -1129,7 +1186,11 @@ class CommerceHubService:
         else:
             cached_products = len(cache_rows) - cached_variations
         latest_refresh = self._latest_product_refresh(str(meta["id"]))
-        configuration_state = self._channel_configuration_state(instance, health, latest_refresh)
+        configuration_state = (
+            "coming_soon"
+            if coming_soon
+            else self._channel_configuration_state(instance, health, latest_refresh)
+        )
         display_name, display_name_custom = self._channel_display_name(meta, instance)
         body = {
             "id": meta["id"],
@@ -1138,39 +1199,70 @@ class CommerceHubService:
             "display_name_custom": display_name_custom,
             "type": "Channel",
             "status": self._status(meta, instance, health),
+            "availability": str(meta.get("availability") or "available"),
+            "operational_available": not coming_soon,
+            "actionable": not coming_soon,
             "implemented": meta["implemented"],
             "implementation_status": meta.get("implementation_status"),
             "placeholder": meta["placeholder"],
-            "enabled": bool(instance and instance.enabled),
+            "enabled": bool(instance and instance.enabled) if not coming_soon else False,
             "access_mode": access_mode,
             "read_only": access_mode == ACCESS_MODE_READ_ONLY,
             "write_blocked": not write_pipeline_eligible,
             "write_pipeline_eligible": write_pipeline_eligible,
             "runtime_write_blocked": True,
-            "credential_status": "configured" if configured else "not_configured",
+            "credential_status": "configured" if configured and not coming_soon else "not_configured",
             "configuration_state": configuration_state,
-            "credentials_configured": self._credentials_configured(instance),
-            "credentials_verified": bool(health and health.last_success_at),
-            "vendor_selected": self._vendor_selected(instance),
-            "vendor_accessible": bool(configured and health and health.status == "healthy"),
-            "token_configured": secret_status.get("token", {}).get("status") == "configured",
-            "webhook_token_configured": secret_status.get("webhook_token", {}).get("status") == "configured",
-            "access_token_configured": secret_status.get("access_token", {}).get("status") == "configured",
-            "refresh_token_configured": secret_status.get("refresh_token", {}).get("status") == "configured",
-            "last_health_check": self._iso(health.checked_at) if health else None,
-            "health": self._health_contract(health),
+            "credentials_configured": self._credentials_configured(instance) if not coming_soon else False,
+            # A previous successful probe is useful historical evidence, but it
+            # must not make the current state look verified after a newer failure.
+            "credentials_verified": (
+                self._currently_verified(health) if configured and not coming_soon else False
+            ),
+            "vendor_selected": self._vendor_selected(instance) if not coming_soon else False,
+            "vendor_accessible": bool(
+                configured and not coming_soon and health and health.status == "healthy"
+            ),
+            "token_configured": (
+                secret_status.get("token", {}).get("status") == "configured"
+                if not coming_soon else False
+            ),
+            "webhook_token_configured": (
+                secret_status.get("webhook_token", {}).get("status") == "configured"
+                if not coming_soon else False
+            ),
+            "access_token_configured": (
+                secret_status.get("access_token", {}).get("status") == "configured"
+                if not coming_soon else False
+            ),
+            "refresh_token_configured": (
+                secret_status.get("refresh_token", {}).get("status") == "configured"
+                if not coming_soon else False
+            ),
+            "last_health_check": self._iso(health.checked_at) if health and not coming_soon else None,
+            "health": self._health_contract(health) if not coming_soon else self._coming_soon_health_contract(),
             "capabilities": capabilities.model_dump(),
             "capabilities_summary": self._capabilities_summary(capabilities),
-            "settings_available": definition is not None,
-            "cached_products": cached_products,
-            "cached_variations": cached_variations,
+            "settings_available": definition is not None and not coming_soon,
+            # A Coming Soon connector must not imply that a cached product
+            # count represents supported, verified marketplace synchronization.
+            "cached_products": cached_products if not coming_soon else 0,
+            "cached_variations": cached_variations if not coming_soon else 0,
             "last_cache_refresh": self._iso(
                 latest_refresh.completed_at or latest_refresh.started_at or latest_refresh.created_at
-            ) if latest_refresh else None,
-            "cache_refresh_status": latest_refresh.status if latest_refresh else "not_run",
+            ) if latest_refresh and not coming_soon else None,
+            "cache_refresh_status": (
+                latest_refresh.status if latest_refresh and not coming_soon else "not_run"
+            ),
             "product_sync_error_category": (
-                str((latest_refresh.meta or {}).get("error_category") or "") or None
-                if latest_refresh and latest_refresh.status == "failed"
+                (
+                    "completed_with_warnings"
+                    if latest_refresh.status == "completed_with_warnings"
+                    else str((latest_refresh.meta or {}).get("error_category") or "") or None
+                )
+                if latest_refresh
+                and latest_refresh.status in {"failed", "partial_failed", "completed_with_warnings"}
+                and not coming_soon
                 else None
             ),
         }
@@ -1178,7 +1270,7 @@ class CommerceHubService:
             body["settings_schema"] = [
                 item.model_dump() for item in definition.settings_schema
             ] if definition else []
-            body["secrets"] = secret_status
+            body["secrets"] = secret_status if not coming_soon else {}
         return body
 
     @staticmethod
@@ -1336,9 +1428,11 @@ class CommerceHubService:
         if health and health.status == "unhealthy":
             return "error"
         if instance.connector_type == "snappshop" and not self._instance_configured(instance):
-            return "credentials_verified" if health and health.last_success_at else "not_configured"
-        if refresh and refresh.status == "failed":
+            return "credentials_verified" if self._currently_verified(health) else "not_configured"
+        if refresh and refresh.status in {"failed", "partial_failed"}:
             return "error"
+        if refresh and refresh.status == "completed_with_warnings":
+            return "warning"
         if refresh and refresh.status == "completed":
             return "operational"
         return "configured"
@@ -1367,14 +1461,53 @@ class CommerceHubService:
             return 0, "failed"
         stored = int((job.meta or {}).get("products_stored") or 0)
         status_value = "partial_failed" if stored > 0 else "failed"
+        safe_error = normalize_upstream_error(exc, source="woocommerce")
         job.status = status_value
         job.completed_at = completed
-        job.error_message = self._safe_cache_refresh_error(exc)[:500]
+        job.error_message = str(safe_error["message"])[:500]
+        job.meta = {
+            **(job.meta or {}),
+            "error_category": self._cache_refresh_error_category(exc, safe_error),
+        }
         self.db.commit()
         return stored, status_value
 
     def _safe_cache_refresh_error(self, exc: Exception) -> str:
         return str(normalize_upstream_error(exc, source="woocommerce")["message"])
+
+    @classmethod
+    def _cache_refresh_error_category(
+        cls, exc: Exception, safe_error: dict[str, object]
+    ) -> str:
+        """Persist the same safe, normalized taxonomy shown by Channel health."""
+
+        code = getattr(exc, "code", None)
+        raw_code = getattr(code, "value", code)
+        normalized = cls._health_error_class(str(raw_code or ""))
+        aliases = {
+            "auth_failed": "authentication_failed",
+            "permission": "authorization_failed",
+            "network": "network_failure",
+            "provider_error": "provider_error",
+            "unknown": "unexpected_response",
+        }
+        if normalized and normalized != "connection_failed":
+            return aliases.get(normalized, normalized)
+
+        safe_code = str(safe_error.get("code") or "").upper()
+        if safe_code.endswith("_AUTH_FAILED"):
+            return "authentication_failed"
+        if safe_code.endswith("_NOT_FOUND"):
+            return "not_found"
+        if safe_code.endswith("_RATE_LIMITED"):
+            return "rate_limited"
+        if safe_code.endswith("_TIMEOUT"):
+            return "timeout"
+        if safe_code.endswith("_DNS_ERROR"):
+            return "dns_failure"
+        if safe_code.endswith("_TLS_ERROR"):
+            return "tls_failure"
+        return "unexpected_response"
 
     def _ensure_instance(self, meta: dict, *, commit: bool = True) -> IntegrationConnectorInstance:
         row = self.db.get(IntegrationConnectorInstance, meta["id"])
@@ -1619,20 +1752,22 @@ class CommerceHubService:
             settings["agent_header_name"] = str(
                 settings.get("agent_header_name") or SNAPPSHOP_DEFAULT_AGENT_HEADER
             ).strip()
-            if "request_timeout" not in submitted_settings:
-                settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
+            settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
+        elif provider == "tapsishop":
+            settings["base_url"] = str(
+                settings.get("base_url") or TAPSISHOP_BASE_URL
+            ).strip().rstrip("/")
+            settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
         elif provider == "technolife":
             settings["base_url"] = str(
                 settings.get("base_url") or TECHNOLIFE_BASE_URL
             ).strip().rstrip("/")
-            if "request_timeout" not in submitted_settings:
-                settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
+            settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
         elif provider == "digikala":
             settings["base_url"] = str(
                 settings.get("base_url") or DIGIKALA_BASE_URL
             ).strip().rstrip("/")
-            if "request_timeout" not in submitted_settings:
-                settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
+            settings["request_timeout"] = _safe_integer_timeout(settings.get("request_timeout"))
         secrets = {
             key: submitted_secrets.get(key) or self.integration.config.get(f"{provider}.{key}")
             for key in secret_keys
@@ -1649,46 +1784,6 @@ class CommerceHubService:
             "store_url": vendor.display_url,
             "reference_code": vendor.identifiers.channel_reference_code,
         }
-
-    async def _validate_snappshop_vendor_selection(self, body: dict) -> None:
-        settings, _ = self._connector_values("snappshop", body)
-        selected_vendor_id = str(settings.get("vendor_id") or "").strip()
-        if not selected_vendor_id:
-            # Credentials may be saved before vendor discovery. The channel
-            # remains in Setup Required until an active vendor is selected.
-            return
-        connector = self._snappshop_connector(body)
-        if connector is None:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "SnappShop credentials are incomplete.")
-        try:
-            vendors = await connector.list_vendors()
-        except SnappShopConnectorError as exc:
-            error = exc.error
-            if error.category.value in {"authentication", "authorization", "validation"}:
-                response_status = status.HTTP_422_UNPROCESSABLE_ENTITY
-            elif error.category.value == "timeout":
-                response_status = status.HTTP_504_GATEWAY_TIMEOUT
-            else:
-                response_status = status.HTTP_502_BAD_GATEWAY
-            raise HTTPException(
-                response_status,
-                {
-                    "code": f"SNAPPSHOP_{error.category.value.upper()}",
-                    "message": error.message,
-                    "upstream_status": error.http_status,
-                },
-            ) from exc
-        selected = next((vendor for vendor in vendors if vendor.vendor_id == selected_vendor_id), None)
-        if selected is None:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                {"code": "SNAPPSHOP_VENDOR_INVALID", "message": "The selected SnappShop vendor is not available for these credentials."},
-            )
-        if not _snappshop_vendor_is_active(selected.metadata.get("status")):
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                {"code": "SNAPPSHOP_VENDOR_INACTIVE", "message": "The selected SnappShop vendor is inactive."},
-            )
 
     async def _test_woocommerce_channel_connection(
         self, configured: bool, body: dict | None = None
@@ -1707,6 +1802,7 @@ class CommerceHubService:
                 "checked_at": self._checked_at(),
                 "message": str(exc),
                 "code": "CHANNEL_INVALID_URL",
+                "error_class": "invalid_url",
                 "external_call_performed": False,
             }
         if not configured or creds is None:
@@ -1758,7 +1854,30 @@ class CommerceHubService:
                 "external_call_performed": True,
                 "message": safe_error["message"],
                 "code": safe_error["code"],
+                "error_class": self._woocommerce_error_class(exc, safe_error),
             }
+
+    @staticmethod
+    def _woocommerce_error_class(
+        exc: ConnectorError, safe_error: dict[str, object]
+    ) -> str:
+        safe_code = str(safe_error.get("code") or "").upper()
+        if safe_code.endswith("DNS_ERROR"):
+            return "dns_failure"
+        if safe_code.endswith("TLS_ERROR"):
+            return "tls_failure"
+        by_code = {
+            ConnectorErrorCode.AUTH_FAILED: "authentication_failed",
+            ConnectorErrorCode.PERMISSION: "authorization_failed",
+            ConnectorErrorCode.NOT_FOUND: "not_found",
+            ConnectorErrorCode.RATE_LIMITED: "rate_limited",
+            ConnectorErrorCode.TIMEOUT: "timeout",
+            ConnectorErrorCode.NETWORK: "network_failure",
+            ConnectorErrorCode.PROVIDER_ERROR: "server_failure",
+        }
+        if exc.code in by_code:
+            return by_code[exc.code]
+        return "connection_failed"
     def _woocommerce_credentials(self, body: dict | None = None) -> WooCommerceCredentials | None:
         values = self._woocommerce_values(body)
         url = values["url"]
@@ -1777,6 +1896,64 @@ class CommerceHubService:
             "secret": str(secrets.get("secret") or self.integration.config.get("woocommerce.secret") or "").strip(),
         }
 
+    def _channel_connection_identity(
+        self, provider: str, body: dict | None
+    ) -> tuple[str, ...]:
+        """Return the internal-only saved values exercised by Test Connection.
+
+        This identity is intentionally never returned in an API contract.  It
+        lets a successful historical probe remain useful after a display-only
+        save, while preventing it from being shown for replacement credentials
+        or a different provider destination.
+        """
+        if provider == "woocommerce":
+            values = self._woocommerce_values(body)
+            return (
+                provider,
+                str(values["url"] or "").strip().rstrip("/"),
+                values["key"],
+                values["secret"],
+            )
+
+        settings, secrets = self._connector_values(provider, body)
+        keys_by_provider = {
+            "snappshop": (
+                ("setting", "base_url"),
+                ("setting", "agent_identifier"),
+                ("setting", "agent_header_name"),
+                ("setting", "vendor_id"),
+                ("setting", "request_timeout"),
+                ("secret", "token"),
+            ),
+            "tapsishop": (
+                ("setting", "base_url"),
+                ("setting", "selected_vendor_id"),
+                ("setting", "request_timeout"),
+                ("secret", "token"),
+            ),
+            "technolife": (
+                ("setting", "base_url"),
+                ("setting", "request_timeout"),
+                ("secret", "api_key"),
+                ("secret", "encryption_secret"),
+            ),
+            "digikala": (
+                ("setting", "base_url"),
+                ("secret", "access_token"),
+                ("secret", "refresh_token"),
+            ),
+        }.get(provider, ())
+        identity: list[str] = [provider]
+        for source, key in keys_by_provider:
+            value = settings.get(key) if source == "setting" else secrets.get(key)
+            normalized = str(value or "").strip()
+            if key == "base_url":
+                normalized = normalized.rstrip("/")
+            elif key == "request_timeout":
+                normalized = str(_safe_integer_timeout(value))
+            identity.append(normalized)
+        return tuple(identity)
+
     def _normalize_woocommerce_url(self, value: str) -> str:
         message = "WooCommerce Store URL must be an absolute HTTP or HTTPS URL."
         url = str(value or "").strip().rstrip("/")
@@ -1794,12 +1971,20 @@ class CommerceHubService:
         if not result.get("external_call_performed") and result.get("code") != "CHANNEL_INVALID_URL":
             return
         ok = bool(result.get("ok"))
-        result_status = str(result.get("status") or "")
         code = str(result.get("code") or "")
         http_status = result.get("http_status")
         if ok:
             error_class = None
-        elif result_status == "authentication_failed" or result.get("authenticated") is False and http_status in {401, 403}:
+        elif result.get("error_class"):
+            # Marketplace connectors already classify safe, actionable failures.
+            # Preserve that evidence instead of replacing it with a generic
+            # connection failure in the persisted health row.
+            error_class = self._health_error_class(str(result["error_class"]))
+        elif result.get("error_code"):
+            error_class = self._health_error_class(str(result["error_code"]))
+        elif str(result.get("status") or "") == "authentication_failed" or (
+            result.get("authenticated") is False and http_status in {401, 403}
+        ):
             error_class = "authentication_failed"
         elif code == "CHANNEL_INVALID_URL":
             error_class = "invalid_url"
@@ -1815,6 +2000,18 @@ class CommerceHubService:
             detail=str(result.get("message") or "")[:500],
             error_class=error_class,
         )
+
+    @staticmethod
+    def _health_error_class(value: str) -> str:
+        """Normalize only spelling aliases; retain connector error taxonomy."""
+        normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+        aliases = {
+            "authentication": "authentication_failed",
+            "authorization": "authorization_failed",
+            "rate_limit": "rate_limited",
+            "ratelimit": "rate_limited",
+        }
+        return aliases.get(normalized, normalized or "connection_failed")
 
     async def _test_snappshop_channel_connection(self, configured: bool, body: dict | None = None) -> dict:
         connector = self._snappshop_connector(body)
@@ -1836,10 +2033,18 @@ class CommerceHubService:
             vendors = await connector.list_vendors()
             if not vendors:
                 raise ValueError("No authorized SnappShop vendors were returned.")
-            if connector.config.vendor_id:
-                selected = next((vendor for vendor in vendors if vendor.vendor_id == connector.config.vendor_id), None)
+            resolved_settings, _ = self._connector_values("snappshop", body)
+            configured_vendor_id = str(
+                resolved_settings.get("vendor_id")
+                or getattr(getattr(connector, "config", None), "vendor_id", "")
+                or ""
+            ).strip()
+            if configured_vendor_id:
+                selected = next((vendor for vendor in vendors if vendor.vendor_id == configured_vendor_id), None)
                 if selected is None:
                     raise ValueError("Selected SnappShop vendor was not returned.")
+                if not _snappshop_vendor_is_active(selected.metadata.get("status")):
+                    raise ValueError("Selected SnappShop vendor is inactive.")
             latency_ms = round((monotonic() - started) * 1000, 2)
         except SnappShopConnectorError as exc:
             error = exc.error
@@ -1848,20 +2053,22 @@ class CommerceHubService:
                 "authenticated": error.category.value not in {"authentication", "authorization"},
                 "status": "authentication_failed" if error.category.value == "authentication" else "error",
                 "http_status": error.http_status, "latency_ms": round((monotonic() - started) * 1000, 2),
-                "checked_at": self._checked_at(), "message": error.message, "external_call_performed": True,
+                "checked_at": self._checked_at(), "message": error.message,
+                "error_class": error.category.value, "external_call_performed": True,
             }
         except ValueError as exc:
             return {
                 **self._connection_base(), "ok": False, "connected": False, "authenticated": True,
                 "status": "error", "http_status": None, "latency_ms": round((monotonic() - started) * 1000, 2),
-                "checked_at": self._checked_at(), "message": str(exc), "external_call_performed": True,
+                "checked_at": self._checked_at(), "message": str(exc),
+                "error_class": "validation", "external_call_performed": True,
             }
         return {
             **self._connection_base(),
             "ok": True,
             "connected": True,
             "authenticated": True,
-            "status": "configured" if connector.config.vendor_id else "credentials_verified",
+            "status": "configured" if configured_vendor_id else "credentials_verified",
             "http_status": 200,
             "latency_ms": latency_ms,
             "checked_at": self._checked_at(),
@@ -1869,7 +2076,7 @@ class CommerceHubService:
             "external_call_performed": True,
             "vendors": [self._vendor_contract(item) for item in vendors],
             "suggested_vendor_id": _single_active_vendor_id(vendors),
-            "selected_vendor_id": connector.config.vendor_id,
+            "selected_vendor_id": configured_vendor_id or None,
         }
 
     def _snappshop_connector(self, body: dict | None = None) -> SnappShopConnector | None:
@@ -1918,13 +2125,15 @@ class CommerceHubService:
                 "authenticated": error.category.value not in {"authentication", "authorization"},
                 "status": "authentication_failed" if error.category.value == "authentication" else "error",
                 "http_status": error.http_status, "latency_ms": round((monotonic() - started) * 1000, 2),
-                "checked_at": self._checked_at(), "message": error.message, "external_call_performed": True,
+                "checked_at": self._checked_at(), "message": error.message,
+                "error_class": error.category.value, "external_call_performed": True,
             }
         except ValueError as exc:
             return {
                 **self._connection_base(), "ok": False, "connected": False, "authenticated": True,
                 "status": "error", "http_status": None, "latency_ms": round((monotonic() - started) * 1000, 2),
-                "checked_at": self._checked_at(), "message": str(exc), "external_call_performed": True,
+                "checked_at": self._checked_at(), "message": str(exc),
+                "error_class": "validation", "external_call_performed": True,
             }
         return {
             **self._connection_base(),
@@ -1956,7 +2165,7 @@ class CommerceHubService:
             config = replace(config, refresh_enabled=False)
 
         def update_token(new_token: str) -> None:
-            self.integration.config.set("tapsishop.token", new_token, updated_by="tapsishop_refresh")
+            self._persist_tapsishop_refreshed_token(new_token)
 
         return TapsiShopConnector(
             channel_id="tapsishop:main",
@@ -2003,6 +2212,7 @@ class CommerceHubService:
                 "latency_ms": latency_ms,
                 "checked_at": self._checked_at(),
                 "message": error.message if error else "Technolife connection failed.",
+                "error_class": error.category.value if error else "connection_failed",
                 "external_call_performed": True,
             }
         return {
@@ -2121,6 +2331,53 @@ class CommerceHubService:
             ),
             allow_token_refresh=allow_token_refresh,
         )
+
+    def _persist_tapsishop_refreshed_token(self, token: str) -> None:
+        """Atomically rotate the token used by Channels, cache, and Orders.
+
+        AppConfig is the shared runtime source and the Integration Platform row
+        is the persisted configuration marker consumed by the order runner.
+        Updating both in one transaction prevents a successful refresh from
+        making one FlowHub surface use an older credential.
+        """
+
+        try:
+            self.integration.config.set(
+                "tapsishop.token", token, updated_by="tapsishop_refresh", commit=False
+            )
+            row = self.db.get(IntegrationConnectorInstance, "tapsishop:main")
+            if row is not None:
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                setting = next((item for item in row.settings if item.key == "token"), None)
+                if setting is None:
+                    row.settings.append(
+                        IntegrationConnectorSetting(
+                            key="token",
+                            # The Integration Platform row records only that a
+                            # write-only credential exists. AppConfig remains
+                            # the sole secret-value store shared by all paths.
+                            value_json=None,
+                            secret=True,
+                            configured=True,
+                            updated_at=now,
+                        )
+                    )
+                else:
+                    setting.value_json = None
+                    setting.secret = True
+                    setting.configured = True
+                    setting.updated_at = now
+                self.integration.record_event(
+                    connector_id="tapsishop:main",
+                    event_name="tapsishop_token_refreshed",
+                    message="TapsiShop credential was refreshed; replacement value remains write-only.",
+                    metadata={"secret_values_returned": False},
+                    commit=False,
+                )
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
 
     def _persist_digikala_refreshed_tokens(
         self, access_token: str, refresh_token: str
@@ -2464,6 +2721,17 @@ class CommerceHubService:
         self.db.delete(health)
         self.db.commit()
 
+    def _clear_channel_health(self, channel_id: str, *, commit: bool = True) -> None:
+        """Remove stale health evidence as part of a channel settings save."""
+        health = self._health(channel_id)
+        if health is None:
+            return
+        self.db.delete(health)
+        if commit:
+            self.db.commit()
+        else:
+            self.db.flush()
+
     def _safe_nextcloud_error_message(self, exc: IntegrationError) -> str:
         code = self._nextcloud_error_class(exc)
         messages = {
@@ -2632,7 +2900,7 @@ class CommerceHubService:
                 {"code": exc.code, "message": str(exc)},
             ) from exc
 
-    def _persist_woocommerce_app_config(self, body: dict) -> None:
+    def _persist_woocommerce_app_config(self, body: dict, *, commit: bool = True) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
         pairs: dict[str, str] = {}
@@ -2643,21 +2911,30 @@ class CommerceHubService:
         if secrets.get("secret"):
             pairs["woocommerce.secret"] = str(secrets["secret"])
         if pairs:
-            self.integration.config.set_many(pairs, updated_by="commerce_hub")
+            self.integration.config.set_many(
+                pairs,
+                updated_by="commerce_hub",
+                commit=commit,
+            )
 
     def _persist_snappshop_app_config(self, body: dict, *, commit: bool = True) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
         pairs: dict[str, str] = {}
-        pairs["snappshop.base_url"] = str(
-            settings.get("base_url") or "https://apix.snappshop.ir/automation/v1"
-        ).strip().rstrip("/")
-        pairs["snappshop.agent_header_name"] = str(
-            settings.get("agent_header_name") or SNAPPSHOP_DEFAULT_AGENT_HEADER
-        ).strip()
+        if "base_url" in settings:
+            pairs["snappshop.base_url"] = str(
+                settings.get("base_url") or SNAPPSHOP_BASE_URL
+            ).strip().rstrip("/")
+        if "agent_header_name" in settings:
+            pairs["snappshop.agent_header_name"] = str(
+                settings.get("agent_header_name") or SNAPPSHOP_DEFAULT_AGENT_HEADER
+            ).strip()
         if settings.get("agent_identifier"):
             pairs["snappshop.agent_identifier"] = str(settings["agent_identifier"]).strip()
-        pairs["snappshop.request_timeout"] = str(_safe_integer_timeout(settings.get("request_timeout")))
+        if "request_timeout" in settings:
+            pairs["snappshop.request_timeout"] = str(
+                _safe_integer_timeout(settings.get("request_timeout"))
+            )
         if "vendor_id" in settings:
             pairs["snappshop.vendor_id"] = str(settings.get("vendor_id") or "").strip()
         if secrets.get("token"):
@@ -2668,9 +2945,11 @@ class CommerceHubService:
     def _persist_tapsishop_app_config(self, body: dict, *, commit: bool = True) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
-        pairs: dict[str, str] = {
-            "tapsishop.base_url": str(settings.get("base_url") or TAPSISHOP_BASE_URL).strip().rstrip("/"),
-        }
+        pairs: dict[str, str] = {}
+        if "base_url" in settings:
+            pairs["tapsishop.base_url"] = str(
+                settings.get("base_url") or TAPSISHOP_BASE_URL
+            ).strip().rstrip("/")
         for source_key, config_key in (
             ("request_timeout", "tapsishop.request_timeout"),
             ("token_refresh_enabled", "tapsishop.token_refresh_enabled"),
@@ -2693,14 +2972,15 @@ class CommerceHubService:
     def _persist_technolife_app_config(self, body: dict, *, commit: bool = True) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
-        pairs: dict[str, str] = {
-            "technolife.base_url": str(
+        pairs: dict[str, str] = {}
+        if "base_url" in settings:
+            pairs["technolife.base_url"] = str(
                 settings.get("base_url") or TECHNOLIFE_BASE_URL
-            ).strip().rstrip("/"),
-            "technolife.request_timeout": str(
+            ).strip().rstrip("/")
+        if "request_timeout" in settings:
+            pairs["technolife.request_timeout"] = str(
                 _safe_integer_timeout(settings.get("request_timeout"))
-            ),
-        }
+            )
         if secrets.get("api_key"):
             pairs["technolife.api_key"] = str(secrets["api_key"])
         if secrets.get("encryption_secret"):
@@ -2712,14 +2992,15 @@ class CommerceHubService:
     def _persist_digikala_app_config(self, body: dict, *, commit: bool = True) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
-        pairs: dict[str, str] = {
-            "digikala.base_url": str(
+        pairs: dict[str, str] = {}
+        if "base_url" in settings:
+            pairs["digikala.base_url"] = str(
                 settings.get("base_url") or DIGIKALA_BASE_URL
-            ).strip().rstrip("/"),
-            "digikala.request_timeout": str(
+            ).strip().rstrip("/")
+        if "request_timeout" in settings:
+            pairs["digikala.request_timeout"] = str(
                 _safe_integer_timeout(settings.get("request_timeout"))
-            ),
-        }
+            )
         if secrets.get("access_token"):
             pairs["digikala.access_token"] = str(secrets["access_token"])
         if secrets.get("refresh_token"):
@@ -2770,6 +3051,31 @@ class CommerceHubService:
             "external_call_performed": False,
         }
 
+    def _coming_soon_connection_result(self, name: str) -> dict:
+        return {
+            **self._connection_base(),
+            "ok": False,
+            "connected": False,
+            "authenticated": False,
+            "status": "coming_soon",
+            "code": "CHANNEL_COMING_SOON",
+            "error_class": "coming_soon",
+            "http_status": None,
+            "latency_ms": None,
+            "checked_at": self._checked_at(),
+            "message": f"{name} is Coming Soon. No external call was performed.",
+            "external_call_performed": False,
+        }
+
+    @staticmethod
+    def _coming_soon_health_contract() -> dict:
+        return {
+            "status": "unknown",
+            "message": "Coming Soon. Provider configuration and live verification are not available yet.",
+            "latency_ms": None,
+            "error_code": "coming_soon",
+        }
+
     def _unsupported_connection_result(self) -> dict:
         return {
             **self._connection_base(),
@@ -2806,18 +3112,31 @@ class CommerceHubService:
 
     def _type_contract(self, meta: dict, *, kind: str) -> dict:
         definition = registry.get_definition(str(meta["provider"]))
+        coming_soon = self._is_coming_soon(meta)
+        capabilities = (
+            ConnectorCapabilities()
+            if coming_soon
+            else definition.connector.capabilities if definition else ConnectorCapabilities()
+        )
         return {
             "id": meta["id"],
             "provider": meta["provider"],
             "name": meta["name"],
             "type": kind,
+            "status": str(meta.get("status") or "current"),
+            "availability": str(meta.get("availability") or "available"),
+            "operational_available": not coming_soon,
+            "actionable": not coming_soon,
             "implemented": bool(meta["implemented"]),
             "implementation_status": meta.get("implementation_status"),
             "placeholder": bool(meta["placeholder"]),
             "read_only": True,
             "write_blocked": kind == "Channel",
             "runtime_write_blocked": True,
-            "settings_schema": [item.model_dump() for item in definition.settings_schema] if definition else [],
+            "settings_available": definition is not None and not coming_soon,
+            "settings_schema": [item.model_dump() for item in definition.settings_schema] if definition and not coming_soon else [],
+            "capabilities": capabilities.model_dump(),
+            "capabilities_summary": self._capabilities_summary(capabilities),
         }
 
     def _status(
@@ -2826,9 +3145,18 @@ class CommerceHubService:
         instance: IntegrationConnectorInstance | None,
         health: DlConnectorHealth | None,
     ) -> str:
+        if self._is_coming_soon(meta):
+            return "coming_soon"
         if meta.get("placeholder"):
             return "not_configured"
-        if instance is None or not instance.enabled:
+        if instance is None:
+            return "not_configured"
+        if not instance.enabled:
+            return "disabled"
+        if not self._instance_configured(instance):
+            # A SnappShop token can be probed before an Owner selects a vendor,
+            # but an incomplete persisted connector is never an operational
+            # Product/Order channel.
             return "not_configured"
         if health is None:
             return "configured"
@@ -2839,6 +3167,15 @@ class CommerceHubService:
         if health.status == "unhealthy":
             return "error"
         return "configured"
+
+    @staticmethod
+    def _is_coming_soon(meta: dict) -> bool:
+        return str(meta.get("availability") or "").strip().lower() == "coming_soon"
+
+    @staticmethod
+    def _currently_verified(health: DlConnectorHealth | None) -> bool:
+        """Return whether the latest recorded health evidence is successful."""
+        return bool(health and health.status == "healthy" and health.last_success_at)
 
     def _health(self, channel_id: str) -> DlConnectorHealth | None:
         return (

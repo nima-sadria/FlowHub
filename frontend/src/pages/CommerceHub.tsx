@@ -23,10 +23,13 @@ import {
   commerceChannelSignals,
   commerceSourceSignals,
   commerceTypeSignals,
+  isCommerceChannelComingSoon,
+  isCommerceTypeComingSoon,
   prepareResourceCollection,
   preferredResourceId,
   type ResourceBadge,
 } from '../features/resourceOrdering/resourceOrdering'
+import { connectionExceptionMessage, connectionResultMessage } from '../features/diagnostics/connectionErrorPresentation'
 
 type Tab = 'sources' | 'channels'
 type FormKind = 'source' | 'channel'
@@ -214,9 +217,10 @@ function ChannelCard({ channel, badge, onTest, onRefresh, onConfigure, testing, 
   refreshResult?: ChannelCacheRefreshResult
   canManage: boolean
 }) {
-  const isWooCommerce = channel.provider === 'woocommerce' && !channel.placeholder
-  const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider) && !channel.placeholder
-  const isConfigurable = channel.implemented && !channel.placeholder && ['woocommerce', 'snappshop', 'tapsishop', 'digikala'].includes(channel.provider)
+  const comingSoon = isCommerceChannelComingSoon(channel) || !channel.settings_available
+  const isWooCommerce = channel.provider === 'woocommerce' && !comingSoon
+  const supportsProductCache = ['woocommerce', 'snappshop', 'tapsishop'].includes(channel.provider) && !comingSoon
+  const isConfigurable = !comingSoon && channel.implemented && ['woocommerce', 'snappshop', 'tapsishop', 'digikala'].includes(channel.provider)
   const isConfigured = channel.credential_status === 'configured'
   return (
     <div className="fh-card fh-card-pad flex flex-col gap-3" title={formatCapabilityList(channel.capabilities_summary)}>
@@ -614,6 +618,9 @@ export function ConfigPanel({
     () => prepareResourceCollection(types, commerceTypeSignals),
     [types],
   )
+  const initialTypeIsComingSoon = Boolean(initialResourceId && types.some(item => (
+    item.id === initialResourceId && isCommerceTypeComingSoon(item)
+  )))
   const [selectedId, setSelectedId] = useState(
     () => preferredResourceId(initialResourceId, typeResources) ?? '',
   )
@@ -685,6 +692,11 @@ export function ConfigPanel({
 
   useEffect(() => {
     if (!initialResourceId) return
+    if (types.length === 0) return
+    if (initialTypeIsComingSoon) {
+      setLoadingConfiguration(false)
+      return
+    }
     let active = true
     setLoadingConfiguration(true)
     setSelectedId(initialResourceId)
@@ -763,7 +775,7 @@ export function ConfigPanel({
         if (active) setLoadingConfiguration(false)
       })
     return () => { active = false }
-  }, [commerce, initialResourceId, kind, notifyError])
+  }, [commerce, initialResourceId, initialTypeIsComingSoon, kind, notifyError, types.length])
 
   if (!selected) return null
   const selectedType = selected
@@ -1099,6 +1111,11 @@ export function ConfigPanel({
               title: translate('commerce:commerceHub.sourceConnectedSuccessfully'),
               description: translate('commerce:commerceHub.isReadyToUse', { value1: selectedType.name }),
             }
+          : result.configuration_matches_saved !== true
+            ? {
+                title: translate('commerce:commerceHub.channelConnectionVerified'),
+                description: translate('commerce:commerceHub.saveDraftBeforeChannelReady'),
+              }
           : {
               title: translate('commerce:commerceHub.channelConnectedSuccessfully'),
               description: translate('commerce:commerceHub.isReadyToUse', { value1: localizedChannelName(selectedType.id, selectedType.name) }),
@@ -1109,7 +1126,7 @@ export function ConfigPanel({
           title: kind === 'source' ? translate('commerce:commerceHub.unableToConnectToTheSource') : translate('commerce:commerceHub.unableToConnectToTheChannel'),
           description: kind === 'source'
             ? nextcloudConnectionFailureMessage(result)
-            : translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+            : connectionResultMessage(result),
         }
         if (kind === 'source') {
           setConnectionFeedback({ variant: 'error', title: failure.title, message: failure.description })
@@ -1121,7 +1138,7 @@ export function ConfigPanel({
         title: kind === 'source' ? translate('commerce:commerceHub.unableToConnectToTheSource') : translate('commerce:commerceHub.unableToConnectToTheChannel'),
         description: kind === 'source'
           ? nextcloudConnectionExceptionMessage(error)
-          : translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+          : connectionExceptionMessage(error),
       }
       if (kind === 'source') {
         setConnectionFeedback({ variant: 'error', title: failure.title, message: failure.description })
@@ -1252,6 +1269,23 @@ export function ConfigPanel({
 
   if (loadingConfiguration) {
     return <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm" role="status" aria-live="polite" aria-busy="true"><Spinner size="sm" />{kind === 'source' ? translate('commerce:commerceHub.loadingSourceConfiguration') : translate('commerce:commerceHub.loadingChannelConfiguration')}</div>
+  }
+
+  if (isCommerceTypeComingSoon(selected)) {
+    return (
+      <section className="fh-card fh-card-pad" data-testid="configuration-coming-soon">
+        <div className="flex items-center gap-3">
+          <BrandIcon identity={{ provider: selected.provider, sourceType: selected.type }} label={selected.name} size={40} />
+          <div>
+            <h3 className="fh-section-title">{translate('common:resourceBadge.comingSoon')}</h3>
+            <p className="fh-section-subtitle mt-1">{kind === 'source' ? translate('commerce:commerceHub.plannedSource') : translate('commerce:commerceHub.plannedChannel')}</p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" className="fh-button-secondary" onClick={onCancel}>{translate('commerce:commerceHub.close')}</button>
+        </div>
+      </section>
+    )
   }
 
   const HeadingTag = headingLevel === 2 ? 'h2' : 'h3'
@@ -1863,13 +1897,13 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
       })
       else notifyError({
         title: translate('commerce:commerceHub.unableToConnectToTheChannel'),
-        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+        description: connectionResultMessage(result),
       })
       await loadCommerce()
-    } catch {
+    } catch (error) {
       notifyError({
         title: translate('commerce:commerceHub.unableToConnectToTheChannel'),
-        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+        description: connectionExceptionMessage(error),
       })
     } finally {
       setTestingId(null)
@@ -1969,6 +2003,8 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
       notifyError(translate('commerce:commerceHub.adminPermissionRequired'))
       return
     }
+    const channel = channels.find(item => item.id === channelId)
+    if (!channel || isCommerceChannelComingSoon(channel) || !channel.settings_available) return
     setTab('channels')
     setSearchParams({ tab: 'channels', resource: channelId })
     setEditingChannelId(channelId)

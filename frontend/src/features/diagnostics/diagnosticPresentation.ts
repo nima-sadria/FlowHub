@@ -7,6 +7,7 @@ import type { BadgeVariant } from '../../components/Badge'
 export const DIAGNOSTIC_STATES = [
   'HEALTHY',
   'INFO',
+  'COMING_SOON',
   'NOT_CHECKED',
   'NOT_APPLICABLE',
   'DISABLED',
@@ -38,6 +39,7 @@ export interface DiagnosticStatePresentation {
 const PRESENTATION: Record<DiagnosticState, Omit<DiagnosticStatePresentation, 'state' | 'label'>> = {
   HEALTHY: { variant: 'success', icon: 'success' },
   INFO: { variant: 'info', icon: 'info' },
+  COMING_SOON: { variant: 'neutral', icon: 'info' },
   NOT_CHECKED: { variant: 'neutral', icon: 'diagnostics' },
   NOT_APPLICABLE: { variant: 'neutral', icon: 'info' },
   DISABLED: { variant: 'neutral', icon: 'info' },
@@ -58,6 +60,7 @@ const LEGACY_STATES: Record<string, DiagnosticState> = {
   success: 'HEALTHY',
   info: 'INFO',
   informational: 'INFO',
+  coming_soon: 'COMING_SOON',
   pending: 'NOT_CHECKED',
   skip: 'NOT_CHECKED',
   skipped: 'NOT_CHECKED',
@@ -155,7 +158,7 @@ export function diagnosticRecommendedAction(evidence: DiagnosticEvidenceLike): s
     return translate('diagnostics:action.review_diagnostic')
   }
   const state = resolveDiagnosticState(evidence)
-  if (state === 'HEALTHY' || state === 'INFO' || state === 'NOT_APPLICABLE' || state === 'DISABLED') {
+  if (state === 'HEALTHY' || state === 'INFO' || state === 'COMING_SOON' || state === 'NOT_APPLICABLE' || state === 'DISABLED') {
     return translate('diagnostics:action.no_action_required')
   }
   if (state === 'NOT_CHECKED') return translate('diagnostics:action.run_connection_test')
@@ -178,7 +181,7 @@ export function deriveOverallDiagnosticState(
 
   const required = options.required ?? evidence.filter(item => {
     const state = resolveDiagnosticState(item)
-    return state !== 'INFO' && state !== 'NOT_APPLICABLE' && state !== 'DISABLED'
+    return state !== 'INFO' && state !== 'COMING_SOON' && state !== 'NOT_APPLICABLE' && state !== 'DISABLED'
   })
   if (required.length === 0) return 'NOT_CHECKED'
   if (required.every(item => resolveDiagnosticState(item) === 'HEALTHY')) return 'HEALTHY'

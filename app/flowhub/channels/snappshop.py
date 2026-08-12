@@ -606,7 +606,12 @@ def _order_from_payload(channel_id: str, item: dict[str, Any]) -> ChannelOrder:
         channel_id=channel_id,
         connector_type="snappshop",
         identifiers=ChannelIdentifierSet(order_number=_string(item.get("order_number"))),
-        status=_string(item.get("status") or item.get("new_status")) or "UNKNOWN",
+        # The documented order list/detail contract calls this ``order_status``.
+        # Keep legacy/event fallbacks for compatibility with older payloads.
+        status=_string(
+            item.get("order_status") or item.get("status") or item.get("new_status")
+        )
+        or "UNKNOWN",
         created_at=_string(item.get("created_at") or item.get("order_at")),
         updated_at=_string(item.get("updated_at") or item.get("event_at")),
         items=[_order_item_from_payload(order_item) for order_item in raw_items if isinstance(order_item, dict)],

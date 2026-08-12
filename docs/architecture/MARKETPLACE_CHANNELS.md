@@ -31,8 +31,8 @@ rather than falling back to a default channel.
 
 ## Digikala Channel
 
-**Status: `IMPLEMENTED_UNVERIFIED`.** The Digikala implementation is based
-only on the repository-supplied
+**Backend status: `IMPLEMENTED_UNVERIFIED`; user-facing availability: `COMING SOON`.**
+The Digikala backend foundation is based only on the repository-supplied
 [`digikala-api.md`](../api/channel/digikala-api.md) contract and its static
 contract/regression tests. It has not been exercised with Owner credentials,
 so it must not be represented as operational or verified. A successful live,
@@ -42,9 +42,12 @@ automatic architecture-maturity promotion.
 ### Implemented boundary
 
 - Canonical provider identifier: `digikala`; display name: `Digikala`.
-- It uses the existing Channel configuration surface, enabled/disabled state,
-  canonical local brand registry, Diagnostics, and ordinary Activity/audit
-  flow; it does not introduce a standalone Digikala UI or persistence model.
+- Its backend registry, connector code, local brand registry, and persistence
+  foundation are retained. The user-facing Channel and generic Integration
+  Platform surfaces present it as **Coming Soon**: they do not allow
+  configuration, enablement, Test Connection, product refresh, or an
+  operational capability claim until Owner credentials and live conformance
+  have been verified.
 - The connector restricts its base URL to the documented HTTPS API root,
   `https://seller.digikala.com/open-api/v1`, and sends the documented
   `Authorization: Bearer <access token>` and `Content-Type: application/json`
@@ -56,11 +59,10 @@ automatic architecture-maturity promotion.
 - The documented `POST /auth/token` and `POST /auth/refresh-token` operations
   support token acquisition/rotation. FlowHub does not invent a fixed token
   lifetime: it replaces both tokens only from a successful provider response.
-- Test Connection is the real, read-only `GET /orders` request documented by
-  the provider. Its sanitized outcome, latency, and error category are stored
-  as normal connector-health evidence and are surfaced through the shared
-  Diagnostics and Commerce Hub configuration flows. A connection test never
-  mutates an order or attempts a token refresh.
+- The connector retains its internal, read-only `GET /orders` test foundation,
+  but public Test Connection is deliberately unavailable while the channel is
+  Coming Soon. No customer-visible health evidence or operational readiness is
+  claimed from unverified credentials.
 - The connector exposes only contract-safe raw reads: `GET /auth/scopes`,
   `GET /auth/scopes/{client_code}`, `GET /categories/tree`, `GET
   /products/seller`, `GET /inventories/{product_variant_id}`, `GET /orders`,

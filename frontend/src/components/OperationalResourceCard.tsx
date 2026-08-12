@@ -3,7 +3,7 @@ import Badge, { type BadgeVariant } from './Badge'
 import BrandIcon from './BrandIcon'
 import Icon, { type IconName } from './Icon'
 
-export type OperationalResourceState = 'connected' | 'setupRequired' | 'comingSoon'
+export type OperationalResourceState = 'connected' | 'needsAttention' | 'setupRequired' | 'disabled' | 'comingSoon'
 
 export interface OperationalResourceFact {
   label: string
@@ -57,6 +57,7 @@ export default function OperationalResourceCard({
       className={`fh-source-card min-h-[286px] ${comingSoon ? 'opacity-60' : ''}`}
       data-source-card={resourceType === 'source' ? resourceId : undefined}
       data-channel-card={resourceType === 'channel' ? resourceId : undefined}
+      data-resource-state={state}
       aria-disabled={comingSoon || undefined}
       title={description}
     >

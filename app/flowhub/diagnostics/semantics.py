@@ -14,6 +14,7 @@ from typing import NotRequired, TypedDict, cast
 class DiagnosticState(StrEnum):
     HEALTHY = "HEALTHY"
     INFO = "INFO"
+    COMING_SOON = "COMING_SOON"
     NOT_CHECKED = "NOT_CHECKED"
     NOT_APPLICABLE = "NOT_APPLICABLE"
     DISABLED = "DISABLED"
@@ -36,6 +37,7 @@ class DiagnosticPresentation(TypedDict):
 _LEGACY_STATUS = {
     DiagnosticState.HEALTHY: "Operational",
     DiagnosticState.INFO: "Information",
+    DiagnosticState.COMING_SOON: "Coming Soon",
     DiagnosticState.NOT_CHECKED: "Not checked",
     DiagnosticState.NOT_APPLICABLE: "Not applicable",
     DiagnosticState.DISABLED: "Disabled",

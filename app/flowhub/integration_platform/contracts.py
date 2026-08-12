@@ -82,6 +82,11 @@ class ConnectorDefinition(BaseModel):
     connector: ConnectorDescriptor
     settings_schema: list[ConnectorSettingDefinition] = Field(default_factory=list)
     diagnostics_contract: ConnectorDiagnosticsContract = Field(default_factory=ConnectorDiagnosticsContract)
+    # These fields describe FlowHub's public availability, which can be more
+    # restrictive than an internally retained connector definition.
+    availability: Literal["available", "coming_soon"] = "available"
+    actionable: bool = True
+    implementation_status: str | None = None
 
 
 class ConnectorRegistryResponse(BaseModel):
@@ -106,6 +111,9 @@ class ConnectorInstanceShape(BaseModel):
     settings: list[ConnectorSettingValue] = Field(default_factory=list)
     created_at: str | None = None
     updated_at: str | None = None
+    availability: Literal["available", "coming_soon"] = "available"
+    actionable: bool = True
+    implementation_status: str | None = None
 
 
 class ConnectorListResponse(BaseModel):

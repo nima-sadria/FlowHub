@@ -17,6 +17,8 @@ from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
 from app.flowhub.integration_platform import models as _integration_platform_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
+from app.flowhub.pricing_matrix import models as _pricing_matrix_models  # noqa: F401
 
 
 @pytest.fixture()
@@ -70,22 +72,6 @@ def client(db_engine):
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c
     app.dependency_overrides.clear()
-
-
-@pytest.fixture(autouse=True)
-def avoid_live_snappshop_vendor_validation(monkeypatch):
-    """Configuration persistence tests must not call the real marketplace."""
-    from fastapi import HTTPException, status
-
-    async def validate(_self, body):
-        settings = body.get("settings") if isinstance(body, dict) else {}
-        if not isinstance(settings, dict) or not str(settings.get("vendor_id") or "").strip():
-            return
-
-    monkeypatch.setattr(
-        "app.flowhub.commerce.service.CommerceHubService._validate_snappshop_vendor_selection",
-        validate,
-    )
 
 
 @pytest.fixture()
@@ -162,7 +148,13 @@ def test_commerce_type_routes_mark_current_and_future_channels_read_only(client,
     assert channel_types["technolife"]["write_blocked"] is True
     assert channel_types["digikala"]["implemented"] is True
     assert channel_types["digikala"]["implementation_status"] == "IMPLEMENTED_UNVERIFIED"
-    assert channel_types["digikala"]["placeholder"] is False
+    assert channel_types["digikala"]["placeholder"] is True
+    assert channel_types["digikala"]["status"] == "coming_soon"
+    assert channel_types["digikala"]["availability"] == "coming_soon"
+    assert channel_types["digikala"]["operational_available"] is False
+    assert channel_types["digikala"]["actionable"] is False
+    assert channel_types["digikala"]["settings_available"] is False
+    assert not any(channel_types["digikala"]["capabilities"].values())
     assert channel_types["digikala"]["read_only"] is True
     assert channel_types["digikala"]["write_blocked"] is True
     for provider in ("shopify",):
@@ -354,6 +346,7 @@ def test_woocommerce_connection_test_maps_legacy_invalid_url_without_external_ca
     data = response.json()
     assert data["ok"] is False
     assert data["code"] == "CHANNEL_INVALID_URL"
+    assert data["error_class"] == "invalid_url"
     assert data["external_call_performed"] is False
     assert data["message"] == "WooCommerce Store URL must be an absolute HTTP or HTTPS URL."
     channel_state = client.get(
@@ -2271,7 +2264,7 @@ def test_woocommerce_cache_refresh_reports_partial_page_failure_safely(
     client, auth_headers, db, monkeypatch
 ):
     from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
-    from app.flowhub.data_layer.models import DlProductCache
+    from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob
 
     _configure_woocommerce_channel(client, auth_headers)
 
@@ -2309,6 +2302,85 @@ def test_woocommerce_cache_refresh_reports_partial_page_failure_safely(
     assert "ck_live_secret" not in response.text
     assert "cs_live_secret" not in response.text
     assert data["credentials_returned"] is False
+
+    refresh = db.query(DlRefreshJob).filter_by(
+        connector_id="woocommerce:primary", entity_type="products"
+    ).one()
+    assert refresh.status == "partial_failed"
+    assert refresh.meta["error_category"] == "authentication_failed"
+
+    # Re-opened Channel and Diagnostics surfaces must retain the failure
+    # evidence rather than presenting the one stored product as a healthy sync.
+    channel = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers
+    ).json()
+    assert channel["cache_refresh_status"] == "partial_failed"
+    assert channel["product_sync_error_category"] == "authentication_failed"
+    assert channel["configuration_state"] == "error"
+    diagnostics = client.get(
+        "/api/v2/diagnostics/channels/health", headers=auth_headers
+    ).json()
+    diagnostic = next(
+        item
+        for item in diagnostics["items"]
+        if item["channelId"] == "woocommerce:primary"
+    )
+    assert diagnostic["productReadStatus"] == "partial_failed"
+    assert diagnostic["lastSyncErrorCategory"] == "authentication_failed"
+    assert diagnostic["dimensions"]["productCache"]["state"] == "WARNING"
+
+
+def test_woocommerce_cache_refresh_reports_full_failure_reason_after_reload(
+    client, auth_headers, db, monkeypatch
+):
+    from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
+    from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob
+
+    _configure_woocommerce_channel(client, auth_headers)
+
+    async def fail_first_page(*_args, **_kwargs):
+        raise ConnectorError(
+            code=ConnectorErrorCode.TIMEOUT,
+            message="Timed out while reading key=ck_live_secret secret=cs_live_secret",
+            provider="woocommerce",
+        )
+
+    monkeypatch.setattr(
+        "app.connectors.read.woocommerce.list_products_paged", fail_first_page
+    )
+    response = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "failed"
+    assert db.query(DlProductCache).count() == 0
+    assert "ck_live_secret" not in response.text
+    assert "cs_live_secret" not in response.text
+    refresh = db.query(DlRefreshJob).filter_by(
+        connector_id="woocommerce:primary", entity_type="products"
+    ).one()
+    assert refresh.status == "failed"
+    assert refresh.meta["error_category"] == "timeout"
+
+    channel = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers
+    ).json()
+    assert channel["cache_refresh_status"] == "failed"
+    assert channel["product_sync_error_category"] == "timeout"
+    assert channel["configuration_state"] == "error"
+    diagnostics = client.get(
+        "/api/v2/diagnostics/channels/health", headers=auth_headers
+    ).json()
+    diagnostic = next(
+        item
+        for item in diagnostics["items"]
+        if item["channelId"] == "woocommerce:primary"
+    )
+    assert diagnostic["productReadStatus"] == "failed"
+    assert diagnostic["lastSyncErrorCategory"] == "timeout"
+    assert diagnostic["dimensions"]["productCache"]["state"] == "ERROR"
 
 
 def test_woocommerce_cache_refresh_blocks_disabled_channels_before_outbound_calls(client, auth_headers, monkeypatch):
@@ -2914,6 +2986,7 @@ def test_channel_draft_credentials_are_tested_but_replaced_only_on_save(
     )
     assert tested.status_code == 200
     assert tested.json()["ok"] is True
+    assert tested.json()["configuration_matches_saved"] is False
     assert observed == {
         "url": "https://draft.example.test",
         "key": "draft-key",
@@ -2936,6 +3009,7 @@ def test_channel_draft_credentials_are_tested_but_replaced_only_on_save(
     )
     assert tested_saved.status_code == 200
     assert tested_saved.json()["ok"] is True
+    assert tested_saved.json()["configuration_matches_saved"] is True
     db.expire_all()
     health = db.query(DlConnectorHealth).filter_by(
         connector_id="woocommerce:primary"
@@ -3162,315 +3236,294 @@ def test_technolife_connection_test_persists_verified_health(
     assert channel_state["credentials_verified"] is True
 
 
-def test_digikala_configuration_masks_tokens_and_write_mode_stays_rejected(
-    client, auth_headers, db
-):
-    write_mode = client.put(
-        "/api/v2/commerce/channels/digikala:main/settings",
-        headers=auth_headers,
-        json={
-            "enabled": True,
-            "access_mode": "write_enabled",
-            "settings": {},
-            "secrets": {"access_token": "digikala-access-secret"},
-        },
-    )
-    assert write_mode.status_code == 403
-
-    save = client.put(
-        "/api/v2/commerce/channels/digikala:main/settings",
-        headers=auth_headers,
-        json={
-            "enabled": True,
-            "access_mode": "read_only",
-            "settings": {
-                "base_url": "https://seller.digikala.com/open-api/v1",
-                "request_timeout": 30,
+@pytest.mark.parametrize(
+    ("channel_id", "settings", "secrets", "connector_path"),
+    (
+        (
+            "snappshop:main",
+            {
+                "agent_identifier": "panel-agent",
+                "vendor_id": "panel-vendor",
+                "request_timeout": "30",
             },
+            {"token": "panel-snapp-token"},
+            "app.flowhub.channels.snappshop.SnappShopConnector.list_vendors",
+        ),
+        (
+            "technolife:main",
+            {"request_timeout": "30"},
+            {"api_key": "panel-technolife-key", "encryption_secret": "MDEyMzQ1Njc4OWFiY2RlZg=="},
+            "app.flowhub.channels.technolife.TechnolifeConnector.test_connection",
+        ),
+    ),
+)
+def test_reopened_configuration_string_timeout_test_updates_saved_health(
+    client, auth_headers, monkeypatch, channel_id, settings, secrets, connector_path
+):
+    """The form serializes timeout as text; it still represents saved config."""
+
+    assert client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"enabled": True, "settings": settings, "secrets": secrets},
+    ).status_code == 200
+
+    if channel_id == "snappshop:main":
+        from app.flowhub.channels.contracts import ChannelVendor
+
+        async def healthy_connection(_self):
+            return [
+                ChannelVendor(
+                    channel_id=channel_id,
+                    connector_type="snappshop",
+                    name="Panel vendor",
+                    vendor_id="panel-vendor",
+                    metadata={"status": "active"},
+                )
+            ]
+    else:
+        from app.flowhub.channels.contracts import ChannelHealth
+
+        async def healthy_connection(_self):
+            return ChannelHealth(
+                status="healthy",
+                checked_at="2026-08-10T12:00:00Z",
+                latency_ms=12.0,
+            )
+
+    monkeypatch.setattr(connector_path, healthy_connection)
+    reopened = client.get(
+        f"/api/v2/commerce/channels/{channel_id}/configuration", headers=auth_headers
+    ).json()
+    form_payload = {
+        "settings": {
+            **reopened["settings"],
+            # CommerceHub stores inputs as strings before POSTing Test.
+            "request_timeout": str(reopened["settings"]["request_timeout"]),
+        },
+        "secrets": {},
+    }
+    tested = client.post(
+        f"/api/v2/commerce/channels/{channel_id}/test",
+        headers=auth_headers,
+        json=form_payload,
+    )
+    assert tested.status_code == 200
+    assert tested.json()["ok"] is True
+    state = client.get(f"/api/v2/commerce/channels/{channel_id}", headers=auth_headers).json()
+    assert state["health"]["status"] == "healthy"
+    assert state["credentials_verified"] is True
+
+
+def test_latest_failed_connection_is_not_presented_as_verified_and_keeps_error_category(
+    client, auth_headers, monkeypatch
+):
+    import base64
+
+    from app.flowhub.channels.contracts import (
+        ChannelHealth,
+        ConnectorError,
+        ConnectorErrorCategory,
+    )
+
+    encryption_secret = base64.b64encode(b"0123456789abcdef").decode("ascii")
+    save = client.put(
+        "/api/v2/commerce/channels/technolife:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {},
             "secrets": {
-                "access_token": "digikala-access-secret",
-                "refresh_token": "digikala-refresh-secret",
+                "api_key": "safe-test-api-key",
+                "encryption_secret": encryption_secret,
             },
         },
     )
     assert save.status_code == 200
-    assert "digikala-access-secret" not in save.text
-    assert "digikala-refresh-secret" not in save.text
-    assert save.json()["read_only"] is True
-    assert save.json()["write_blocked"] is True
+
+    async def healthy_connection(_self):
+        return ChannelHealth(status="healthy", latency_ms=10)
+
+    monkeypatch.setattr(
+        "app.flowhub.channels.technolife.TechnolifeConnector.test_connection",
+        healthy_connection,
+    )
+    assert client.post(
+        "/api/v2/commerce/channels/technolife:main/test",
+        headers=auth_headers,
+        json={},
+    ).json()["ok"] is True
+
+    async def rate_limited_connection(_self):
+        return ChannelHealth(
+            status="unhealthy",
+            latency_ms=12,
+            error=ConnectorError(
+                category=ConnectorErrorCategory.RATE_LIMIT,
+                message="Technolife rate limit was reached.",
+                connector_type="technolife",
+                channel_id="technolife:main",
+                http_status=429,
+            ),
+        )
+
+    monkeypatch.setattr(
+        "app.flowhub.channels.technolife.TechnolifeConnector.test_connection",
+        rate_limited_connection,
+    )
+    failed = client.post(
+        "/api/v2/commerce/channels/technolife:main/test",
+        headers=auth_headers,
+        json={},
+    )
+    assert failed.status_code == 200
+    assert failed.json()["error_class"] == "rate_limit"
+
+    state = client.get(
+        "/api/v2/commerce/channels/technolife:main", headers=auth_headers
+    ).json()
+    assert state["health"]["status"] == "unhealthy"
+    assert state["health"]["error_code"] == "rate_limited"
+    assert state["credentials_verified"] is False
+    assert state["configuration_state"] == "error"
+
+
+@pytest.mark.parametrize(
+    ("channel_id", "settings", "secrets", "preserved_config_keys"),
+    [
+        (
+            "snappshop:main",
+            {
+                "base_url": "https://stored.snappshop.example/v1",
+                "agent_identifier": "stored-agent",
+                "agent_header_name": "Stored-Agent",
+                "request_timeout": 17,
+                "vendor_id": "stored-vendor",
+            },
+            {"token": "stored-snapp-token"},
+            {
+                "snappshop.base_url": "https://stored.snappshop.example/v1",
+                "snappshop.agent_identifier": "stored-agent",
+                "snappshop.agent_header_name": "Stored-Agent",
+                "snappshop.vendor_id": "stored-vendor",
+            },
+        ),
+        (
+            "tapsishop:main",
+            {
+                "base_url": "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1",
+                "request_timeout": 17,
+                "selected_vendor_id": "stored-vendor",
+                "token_refresh_enabled": True,
+                "token_refresh_name": "Stored Refresh",
+                "revoke_current_token": True,
+            },
+            {"token": "stored-tapsi-token", "webhook_token": "stored-webhook-token"},
+            {
+                "tapsishop.base_url": "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1",
+                "tapsishop.selected_vendor_id": "stored-vendor",
+                "tapsishop.token_refresh_enabled": "true",
+                "tapsishop.token_refresh_name": "Stored Refresh",
+                "tapsishop.revoke_current_token": "true",
+            },
+        ),
+        (
+            "technolife:main",
+            {
+                "base_url": "https://seller-api.technolife.com",
+                "request_timeout": 17,
+            },
+            {
+                "api_key": "stored-technolife-key",
+                "encryption_secret": "MDEyMzQ1Njc4OWFiY2RlZg==",
+            },
+            {"technolife.base_url": "https://seller-api.technolife.com"},
+        ),
+    ],
+)
+def test_marketplace_partial_settings_save_preserves_omitted_nonsecret_values(
+    client, auth_headers, db, channel_id, settings, secrets, preserved_config_keys
+):
+    from app.flowhub.setup.service import AppConfigService
+
+    first_save = client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"enabled": True, "settings": settings, "secrets": secrets},
+    )
+    assert first_save.status_code == 200
+
+    partial_save = client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"settings": {"request_timeout": 23}, "secrets": {}},
+    )
+    assert partial_save.status_code == 200
+
+    config = AppConfigService(db)
+    assert config.get(f"{channel_id.split(':', 1)[0]}.request_timeout") == "23"
+    for key, expected in preserved_config_keys.items():
+        assert config.get(key) == expected
+
+
+def test_digikala_is_coming_soon_and_all_operational_actions_are_non_actionable(
+    client, auth_headers, monkeypatch
+):
+    class FailingAsyncClient:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("Coming Soon must not construct a Digikala HTTP client")
+
+    monkeypatch.setattr(
+        "app.flowhub.channels.digikala.httpx.AsyncClient", FailingAsyncClient
+    )
+
+    channel = client.get(
+        "/api/v2/commerce/channels/digikala:main", headers=auth_headers
+    )
+    assert channel.status_code == 200
+    state = channel.json()
+    assert state["implemented"] is True
+    assert state["implementation_status"] == "IMPLEMENTED_UNVERIFIED"
+    assert state["placeholder"] is True
+    assert state["status"] == "coming_soon"
+    assert state["availability"] == "coming_soon"
+    assert state["operational_available"] is False
+    assert state["actionable"] is False
+    assert state["settings_available"] is False
+    assert state["configuration_state"] == "coming_soon"
+    assert state["credentials_verified"] is False
+    assert state["health"]["error_code"] == "coming_soon"
+    assert not any(state["capabilities"].values())
+    assert state["capabilities_summary"] == ["Planned channel unavailable in 1.0.0"]
+
+    test = client.post(
+        "/api/v2/commerce/channels/digikala:main/test",
+        headers=auth_headers,
+        json={"secrets": {"access_token": "must-not-be-used"}},
+    )
+    assert test.status_code == 200
+    assert test.json()["status"] == "coming_soon"
+    assert test.json()["code"] == "CHANNEL_COMING_SOON"
+    assert test.json()["external_call_performed"] is False
+    assert "must-not-be-used" not in test.text
 
     configuration = client.get(
         "/api/v2/commerce/channels/digikala:main/configuration",
         headers=auth_headers,
-    ).json()
-    assert configuration["configured"] is True
-    assert configuration["enabled"] is True
-    assert configuration["access_mode"] == "read_only"
-    assert configuration["access_token_configured"] is True
-    assert configuration["refresh_token_configured"] is True
-    assert configuration["secrets"]["access_token"]["status"] == "configured"
-    assert configuration["secrets"]["refresh_token"]["status"] == "configured"
-    assert configuration["credentials_returned"] is False
-    assert "digikala-access-secret" not in str(configuration)
-    assert "digikala-refresh-secret" not in str(configuration)
-
-    from app.flowhub.integration_platform.models import IntegrationConnectorEvent
-
-    activity_events = (
-        db.query(IntegrationConnectorEvent)
-        .filter_by(connector_id="digikala:main")
-        .all()
-    )
-    assert {event.event_name for event in activity_events} >= {
-        "channel_configuration_changed",
-        "connector_settings_updated",
-    }
-    assert all("digikala-access-secret" not in event.message for event in activity_events)
-    assert all("digikala-refresh-secret" not in event.message for event in activity_events)
-
-
-def test_digikala_connection_test_uses_one_read_only_orders_get_and_persists_health(
-    client, auth_headers, monkeypatch
-):
-    requests: list[dict] = []
-
-    class FakeResponse:
-        status_code = 200
-        content = b"json"
-        headers = {}
-
-        def json(self):
-            return {"status": "ok", "data": {"pager": {}, "items": []}}
-
-    class FakeAsyncClient:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args):
-            return False
-
-        async def request(self, method, url, *, headers=None, json=None):
-            requests.append(
-                {"method": method, "url": url, "headers": headers, "json": json}
-            )
-            return FakeResponse()
-
-    monkeypatch.setattr(
-        "app.flowhub.channels.digikala.httpx.AsyncClient", FakeAsyncClient
     )
     save = client.put(
         "/api/v2/commerce/channels/digikala:main/settings",
         headers=auth_headers,
-        json={
-            "enabled": True,
-            "settings": {},
-            "secrets": {
-                "access_token": "digikala-access-secret",
-                "refresh_token": "digikala-refresh-secret",
-            },
-        },
+        json={"secrets": {"access_token": "must-not-be-persisted"}},
     )
-    assert save.status_code == 200
-
-    response = client.post(
-        "/api/v2/commerce/channels/digikala:main/test",
+    refresh = client.post(
+        "/api/v2/commerce/channels/digikala:main/refresh-cache",
         headers=auth_headers,
-        json={},
     )
-
-    assert response.status_code == 200
-    result = response.json()
-    assert result["ok"] is True
-    assert result["connected"] is True
-    assert result["authenticated"] is True
-    assert result["read_only"] is True
-    assert result["write_blocked"] is True
-    assert result["external_call_performed"] is True
-    assert "digikala-access-secret" not in response.text
-    assert "digikala-refresh-secret" not in response.text
-    assert requests == [
-        {
-            "method": "GET",
-            "url": "https://seller.digikala.com/open-api/v1/orders",
-            "headers": {
-                "Authorization": "Bearer digikala-access-secret",
-                "Content-Type": "application/json",
-            },
-            "json": None,
-        }
-    ]
-    channel_state = client.get(
-        "/api/v2/commerce/channels/digikala:main", headers=auth_headers
-    ).json()
-    assert channel_state["implementation_status"] == "IMPLEMENTED_UNVERIFIED"
-    assert channel_state["health"]["status"] == "healthy"
-    assert channel_state["last_health_check"]
-    assert channel_state["credentials_verified"] is True
-    assert channel_state["cached_products"] == 0
-
-
-def test_digikala_connection_failure_returns_redacted_structured_retry_evidence(
-    client, auth_headers, monkeypatch
-):
-    requests: list[dict] = []
-
-    class FakeResponse:
-        status_code = 429
-        content = b"json"
-        headers = {"Retry-After": "7"}
-
-        def json(self):
-            return {
-                "code": "provider-secret-code",
-                "message": "echo digikala-access-secret",
-            }
-
-    class FakeAsyncClient:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args):
-            return False
-
-        async def request(self, method, url, *, headers=None, json=None):
-            requests.append(
-                {"method": method, "url": url, "headers": headers, "json": json}
-            )
-            return FakeResponse()
-
-    monkeypatch.setattr(
-        "app.flowhub.channels.digikala.httpx.AsyncClient", FakeAsyncClient
-    )
-    save = client.put(
-        "/api/v2/commerce/channels/digikala:main/settings",
-        headers=auth_headers,
-        json={
-            "enabled": True,
-            "settings": {},
-            "secrets": {"access_token": "digikala-access-secret"},
-        },
-    )
-    assert save.status_code == 200
-
-    response = client.post(
-        "/api/v2/commerce/channels/digikala:main/test",
-        headers=auth_headers,
-        json={},
-    )
-
-    assert response.status_code == 200
-    result = response.json()
-    assert result["ok"] is False
-    assert result["connected"] is False
-    assert result["authenticated"] is True
-    assert result["status"] == "error"
-    assert result["http_status"] == 429
-    assert result["code"] == "DIGIKALA_RATE_LIMIT"
-    assert result["error_class"] == "rate_limit"
-    assert result["retryable"] is True
-    assert result["retry_after_seconds"] == 7
-    assert result["message"] == "Digikala rate limit was reached."
-    assert "digikala-access-secret" not in response.text
-    assert "provider-secret-code" not in response.text
-    assert requests == [
-        {
-            "method": "GET",
-            "url": "https://seller.digikala.com/open-api/v1/orders",
-            "headers": {
-                "Authorization": "Bearer digikala-access-secret",
-                "Content-Type": "application/json",
-            },
-            "json": None,
-        }
-    ]
-    channel_state = client.get(
-        "/api/v2/commerce/channels/digikala:main", headers=auth_headers
-    ).json()
-    assert channel_state["health"]["status"] == "unhealthy"
-    assert channel_state["health"]["error_code"] == "rate_limited"
-
-
-@pytest.mark.asyncio
-async def test_digikala_rotated_tokens_remain_out_of_integration_setting_values(
-    client, auth_headers, db, monkeypatch
-):
-    class FakeResponse:
-        status_code = 200
-        content = b"json"
-        headers = {}
-
-        def json(self):
-            return {
-                "access_token": "digikala-rotated-access-secret",
-                "refresh_token": "digikala-rotated-refresh-secret",
-            }
-
-    class FakeAsyncClient:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args):
-            return False
-
-        async def request(self, method, url, *, headers=None, json=None):
-            assert method == "POST"
-            assert url == "https://seller.digikala.com/open-api/v1/auth/refresh-token"
-            assert json == {
-                "access_token": "digikala-old-access-secret",
-                "refresh_token": "digikala-old-refresh-secret",
-            }
-            return FakeResponse()
-
-    monkeypatch.setattr(
-        "app.flowhub.channels.digikala.httpx.AsyncClient", FakeAsyncClient
-    )
-    save = client.put(
-        "/api/v2/commerce/channels/digikala:main/settings",
-        headers=auth_headers,
-        json={
-            "enabled": True,
-            "settings": {},
-            "secrets": {
-                "access_token": "digikala-old-access-secret",
-                "refresh_token": "digikala-old-refresh-secret",
-            },
-        },
-    )
-    assert save.status_code == 200
-
-    from app.flowhub.commerce.service import CommerceHubService
-    from app.flowhub.integration_platform.models import IntegrationConnectorSetting
-
-    db.expire_all()
-    connector = CommerceHubService(db)._digikala_connector()
-    assert connector is not None
-    health = await connector.refresh_credentials()
-    assert health.status == "healthy"
-
-    db.expire_all()
-    settings = (
-        db.query(IntegrationConnectorSetting)
-        .filter_by(connector_id="digikala:main")
-        .filter(IntegrationConnectorSetting.key.in_(["access_token", "refresh_token"]))
-        .all()
-    )
-    assert {setting.key for setting in settings} == {"access_token", "refresh_token"}
-    assert all(setting.secret is True for setting in settings)
-    assert all(setting.configured is True for setting in settings)
-    assert all(setting.value_json is None for setting in settings)
-    assert "digikala-old-access-secret" not in str(settings)
-    assert "digikala-old-refresh-secret" not in str(settings)
-    assert "digikala-rotated-access-secret" not in str(settings)
-    assert "digikala-rotated-refresh-secret" not in str(settings)
+    for response in (configuration, save, refresh):
+        assert response.status_code == 404
+        assert response.json()["detail"]["code"] == "CHANNEL_COMING_SOON"
+        assert "must-not-be-persisted" not in response.text
 
 
 def test_snappshop_unsaved_credentials_can_test_and_return_vendor_choices(client, auth_headers, monkeypatch):
@@ -3788,6 +3841,56 @@ def test_snappshop_configuration_rolls_back_after_credential_staging_failure(
         session.close()
 
 
+def test_woocommerce_configuration_rolls_back_after_credential_staging_failure(
+    client, auth_headers, db_engine, monkeypatch
+):
+    """Woo AppConfig and write-only marker must commit together or not at all."""
+
+    from fastapi import HTTPException
+    from sqlalchemy.orm import sessionmaker
+
+    from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+    from app.flowhub.integration_platform.service import IntegrationPlatformService
+    from app.flowhub.setup.models import FlowHubAppConfig
+
+    old_payload = {
+        "enabled": True,
+        "settings": {"url": "https://old.woocommerce.example.test"},
+        "secrets": {"key": "old-woocommerce-key", "secret": "old-woocommerce-secret"},
+    }
+    assert client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json=old_payload,
+    ).status_code == 200
+
+    def fail_settings(*args, **kwargs):
+        raise HTTPException(500, "simulated connector settings failure")
+
+    monkeypatch.setattr(IntegrationPlatformService, "stage_settings_contract", fail_settings)
+    response = client.put(
+        "/api/v2/commerce/channels/woocommerce:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": False,
+            "settings": {"url": "https://new.woocommerce.example.test"},
+            "secrets": {"key": "new-woocommerce-key", "secret": "new-woocommerce-secret"},
+        },
+    )
+    assert response.status_code == 500
+
+    session = sessionmaker(bind=db_engine)()
+    try:
+        assert session.get(FlowHubAppConfig, "woocommerce.url").value == old_payload["settings"]["url"]
+        assert session.get(FlowHubAppConfig, "woocommerce.key").value == old_payload["secrets"]["key"]
+        assert session.get(FlowHubAppConfig, "woocommerce.secret").value == old_payload["secrets"]["secret"]
+        instance = session.get(IntegrationConnectorInstance, "woocommerce:primary")
+        assert instance is not None
+        assert instance.enabled is True
+    finally:
+        session.close()
+
+
 def test_first_marketplace_configuration_failure_leaves_no_state(
     client, auth_headers, db_engine, monkeypatch
 ):
@@ -4097,6 +4200,308 @@ def test_woocommerce_cache_refresh_html_error_returns_safe_result(client, auth_h
     assert data["error"]["message"] == "The external service returned an invalid or unavailable response."
     assert "<html" not in response.text.lower()
     assert "cs_live_secret" not in response.text
+
+
+_MARKETPLACE_SECRET_LIFECYCLE_CASES = (
+    (
+        "woocommerce:primary",
+        {"url": "https://store.example.test"},
+        {"key": "wc-initial-key", "secret": "wc-initial-secret"},
+        {"key": "wc-replacement-key", "secret": "wc-replacement-secret"},
+    ),
+    (
+        "tapsishop:main",
+        {
+            "base_url": "https://vendorgw.tapsi.shop/Web/Hub/vendors/v1",
+            "request_timeout": 17,
+            "selected_vendor_id": "tapsi-store-17",
+        },
+        {"token": "tapsi-initial-token", "webhook_token": "tapsi-initial-webhook"},
+        {
+            "token": "tapsi-replacement-token",
+            "webhook_token": "tapsi-replacement-webhook",
+        },
+    ),
+    (
+        "technolife:main",
+        {"base_url": "https://seller-api.technolife.com", "request_timeout": 17},
+        {
+            "api_key": "technolife-initial-key",
+            "encryption_secret": "MDEyMzQ1Njc4OWFiY2RlZg==",
+        },
+        {
+            "api_key": "technolife-replacement-key",
+            "encryption_secret": "YWJjZGVmZ2hpamtsbW5vcA==",
+        },
+    ),
+)
+
+
+_CHANNEL_HEALTH_INVALIDATION_CASES = (
+    *_MARKETPLACE_SECRET_LIFECYCLE_CASES,
+    (
+        "snappshop:main",
+        {
+            "base_url": "https://apix.snappshop.ir/automation/v1",
+            "agent_identifier": "flowhub-health-agent",
+            "agent_header_name": "User-Agent",
+            "vendor_id": "health-vendor",
+        },
+        {"token": "snapp-health-initial-token"},
+        {"token": "snapp-health-replacement-token"},
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    ("channel_id", "settings", "initial_secrets", "replacement_secrets"),
+    _MARKETPLACE_SECRET_LIFECYCLE_CASES,
+)
+def test_marketplace_secret_replacement_requires_save_and_stays_write_only_after_reload(
+    client,
+    auth_headers,
+    db,
+    channel_id,
+    settings,
+    initial_secrets,
+    replacement_secrets,
+):
+    """Blank secret submissions preserve credentials; replacements persist only on Save."""
+
+    from app.flowhub.setup.service import AppConfigService
+
+    provider = channel_id.split(":", 1)[0]
+    initial_save = client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": dict(settings),
+            "secrets": dict(initial_secrets),
+        },
+    )
+    assert initial_save.status_code == 200
+    assert all(value not in initial_save.text for value in initial_secrets.values())
+
+    first_reload = client.get(
+        f"/api/v2/commerce/channels/{channel_id}/configuration",
+        headers=auth_headers,
+    )
+    assert first_reload.status_code == 200
+    assert first_reload.json()["enabled"] is True
+    for key, value in initial_secrets.items():
+        assert first_reload.json()["secrets"][key]["status"] == "configured"
+        assert value not in first_reload.text
+
+    blank_save = client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"secrets": {key: "" for key in initial_secrets}},
+    )
+    assert blank_save.status_code == 200
+    config = AppConfigService(db)
+    for key, value in initial_secrets.items():
+        assert config.get(f"{provider}.{key}") == value
+
+    blank_reload = client.get(
+        f"/api/v2/commerce/channels/{channel_id}/configuration",
+        headers=auth_headers,
+    )
+    assert blank_reload.status_code == 200
+    for key, value in initial_secrets.items():
+        assert blank_reload.json()["secrets"][key]["status"] == "configured"
+        assert value not in blank_reload.text
+
+    replacement_save = client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"secrets": dict(replacement_secrets)},
+    )
+    assert replacement_save.status_code == 200
+    assert all(value not in replacement_save.text for value in replacement_secrets.values())
+    for key, value in replacement_secrets.items():
+        assert config.get(f"{provider}.{key}") == value
+
+    replaced_reload = client.get(
+        f"/api/v2/commerce/channels/{channel_id}/configuration",
+        headers=auth_headers,
+    )
+    assert replaced_reload.status_code == 200
+    for key, value in replacement_secrets.items():
+        assert replaced_reload.json()["secrets"][key]["status"] == "configured"
+        assert value not in replaced_reload.text
+        assert initial_secrets[key] not in replaced_reload.text
+
+
+@pytest.mark.parametrize(
+    "changed_channel_id",
+    [case[0] for case in _MARKETPLACE_SECRET_LIFECYCLE_CASES],
+)
+def test_marketplace_secret_save_does_not_overwrite_another_provider(
+    client, auth_headers, db, changed_channel_id
+):
+    """Provider-specific AppConfig keys prevent one channel from replacing another's secret."""
+
+    from app.flowhub.setup.service import AppConfigService
+
+    by_channel = {
+        channel_id: (settings, initial_secrets, replacement_secrets)
+        for channel_id, settings, initial_secrets, replacement_secrets
+        in _MARKETPLACE_SECRET_LIFECYCLE_CASES
+    }
+    for channel_id, (settings, initial_secrets, _replacement_secrets) in by_channel.items():
+        saved = client.put(
+            f"/api/v2/commerce/channels/{channel_id}/settings",
+            headers=auth_headers,
+            json={
+                "enabled": True,
+                "settings": dict(settings),
+                "secrets": dict(initial_secrets),
+            },
+        )
+        assert saved.status_code == 200
+
+    _settings, _initial, replacements = by_channel[changed_channel_id]
+    replaced = client.put(
+        f"/api/v2/commerce/channels/{changed_channel_id}/settings",
+        headers=auth_headers,
+        json={"secrets": dict(replacements)},
+    )
+    assert replaced.status_code == 200
+
+    config = AppConfigService(db)
+    all_secret_values = {
+        value
+        for _channel_id, _settings, initial_secrets, replacement_secrets
+        in _MARKETPLACE_SECRET_LIFECYCLE_CASES
+        for value in (*initial_secrets.values(), *replacement_secrets.values())
+    }
+    for channel_id, (_settings, initial_secrets, replacement_secrets) in by_channel.items():
+        provider = channel_id.split(":", 1)[0]
+        expected = replacement_secrets if channel_id == changed_channel_id else initial_secrets
+        for key, value in expected.items():
+            assert config.get(f"{provider}.{key}") == value
+
+        reload = client.get(
+            f"/api/v2/commerce/channels/{channel_id}/configuration",
+            headers=auth_headers,
+        )
+        assert reload.status_code == 200
+        assert all(value not in reload.text for value in all_secret_values)
+        for key in expected:
+            assert reload.json()["secrets"][key]["status"] == "configured"
+
+
+@pytest.mark.parametrize(
+    ("channel_id", "settings", "initial_secrets", "replacement_secrets"),
+    _CHANNEL_HEALTH_INVALIDATION_CASES,
+)
+def test_connection_setting_replacement_invalidates_health_but_blank_secret_save_preserves_it(
+    client,
+    auth_headers,
+    db,
+    channel_id,
+    settings,
+    initial_secrets,
+    replacement_secrets,
+):
+    """Healthy evidence is tied to the saved connection identity, not merely its age."""
+
+    from app.flowhub.data_layer.health_service import ConnectorHealthService
+    from app.flowhub.data_layer.models import DlConnectorHealth
+
+    assert client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"enabled": True, "settings": dict(settings), "secrets": dict(initial_secrets)},
+    ).status_code == 200
+    ConnectorHealthService(db).upsert(
+        connector_id=channel_id,
+        connector_type=channel_id.split(":", 1)[0],
+        status="healthy",
+        detail="Saved configuration was verified.",
+    )
+
+    # A blank write-only field means keep the saved credential, so the probe
+    # remains evidence for the same configuration.
+    assert client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"display_name": "Verified channel", "secrets": {key: "" for key in initial_secrets}},
+    ).status_code == 200
+    db.expire_all()
+    preserved = client.get(
+        f"/api/v2/commerce/channels/{channel_id}", headers=auth_headers
+    ).json()
+    assert preserved["status"] == "healthy"
+    assert preserved["credentials_verified"] is True
+
+    # Replacing an actual credential is a Save, but the old successful test
+    # must no longer be presented as verification for the new credential.
+    assert client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"secrets": dict(replacement_secrets)},
+    ).status_code == 200
+    db.expire_all()
+    assert db.query(DlConnectorHealth).filter_by(connector_id=channel_id).one_or_none() is None
+    invalidated = client.get(
+        f"/api/v2/commerce/channels/{channel_id}", headers=auth_headers
+    ).json()
+    assert invalidated["status"] == "configured"
+    assert invalidated["configuration_state"] == "configured"
+    assert invalidated["credentials_verified"] is False
+    assert invalidated["health"]["status"] == "unknown"
+
+
+@pytest.mark.parametrize(
+    ("channel_id", "settings", "secrets"),
+    (
+        (
+            "snappshop:main",
+            {"agent_identifier": "timeout-agent", "vendor_id": "timeout-vendor", "request_timeout": 15},
+            {"token": "snapp-timeout-token"},
+        ),
+        (
+            "tapsishop:main",
+            {"selected_vendor_id": "timeout-vendor", "request_timeout": 15},
+            {"token": "tapsi-timeout-token"},
+        ),
+        (
+            "technolife:main",
+            {"request_timeout": 15},
+            {"api_key": "technolife-timeout-key", "encryption_secret": "MDEyMzQ1Njc4OWFiY2RlZg=="},
+        ),
+    ),
+)
+def test_test_connection_timeout_change_invalidates_prior_health_evidence(
+    client, auth_headers, db, channel_id, settings, secrets
+):
+    from app.flowhub.data_layer.health_service import ConnectorHealthService
+    from app.flowhub.data_layer.models import DlConnectorHealth
+
+    assert client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"enabled": True, "settings": settings, "secrets": secrets},
+    ).status_code == 200
+    ConnectorHealthService(db).upsert(
+        connector_id=channel_id,
+        connector_type=channel_id.split(":", 1)[0],
+        status="healthy",
+        detail="Saved timeout configuration was verified.",
+    )
+
+    assert client.put(
+        f"/api/v2/commerce/channels/{channel_id}/settings",
+        headers=auth_headers,
+        json={"settings": {"request_timeout": 30}},
+    ).status_code == 200
+    db.expire_all()
+    assert db.query(DlConnectorHealth).filter_by(connector_id=channel_id).one_or_none() is None
+    state = client.get(f"/api/v2/commerce/channels/{channel_id}", headers=auth_headers).json()
+    assert state["credentials_verified"] is False
+    assert state["health"]["status"] == "unknown"
 
 
 def _configure_woocommerce_channel(client, auth_headers) -> None:

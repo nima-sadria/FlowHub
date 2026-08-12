@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../auth'
+import NotificationContainer from '../notifications/NotificationContainer'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceTypeOption } from '../services/types'
@@ -73,7 +74,7 @@ describe('Channels page', () => {
       items: [
         channel(),
         channel({ id: 'snappshop:main', provider: 'snappshop', name: 'SnappShop Store', health: { status: 'degraded', message: '', latency_ms: null, error_code: null }, cached_products: 1876 }),
-        channel({ id: 'digikala:main', provider: 'digikala', name: 'Digikala', status: 'disabled', enabled: false, read_only: true, write_blocked: true, runtime_write_blocked: true, cached_products: 0 }),
+        channel({ id: 'digikala:main', provider: 'digikala', name: 'Digikala', status: 'coming_soon', placeholder: true, enabled: false, read_only: true, write_blocked: true, runtime_write_blocked: true, settings_available: false, cached_products: 0 }),
       ],
       relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
     })
@@ -85,7 +86,7 @@ describe('Channels page', () => {
       name: id === 'woocommerce:primary' ? 'WooCommerce EU' : id === 'snappshop:main' ? 'SnappShop Store' : 'Digikala',
       type: 'Channel',
       implemented: true,
-      placeholder: false,
+      placeholder: id === 'digikala:main',
       read_only: id === 'digikala:main',
       runtime_write_blocked: id === 'digikala:main',
       settings_schema: id === 'woocommerce:primary' ? [
@@ -149,7 +150,7 @@ describe('Channels page', () => {
 
   async function render(auth = admin, initialEntry = '/channels') {
     await act(async () => {
-      root.render(<main><AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter initialEntries={[initialEntry]}><LocationProbe /><ServiceProvider services={services}><Channels /></ServiceProvider></MemoryRouter></NotificationProvider></AuthContext.Provider></main>)
+      root.render(<main><AuthContext.Provider value={auth}><NotificationProvider><MemoryRouter initialEntries={[initialEntry]}><LocationProbe /><ServiceProvider services={services}><Channels /></ServiceProvider><NotificationContainer /></MemoryRouter></NotificationProvider></AuthContext.Provider></main>)
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
     })
   }
@@ -158,7 +159,7 @@ describe('Channels page', () => {
     await render()
 
     expect(container.textContent).toContain('Connected Channels')
-    expect(container.querySelector('[data-channel-kpi="connected"] .fh-kpi-card-value')?.textContent).toBe('2')
+    expect(container.querySelector('[data-channel-kpi="connected"] .fh-kpi-card-value')?.textContent).toBe('1')
     expect(container.querySelector('[data-channel-kpi="healthy-listings"] .fh-kpi-card-value')?.textContent).toBe('2,418')
     expect(container.textContent).toContain('2,418')
     expect(container.textContent).toContain('Orders Today')
@@ -167,9 +168,9 @@ describe('Channels page', () => {
 
     expect(container.querySelectorAll('[data-channel-card]')).toHaveLength(3)
     expect(container.querySelector('[data-channel-card="woocommerce:primary"]')?.textContent).toContain('Healthy')
-    expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('Warning')
+    expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('Needs Attention')
     expect(container.querySelector('[data-channel-card="snappshop:main"]')?.textContent).toContain('needs attention')
-    expect(container.querySelector('[data-channel-card="digikala:main"]')?.textContent).toContain('Setup required')
+    expect(container.querySelector('[data-channel-card="digikala:main"]')?.textContent).toContain('Coming Soon')
   })
 
   it('drills channel KPIs into the records behind each number', async () => {
@@ -179,7 +180,7 @@ describe('Channels page', () => {
       (container.querySelector('[data-channel-kpi="connected"]') as HTMLButtonElement).click()
     })
     expect(Array.from(container.querySelectorAll('[data-channel-card]')).map(item => item.getAttribute('data-channel-card')))
-      .toEqual(['woocommerce:primary', 'snappshop:main'])
+      .toEqual(['woocommerce:primary'])
 
     await act(async () => {
       (container.querySelector('[data-channel-kpi="healthy-listings"]') as HTMLButtonElement).click()
@@ -191,7 +192,7 @@ describe('Channels page', () => {
       (container.querySelector('[data-channel-kpi="attention"]') as HTMLButtonElement).click()
     })
     expect(Array.from(container.querySelectorAll('[data-channel-card]')).map(item => item.getAttribute('data-channel-card')))
-      .toEqual(['snappshop:main', 'digikala:main'])
+      .toEqual(['snappshop:main'])
 
     await act(async () => {
       (container.querySelector('[data-channel-kpi="orders-today"]') as HTMLButtonElement).click()
@@ -268,14 +269,58 @@ describe('Channels page', () => {
     expect(testChannel).toHaveBeenCalledWith('woocommerce:primary')
   })
 
-  it('offers only the setup workflow on a disabled channel', async () => {
+  it('uses a safe structured connection failure instead of provider text', async () => {
+    testChannel.mockResolvedValueOnce({
+      ok: false,
+      status: 'authentication_failed',
+      code: 'authentication_failed',
+      message: 'provider rejected token=owner-secret',
+      external_call_performed: true,
+      read_only: true,
+      runtime_write_blocked: true,
+      write_blocked: true,
+    })
+    await render()
+
+    const card = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
+    const testButton = Array.from(card.querySelectorAll('button')).find(item => item.textContent === 'Test connection') as HTMLButtonElement
+    await act(async () => { testButton.click(); await Promise.resolve(); await Promise.resolve() })
+
+    const failure = container.querySelector('[data-notification-type="error"]')
+    expect(failure?.textContent).toContain('The saved credentials were rejected.')
+    expect(failure?.textContent).not.toContain('owner-secret')
+    expect(failure?.textContent).not.toContain('token=')
+  })
+
+  it('uses persisted configuration and cache state for attention without calling a health probe activity', async () => {
+    getChannels.mockResolvedValueOnce({
+      items: [channel({
+        configuration_state: 'configured',
+        health: { status: 'healthy', message: '', latency_ms: 80, error_code: null },
+        last_health_check: '2026-07-23T10:00:00Z',
+        cache_refresh_status: 'not_run',
+        last_cache_refresh: null,
+      })],
+      relationship_map: { nodes: [], example: [], runtime_write_blocked: true, read_only: true },
+    })
+    await render()
+
+    const card = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
+    expect(card.getAttribute('data-resource-state')).toBe('connected')
+    expect(card.textContent).toContain('Healthy')
+    expect(card.textContent).toContain('Refresh status:')
+    expect(card.textContent).toContain('Last cache refresh:')
+    expect(card.textContent).toContain('Not refreshed')
+    expect(card.textContent).not.toContain('Last activity')
+  })
+
+  it('keeps a Coming Soon channel visible but non-actionable', async () => {
     await render()
 
     const card = container.querySelector('[data-channel-card="digikala:main"]') as HTMLElement
-    expect(Array.from(card.querySelectorAll('button')).map(button => button.textContent?.trim())).toEqual(['Setup now'])
-    expect(card.querySelectorAll('.fh-badge')).toHaveLength(1)
-    expect(card.textContent?.match(/Setup required/g) ?? []).toHaveLength(1)
-    expect(card.textContent).toContain('Read only')
+    expect(card.getAttribute('data-resource-state')).toBe('comingSoon')
+    expect(card.textContent).toContain('Coming Soon')
+    expect(card.querySelectorAll('button')).toHaveLength(0)
     expect(card.textContent).not.toContain('Test connection')
     expect(card.textContent).not.toContain('Refresh cache')
   })
@@ -291,9 +336,11 @@ describe('Channels page', () => {
     const card = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
     expect(container.querySelector('[data-channel-kpi="connected"] .fh-kpi-card-value')?.textContent).toBe('0')
     expect(container.querySelector('[data-channel-kpi="healthy-listings"] .fh-kpi-card-value')?.textContent).toBe('0')
-    expect(card.textContent).toContain('Setup required')
+    expect(card.textContent).toContain('Disabled')
     expect(card.textContent).not.toContain('Connected')
-    expect(Array.from(card.querySelectorAll('button')).map(button => button.textContent?.trim())).toEqual(['Setup now'])
+    expect(card.getAttribute('data-resource-state')).toBe('disabled')
+    expect(Array.from(card.querySelectorAll('button')).map(button => button.textContent?.trim())).toContain('Settings')
+    expect(card.textContent).not.toContain('Test connection')
   })
 
   it('distinguishes configured metadata from verified healthy evidence', async () => {
@@ -329,27 +376,23 @@ describe('Channels page', () => {
     expect(getChannelTypes).toHaveBeenCalledTimes(1)
   })
 
-  it('opens Setup Now and connected Settings in the same canonical dialog', async () => {
-    await render()
+  it('blocks a direct Coming Soon setup target while preserving the docs path', async () => {
+    await render(admin, '/channels?setup=digikala:main')
 
-    const setupCard = container.querySelector('[data-channel-card="digikala:main"]') as HTMLElement
-    const setup = Array.from(setupCard.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Setup now') as HTMLButtonElement
-    await act(async () => { setup.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
     const dialog = container.querySelector('[role="dialog"]') as HTMLElement
-    expect(dialog.textContent).toContain('Configure Digikala')
-    expect(getChannelConfiguration).toHaveBeenCalledWith('digikala:main')
-    const accessMode = Array.from(dialog.querySelectorAll('label'))
-      .find(label => label.textContent?.includes('Access mode'))
-      ?.querySelector('select') as HTMLSelectElement
-    expect(Array.from(accessMode.options).map(option => option.value)).toEqual(['read_only'])
-    expect(dialog.textContent).toContain('Access token')
-    expect(dialog.textContent).toContain('Refresh token')
-    expect(dialog.querySelectorAll<HTMLInputElement>('input[type="password"]')).toHaveLength(2)
-    expect(container.querySelector('main')?.className).toContain('fh-modal-scroll-lock')
+    expect(dialog.textContent).toContain('Coming Soon')
+    expect(dialog.querySelector('[data-testid="channel-coming-soon-notice"]')).not.toBeNull()
+    expect(getChannelConfiguration).not.toHaveBeenCalledWith('digikala:main')
+    expect(dialog.textContent).not.toContain('Access token')
+    expect(dialog.textContent).not.toContain('Test connection')
 
-    const close = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.trim() === 'Close') as HTMLButtonElement
+    const close = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Close') as HTMLButtonElement
     await act(async () => close.click())
     expect(container.querySelector('main')?.className).not.toContain('fh-modal-scroll-lock')
+  })
+
+  it('opens connected Settings in the canonical dialog', async () => {
+    await render()
     const connectedCard = container.querySelector('[data-channel-card="woocommerce:primary"]') as HTMLElement
     const settings = Array.from(connectedCard.querySelectorAll('button')).find(item => item.textContent?.trim() === 'Settings') as HTMLButtonElement
     await act(async () => { settings.click(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
@@ -455,6 +498,6 @@ describe('Channel detail connection evidence', () => {
     expect(channelConnectionEvidence(channel({ enabled: true, health: { status: 'healthy', message: '', latency_ms: 1, error_code: null } }))).toBe('healthy')
     expect(channelConnectionEvidence(channel({ enabled: true, status: 'configured', health: { status: 'unknown', message: '', latency_ms: null, error_code: null } }))).toBe('configured')
     expect(channelConnectionEvidence(channel({ enabled: true, health: { status: 'unhealthy', message: '', latency_ms: null, error_code: 'network' } }))).toBe('warning')
-    expect(channelConnectionEvidence(channel({ enabled: false, credential_status: 'configured', health: { status: 'healthy', message: '', latency_ms: 1, error_code: null } }))).toBe('setupRequired')
+    expect(channelConnectionEvidence(channel({ enabled: false, credential_status: 'configured', health: { status: 'healthy', message: '', latency_ms: 1, error_code: null } }))).toBe('disabled')
   })
 })

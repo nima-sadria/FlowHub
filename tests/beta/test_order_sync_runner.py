@@ -151,6 +151,27 @@ class RunnerTechnolifeConnector(RunnerWooConnector):
             pagination=pagination,
         )
 
+    async def get_order(self, identifiers):
+        return ChannelOrder(
+            channel_id=self.channel_id,
+            connector_type="technolife",
+            identifiers=ChannelIdentifierSet(order_number="TECH-501"),
+            status="processing",
+            items=[
+                ChannelOrderItem(
+                    identifiers=ChannelIdentifierSet(external_product_id="TECH-ITEM-1"),
+                    name="Technolife item",
+                    quantity=1,
+                    unit_price=125000,
+                    currency="IRR",
+                    raw={"sellerItemCode": "TECH-ITEM-1", "count": 1},
+                )
+            ],
+            total=125000,
+            currency="IRR",
+            raw={"orderCode": identifiers["orderCode"], "status": "processing"},
+        )
+
 
 @pytest.mark.asyncio
 async def test_runner_discovers_enabled_channels_filters_capabilities_and_records_heartbeat(session_factory, monkeypatch):
@@ -175,6 +196,40 @@ async def test_runner_discovers_enabled_channels_filters_capabilities_and_record
         assert db.query(_webhook_models.WebhookReceipt).filter_by(channel_id="tapsishop:main", processing_state="processed").count() == 1
         assert db.query(_integration_models.IntegrationConnectorEvent).filter_by(connector_id="flowhub:order-sync-runner", event_name="order_sync_runner_heartbeat").count() >= 2
         assert db.query(_order_models.ChannelOrderRecord).filter_by(channel_id="snappshop:disabled").count() == 0
+
+
+def test_runner_tapsishop_rotation_updates_the_shared_runtime_credential(session_factory):
+    from app.flowhub.orders.runner import OrderSyncRunner
+    from app.flowhub.orders.service import resolve_order_sync_settings
+    from app.flowhub.setup.service import AppConfigService
+
+    with session_factory() as db:
+        _seed_channel(
+            db,
+            "tapsishop:main",
+            "tapsishop",
+            enabled=True,
+            settings={"token": "initial-test-token", "token_refresh_enabled": True},
+        )
+        AppConfigService(db).set("tapsishop.token", "initial-test-token", updated_by="test")
+
+    runner = OrderSyncRunner(session_factory, settings=_settings(), runner_id="runner-token-refresh")
+    connector = runner._tapsishop_connector(
+        "tapsishop:main",
+        {"token": "initial-test-token", "token_refresh_enabled": True},
+    )
+    assert connector is not None
+    assert connector._token_updater is not None
+    connector._token_updater("rotated-test-token")
+
+    with session_factory() as db:
+        channel = db.get(_integration_models.IntegrationConnectorInstance, "tapsishop:main")
+        assert channel is not None
+        assert AppConfigService(db).get("tapsishop.token") == "rotated-test-token"
+        assert resolve_order_sync_settings(db, channel)["token"] == "rotated-test-token"
+        token_setting = next(setting for setting in channel.settings if setting.key == "token")
+        assert token_setting.value_json is None
+        assert token_setting.configured is True
 
 
 @pytest.mark.asyncio

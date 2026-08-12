@@ -11,10 +11,11 @@ import {
 describe('diagnostic presentation semantics', () => {
   beforeEach(async () => { await changeLocale('en') })
 
-  it('preserves all seven explicit states', () => {
+  it('preserves all explicit states, including Coming Soon', () => {
     expect([
       'HEALTHY',
       'INFO',
+      'COMING_SOON',
       'NOT_CHECKED',
       'NOT_APPLICABLE',
       'DISABLED',
@@ -23,12 +24,22 @@ describe('diagnostic presentation semantics', () => {
     ].map(resolveDiagnosticState)).toEqual([
       'HEALTHY',
       'INFO',
+      'COMING_SOON',
       'NOT_CHECKED',
       'NOT_APPLICABLE',
       'DISABLED',
       'WARNING',
       'ERROR',
     ])
+  })
+
+  it('presents Coming Soon as a non-actionable planned state', () => {
+    expect(diagnosticStatePresentation('Coming Soon')).toMatchObject({
+      state: 'COMING_SOON',
+      label: 'Coming Soon',
+      variant: 'neutral',
+    })
+    expect(diagnosticRecommendedAction({ state: 'COMING_SOON', is_actionable: false })).toBe('No action required')
   })
 
   it('fails closed for the legacy attempted-check failure label while preserving unknown evidence', () => {

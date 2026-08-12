@@ -71,17 +71,29 @@ export function ManagementResourceSections<T>({
   renderItem,
   className = 'space-y-3',
   setupRequiredLabel,
+  groupFor,
+  needsAttentionLabel = translate('commerce:commerceHub.needsAttentionKpi'),
 }: {
   resources: ResourceCollection<T>
   renderItem: (item: OrderedResource<T>) => ReactNode
   className?: string
   setupRequiredLabel?: string
+  groupFor?: (item: OrderedResource<T>) => 'connected' | 'needsAttention' | 'setupRequired' | 'disabled' | 'comingSoon'
+  needsAttentionLabel?: string
 }) {
-  const groups = [
-    { key: 'connected', label: translate('common:status.connected'), items: resources.ordered.filter(item => item.tier === 'configured') },
-    { key: 'setupRequired', label: setupRequiredLabel ?? translate('common:status.setupRequired'), items: resources.ordered.filter(item => item.tier === 'attention' || item.tier === 'disabled') },
-    { key: 'comingSoon', label: translate('common:resourceGroup.comingSoon'), items: resources.ordered.filter(item => item.tier === 'comingSoon') },
-  ] as const
+  const groups = groupFor
+    ? [
+      { key: 'connected', label: translate('common:status.connected'), items: resources.ordered.filter(item => groupFor(item) === 'connected') },
+      { key: 'needsAttention', label: needsAttentionLabel, items: resources.ordered.filter(item => groupFor(item) === 'needsAttention') },
+      { key: 'setupRequired', label: setupRequiredLabel ?? translate('common:status.setupRequired'), items: resources.ordered.filter(item => groupFor(item) === 'setupRequired') },
+      { key: 'disabled', label: translate('common:status.disabled'), items: resources.ordered.filter(item => groupFor(item) === 'disabled') },
+      { key: 'comingSoon', label: translate('common:resourceGroup.comingSoon'), items: resources.ordered.filter(item => groupFor(item) === 'comingSoon') },
+    ]
+    : [
+      { key: 'connected', label: translate('common:status.connected'), items: resources.ordered.filter(item => item.tier === 'configured') },
+      { key: 'setupRequired', label: setupRequiredLabel ?? translate('common:status.setupRequired'), items: resources.ordered.filter(item => item.tier === 'attention' || item.tier === 'disabled') },
+      { key: 'comingSoon', label: translate('common:resourceGroup.comingSoon'), items: resources.ordered.filter(item => item.tier === 'comingSoon') },
+    ]
 
   return <div className="grid gap-7">{groups.filter(group => group.items.length > 0).map(group => (
     <section className="min-w-0" key={group.key} data-resource-section={group.key} aria-label={group.label}>

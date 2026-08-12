@@ -59,6 +59,37 @@ class FakeConnector:
         return response
 
 
+@pytest.mark.asyncio
+async def test_tapsishop_rotation_keeps_channels_cache_and_orders_on_one_token(db):
+    """A successful refresh must update every persisted credential resolver."""
+
+    from app.flowhub.orders.service import resolve_order_sync_settings
+    from app.flowhub.setup.service import AppConfigService
+
+    service = CommerceHubService(db)
+    await service.update_channel_settings(
+        "tapsishop:main",
+        {
+            "display_name": "TapsiShop",
+            "enabled": True,
+            "settings": {"token_refresh_enabled": True},
+            "secrets": {"token": "initial-test-token"},
+        },
+        actor="test",
+    )
+
+    service._persist_tapsishop_refreshed_token("rotated-test-token")
+    db.expire_all()
+    instance = db.get(IntegrationConnectorInstance, "tapsishop:main")
+    assert instance is not None
+    token_setting = next(setting for setting in instance.settings if setting.key == "token")
+    assert token_setting.value_json is None
+    assert token_setting.configured is True
+    assert AppConfigService(db).get("tapsishop.token") == "rotated-test-token"
+    assert resolve_order_sync_settings(db, instance)["token"] == "rotated-test-token"
+    assert service._connector_values("tapsishop", None)[1]["token"] == "rotated-test-token"
+
+
 def product(
     product_id: str,
     *,
@@ -312,37 +343,41 @@ def configuration_body(vendor_id: str) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_vendor_discovery_failure_persists_no_partial_configuration(db, monkeypatch):
-    error = SnappShopConnectorError(
-        ConnectorError(
-            category=ConnectorErrorCategory.AUTHENTICATION,
-            message="SnappShop authentication failed.",
-            connector_type="snappshop",
-            channel_id="snappshop:main",
-            http_status=401,
-        )
-    )
+async def test_save_does_not_probe_snappshop_or_block_persistence(db, monkeypatch):
     service = CommerceHubService(db)
-    monkeypatch.setattr(service, "_snappshop_connector", lambda body=None: FakeVendorConnector(error=error))
+    monkeypatch.setattr(
+        service,
+        "_snappshop_connector",
+        lambda body=None: (_ for _ in ()).throw(
+            AssertionError("Save must not construct a SnappShop connector")
+        ),
+    )
 
-    with pytest.raises(Exception) as exc:
-        await service.update_channel_settings(
-            "snappshop:main",
-            configuration_body("vendor-1"),
-            actor="admin",
-        )
+    result = await service.update_channel_settings(
+        "snappshop:main",
+        configuration_body("vendor-1"),
+        actor="admin",
+    )
 
-    assert getattr(exc.value, "status_code", None) == 422
+    assert result["channel_id"] == "snappshop:main"
     db.expire_all()
-    assert db.get(FlowHubAppConfig, "snappshop.token") is None
-    assert db.get(IntegrationConnectorInstance, "snappshop:main") is None
-    assert db.query(IntegrationConnectorEvent).filter_by(connector_id="snappshop:main").count() == 0
+    assert db.get(FlowHubAppConfig, "snappshop.token").value == "write-only-secret"
+    assert db.get(IntegrationConnectorInstance, "snappshop:main") is not None
+    assert db.query(IntegrationConnectorEvent).filter_by(
+        connector_id="snappshop:main", event_name="channel_configuration_changed"
+    ).count() == 1
 
 
 @pytest.mark.asyncio
-async def test_selected_active_vendor_is_persisted_and_marks_configuration_complete(db, monkeypatch):
+async def test_selected_vendor_is_persisted_without_a_provider_call(db, monkeypatch):
     service = CommerceHubService(db)
-    monkeypatch.setattr(service, "_snappshop_connector", lambda body=None: FakeVendorConnector([vendor("vendor-1")]))
+    monkeypatch.setattr(
+        service,
+        "_snappshop_connector",
+        lambda body=None: (_ for _ in ()).throw(
+            AssertionError("Save must not call SnappShop")
+        ),
+    )
 
     result = await service.update_channel_settings(
         "snappshop:main",
@@ -366,20 +401,22 @@ async def test_selected_active_vendor_is_persisted_and_marks_configuration_compl
 
 
 @pytest.mark.asyncio
-async def test_inactive_vendor_cannot_be_saved(db, monkeypatch):
+async def test_inactive_vendor_is_reported_by_test_connection_not_save(db, monkeypatch):
     service = CommerceHubService(db)
+    await service.update_channel_settings(
+        "snappshop:main",
+        configuration_body("vendor-1"),
+        actor="admin",
+    )
     monkeypatch.setattr(
         service,
         "_snappshop_connector",
         lambda body=None: FakeVendorConnector([vendor("vendor-1", status="INACTIVE")]),
     )
 
-    with pytest.raises(Exception) as exc:
-        await service.update_channel_settings(
-            "snappshop:main",
-            configuration_body("vendor-1"),
-            actor="admin",
-        )
+    result = await service.test_channel_connection("snappshop:main", {})
 
-    assert getattr(exc.value, "status_code", None) == 422
-    assert db.get(FlowHubAppConfig, "snappshop.token") is None
+    assert result["ok"] is False
+    assert result["error_class"] == "validation"
+    assert "inactive" in result["message"].lower()
+    assert db.get(FlowHubAppConfig, "snappshop.token").value == "write-only-secret"

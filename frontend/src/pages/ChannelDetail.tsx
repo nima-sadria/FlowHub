@@ -15,6 +15,8 @@ import type { CommerceChannel } from '../services/types'
 import { effectiveHasPerm } from '../utils/permissions'
 import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
+import { isCommerceChannelComingSoon } from '../features/resourceOrdering/resourceOrdering'
+import { connectionExceptionMessage, connectionResultMessage } from '../features/diagnostics/connectionErrorPresentation'
 
 const DETAIL_SECTIONS = [
   ['overview', 'commerce:commerceHub.channelDetails.overview'],
@@ -38,8 +40,9 @@ function DetailField({ label, value }: { label: string; value: string | number }
 
 export function channelConnectionEvidence(
   channel: Pick<CommerceChannel, 'enabled' | 'credential_status' | 'health'>,
-): 'healthy' | 'warning' | 'configured' | 'setupRequired' {
-  if (!channel.enabled || channel.credential_status !== 'configured') return 'setupRequired'
+): 'healthy' | 'warning' | 'configured' | 'setupRequired' | 'disabled' {
+  if (!channel.enabled) return 'disabled'
+  if (channel.credential_status !== 'configured') return 'setupRequired'
   if (channel.health.status === 'healthy') return 'healthy'
   if (['degraded', 'error', 'failed', 'partial_failed', 'unhealthy'].includes(channel.health.status)) {
     return 'warning'
@@ -68,17 +71,20 @@ export default function ChannelDetail() {
     setLoadError(false)
     setPartialFailure(false)
     try {
-      const [channelsResult, configurationResult] = await Promise.allSettled([
-        commerce.getChannels(),
-        commerce.getChannelConfiguration(channelId),
-      ])
-      const selected = channelsResult.status === 'fulfilled'
-        ? channelsResult.value.items.find(item => item.id === channelId) ?? null
+      const channelsResult = await Promise.allSettled([commerce.getChannels()])
+      const selected = channelsResult[0].status === 'fulfilled'
+        ? channelsResult[0].value.items.find(item => item.id === channelId) ?? null
         : null
       setChannel(selected)
-      setConfiguration(configurationResult.status === 'fulfilled' ? configurationResult.value : null)
+      if (!selected || isCommerceChannelComingSoon(selected)) {
+        setConfiguration(null)
+        setLoadError(!selected)
+        return
+      }
+      const configurationResult = await Promise.allSettled([commerce.getChannelConfiguration(channelId)])
+      setConfiguration(configurationResult[0].status === 'fulfilled' ? configurationResult[0].value : null)
       setLoadError(!selected)
-      setPartialFailure(Boolean(selected && configurationResult.status === 'rejected'))
+      setPartialFailure(configurationResult[0].status === 'rejected')
     } finally {
       setLoading(false)
     }
@@ -99,14 +105,14 @@ export default function ChannelDetail() {
       } else {
         notify.error({
           title: translate('commerce:commerceHub.unableToConnectToTheChannel'),
-          description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+          description: connectionResultMessage(result),
         })
       }
       await load()
-    } catch {
+    } catch (error) {
       notify.error({
         title: translate('commerce:commerceHub.unableToConnectToTheChannel'),
-        description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+        description: connectionExceptionMessage(error),
       })
     } finally {
       setTesting(false)
@@ -139,6 +145,36 @@ export default function ChannelDetail() {
     )
   }
 
+  if (isCommerceChannelComingSoon(channel)) {
+    const displayName = formatChannelDisplayName(channel.id, {
+      displayName: channel.display_name_custom ? channel.name : undefined,
+      displayNameCustom: channel.display_name_custom,
+    })
+    return (
+      <PageShell>
+        <div className="fh-page-header">
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandIcon identity={{ provider: channel.provider }} label={displayName} size={44} />
+            <div className="min-w-0">
+              <button className="fh-text-caption mb-1" type="button" onClick={() => navigate('/channels')}>â†گ {translate('commerce:commerceHub.channels2')}</button>
+              <h1 className="fh-page-title truncate">{displayName}</h1>
+              <p className="fh-page-subtitle">{formatStatus(channel.provider)}</p>
+            </div>
+          </div>
+          <Badge dot variant="neutral">{translate('common:resourceBadge.comingSoon')}</Badge>
+        </div>
+        <section className="fh-card fh-card-pad" data-testid="channel-coming-soon-detail">
+          <h2 className="fh-section-title">{translate('common:resourceBadge.comingSoon')}</h2>
+          <p className="fh-section-subtitle mt-1">{translate('commerce:commerceHub.plannedChannel')}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className="fh-button-secondary" type="button" onClick={() => navigate('/channels')}>{translate('commerce:commerceHub.channelDetails.backToChannels')}</button>
+            <button className="fh-button-secondary" type="button" onClick={() => navigate('/docs/channels')}><Icon name="file" /> {translate('commerce:commerceHub.channelDocumentation')}</button>
+          </div>
+        </section>
+      </PageShell>
+    )
+  }
+
   const accessMode = configuration?.access_mode
     ?? (channel.read_only || channel.write_blocked ? 'read_only' : 'write_enabled')
   const accessModeLabel = accessMode === 'write_enabled'
@@ -151,7 +187,9 @@ export default function ChannelDetail() {
       ? translate('common:resourceBadge.warning')
       : connectionEvidence === 'configured'
         ? translate('common:status.configured')
-        : translate('common:status.setupRequired')
+        : connectionEvidence === 'disabled'
+          ? translate('common:status.disabled')
+          : translate('common:status.setupRequired')
   const healthWarning = ['degraded', 'error', 'failed', 'partial_failed', 'unhealthy'].includes(channel.health.status)
   const displayName = formatChannelDisplayName(channel.id, {
     displayName: channel.display_name_custom ? channel.name : undefined,
@@ -169,7 +207,7 @@ export default function ChannelDetail() {
             <p className="fh-page-subtitle">{formatStatus(channel.provider)}</p>
           </div>
         </div>
-        {canManageCommerce && (
+        {canManageCommerce && channel.settings_available && (
           <button className="fh-button-primary" type="button" onClick={() => navigate(`/channels?setup=${encodeURIComponent(channel.id)}`)}>
             <Icon name="settings" /> {translate('common:action.settings')}
           </button>
@@ -194,15 +232,17 @@ export default function ChannelDetail() {
         <section className="fh-card fh-card-pad" id="overview">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="fh-section-title">{translate('commerce:commerceHub.channelDetails.overview')}</h2>
-            <Badge dot variant={connectionEvidence === 'healthy' ? 'success' : connectionEvidence === 'warning' || connectionEvidence === 'setupRequired' ? 'warning' : 'neutral'}>
+            <Badge dot variant={connectionEvidence === 'healthy' ? 'success' : connectionEvidence === 'warning' || connectionEvidence === 'setupRequired' ? 'warning' : 'disabled'}>
               {connectionBadgeLabel}
             </Badge>
           </div>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <DetailField label={translate('commerce:commerceHub.accessMode')} value={accessModeLabel} />
+            <DetailField label={translate('commerce:commerceHub.setupState')} value={formatStatus(channel.configuration_state ?? channel.credential_status)} />
+            <DetailField label={translate('commerce:commerceHub.refreshStatus')} value={formatStatus(channel.cache_refresh_status)} />
             <DetailField label={translate('commerce:commerceHub.cachedProducts')} value={formatNumber(channel.cached_products)} />
             <DetailField label={translate('commerce:commerceHub.cachedVariations')} value={formatNumber(channel.cached_variations)} />
-            <DetailField label={translate('commerce:commerceHub.channelLastActivity')} value={channel.last_cache_refresh ? formatDateTime(channel.last_cache_refresh) : translate('commerce:commerceHub.noRecentActivity')} />
+            <DetailField label={translate('commerce:commerceHub.lastCacheRefresh')} value={channel.last_cache_refresh ? formatDateTime(channel.last_cache_refresh) : translate('commerce:commerceHub.notRefreshed')} />
           </dl>
         </section>
 
@@ -221,7 +261,7 @@ export default function ChannelDetail() {
         <section className="fh-card fh-card-pad" id="connection-test">
           <h2 className="fh-section-title">{translate('commerce:commerceHub.channelDetails.connectionTest')}</h2>
           <p className="fh-text-caption mt-1">{translate('commerce:commerceHub.channelDetails.connectionHelp')}</p>
-          {canManageCommerce && (
+          {canManageCommerce && channel.enabled && (
             <button className="fh-button-secondary mt-4" type="button" disabled={testing} onClick={() => void testConnection()}>
               <Icon name="testConnection" /> {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
             </button>
@@ -248,7 +288,7 @@ export default function ChannelDetail() {
         <section className="fh-card fh-card-pad" id="health">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="fh-section-title">{translate('commerce:commerceHub.channelDetails.health')}</h2>
-            <Badge dot variant={healthWarning ? 'warning' : 'success'}>{formatStatus(channel.health.status)}</Badge>
+            <Badge dot variant={channel.health.status === 'healthy' ? 'success' : healthWarning ? 'warning' : 'neutral'}>{formatStatus(channel.health.status)}</Badge>
           </div>
           <dl className="mt-4 grid gap-4 sm:grid-cols-3">
             <DetailField label={translate('commerce:commerceHub.lastHealthCheck')} value={channel.last_health_check ? formatDateTime(channel.last_health_check) : translate('commerce:commerceHub.notChecked')} />

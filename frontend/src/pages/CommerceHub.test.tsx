@@ -145,10 +145,14 @@ const commerce: CommerceService = {
           { key: 'token', label: 'Authorization token', required: true, secret: true },
           { key: 'webhook_token', label: 'Webhook token', required: false, secret: true },
         ]),
-        typeOption('digikala:main', 'digikala', 'Digikala', 'Channel', false, [
-          { key: 'access_token', label: 'Access token', required: true, secret: true },
-          { key: 'refresh_token', label: 'Refresh token', required: false, secret: true },
-        ]),
+        {
+          ...typeOption('digikala:main', 'digikala', 'Digikala', 'Channel', true, [
+            { key: 'access_token', label: 'Access token', required: true, secret: true },
+            { key: 'refresh_token', label: 'Refresh token', required: false, secret: true },
+          ]),
+          implemented: true,
+          implementation_status: 'IMPLEMENTED_UNVERIFIED',
+        },
         typeOption('technolife:main', 'technolife', 'Technolife', 'Channel', false, [
           { key: 'base_url', label: 'Base URL', required: false, secret: false },
           { key: 'request_timeout', label: 'Request timeout seconds', required: false, secret: false },
@@ -264,7 +268,13 @@ const commerce: CommerceService = {
         channel('woocommerce:primary', 'WooCommerce', false),
         channel('snappshop:main', 'Snapp Shop', false),
         channel('tapsishop:main', 'Tapsi Shop', false),
-        channel('digikala:main', 'Digikala', false),
+        {
+          ...channel('digikala:main', 'Digikala', true),
+          implemented: true,
+          status: 'coming_soon',
+          implementation_status: 'IMPLEMENTED_UNVERIFIED',
+          settings_available: false,
+        },
         channel('technolife:main', 'Technolife', false),
         channel('shopify:main', 'Shopify', true),
       ],
@@ -687,7 +697,7 @@ describe('CommerceHub', () => {
 
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh cache')).toHaveLength(1)
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(0)
-    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(4)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(3)
     expect(c.textContent).toContain('Cached products: 2')
     expect(c.textContent).toContain('Cached variations: 2')
     expect(c.textContent).toContain('Refresh status: Completed')
@@ -718,57 +728,50 @@ describe('CommerceHub', () => {
     const c = await renderPage(adminUser, configuredCommerce)
 
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Settings')).toHaveLength(1)
-    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(3)
+    expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Configure')).toHaveLength(2)
     expect(Array.from(c.querySelectorAll('button')).filter(button => button.textContent === 'Refresh cache')).toHaveLength(2)
     const digikala = Array.from(c.querySelectorAll('h3')).find(item => item.textContent === 'Digikala')?.closest('.fh-card')
-    expect(Array.from(digikala?.querySelectorAll('button') ?? []).map(button => button.textContent)).toEqual(['Configure', 'Test connection'])
-    expect(Array.from(digikala?.querySelectorAll('button') ?? []).find(button => button.textContent === 'Test connection')).toHaveProperty('disabled', true)
+    expect(digikala?.textContent).toContain('Coming Soon')
+    expect(Array.from(digikala?.querySelectorAll('button') ?? [])).toHaveLength(0)
     const shopify = Array.from(c.querySelectorAll('h3')).find(item => item.textContent === 'Shopify')?.closest('.fh-card')
     expect(Array.from(shopify?.querySelectorAll('button') ?? [])).toHaveLength(0)
   })
 
-  it('configures and tests Digikala with write-only tokens in read-only mode', async () => {
-    let tested: { channelId: string; payload: Parameters<CommerceService['testChannel']>[1] } | undefined
+  it('does not load a legacy configuration panel for an implemented-but-Coming-Soon Digikala type', async () => {
+    const getChannelConfiguration = vi.fn()
     const digikalaCommerce: CommerceService = {
       ...commerce,
-      async testChannel(channelId, payload) {
-        tested = { channelId, payload }
-        return commerce.testChannel(channelId, payload)
-      },
+      getChannelConfiguration,
     }
-    const c = await renderPage(adminUser, digikalaCommerce)
+    const types = (await commerce.getChannelTypes()).items
 
-    const configure = resourceAction(c, 'Digikala', 'Configure')
     await act(async () => {
-      configure.click()
+      root.render(
+        <NotificationProvider>
+          <AuthContext.Provider value={authValue(adminUser)}>
+            <MemoryRouter>
+              <ServiceProvider services={{ ...services, commerce: digikalaCommerce }}>
+                <ConfigPanel
+                  kind="channel"
+                  types={types}
+                  initialResourceId="digikala:main"
+                  onCancel={vi.fn()}
+                  onSaved={vi.fn()}
+                />
+              </ServiceProvider>
+            </MemoryRouter>
+          </AuthContext.Provider>
+        </NotificationProvider>,
+      )
       await Promise.resolve()
       await Promise.resolve()
     })
 
-    const accessMode = selectByLabel(c, 'Access mode')
-    expect(Array.from(accessMode.options).map(option => option.value)).toEqual(['read_only'])
-    expect(c.textContent).toContain('Access token')
-    expect(c.textContent).toContain('Refresh token')
-    const secretInputs = Array.from(c.querySelectorAll<HTMLInputElement>('input[type="password"]'))
-    expect(secretInputs).toHaveLength(2)
-    const test = Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Test connection') as HTMLButtonElement
-    expect(test.disabled).toBe(true)
-
-    act(() => setInputValue(secretInputs[0], 'dk-access-token'))
-    expect(test.disabled).toBe(false)
-    await act(async () => {
-      test.click()
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-
-    expect(tested).toEqual({
-      channelId: 'digikala:main',
-      payload: expect.objectContaining({
-        access_mode: 'read_only',
-        secrets: { access_token: 'dk-access-token' },
-      }),
-    })
+    expect(container.querySelector('[data-testid="configuration-coming-soon"]')).not.toBeNull()
+    expect(container.textContent).toContain('Coming Soon')
+    expect(container.textContent).not.toContain('Access token')
+    expect(container.textContent).not.toContain('Test connection')
+    expect(getChannelConfiguration).not.toHaveBeenCalled()
   })
 
   it('loads sanitized SnappShop settings, masks the token, and discovers vendors from unsaved test values', async () => {
@@ -844,8 +847,9 @@ describe('CommerceHub', () => {
     const vendorSelect = selectByLabel(c, 'Vendor / store')
     expect(vendorSelect.value).toBe('vendor-1')
     expect(vendorSelect.textContent).toContain('Primary Vendor')
-    expect(c.textContent).toContain('Channel connected successfully')
-    expect(c.textContent).toContain('SnappShop is ready to use.')
+    expect(c.textContent).toContain('Channel connection verified')
+    expect(c.textContent).toContain('This connection test used unsaved values. Save the configuration before the channel is ready to use.')
+    expect(c.textContent).not.toContain('SnappShop is ready to use.')
     expect(c.querySelector('[role="alert"] [data-icon="success"]')).not.toBeNull()
   })
 
@@ -1220,7 +1224,7 @@ describe('CommerceHub', () => {
       addChannel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     expect(c.textContent).toContain('Channel type')
-    expect(c.textContent).toContain('Access token')
+    expect(c.textContent).toContain('Bearer token')
 
     const sourcesScreen = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
     const addSource = Array.from(sourcesScreen.querySelectorAll('button')).find(button => button.textContent === 'Add source')
@@ -2360,7 +2364,7 @@ describe('CommerceHub', () => {
     })
 
     expect(c.textContent).toContain('Unable to connect to the channel')
-    expect(c.textContent).toContain('Please verify your credentials and try again.')
+    expect(c.textContent).toContain('The external service denied access for the saved credentials.')
     expect(c.textContent).not.toContain('Admin permission required.')
   })
 

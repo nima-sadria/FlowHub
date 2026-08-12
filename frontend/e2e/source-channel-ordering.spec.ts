@@ -644,7 +644,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await expectGroupedOrder(page, sourceOrder)
   await expect(page.locator('[data-resource-id="source-csv"]')).toContainText('Healthy')
   await expect(page.locator('[data-resource-id="source-nextcloud"]')).toContainText('Setup required')
-  await expect(page.locator('[data-resource-id="source-disabled"]')).toContainText('Setup required')
+  await expect(page.locator('[data-resource-id="source-disabled"]')).toContainText('Disabled')
   await expect(page.locator('[data-resource-id="source-erp"]')).toContainText('Coming Soon')
   await page.screenshot({ path: path.join(screenshotRoot, 'en-sources.png'), fullPage: true })
 
@@ -669,7 +669,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await expectGroupedOrder(page, channelLifecycleOrder)
   await expect(page.locator('[data-resource-id="snappshop:main"]')).toContainText('Healthy')
   await expect(page.locator('[data-resource-id="attention:main"]')).toContainText('Warning')
-  await expect(page.locator('[data-resource-id="disabled:main"]')).toContainText('Setup required')
+  await expect(page.locator('[data-resource-id="disabled:main"]')).toContainText('Disabled')
   await expect(page.locator('[data-resource-id="digikala:future"]')).toContainText('Coming Soon')
   await page.screenshot({ path: path.join(screenshotRoot, 'en-commerce-channels.png'), fullPage: true })
 

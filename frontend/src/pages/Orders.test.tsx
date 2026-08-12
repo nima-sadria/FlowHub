@@ -41,6 +41,37 @@ describe('Orders page', () => {
     expect(requested).toMatchObject({ dateFrom: '2026-08-10', dateTo: '2026-08-10' })
   })
 
+  it('does not show WooCommerce sync evidence for a selected channel without its own status', async () => {
+    const mock = services()
+    mock.orders!.getOrders = async () => ({ items: [], total: 0, page: 1, pageSize: 25 })
+    mock.orders!.getSyncStatus = async () => ({
+      items: [{
+        channelId: 'woocommerce:primary',
+        connectorType: 'woocommerce',
+        displayName: 'WooCommerce',
+        enabled: true,
+        state: 'ready',
+        lastRunAt: '2026-08-12T10:00:00Z',
+        lastSuccessAt: '2026-08-12T10:00:00Z',
+        lastFailureAt: null,
+        failureCategory: null,
+      }],
+    })
+    window.history.replaceState({}, '', '/orders?channelId=technolife:main')
+
+    await act(async () => {
+      root.render(<ServiceProvider services={mock}><Orders /></ServiceProvider>)
+    })
+    await flush()
+
+    const strip = container.querySelector('[data-orders-sync-strip]') as HTMLElement
+    expect(strip.textContent).toContain('Unavailable')
+    expect(strip.textContent).not.toContain('Synced')
+    expect(strip.textContent).not.toContain('Last synchronized')
+    const sync = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Sync orders') as HTMLButtonElement
+    expect(sync.disabled).toBe(true)
+  })
+
   it('preserves an explicitly custom legacy alias in the Channel filter and order rows', async () => {
     const mock = services()
     const base = (await mock.orders!.getOrders({ page: 1, pageSize: 25 })).items[0]!

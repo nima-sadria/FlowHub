@@ -22,6 +22,7 @@ export interface ConnectionCheckResult {
   vendor_information?: CommerceVendor
   suggested_vendor_id?: string | null
   selected_vendor_id?: string | null
+  configuration_matches_saved?: boolean
 }
 
 export interface CommerceVendor {

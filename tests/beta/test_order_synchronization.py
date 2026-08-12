@@ -15,6 +15,7 @@ from app.flowhub.channels.contracts import (
     ChannelOrderEvent,
     ChannelOrderItem,
     CursorPagination,
+    PageNumberPagination,
     PaginatedResult,
 )
 from app.flowhub.integration_platform import models as _integration_models  # noqa: F401
@@ -722,6 +723,232 @@ async def test_reconciliation_repairs_missing_order(db):
     row = db.query(_order_models.ChannelOrderRecord).filter_by(channel_id="tapsi:1", provider_order_id="T-200").one()
     assert row.normalized_status == "fulfilled"
     assert db.query(_order_models.OrderSyncAuditRecord).filter_by(event_name="order_reconciliation_repair").count() == 1
+
+
+@pytest.mark.asyncio
+async def test_reconciliation_audits_a_stale_existing_order(db):
+    from app.flowhub.orders.service import OrderSyncService
+
+    service = OrderSyncService(db)
+    await service.reconcile_recent_orders("tapsi:1", FakeTapsiConnector(status="1"))
+    await service.reconcile_recent_orders("tapsi:1", FakeTapsiConnector(status="3"))
+
+    row = db.query(_order_models.ChannelOrderRecord).filter_by(
+        channel_id="tapsi:1", provider_order_id="T-200"
+    ).one()
+    assert row.normalized_status == "fulfilled"
+    assert (
+        db.query(_order_models.OrderSyncAuditRecord)
+        .filter_by(event_name="order_reconciliation_repair")
+        .count()
+        == 2
+    )
+
+
+@pytest.mark.asyncio
+async def test_reconciliation_starts_tapsishop_at_zero_and_follows_documented_pages(db):
+    from app.flowhub.orders.service import OrderSyncService
+
+    class PagedTapsiConnector:
+        connector_type = "tapsishop"
+
+        def __init__(self) -> None:
+            self.calls: list[tuple[int, int]] = []
+
+        async def list_orders(self, pagination):
+            assert isinstance(pagination, PageNumberPagination)
+            self.calls.append((pagination.page, pagination.page_size))
+            order_number = f"T-{pagination.page}"
+            return PaginatedResult(
+                items=[
+                    ChannelOrder(
+                        channel_id="tapsi:paged",
+                        connector_type="tapsishop",
+                        identifiers=ChannelIdentifierSet(
+                            external_product_id=f"id-{pagination.page}",
+                            order_number=order_number,
+                        ),
+                        status="1",
+                        items=[],
+                        total=100,
+                        currency="IRR",
+                        raw={"id": f"id-{pagination.page}", "orderNumber": order_number},
+                    )
+                ],
+                pagination=PageNumberPagination(
+                    page=pagination.page,
+                    page_size=pagination.page_size,
+                    has_more=pagination.page == 0,
+                    next_page=1 if pagination.page == 0 else None,
+                ),
+            )
+
+    connector = PagedTapsiConnector()
+    result = await OrderSyncService(db).reconcile_recent_orders(
+        "tapsi:paged", connector, page_size=25
+    )
+
+    assert result.processed == 2
+    assert connector.calls == [(0, 25), (1, 25)]
+    assert (
+        db.query(_order_models.ChannelOrderRecord)
+        .filter_by(channel_id="tapsi:paged")
+        .count()
+        == 2
+    )
+
+
+@pytest.mark.asyncio
+async def test_reconciliation_follows_cursor_pages_without_repeating_them(db):
+    from app.flowhub.orders.service import OrderSyncService
+
+    class CursorOrderConnector:
+        connector_type = "snappshop"
+
+        def __init__(self) -> None:
+            self.calls: list[str | None] = []
+
+        async def list_orders(self, pagination):
+            cursor = pagination.cursor if isinstance(pagination, CursorPagination) else None
+            self.calls.append(cursor)
+            order_number = "S-1" if cursor is None else "S-2"
+            return PaginatedResult(
+                items=[
+                    ChannelOrder(
+                        channel_id="snapp:reconcile",
+                        connector_type="snappshop",
+                        identifiers=ChannelIdentifierSet(order_number=order_number),
+                        status="CONFIRMED",
+                        items=[],
+                        total=100,
+                        currency="IRR",
+                        raw={"order_number": order_number},
+                    )
+                ],
+                pagination=CursorPagination(
+                    cursor=cursor,
+                    next_cursor="cursor-2" if cursor is None else None,
+                    has_more=cursor is None,
+                    limit=20,
+                ),
+            )
+
+    connector = CursorOrderConnector()
+    result = await OrderSyncService(db).reconcile_recent_orders(
+        "snapp:reconcile", connector
+    )
+
+    assert result.processed == 2
+    assert connector.calls == [None, "cursor-2"]
+
+
+@pytest.mark.asyncio
+async def test_reconciliation_rejects_a_repeating_cursor_without_an_unbounded_loop(db):
+    from fastapi import HTTPException
+
+    from app.flowhub.orders.service import OrderSyncService
+
+    class RepeatingCursorConnector:
+        connector_type = "snappshop"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def list_orders(self, pagination):
+            self.calls += 1
+            cursor = pagination.cursor if isinstance(pagination, CursorPagination) else None
+            return PaginatedResult(
+                items=[],
+                pagination=CursorPagination(
+                    cursor=cursor,
+                    next_cursor=cursor or "cursor-1",
+                    has_more=True,
+                    limit=20,
+                ),
+            )
+
+    connector = RepeatingCursorConnector()
+    with pytest.raises(HTTPException) as exc_info:
+        await OrderSyncService(db).reconcile_recent_orders("snapp:repeating", connector)
+
+    assert exc_info.value.status_code == 502
+    assert connector.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_technolife_reconciliation_hydrates_detail_before_replacing_items(db):
+    from app.flowhub.orders.service import OrderSyncService
+
+    class TechnolifeSummaryConnector:
+        connector_type = "technolife"
+
+        def __init__(self) -> None:
+            self.detail_calls: list[dict[str, str]] = []
+
+        async def list_orders(self, pagination):
+            assert isinstance(pagination, PageNumberPagination)
+            return PaginatedResult(
+                items=[
+                    ChannelOrder(
+                        channel_id="technolife:items",
+                        connector_type="technolife",
+                        identifiers=ChannelIdentifierSet(order_number="TECH-1"),
+                        status="processing",
+                        items=[],
+                        total=125000,
+                        currency="IRR",
+                        raw={"code": "TECH-1", "status": "processing"},
+                    )
+                ],
+                pagination=PageNumberPagination(
+                    page=pagination.page,
+                    page_size=pagination.page_size,
+                ),
+            )
+
+        async def get_order(self, identifiers):
+            self.detail_calls.append(identifiers)
+            return ChannelOrder(
+                channel_id="technolife:items",
+                connector_type="technolife",
+                identifiers=ChannelIdentifierSet(order_number="TECH-1"),
+                status="processing",
+                items=[
+                    ChannelOrderItem(
+                        identifiers=ChannelIdentifierSet(
+                            external_product_id="SELLER-1",
+                            product_number="PRODUCT-1",
+                        ),
+                        name="Technolife item",
+                        quantity=2,
+                        unit_price=62500,
+                        currency="IRR",
+                        raw={"sellerItemCode": "SELLER-1", "count": 2},
+                    )
+                ],
+                total=125000,
+                currency="IRR",
+                raw={"orderCode": "TECH-1", "products": [{"sellerItemCode": "SELLER-1"}]},
+            )
+
+    connector = TechnolifeSummaryConnector()
+    result = await OrderSyncService(db).reconcile_recent_orders(
+        "technolife:items", connector
+    )
+
+    assert result.processed == 1
+    assert connector.detail_calls == [
+        {"orderCode": "TECH-1", "order_number": "TECH-1", "id": "TECH-1"}
+    ]
+    stored = db.query(_order_models.ChannelOrderRecord).filter_by(
+        channel_id="technolife:items", provider_order_id="TECH-1"
+    ).one()
+    assert (
+        db.query(_order_models.ChannelOrderItemRecord)
+        .filter_by(order_id=stored.internal_id)
+        .count()
+        == 1
+    )
 
 
 def test_orders_api_lists_and_details_without_customer_national_id(client_with_order):

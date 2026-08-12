@@ -129,20 +129,7 @@ async def test_connection(
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    instance = service.get_instance(connector_id)
-    health = service.latest_health(connector_id)
-    status_value = instance.connector.status.value
-    return {
-        "ok": status_value not in {"error", "authentication_failed"},
-        "status": status_value,
-        "latency_ms": health.latency_ms if health else None,
-        "connector_version": instance.connector.identity.version,
-        "detected_capabilities": instance.connector.capabilities.model_dump(),
-        "authentication_valid": status_value != "authentication_failed",
-        "error_code": None,
-        "message": "Connection test used local Integration Platform/Data Layer records only.",
-        "correlation_id": service._correlation_id(),
-    }
+    return service.test_connection_contract(connector_id)
 
 
 @router.post("/connectors/{connector_id}/detect-capabilities")
@@ -152,15 +139,7 @@ async def detect_capabilities(
     service: IntegrationPlatformService = Depends(_service),
 ) -> dict:
     _require_admin(user)
-    instance = service.get_instance(connector_id)
-    return {
-        "canonical_capabilities": instance.connector.capabilities.model_dump(),
-        "native_capabilities": {},
-        "detected_at": instance.updated_at,
-        "confidence": "registry",
-        "warnings": ["Capability detection does not grant authorization."],
-        "correlation_id": service._correlation_id(),
-    }
+    return service.detect_capabilities_contract(connector_id)
 
 
 @router.get("/connectors/{connector_id}/health")

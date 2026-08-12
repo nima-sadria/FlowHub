@@ -129,4 +129,26 @@ describe('ManagementResourceSections', () => {
     expect(container.querySelectorAll('[data-resource-section] > h2')).toHaveLength(3)
     expect(container.querySelectorAll('[data-resource-section] h3')).toHaveLength(4)
   })
+
+  it('keeps disabled, setup-required, and needs-attention management groups distinct when the caller supplies operational state', () => {
+    act(() => {
+      root.render(
+        <ManagementResourceSections
+          resources={resources}
+          groupFor={item => ({
+            active: 'connected',
+            warning: 'needsAttention',
+            disabled: 'disabled',
+            'coming-soon': 'comingSoon',
+          }[item.id] as 'connected' | 'needsAttention' | 'disabled' | 'comingSoon')}
+          renderItem={item => <h3>{item.displayName}</h3>}
+        />,
+      )
+    })
+
+    expect(Array.from(container.querySelectorAll('[data-resource-section]')).map(section => section.getAttribute('data-resource-section')))
+      .toEqual(['connected', 'needsAttention', 'disabled', 'comingSoon'])
+    expect(container.querySelector('[data-resource-section="disabled"]')?.textContent).toContain('Disabled')
+    expect(container.querySelector('[data-resource-section="needsAttention"]')?.textContent).toContain('Needs Attention')
+  })
 })

@@ -108,10 +108,11 @@ INTERNAL_TERM_PATTERNS = {
     "frontend/src/pages/AdvancedSettings.tsx": (
         r'placeholder="192\.168\.100\.11/32"',
     ),
-    # ChannelDocs uses a standard HTML search-input placeholder. The exact
-    # Persian string is user-facing guidance, not a release-state label.
+    # ChannelDocs uses a standard HTML search-input placeholder through a
+    # localized key; this is ordinary form guidance, not a release-state label.
     "frontend/src/pages/ChannelDocs.tsx": (
-        r'placeholder="جست‌وجو در مستندات"',
+        r"\bplaceholder=\{translate\('commerce:commerceHub\.channelDocs\.searchPlaceholder'\)\}",
+        r"\baria-label=\{translate\('commerce:commerceHub\.channelDocs\.searchPlaceholder'\)\}",
     ),
     "frontend/src/pages/CommerceHub.tsx": (
         r'\bsource\.placeholder\b',
@@ -183,11 +184,13 @@ INTERNAL_TERM_PATTERNS = {
     # and spreadsheet-path fields on the Commerce Hub and Users settings;
     # not release residue.
     "frontend/src/i18n/locales/en/commerce.json": (
+        r'"commerceHub\.channelDocs\.searchPlaceholder":',
         r'"commerceHub\.passwordConfiguredPlaceholder":',
         r'"commerceHub\.passwordPlaceholder":',
         r'"commerceHub\.spreadsheetResourcePlaceholder":',
     ),
     "frontend/src/i18n/locales/fa/commerce.json": (
+        r'"commerceHub\.channelDocs\.searchPlaceholder":',
         r'"commerceHub\.spreadsheetResourcePlaceholder":',
     ),
     "frontend/src/i18n/locales/en/settings.json": (

@@ -288,15 +288,23 @@ export function commerceSourceSignals(source: CommerceSource): ResourceOrderingS
 export function commerceChannelSignals(channel: CommerceChannelRuntime): ResourceOrderingSignals {
   return {
     id: channel.id,
-    displayName: channel.name,
+    displayName: formatChannelDisplayName(channel.id, {
+      displayName: channel.display_name_custom ? channel.name : undefined,
+      displayNameCustom: channel.display_name_custom,
+    }),
     status: channel.status,
-    healthStatus: channel.health?.status,
+    healthStatus: channel.health?.status === 'unknown' ? undefined : channel.health?.status,
     credentialStatus: channel.credential_status,
-    activityStatuses: [channel.configuration_state, channel.cache_refresh_status],
+    // "Not run" remains visible on the card, but is not failed connection
+    // evidence. Diagnostics likewise keeps a successfully verified connector
+    // Healthy until a real cache warning or failure is recorded.
+    activityStatuses: [channel.configuration_state, channel.cache_refresh_status]
+      .filter(status => normalizeState(status) !== 'not_run'),
     enabled: channel.enabled,
     configured: channel.credential_status === 'configured',
     implemented: channel.implemented,
     placeholder: channel.placeholder,
+    implementationState: channel.implementation_status,
   }
 }
 
@@ -307,7 +315,17 @@ export function commerceTypeSignals(item: CommerceTypeOption): ResourceOrderingS
     configured: item.implemented && !item.placeholder,
     implemented: item.implemented,
     placeholder: item.placeholder,
+    implementationState: item.implementation_status,
   }
+}
+
+export function isCommerceChannelComingSoon(channel: CommerceChannelRuntime): boolean {
+  return channel.settings_available === false
+    || classify(commerceChannelSignals(channel)).tier === 'comingSoon'
+}
+
+export function isCommerceTypeComingSoon(item: CommerceTypeOption): boolean {
+  return classify(commerceTypeSignals(item)).tier === 'comingSoon'
 }
 
 export function channelIdentitySignals<T extends { channelId: string }>(

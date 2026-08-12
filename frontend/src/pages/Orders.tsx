@@ -172,12 +172,10 @@ export default function Orders() {
   }, [columnsOpen, filtersOpen, rowMenuFor, savedViewsOpen, sortOpen])
 
   const pages = Math.max(1, Math.ceil(total / pageSize))
-  const selectedSyncStatus = useMemo(
-    () => syncStatuses.find(item => item.channelId === channelId)
-      ?? syncStatuses.find(item => item.connectorType === 'woocommerce')
-      ?? syncStatuses[0],
-    [channelId, syncStatuses],
-  )
+  const selectedSyncStatus = useMemo(() => {
+    if (channelId) return syncStatuses.find(item => item.channelId === channelId)
+    return syncStatuses.find(item => item.connectorType === 'woocommerce') ?? syncStatuses[0]
+  }, [channelId, syncStatuses])
   const channelDisplayNames = useMemo(
     () => new Map(syncStatuses.map(item => [
       item.channelId,
@@ -265,7 +263,9 @@ export default function Orders() {
     })
   }
 
-  const emptyState = selectedSyncStatus?.state === 'disabled'
+  const emptyState = channelId && !selectedSyncStatus
+    ? { title: translate('common:status.unavailable'), description: translate('orders:orders.adjustFilters') }
+    : selectedSyncStatus?.state === 'disabled'
     ? { title: translate('orders:orders.syncDisabled'), description: translate('orders:orders.enableChannelToSync') }
     : selectedSyncStatus?.state === 'never_run'
       ? { title: translate('orders:orders.syncNeverRun'), description: translate('orders:orders.runReadOnlySync') }
@@ -276,11 +276,13 @@ export default function Orders() {
   const stripTone: Tone = selectedSyncStatus?.state === 'error' ? 'danger'
     : selectedSyncStatus?.state === 'disabled' || selectedSyncStatus?.state === 'never_run' ? 'neutral'
       : selectedSyncStatus?.state ? 'success' : 'neutral'
-  const stripLabel = selectedSyncStatus?.state === 'error' ? translate('orders:orders.syncError')
+  const stripLabel = !selectedSyncStatus && channelId ? translate('common:status.unavailable')
+    : selectedSyncStatus?.state === 'error' ? translate('orders:orders.syncError')
     : selectedSyncStatus?.state === 'disabled' ? translate('common:status.disabled')
       : selectedSyncStatus?.state === 'never_run' ? translate('common:status.notRun')
         : translate('orders:orders.synced')
-  const bottomSubtitle = selectedSyncStatus?.state === 'error' ? translate('orders:orders.lastSyncFailed')
+  const bottomSubtitle = !selectedSyncStatus && channelId ? translate('common:status.unavailable')
+    : selectedSyncStatus?.state === 'error' ? translate('orders:orders.lastSyncFailed')
     : selectedSyncStatus?.state === 'never_run' ? translate('orders:orders.syncNeverRun')
       : selectedSyncStatus?.state === 'disabled' ? translate('orders:orders.syncDisabled')
         : translate('orders:orders.allSynchronized')

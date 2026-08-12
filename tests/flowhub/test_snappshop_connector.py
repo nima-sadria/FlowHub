@@ -411,7 +411,7 @@ async def test_cursor_pagination_duplicate_events_and_safe_cursor_advance():
 async def test_order_details_and_history_date_filters_preserve_sensitive_nulls():
     order_payload = {
         "order_number": 727,
-        "status": "CONFIRMED",
+        "order_status": "CONFIRMED",
         "customer": {"phone": None, "national_id": None},
         "items": [{
             "sku": None,
@@ -438,6 +438,7 @@ async def test_order_details_and_history_date_filters_preserve_sensitive_nulls()
     history = await connector().list_order_history(date_start="2025-09-23", date_end="2025-10-22")
 
     assert order.identifiers.order_number == "727"
+    assert order.status == "CONFIRMED"
     assert order.items[0].raw["vendor_product_info_id"] == "geW1VB"
     assert order.raw["customer"]["phone"] is None
     assert FakeAsyncClient.requests[-1]["params"] == {"start_date": "2025-09-23", "end_date": "2025-10-22"}

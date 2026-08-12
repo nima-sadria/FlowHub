@@ -143,9 +143,9 @@ async function assertFigmaChannelsHierarchy(page: Page, locale: 'en' | 'fa') {
     for (const fixture of CHANNELS) await expect(grid.getByText(CHANNEL_DISPLAY_NAMES.en[fixture.provider], { exact: true }).first()).toBeVisible()
     await expect(grid.locator('[data-channel-card]')).toHaveCount(4)
     await expect(grid.getByText('Healthy', { exact: true }).first()).toBeVisible()
-    const setupCard = grid.locator('[data-channel-card="digikala:main"]')
-    await expect(setupCard.getByText('Setup required', { exact: true })).toHaveCount(1)
-    await expect(setupCard.locator('.fh-badge')).toHaveCount(1)
+    const disabledCard = grid.locator('[data-channel-card="digikala:main"]')
+    await expect(disabledCard.getByText('Disabled', { exact: true })).toHaveCount(1)
+    await expect(disabledCard.locator('.fh-badge')).toHaveCount(1)
   } else {
     await expect(page.getByRole('button', { name: 'افزودن کانال' })).toBeVisible()
     await expect(page.getByRole('button', { name: /کانال‌های متصل/ })).toBeVisible()
