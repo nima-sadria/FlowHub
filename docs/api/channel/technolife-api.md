@@ -77,7 +77,7 @@ encrypted-secret: {{ENCRYPTED_SECRET}}
 | page | شماره صفحه |
 | limit | تعداد آیتم در هر صفحه — حداکثر ۱۰۰ |
 
-**Request Sample (cURL)**
+**Request Example (cURL)**
 
 ```
 curl 'https://seller-api.technolife.com/v1/products?SalesCode=&search=&hasDiscount=true&isAvailable=true&isHide=true&isWinner=true&stock=true&page=1&limit=1' \
@@ -183,7 +183,7 @@ curl 'https://seller-api.technolife.com/v1/products?SalesCode=&search=&hasDiscou
 
 `POST baseUrl/v1/products/create/variation`
 
-**Request Sample (cURL) — SellerItemInput**
+**Request Example (cURL) — SellerItemInput**
 
 ```
 curl 'https://seller-api.technolife.com/v1/products/create/variation' \

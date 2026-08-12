@@ -22,13 +22,13 @@
 - **Spacing and layout rhythm:** The shared 12-column page shell, cards, borders, radii, and spacing tokens are used. Desktop keeps a sticky table of contents; mobile converts it into a horizontal, scrollable section list.
 - **Colors and tokens:** Cards, muted text, code surfaces, notes, focus state, and statuses use existing FlowHub semantic tokens.
 - **Image quality and assets:** The page introduces no raster imagery or custom-drawn assets. It reuses the existing FlowHub icon component, which is backed by the project icon library.
-- **Copy and content:** All three Persian API documents are rendered from their Markdown sources. Long code samples are preserved in scrollable, copyable blocks.
+- **Copy and content:** All three Persian API documents are rendered from their Markdown sources. Long code examples are preserved in scrollable, copyable blocks.
 
 ## Interaction checks
 
 - Searching for `قیمت‌گذاری` displayed the matching Technolife section.
 - Clearing the search restored the full document.
-- Code-copy controls are exposed for each fenced sample.
+- Code-copy controls are exposed for each fenced example.
 - Browser console: no errors in the verified view.
 
 ## Follow-up polish

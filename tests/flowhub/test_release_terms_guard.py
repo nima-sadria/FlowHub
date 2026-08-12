@@ -108,6 +108,11 @@ INTERNAL_TERM_PATTERNS = {
     "frontend/src/pages/AdvancedSettings.tsx": (
         r'placeholder="192\.168\.100\.11/32"',
     ),
+    # ChannelDocs uses a standard HTML search-input placeholder. The exact
+    # Persian string is user-facing guidance, not a release-state label.
+    "frontend/src/pages/ChannelDocs.tsx": (
+        r'placeholder="جست‌وجو در مستندات"',
+    ),
     "frontend/src/pages/CommerceHub.tsx": (
         r'\bsource\.placeholder\b',
         r'\bchannel\.placeholder\b',

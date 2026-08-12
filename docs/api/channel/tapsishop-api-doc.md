@@ -39,7 +39,7 @@
 
 `POST https://vendorgw.tapsi.shop/Web/Hub/vendors/v1/webhook-test`
 
-**Request Sample (cURL)**
+**Request Example (cURL)**
 
 ```
 

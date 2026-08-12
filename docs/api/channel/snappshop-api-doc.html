@@ -80,7 +80,7 @@
     <li class="s20">در صورتی که توکن مورد استفاده شما معتبر نباشد، برای هر یک از درخواست‌ها پاسخ زیر را دریافت می‌کنید.</li>
     <li>توکن‌های دریافتی مدت زمان طولانی قابل استفاده هستند و در صورتی که منقضی شوند یا توکن را حذف کرده باشید، می‌توانید توکن جدید درخواست کنید.</li>
   </ul>
-  <div class="s21">Response Sample (401 Unauthorized)</div>
+  <div class="s21">Response Example (401 Unauthorized)</div>
   <pre class="s22">{
   "message": "عدم دسترسی! ابتدا لاگین نمایید.",
   "code": 301008,
@@ -100,7 +100,7 @@
     <span class="s27">baseUrl/vendors</span>
   </div>
 
-  <div class="s21">Response Sample (200 OK)</div>
+  <div class="s21">Response Example (200 OK)</div>
   <pre class="s22">{
   "status": true,
   "data": [
@@ -130,7 +130,7 @@
     <span class="s27">baseUrl/vendors/{vendor_id}</span>
   </div>
 
-  <div class="s21">Response Sample (200 OK)</div>
+  <div class="s21">Response Example (200 OK)</div>
   <pre class="s22">{
   "status": true,
   "data": {
@@ -155,7 +155,7 @@
     <span class="s27">baseUrl/vendors/{vendor_id}/products</span>
   </div>
 
-  <div class="s21">Response Sample (200 OK)</div>
+  <div class="s21">Response Example (200 OK)</div>
   <pre class="s22">{
   "status": true,
   "data": [
@@ -286,7 +286,7 @@
     <span class="s41">PATCH</span>
     <span class="s27">baseUrl/vendors/{vendor_id}/products</span>
   </div>
-  <div class="s21">Request Body Sample 1 — با <span class="s13">id</span></div>
+  <div class="s21">Request Body Example 1 — با <span class="s13">id</span></div>
   <pre class="s42">{
   "products": [
     {
@@ -306,7 +306,7 @@
     }
   ]
 }</pre>
-  <div class="s21">Request Body Sample 2 — با <span class="s13">sku</span></div>
+  <div class="s21">Request Body Example 2 — با <span class="s13">sku</span></div>
   <pre class="s42">{
   "products": [
     {
@@ -327,7 +327,7 @@
   ]
 }</pre>
 
-  <div class="s21">Response Sample (200 OK)</div>
+  <div class="s21">Response Example (200 OK)</div>
   <pre class="s42">{
   "status": true,
   "data": [
@@ -347,7 +347,7 @@
     }
   ]
 }</pre>
-  <div class="s21">Response Sample (422 Unprocessable Entity)</div>
+  <div class="s21">Response Example (422 Unprocessable Entity)</div>
   <pre class="s22">{
   "message": "the hashed field can not convert",
   "code": 221004,
@@ -366,7 +366,7 @@
     <span class="s27">baseUrl/vendors/{vendor_id}/orders/events</span>
   </div>
 
-  <div class="s21">Response Sample (200 OK)</div>
+  <div class="s21">Response Example (200 OK)</div>
   <pre class="s43">{
   "status": true,
   "data": [
@@ -495,7 +495,7 @@
     <span class="s27">baseUrl/vendors/{vendor_id}/orders/{order_number}</span>
   </div>
 
-  <div class="s21">Response Sample (200 OK)</div>
+  <div class="s21">Response Example (200 OK)</div>
   <pre class="s43">{
   "data": {
     "order_number": {order_number},
@@ -543,7 +543,7 @@
     <span class="s27">baseUrl/vendors/{vendor_id}/orders</span>
   </div>
 
-  <div class="s21">Response Sample (200 OK)</div>
+  <div class="s21">Response Example (200 OK)</div>
   <pre class="s43">{
   "status": true,
   "data": [

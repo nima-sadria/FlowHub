@@ -42,7 +42,7 @@
 
 - توکن‌های دریافتی مدت زمان طولانی قابل استفاده هستند و در صورتی که منقضی شوند یا توکن را حذف کرده باشید، می‌توانید توکن جدید درخواست کنید.
 
-**Response Sample (401 Unauthorized)**
+**Response Example (401 Unauthorized)**
 
 ```
 
@@ -66,7 +66,7 @@
 
 GET baseUrl/vendors
 
-**Response Sample (200 OK)**
+**Response Example (200 OK)**
 
 ```
 
@@ -98,7 +98,7 @@ GET baseUrl/vendors
 
 GET baseUrl/vendors/{vendor_id}
 
-**Response Sample (200 OK)**
+**Response Example (200 OK)**
 
 ```
 
@@ -126,7 +126,7 @@ GET baseUrl/vendors/{vendor_id}
 
 GET baseUrl/vendors/{vendor_id}/products
 
-**Response Sample (200 OK)**
+**Response Example (200 OK)**
 
 ```
 
@@ -221,7 +221,7 @@ GET baseUrl/vendors/{vendor_id}/products/{id}
 
 PATCH baseUrl/vendors/{vendor_id}/products
 
-**Request Body Sample 1 — با id**
+**Request Body Example 1 — با id**
 
 ```
 
@@ -247,7 +247,7 @@ PATCH baseUrl/vendors/{vendor_id}/products
 
 ```
 
-**Request Body Sample 2 — با sku**
+**Request Body Example 2 — با sku**
 
 ```
 
@@ -273,7 +273,7 @@ PATCH baseUrl/vendors/{vendor_id}/products
 
 ```
 
-**Response Sample (200 OK)**
+**Response Example (200 OK)**
 
 ```
 
@@ -299,7 +299,7 @@ PATCH baseUrl/vendors/{vendor_id}/products
 
 ```
 
-**Response Sample (422 Unprocessable Entity)**
+**Response Example (422 Unprocessable Entity)**
 
 ```
 
@@ -321,7 +321,7 @@ PATCH baseUrl/vendors/{vendor_id}/products
 
 GET baseUrl/vendors/{vendor_id}/orders/events
 
-**Response Sample (200 OK)**
+**Response Example (200 OK)**
 
 ```
 
@@ -423,7 +423,7 @@ GET baseUrl/vendors/{vendor_id}/orders/events?cursor=eyJpZCI6MzgsIl9wb2ludHNUb05
 
 GET baseUrl/vendors/{vendor_id}/orders/{order_number}
 
-**Response Sample (200 OK)**
+**Response Example (200 OK)**
 
 ```
 
@@ -476,7 +476,7 @@ GET baseUrl/vendors/{vendor_id}/orders/{order_number}
 
 GET baseUrl/vendors/{vendor_id}/orders
 
-**Response Sample (200 OK)**
+**Response Example (200 OK)**
 
 ```
 
