@@ -30,7 +30,13 @@ export const sourceWorkspaceApi = {
   listSources: () => apiFetch<{ items: SourceProfile[] }>('/api/v2/source-profiles', authFetch),
   channels: () => apiFetch<{ items: SourceChannel[] }>('/api/v2/source-profiles/channels', authFetch),
   source: (id: string) => apiFetch<SourceProfile & { mapping: SourceMapping | null }>(`/api/v2/sources/${encodeURIComponent(id)}/configuration`, authFetch),
-  worksheets: (id: string) => apiFetch<{ sourceId: string; sourceRevisionId: string | null; items: Array<{ name: string; rowCount: number }> }>(`/api/v2/sources/${encodeURIComponent(id)}/worksheets`, authFetch),
+  worksheets: (id: string) => apiFetch<{
+    sourceId: string
+    sourceRevisionId: string | null
+    items: Array<{ name: string; rowCount: number | null }>
+    readQuota?: { enabled: boolean; limit: number; usage: number; remaining: number; resetAt: string | null; exhausted: boolean }
+    worksheetDiscovery?: { requiresRemoteRead: boolean; metadataSource: 'flowhub_sheet' | 'snapshot'; remoteReadUsed: boolean; snapshotId: number | null; snapshotVersion: number | null; snapshotAt: string | null }
+  }>(`/api/v2/sources/${encodeURIComponent(id)}/worksheets`, authFetch),
   createSource: (payload: {
     name: string
     source_kind: 'external'

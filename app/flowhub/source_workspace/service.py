@@ -129,6 +129,18 @@ def _unprocessable(code: str, message: str, details: dict[str, Any] | None = Non
     )
 
 
+def _worksheet_read_quota(quota: dict[str, object]) -> dict[str, object]:
+    """Translate the canonical read-policy state to this camel-case API."""
+    return {
+        "enabled": bool(quota["enabled"]),
+        "limit": int(quota["limit"]),
+        "usage": int(quota["usage"]),
+        "remaining": int(quota["remaining"]),
+        "resetAt": quota["reset_at"],
+        "exhausted": bool(quota["exhausted"]),
+    }
+
+
 class SourceWorkspaceService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -255,6 +267,10 @@ class SourceWorkspaceService:
             )
         else:
             result["configuredWorksheets"] = []
+        if source.source_kind == "external" and source.external_source_id == LEGACY_EXTERNAL_SOURCE_ID:
+            reader = SpreadsheetSourceReadService(self.db)
+            result["readQuota"] = reader.read_quota_contract(source_id=source.id)
+            result["worksheetDiscovery"] = reader.worksheet_discovery_state()
         return result
 
     def source_lifecycle(self, source_id: str, user: FlowHubUser) -> dict[str, Any]:
@@ -393,8 +409,9 @@ class SourceWorkspaceService:
     async def list_source_worksheets(
         self, source_id: str, user: FlowHubUser
     ) -> dict[str, Any]:
-        """Acquire a workbook once and return its worksheet identities."""
+        """Return local worksheet metadata or acquire a workbook exactly once."""
         source = self._owned_source(source_id, user, require_active=True)
+        reader = SpreadsheetSourceReadService(self.db)
         sheet = self.sheets.for_source(source.id)
         if sheet is not None:
             revision = self.sheets.latest_revision(sheet.id)
@@ -407,6 +424,42 @@ class SourceWorkspaceService:
                     }
                 ],
                 "sourceRevisionId": revision.id if revision else None,
+                "readQuota": _worksheet_read_quota(
+                    reader.read_quota_contract(source_id=source.id)
+                ),
+                "worksheetDiscovery": {
+                    "requiresRemoteRead": False,
+                    "metadataSource": "flowhub_sheet",
+                    "remoteReadUsed": False,
+                    "snapshotId": None,
+                    "snapshotVersion": None,
+                    "snapshotAt": None,
+                },
+            }
+        discovery = (
+            reader.worksheet_discovery_state()
+            if source.external_source_id == LEGACY_EXTERNAL_SOURCE_ID
+            else None
+        )
+        if discovery is not None and discovery["metadata_source"] == "snapshot":
+            return {
+                "sourceId": source.id,
+                "items": [
+                    {"name": name, "rowCount": None}
+                    for name in discovery["worksheet_names"]
+                ],
+                "sourceRevisionId": f"external:{discovery['snapshot_id']}:{discovery['snapshot_version']}",
+                "readQuota": _worksheet_read_quota(
+                    reader.read_quota_contract(source_id=source.id)
+                ),
+                "worksheetDiscovery": {
+                    "requiresRemoteRead": False,
+                    "metadataSource": "snapshot",
+                    "remoteReadUsed": False,
+                    "snapshotId": discovery["snapshot_id"],
+                    "snapshotVersion": discovery["snapshot_version"],
+                    "snapshotAt": discovery["snapshot_at"],
+                },
             }
         imported = await self._read_external_source(source, user, manual=True)
         worksheets = imported.worksheets or {}
@@ -419,6 +472,20 @@ class SourceWorkspaceService:
             "sourceRevisionId": (
                 f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}"
             ),
+            "readQuota": _worksheet_read_quota(
+                reader.read_quota_contract(source_id=source.id)
+            ),
+            "worksheetDiscovery": {
+                # This request acquired the workbook remotely, but the saved
+                # Snapshot now makes the next worksheet-detection request
+                # local.  Keep both facts explicit for the UI.
+                "requiresRemoteRead": False,
+                "metadataSource": "snapshot",
+                "remoteReadUsed": True,
+                "snapshotId": imported.snapshot.id,
+                "snapshotVersion": imported.snapshot.version_seq,
+                "snapshotAt": None,
+            },
         }
 
     def save_mapping(

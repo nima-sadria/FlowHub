@@ -12,11 +12,13 @@ from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.database import FlowHubBase
+from app.flowhub.data_layer.models import DlSourceReadReservation, DlSourceSnapshot
 from app.flowhub.integration_platform.models import (
     IntegrationConnectorInstance,
     IntegrationConnectorSetting,
 )
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
 from app.flowhub.source_workspace.service import SourceWorkspaceService
 from app.flowhub.unified_workspace.models import (
     ApplyJob,
@@ -314,6 +316,95 @@ def test_disabled_external_source_blocks_worksheet_discovery_before_nextcloud_re
         "message": "Nextcloud Source is disabled. Enable it before reading source data.",
     }
     assert calls == 0
+    assert db.query(DlSourceReadReservation).count() == 0
+
+
+def test_worksheet_discovery_reuses_current_snapshot_metadata_without_a_remote_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A matching persisted Snapshot is sufficient for worksheet selection."""
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    source = service.create_source(
+        name="Snapshot-backed source",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=1,
+        user=user,
+    )
+    AppConfigService(db).set(
+        "nextcloud.spreadsheet_path", "/Reports/prices.xlsx", updated_by="test"
+    )
+    db.add(
+        DlSourceSnapshot(
+            connector_id="nextcloud:primary",
+            file_path="/Reports/prices.xlsx",
+            sheet_names=["Retail", "Marketplace"],
+            version_seq=4,
+            snapshotted_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+    )
+    db.commit()
+    calls = 0
+
+    async def unexpected_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("Snapshot worksheet metadata must avoid provider I/O")
+
+    monkeypatch.setattr(service, "_read_external_source", unexpected_read)
+
+    source_configuration = service.get_source(source["id"], user)
+    result = asyncio.run(service.list_source_worksheets(source["id"], user))
+    from app.flowhub.api.v2.source_workspace import WorksheetListResponse
+
+    contract = WorksheetListResponse.model_validate(result)
+
+    assert result["items"] == [
+        {"name": "Retail", "rowCount": None},
+        {"name": "Marketplace", "rowCount": None},
+    ]
+    assert result["worksheetDiscovery"] == {
+        "requiresRemoteRead": False,
+        "metadataSource": "snapshot",
+        "remoteReadUsed": False,
+        "snapshotId": 1,
+        "snapshotVersion": 4,
+        "snapshotAt": result["worksheetDiscovery"]["snapshotAt"],
+    }
+    assert result["readQuota"] == {
+        "enabled": True,
+        "limit": 10,
+        "usage": 0,
+        "remaining": 10,
+        "resetAt": None,
+        "exhausted": False,
+    }
+    assert source_configuration["readQuota"] == {
+        "enabled": True,
+        "limit": 10,
+        "usage": 0,
+        "remaining": 10,
+        "reset_at": None,
+        "exhausted": False,
+    }
+    assert source_configuration["worksheetDiscovery"]["requires_remote_read"] is False
+    assert source_configuration["worksheetDiscovery"]["worksheet_names"] == [
+        "Retail",
+        "Marketplace",
+    ]
+    assert contract.worksheetDiscovery.metadataSource == "snapshot"
+    assert contract.readQuota.remaining == 10
+    assert calls == 0
+    assert db.query(DlSourceReadReservation).count() == 0
+
+    AppConfigService(db).set(
+        "nextcloud.spreadsheet_path", "/Reports/replacement.xlsx", updated_by="test"
+    )
+    assert SpreadsheetSourceReadService(db).worksheet_discovery_state()["requires_remote_read"] is True
 
 
 def test_mapping_supports_arbitrary_columns_multiple_channels_and_conservative_policy() -> None:

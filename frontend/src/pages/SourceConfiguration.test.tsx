@@ -370,6 +370,137 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).not.toContain('Missing required setting: nextcloud.spreadsheet_path')
   })
 
+  it('does not spend a worksheet read after a successful connection test', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      mapping: null,
+      mappingVersion: 0,
+      sheetId: null,
+    })
+    const worksheets = vi.spyOn(sourceWorkspaceApi, 'worksheets')
+    const testSource = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 'healthy',
+      message: 'Connection successful.',
+      external_call_performed: true,
+      read_only: true,
+      runtime_write_blocked: true,
+      write_blocked: true,
+      webdav_reachable: true,
+      spreadsheet_found: true,
+    })
+    const getSourceConfiguration = vi.fn().mockResolvedValue({
+      source_id: 'nextcloud:primary', provider: 'nextcloud', display_name: 'Nextcloud', configured: true, enabled: true,
+      access_mode: 'read_only', settings: {}, secrets: {}, settings_schema: [], credentials_returned: false,
+    })
+    const services = {
+      commerce: { testSource, getSourceConfiguration } as unknown as CommerceService,
+      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+    } as Services
+
+    await renderPage(editorAuth, '/sources/source-1', services)
+    await act(async () => { button('Test connection').click(); await Promise.resolve(); await Promise.resolve() })
+
+    expect(testSource).toHaveBeenCalledWith('nextcloud:primary')
+    expect(worksheets).not.toHaveBeenCalled()
+    expect(container.textContent).toContain('Use Detect worksheets when you are ready; it may use one remote read.')
+  })
+
+  it('shows an exhausted remote-read allowance and prevents a known-doomed worksheet request', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      readQuota: { enabled: true, limit: 10, usage: 10, remaining: 0, reset_at: '2030-08-14T00:00:00Z', exhausted: true },
+      worksheetDiscovery: { requires_remote_read: true, metadata_source: 'remote', reason: 'snapshot_metadata_unavailable', snapshot_id: null, snapshot_version: null, snapshot_at: null, worksheet_names: [] },
+    })
+    const worksheets = vi.spyOn(sourceWorkspaceApi, 'worksheets')
+    const getSourceConfiguration = vi.fn().mockResolvedValue({
+      source_id: 'nextcloud:primary', provider: 'nextcloud', display_name: 'Nextcloud', configured: true, enabled: true,
+      access_mode: 'read_only', settings: {}, secrets: {}, settings_schema: [], credentials_returned: false,
+    })
+    const services = {
+      commerce: { getSourceConfiguration } as unknown as CommerceService,
+      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+    } as Services
+
+    await renderPage(editorAuth, '/sources/source-1', services)
+
+    const detect = button('Detect worksheets')
+    expect(container.querySelector('[data-testid="remote-read-allowance"]')?.textContent).toContain('10 / 10 used in the last 24 hours')
+    expect(detect.disabled).toBe(true)
+    expect(detect.title).toContain('Daily remote-read limit reached (10/10)')
+    await act(async () => { detect.click(); await Promise.resolve() })
+    expect(worksheets).not.toHaveBeenCalled()
+  })
+
+  it('retains structured quota exhaustion after a 429 and suppresses repeated Detect worksheets requests', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      readQuota: { enabled: true, limit: 10, usage: 9, remaining: 1, reset_at: '2030-08-14T00:00:00Z', exhausted: false },
+      worksheetDiscovery: { requires_remote_read: true, metadata_source: 'remote', reason: 'snapshot_metadata_unavailable', snapshot_id: null, snapshot_version: null, snapshot_at: null, worksheet_names: [] },
+    })
+    const worksheets = vi.spyOn(sourceWorkspaceApi, 'worksheets').mockRejectedValue(
+      new ApiError(429, 'The source read allowance has been used.', 'SOURCE_READ_LIMIT_REACHED', {
+        limit: 10, usage: 10, resetAt: '2030-08-14T00:00:00Z', retryAfterSeconds: 60,
+      }),
+    )
+    const getSourceConfiguration = vi.fn().mockResolvedValue({
+      source_id: 'nextcloud:primary', provider: 'nextcloud', display_name: 'Nextcloud', configured: true, enabled: true,
+      access_mode: 'read_only', settings: {}, secrets: {}, settings_schema: [], credentials_returned: false,
+    })
+    const services = {
+      commerce: { getSourceConfiguration } as unknown as CommerceService,
+      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+    } as Services
+
+    await renderPage(editorAuth, '/sources/source-1', services)
+    await act(async () => { button('Detect worksheets').click(); await Promise.resolve(); await Promise.resolve() })
+
+    const detect = button('Detect worksheets')
+    expect(worksheets).toHaveBeenCalledTimes(1)
+    expect(detect.disabled).toBe(true)
+    expect(container.textContent).toContain('Daily remote-read limit reached (10/10)')
+    await act(async () => { detect.click(); await Promise.resolve() })
+    expect(worksheets).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows local Snapshot worksheet metadata even when the remote-read allowance is exhausted', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      readQuota: { enabled: true, limit: 10, usage: 10, remaining: 0, reset_at: '2030-08-14T00:00:00Z', exhausted: true },
+      worksheetDiscovery: { requires_remote_read: false, metadata_source: 'snapshot', reason: null, snapshot_id: 42, snapshot_version: 2, snapshot_at: '2030-08-13T00:00:00Z', worksheet_names: ['Retail'] },
+    })
+    const worksheets = vi.spyOn(sourceWorkspaceApi, 'worksheets').mockResolvedValue({
+      sourceId: 'source-1', sourceRevisionId: 'external:42:2',
+      items: [{ name: 'Retail', rowCount: null }],
+      readQuota: { enabled: true, limit: 10, usage: 10, remaining: 0, resetAt: '2030-08-14T00:00:00Z', exhausted: true },
+      worksheetDiscovery: { requiresRemoteRead: false, metadataSource: 'snapshot', remoteReadUsed: false, snapshotId: 42, snapshotVersion: 2, snapshotAt: '2030-08-13T00:00:00Z' },
+    })
+    const getSourceConfiguration = vi.fn().mockResolvedValue({
+      source_id: 'nextcloud:primary', provider: 'nextcloud', display_name: 'Nextcloud', configured: true, enabled: true,
+      access_mode: 'read_only', settings: {}, secrets: {}, settings_schema: [], credentials_returned: false,
+    })
+    const services = {
+      commerce: { getSourceConfiguration } as unknown as CommerceService,
+      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+    } as Services
+
+    await renderPage(editorAuth, '/sources/source-1', services)
+
+    expect(button('Detect worksheets').disabled).toBe(false)
+    expect(container.querySelector('[data-testid="worksheet-detection-help"]')?.textContent).toContain('No remote read required')
+    await act(async () => { button('Detect worksheets').click(); await Promise.resolve(); await Promise.resolve() })
+    expect(worksheets).toHaveBeenCalledTimes(1)
+    expect(container.textContent).toContain('Row count unavailable from saved metadata')
+  })
+
   it('keeps Data Sheet editing available but blocks remote actions for a disabled external Source', async () => {
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
       ...source,

@@ -70,6 +70,54 @@ function externalConnectionPresentation(
   return { label: translate('commerce:commerceHub.connectionConfiguredNotVerified'), variant: 'info' }
 }
 
+type RemoteReadQuota = {
+  enabled: boolean
+  limit: number
+  usage: number
+  remaining: number
+  resetAt: string | null
+  exhausted: boolean
+}
+
+type WorksheetDiscoveryState = {
+  requiresRemoteRead: boolean
+  metadataSource: 'snapshot' | 'remote' | 'unavailable'
+}
+
+function sourceReadQuota(source: SourceProfile | null): RemoteReadQuota | null {
+  const quota = source?.readQuota
+  if (!quota) return null
+  return {
+    enabled: quota.enabled,
+    limit: quota.limit,
+    usage: quota.usage,
+    remaining: quota.remaining,
+    resetAt: quota.reset_at,
+    exhausted: quota.exhausted,
+  }
+}
+
+function sourceWorksheetDiscovery(source: SourceProfile | null): WorksheetDiscoveryState | null {
+  const discovery = source?.worksheetDiscovery
+  if (!discovery) return null
+  return {
+    requiresRemoteRead: discovery.requires_remote_read,
+    metadataSource: discovery.metadata_source,
+  }
+}
+
+function formatQuotaReset(value: string | null | undefined): string {
+  if (!value) return translate('sources:sourceConfiguration.remoteReadsResetUnavailable')
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return translate('sources:sourceConfiguration.remoteReadsResetUnavailable')
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 function ConfigurationSection({ id, title, description, defaultOpen = false, openSignal, unsaved, children }: { id?: string; title: string; description?: string; defaultOpen?: boolean; openSignal?: SectionOpenSignal | null; unsaved?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(defaultOpen)
   const applies = Boolean(openSignal && (openSignal.ids === 'all' || (id && openSignal.ids.includes(id))))
@@ -250,7 +298,7 @@ export default function SourceConfiguration() {
   const [worksheetRuleMode, setWorksheetRuleMode] = useState<'shared' | 'per_worksheet'>('shared')
   const [duplicateProductPolicy, setDuplicateProductPolicy] = useState<'block' | 'last_sheet_wins'>('block')
   const [worksheetRules, setWorksheetRules] = useState<SourceWorksheetRule[]>([])
-  const [detectedWorksheets, setDetectedWorksheets] = useState<Array<{ name: string; rowCount: number }>>([])
+  const [detectedWorksheets, setDetectedWorksheets] = useState<Array<{ name: string; rowCount: number | null }>>([])
   const [selectedWorksheetNames, setSelectedWorksheetNames] = useState<string[]>([])
   const [newWorksheetName, setNewWorksheetName] = useState('')
   const [detectingWorksheets, setDetectingWorksheets] = useState(false)
@@ -274,6 +322,8 @@ export default function SourceConfiguration() {
   const [channelSetupLoading, setChannelSetupLoading] = useState(false)
   const [channelSetupError, setChannelSetupError] = useState(false)
   const [externalConfig, setExternalConfig] = useState<CommerceSourceConfiguration | null>(null)
+  const [readQuota, setReadQuota] = useState<RemoteReadQuota | null>(null)
+  const [worksheetDiscovery, setWorksheetDiscovery] = useState<WorksheetDiscoveryState | null>(null)
   const [readPolicy, setReadPolicy] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
   const [readPolicyBaseline, setReadPolicyBaseline] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
   const [reading, setReading] = useState(false)
@@ -300,6 +350,8 @@ export default function SourceConfiguration() {
     ]).then(([loaded, channelResult]) => {
       if (!active) return
       setSource(loaded)
+      setReadQuota(sourceReadQuota(loaded))
+      setWorksheetDiscovery(sourceWorksheetDiscovery(loaded))
       setChannels(channelResult.ok ? channelResult.available.items : fallbackChannelsForSource(loaded))
       setChannelProfilesUnavailable(!channelResult.ok)
       setDataStartRow(loaded.mapping?.dataStartRow ?? loaded.dataStartRow)
@@ -391,6 +443,45 @@ export default function SourceConfiguration() {
     && source.externalSourceId
     && externalConfig?.enabled === false,
   )
+  const quotaResetPending = Boolean(
+    readQuota?.resetAt && new Date(readQuota.resetAt).getTime() > Date.now(),
+  )
+  const remoteReadQuotaExhausted = Boolean(
+    readQuota?.enabled && readQuota.exhausted && (!readQuota.resetAt || quotaResetPending),
+  )
+  const worksheetDetectionRequiresRemoteRead = worksheetDiscovery?.requiresRemoteRead ?? true
+  const worksheetDetectionBlockedByQuota = worksheetDetectionRequiresRemoteRead && remoteReadQuotaExhausted
+  const worksheetDetectionHelp = worksheetDiscovery?.metadataSource === 'snapshot'
+    ? translate('sources:sourceConfiguration.worksheetDetectionUsesSnapshot')
+    : worksheetDiscovery?.metadataSource === 'unavailable'
+      ? translate('sources:sourceConfiguration.selectSpreadsheetBeforeWorksheetDetection')
+      : translate('sources:sourceConfiguration.worksheetDetectionMayUseRead')
+
+  function retainQuotaLimit(error: unknown) {
+    if (!(error instanceof ApiError) || error.code !== 'SOURCE_READ_LIMIT_REACHED') return false
+    const limit = error.details.limit ?? readQuota?.limit ?? 0
+    const usage = error.details.usage ?? readQuota?.usage ?? limit
+    setReadQuota({
+      enabled: true,
+      limit,
+      usage,
+      remaining: 0,
+      resetAt: error.details.resetAt ?? readQuota?.resetAt ?? null,
+      exhausted: true,
+    })
+    return true
+  }
+
+  function quotaLimitDescription(error?: unknown) {
+    const limit = error instanceof ApiError ? error.details.limit ?? readQuota?.limit ?? 0 : readQuota?.limit ?? 0
+    const usage = error instanceof ApiError ? error.details.usage ?? readQuota?.usage ?? limit : readQuota?.usage ?? limit
+    const resetAt = error instanceof ApiError ? error.details.resetAt ?? readQuota?.resetAt : readQuota?.resetAt
+    return translate('sources:sourceConfiguration.remoteReadsLimitReached', {
+      usage,
+      limit,
+      reset: formatQuotaReset(resetAt),
+    })
+  }
 
   useEffect(() => {
     if (loading || !source || typeof IntersectionObserver === 'undefined') return
@@ -668,6 +759,13 @@ export default function SourceConfiguration() {
           })
           return
         }
+        // Connection verification does not acquire the workbook. Worksheet
+        // discovery is an explicit action because it may spend one read slot.
+        notify.success({
+          title: translate('sources:sourceConfiguration.connectionReady'),
+          description: translate('sources:sourceConfiguration.connectionReadyDetectWorksheets'),
+        })
+        return
       }
       const result = await sourceWorkspaceApi.worksheets(sourceId)
       setDetectedWorksheets(result.items)
@@ -764,10 +862,28 @@ export default function SourceConfiguration() {
       })
       return
     }
+    if (remoteReadQuotaExhausted) {
+      notify.error({
+        title: translate('sources:sourceConfiguration.remoteReadsLimitReachedTitle'),
+        description: quotaLimitDescription(),
+      })
+      return
+    }
     setReading(true)
     try {
       const result = await commerce.readSource(source.externalSourceId)
       if (result.ok) {
+        const usage = Number(result.reads_used_last_24h ?? 0)
+        const remaining = Number(result.reads_remaining ?? result.remaining_reads_today ?? 0)
+        setReadQuota(current => ({
+          enabled: current?.enabled ?? true,
+          limit: current?.limit ?? Math.max(usage + remaining, 0),
+          usage,
+          remaining,
+          resetAt: result.reset_at,
+          exhausted: remaining <= 0,
+        }))
+        setWorksheetDiscovery({ requiresRemoteRead: false, metadataSource: 'snapshot' })
         notify.success({
           title: translate('commerce:commerceHub.sourceRefreshedSuccessfully'),
           description: translate('commerce:commerceHub.rowsLoaded', { count: result.rows_read }),
@@ -778,10 +894,14 @@ export default function SourceConfiguration() {
           description: translate('commerce:commerceHub.pleaseTryAgain'),
         })
       }
-    } catch {
+    } catch (error) {
       notify.error({
-        title: translate('commerce:commerceHub.unableToRefreshTheSource'),
-        description: translate('commerce:commerceHub.pleaseTryAgain'),
+        title: retainQuotaLimit(error)
+          ? translate('sources:sourceConfiguration.remoteReadsLimitReachedTitle')
+          : translate('commerce:commerceHub.unableToRefreshTheSource'),
+        description: error instanceof ApiError && error.code === 'SOURCE_READ_LIMIT_REACHED'
+          ? quotaLimitDescription(error)
+          : localizedApiError(error, 'commerce:commerceHub.pleaseTryAgain'),
       })
     } finally {
       setReading(false)
@@ -799,10 +919,24 @@ export default function SourceConfiguration() {
       })
       return
     }
+    if (worksheetDetectionBlockedByQuota) {
+      notify.error({
+        title: translate('sources:sourceConfiguration.remoteReadsLimitReachedTitle'),
+        description: quotaLimitDescription(),
+      })
+      return
+    }
     setDetectingWorksheets(true)
     try {
       const result = await sourceWorkspaceApi.worksheets(sourceId)
       setDetectedWorksheets(result.items)
+      if (result.readQuota) setReadQuota(result.readQuota)
+      if (result.worksheetDiscovery) {
+        setWorksheetDiscovery({
+          requiresRemoteRead: result.worksheetDiscovery.requiresRemoteRead,
+          metadataSource: result.worksheetDiscovery.metadataSource === 'snapshot' ? 'snapshot' : 'remote',
+        })
+      }
       if (worksheetRuleMode === 'shared' && worksheetMode === 'selected') {
         setSelectedWorksheetNames(current => {
           const available = new Set(result.items.map(item => item.name))
@@ -835,7 +969,15 @@ export default function SourceConfiguration() {
         setExpandedWorksheet(current => current ?? result.items[0]?.name ?? null)
       }
     } catch (error) {
-      notify.error({ title: translate('sources:sourceConfiguration.worksheetDetectionFailed'), description: localizedApiError(error, 'sources:sourceConfiguration.tryAgain') })
+      const quotaReached = retainQuotaLimit(error)
+      notify.error({
+        title: quotaReached
+          ? translate('sources:sourceConfiguration.remoteReadsLimitReachedTitle')
+          : translate('sources:sourceConfiguration.worksheetDetectionFailed'),
+        description: quotaReached
+          ? quotaLimitDescription(error)
+          : localizedApiError(error, 'sources:sourceConfiguration.tryAgain'),
+      })
     } finally {
       setDetectingWorksheets(false)
     }
@@ -1153,16 +1295,17 @@ export default function SourceConfiguration() {
         {worksheetMode === 'selected' && <fieldset className="fh-worksheet-picker">
           <legend className="px-2 font-medium text-text-base">{translate('sources:sourceConfiguration.chooseParticipatingWorksheets')}</legend>
           <div className="fh-worksheet-picker-toolbar">
-            <button className="fh-button-secondary fh-button-sm" type="button" disabled={detectingWorksheets || externalSourceDisabled} title={externalSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : undefined} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
+            <button className="fh-button-secondary fh-button-sm" type="button" disabled={detectingWorksheets || externalSourceDisabled || worksheetDetectionBlockedByQuota} title={externalSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : worksheetDetectionBlockedByQuota ? quotaLimitDescription() : worksheetDetectionHelp} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
             {detectedWorksheets.length > 0 && <><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames(detectedWorksheets.map(item => item.name))}>{translate('sources:sourceConfiguration.selectAll')}</button><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames([])}>{translate('sources:sourceConfiguration.clearAll')}</button></>}
             {detectedWorksheets.length === 0 && <label className="fh-field-label min-w-[260px]">{translate('sources:sourceConfiguration.worksheet')}<input className="fh-input mt-1" value={worksheetName} onChange={event => { setWorksheetName(event.target.value); setSelectedWorksheetNames(event.target.value.trim() ? [event.target.value.trim()] : []) }} /></label>}
           </div>
           {detectedWorksheets.length > 0 && <div className="fh-worksheet-picker-grid" data-testid="worksheet-picker-grid">
             {detectedWorksheets.map(item => {
               const selected = selectedWorksheetNames.includes(item.name)
-              return <label className="fh-inline-check fh-worksheet-picker-item" data-selected={selected} key={item.name}><input type="checkbox" checked={selected} onChange={event => setSelectedWorksheetNames(current => event.target.checked ? [...new Set([...current, item.name])] : current.filter(name => name !== item.name))} /><span className="min-w-0"><strong className="block truncate text-text-base">{item.name}</strong><small className="fh-text-caption block truncate">{translate('sources:sourceConfiguration.worksheetRowCount', { count: item.rowCount })}</small></span></label>
+              return <label className="fh-inline-check fh-worksheet-picker-item" data-selected={selected} key={item.name}><input type="checkbox" checked={selected} onChange={event => setSelectedWorksheetNames(current => event.target.checked ? [...new Set([...current, item.name])] : current.filter(name => name !== item.name))} /><span className="min-w-0"><strong className="block truncate text-text-base">{item.name}</strong><small className="fh-text-caption block truncate">{item.rowCount === null ? translate('sources:sourceConfiguration.worksheetRowCountUnavailable') : translate('sources:sourceConfiguration.worksheetRowCount', { count: item.rowCount })}</small></span></label>
             })}
           </div>}
+          <p className="fh-text-caption mt-2" data-testid="worksheet-detection-help">{worksheetDetectionHelp}</p>
           {selectedWorksheetNames.length === 0 && <p className="fh-alert-warning mt-3" role="alert">{translate('sources:sourceConfiguration.selectAtLeastOneWorksheet')}</p>}
         </fieldset>}
         <p className="fh-text-caption">{translate('sources:sourceConfiguration.worksheetSellerHelp')}</p>
@@ -1190,6 +1333,18 @@ export default function SourceConfiguration() {
         <div className="mt-3">
           <ConfigurationSection id="read-policy" openSignal={sectionSignal} unsaved={readPolicyDirty} title={translate('sources:sourceConfiguration.section.readPolicy')} description={translate('sources:sourceConfiguration.section.readPolicyHelp')}>
             <div className="flex flex-col gap-3">
+              {readQuota && (
+                <div className="rounded-lg border border-border bg-surface-subtle p-3" data-testid="remote-read-allowance" role="status">
+                  <h3 className="font-medium text-text-base">{translate('sources:sourceConfiguration.remoteReads')}</h3>
+                  <p className="mt-1 text-sm text-text-muted">{translate('sources:sourceConfiguration.remoteReadsUsage', { usage: readQuota.usage, limit: readQuota.limit })}</p>
+                  <p className={`text-sm font-medium ${remoteReadQuotaExhausted ? 'text-danger' : 'text-text-base'}`}>
+                    {remoteReadQuotaExhausted
+                      ? translate('sources:sourceConfiguration.remoteReadsLimitReachedShort')
+                      : translate('sources:sourceConfiguration.remoteReadsRemaining', { count: readQuota.remaining })}
+                  </p>
+                  <p className="text-sm text-text-muted">{translate('sources:sourceConfiguration.remoteReadsReset', { reset: formatQuotaReset(readQuota.resetAt) })}</p>
+                </div>
+              )}
               <label className="fh-inline-check">
                 <input
                   type="checkbox"
@@ -1221,6 +1376,7 @@ export default function SourceConfiguration() {
                 />
               </label>
               <p className="fh-text-caption">{translate('sources:sourceConfiguration.readPolicyAcquisitionHelp')}</p>
+              <p className="fh-text-caption">{translate('sources:sourceConfiguration.remoteReadsActionHelp')}</p>
               <p className="fh-text-caption">{translate('sources:sourceConfiguration.readPolicyQuotaScope')}</p>
             </div>
           </ConfigurationSection>
@@ -1338,7 +1494,8 @@ export default function SourceConfiguration() {
         <ConfigurationSection id="worksheet-columns" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.worksheetColumns')} description={translate('sources:sourceConfiguration.section.worksheetColumnsHelp')}>
           <div className="space-y-4" aria-label={translate('sources:sourceConfiguration.separateWorksheetRules')}>
         <div className="flex flex-wrap items-end gap-3">
-          <button className="fh-button-secondary" type="button" disabled={detectingWorksheets || externalSourceDisabled} title={externalSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : undefined} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
+          <button className="fh-button-secondary" type="button" disabled={detectingWorksheets || externalSourceDisabled || worksheetDetectionBlockedByQuota} title={externalSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : worksheetDetectionBlockedByQuota ? quotaLimitDescription() : worksheetDetectionHelp} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
+          <p className="fh-text-caption basis-full" data-testid="worksheet-detection-help">{worksheetDetectionHelp}</p>
           <label className="fh-field-label min-w-[260px]">{translate('sources:sourceConfiguration.worksheetNamePrompt')}<input className="fh-input mt-1" value={newWorksheetName} onChange={event => setNewWorksheetName(event.target.value)} /></label>
           <button className="fh-button-secondary" type="button" disabled={!newWorksheetName.trim() || worksheetRules.some(item => item.worksheetName === newWorksheetName.trim())} onClick={addWorksheetRule}><Icon name="add" /> {translate('sources:sourceConfiguration.addWorksheet')}</button>
           <label className="fh-field-label ms-auto min-w-[280px]">{translate('sources:sourceConfiguration.duplicateProductPolicy')}<select className="fh-input mt-1" value={duplicateProductPolicy} onChange={event => setDuplicateProductPolicy(event.target.value as 'block' | 'last_sheet_wins')}><option value="block">{translate('sources:sourceConfiguration.blockDuplicates')}</option><option value="last_sheet_wins">{translate('sources:sourceConfiguration.lastWorksheetWins')}</option></select></label>
@@ -1354,7 +1511,7 @@ export default function SourceConfiguration() {
         <div className="space-y-3">{worksheetRules.map((rule, index) => <WorksheetRuleEditor
           key={rule.worksheetName}
           rule={rule}
-          rowCount={detectedWorksheets.find(item => item.name === rule.worksheetName)?.rowCount}
+          rowCount={detectedWorksheets.find(item => item.name === rule.worksheetName)?.rowCount ?? undefined}
           channels={channelResources.ordered.map(item => item.item).filter(channel => channelEnabled[channel.channelId])}
           sourceKind={source.sourceKind}
           selected={selectedWorksheetRules.includes(rule.worksheetName)}
@@ -1467,7 +1624,7 @@ export default function SourceConfiguration() {
         <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ms-auto sm:flex sm:w-auto sm:flex-wrap">
           {canEditSource && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
           {canEditSource && source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && (
-            <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={reading || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void readNow()}><Icon name="refresh" /> {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}</button>
+            <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={reading || externalSourceDisabled || remoteReadQuotaExhausted} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : remoteReadQuotaExhausted ? quotaLimitDescription() : undefined} onClick={() => void readNow()}><Icon name="refresh" /> {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}</button>
           )}
           {canEditSource && <button className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
           <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" onClick={closeConfiguration}><Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}</button>

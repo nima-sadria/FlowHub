@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from threading import Barrier
 
@@ -17,6 +18,7 @@ from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
 from app.flowhub.integration_platform import models as _integration_platform_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.source_acquisition import models as _source_acquisition_models  # noqa: F401
 from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
 from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 from app.flowhub.pricing_matrix import models as _pricing_matrix_models  # noqa: F401
@@ -2109,7 +2111,11 @@ def test_nextcloud_manual_read_now_uses_mapping_and_never_writes(client, auth_he
 def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, monkeypatch):
     from app.flowhub.integrations.nextcloud import NextcloudClient
 
+    downloads = 0
+
     async def fake_download(self, path):
+        nonlocal downloads
+        downloads += 1
         return _xlsx_custom(
             headers=["Name", "Product ID", "Price", "SKU"],
             rows=[["Limited Product", "101", "125.00", "SKU-101"]],
@@ -2149,6 +2155,113 @@ def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, monk
     assert detail["reset_at"]
     assert detail["retry_after_seconds"] > 0
     assert second.headers["Retry-After"] == str(detail["retry_after_seconds"])
+    assert downloads == 1
+
+
+def test_nextcloud_read_preflight_failure_does_not_consume_a_remote_read(
+    client, auth_headers, db
+):
+    from app.flowhub.data_layer.models import DlSourceReadReservation
+
+    saved = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                # A connection can be saved before a workbook is selected.
+                "source_read_policy": {
+                    "enabled": True,
+                    "max_reads_per_24h": 1,
+                    "manual_read_allowed": True,
+                },
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert saved.status_code == 200
+
+    response = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers
+    )
+
+    assert response.status_code == 422
+    assert db.query(DlSourceReadReservation).count() == 0
+
+
+def test_detect_worksheets_reuses_the_new_snapshot_without_double_counting(
+    client, auth_headers, db, monkeypatch
+):
+    import asyncio
+
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.data_layer.models import DlSourceReadReservation
+    from app.flowhub.source_workspace.service import SourceWorkspaceService
+    from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+
+    downloads = 0
+
+    async def fake_download(self, path):
+        nonlocal downloads
+        downloads += 1
+        assert path == "/Reports/prices.xlsx"
+        return _xlsx_custom(
+            headers=["Name", "Product ID", "Price"],
+            rows=[["Snapshot product", "101", "125.00"]],
+        ), {"etag": "etag-snapshot"}
+
+    install_nextcloud_download(monkeypatch, fake_download)
+    saved = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+                "source_read_policy": {
+                    "enabled": True,
+                    "max_reads_per_24h": 2,
+                    "manual_read_allowed": True,
+                },
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert saved.status_code == 200
+    user = db.query(FlowHubUser).one()
+    workspace = SourceWorkspaceService(db)
+    source = workspace.create_source(
+        name="Workbook",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=1,
+        user=user,
+    )
+
+    asyncio.run(
+        SpreadsheetSourceReadService(db).read_nextcloud_spreadsheet(
+            triggered_by="test",
+            triggered_by_id=user.id,
+            manual=True,
+            capture_raw_worksheets=True,
+            source_profile_id=source["id"],
+        )
+    )
+    detected = asyncio.run(workspace.list_source_worksheets(source["id"], user))
+
+    assert downloads == 1
+    assert db.query(DlSourceReadReservation).count() == 1
+    assert detected["items"] == [{"name": "Sheet1", "rowCount": None}]
+    assert detected["worksheetDiscovery"]["metadataSource"] == "snapshot"
+    assert detected["worksheetDiscovery"]["remoteReadUsed"] is False
+    assert detected["readQuota"]["usage"] == 1
+    assert detected["readQuota"]["remaining"] == 1
 
 
 def test_failed_outbound_source_read_consumes_reserved_quota(client, auth_headers, db, monkeypatch):
@@ -2262,6 +2375,30 @@ def test_source_profile_read_quotas_are_independent_and_shared(db):
     assert limited.value.status_code == 429
     reader.reserve_read_slot("owner-b", manual=True, source_id="source-profile-b")
     assert reader.read_policy_state(source_id="source-profile-b")["reads_used_last_24h"] == 1
+
+
+def test_source_read_allowance_resets_after_24_hours(db):
+    from app.flowhub.data_layer.models import DlSourceReadReservation
+    from app.flowhub.setup.service import AppConfigService
+    from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+
+    AppConfigService(db).set(
+        "nextcloud.source_read_policy",
+        '{"enabled":true,"max_reads_per_24h":1,"manual_read_allowed":true}',
+        updated_by="test",
+    )
+    reader = SpreadsheetSourceReadService(db)
+    reader.reserve_read_slot("owner", manual=True, source_id="source-profile-primary")
+    reservation = db.query(DlSourceReadReservation).one()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    reservation.reserved_at = now - timedelta(hours=24, seconds=1)
+    db.commit()
+
+    state = reader.read_policy_state(source_id="source-profile-primary", now=now)
+
+    assert state["reads_used_last_24h"] == 0
+    assert state["reads_remaining"] == 1
+    assert state["reset_at"] is None
 
 
 def test_duplicate_rows_are_errors_and_manual_read_counts_reconcile(client, auth_headers, monkeypatch):

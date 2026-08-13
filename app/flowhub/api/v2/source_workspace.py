@@ -47,13 +47,35 @@ class WorksheetRuleInput(StrictModel):
 
 class WorksheetSummary(StrictModel):
     name: str
-    rowCount: int = Field(ge=0)
+    # Snapshot metadata retains worksheet identities, not a per-sheet row
+    # count.  A null value is truthful and avoids a quota-consuming reread.
+    rowCount: int | None = Field(default=None, ge=0)
+
+
+class SourceReadQuota(StrictModel):
+    enabled: bool
+    limit: int = Field(ge=0)
+    usage: int = Field(ge=0)
+    remaining: int = Field(ge=0)
+    resetAt: datetime | None = None
+    exhausted: bool
+
+
+class WorksheetDiscovery(StrictModel):
+    requiresRemoteRead: bool
+    metadataSource: Literal["flowhub_sheet", "snapshot"]
+    remoteReadUsed: bool
+    snapshotId: int | None = None
+    snapshotVersion: int | None = Field(default=None, ge=1)
+    snapshotAt: datetime | None = None
 
 
 class WorksheetListResponse(StrictModel):
     sourceId: str
     items: list[WorksheetSummary]
     sourceRevisionId: str | None = None
+    readQuota: SourceReadQuota
+    worksheetDiscovery: WorksheetDiscovery
 
 
 class SourcePreviewChannel(StrictModel):

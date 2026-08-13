@@ -503,6 +503,64 @@ class SpreadsheetSourceReadService:
             "last_error_count": _int_or_none(self.config.get(_LAST_READ_ERRORS_KEY)),
         }
 
+    def read_quota_contract(self, *, source_id: str | None = None) -> dict[str, object]:
+        """Return the public read-allowance view from the durable reservation ledger."""
+        state = self.read_policy_state(source_id=source_id)
+        remaining = int(state["reads_remaining"])
+        return {
+            "enabled": bool(state["enabled"]),
+            "limit": int(state["max_reads_per_24h"]),
+            "usage": int(state["reads_used_last_24h"]),
+            "remaining": remaining,
+            "reset_at": state["reset_at"],
+            "exhausted": bool(state["enabled"] and remaining <= 0),
+        }
+
+    def worksheet_discovery_state(self) -> dict[str, object]:
+        """Describe whether worksheet discovery can use persisted Snapshot metadata.
+
+        Snapshot names are only reused for the exact currently-selected workbook
+        path.  When no such metadata exists, callers must acquire the workbook
+        and therefore reserve one remote-read slot before provider I/O.
+        """
+        spreadsheet_path = str(self.config.get("nextcloud.spreadsheet_path") or "").strip()
+        if not spreadsheet_path:
+            return {
+                "requires_remote_read": False,
+                "metadata_source": "unavailable",
+                "reason": "spreadsheet_not_selected",
+                "snapshot_id": None,
+                "snapshot_version": None,
+                "snapshot_at": None,
+                "worksheet_names": [],
+            }
+        snapshot = (
+            self.db.query(DlSourceSnapshot)
+            .filter(DlSourceSnapshot.connector_id == SOURCE_ID)
+            .filter(DlSourceSnapshot.file_path == spreadsheet_path)
+            .one_or_none()
+        )
+        worksheet_names = _safe_worksheet_names(snapshot.sheet_names if snapshot else None)
+        if snapshot is not None and worksheet_names:
+            return {
+                "requires_remote_read": False,
+                "metadata_source": "snapshot",
+                "reason": None,
+                "snapshot_id": snapshot.id,
+                "snapshot_version": snapshot.version_seq,
+                "snapshot_at": _iso(snapshot.snapshotted_at),
+                "worksheet_names": worksheet_names,
+            }
+        return {
+            "requires_remote_read": True,
+            "metadata_source": "remote",
+            "reason": "snapshot_metadata_unavailable",
+            "snapshot_id": None,
+            "snapshot_version": None,
+            "snapshot_at": None,
+            "worksheet_names": [],
+        }
+
     def read_policy_state(self, *, source_id: str | None = None, now: datetime | None = None) -> dict:
         source_id = self._quota_source_id(source_id, required=False)
         now = now or datetime.now(timezone.utc).replace(tzinfo=None)
@@ -914,6 +972,20 @@ def _int_or_none(value: str | None) -> int | None:
         return int(str(value))
     except (TypeError, ValueError):
         return None
+
+
+def _safe_worksheet_names(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    names: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        name = str(item or "").strip()
+        if not name or len(name) > 240 or name in seen:
+            continue
+        names.append(name)
+        seen.add(name)
+    return names
 
 
 def _safe_error_message(exc: Exception) -> str:

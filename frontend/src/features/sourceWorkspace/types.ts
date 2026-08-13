@@ -14,6 +14,23 @@ export interface SourceProfile {
   sheetId: string | null
   createdAt: string | null
   updatedAt: string | null
+  readQuota?: {
+    enabled: boolean
+    limit: number
+    usage: number
+    remaining: number
+    reset_at: string | null
+    exhausted: boolean
+  }
+  worksheetDiscovery?: {
+    requires_remote_read: boolean
+    metadata_source: 'snapshot' | 'remote' | 'unavailable'
+    reason: string | null
+    snapshot_id: number | null
+    snapshot_version: number | null
+    snapshot_at: string | null
+    worksheet_names: string[]
+  }
   currencyProfile?: {
     status: 'resolved' | 'unresolved'
     currency: string | null
