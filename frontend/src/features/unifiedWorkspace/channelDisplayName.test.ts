@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { changeLocale } from '../../i18n'
-import { formatChannelDisplayName } from './channelDisplayName'
+import { formatChannelDisplayName, formatSourceChannelDisplayName } from './channelDisplayName'
 
 describe('formatChannelDisplayName', () => {
+  it('uses one Source inventory resolver for system and owner-defined names', () => {
+    expect(formatSourceChannelDisplayName({ channelId: 'woocommerce:primary', name: 'WooCommerce' })).toBe('WooCommerce')
+    expect(formatSourceChannelDisplayName({ channelId: 'woocommerce:primary', name: 'Owner Store', displayNameCustom: true })).toBe('Owner Store')
+  })
   afterEach(async () => { await changeLocale('en') })
 
   it('uses friendly names for configured channels', () => {

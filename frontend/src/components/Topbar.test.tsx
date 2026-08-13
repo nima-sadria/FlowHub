@@ -32,7 +32,7 @@ function LocationProbe() {
   return <output data-location>{`${location.pathname}${location.search}`}</output>
 }
 
-function renderTopbar({ initialPath = '/home', sidebarCollapsed = false, exchangeRates, hasUnreadNotifications }: { initialPath?: string; sidebarCollapsed?: boolean; exchangeRates?: ExchangeRateService; hasUnreadNotifications?: boolean } = {}) {
+function renderTopbar({ initialPath = '/home', sidebarCollapsed = false, exchangeRates, hasUnreadNotifications, navigationOpen = false, onCompactOverlayOpen = () => undefined }: { initialPath?: string; sidebarCollapsed?: boolean; exchangeRates?: ExchangeRateService; hasUnreadNotifications?: boolean; navigationOpen?: boolean; onCompactOverlayOpen?: () => void } = {}) {
   act(() => {
     root.render(
       <MemoryRouter initialEntries={[initialPath]}>
@@ -46,6 +46,8 @@ function renderTopbar({ initialPath = '/home', sidebarCollapsed = false, exchang
               onLogout={() => undefined}
               exchangeRates={exchangeRates}
               hasUnreadNotifications={hasUnreadNotifications}
+              navigationOpen={navigationOpen}
+              onCompactOverlayOpen={onCompactOverlayOpen}
             />
             <LocationProbe />
           </DirectionProvider>
@@ -90,6 +92,19 @@ describe('Topbar', () => {
 
     expect(toggle?.getAttribute('aria-expanded')).toBe('true')
     expect(actions?.className).toContain('fh-topbar-actions-open')
+  })
+
+  it('coordinates compact overlays with navigation and never leaves both expanded', () => {
+    const onCompactOverlayOpen = vi.fn()
+    renderTopbar({ onCompactOverlayOpen })
+    const actions = container.querySelector<HTMLButtonElement>('[aria-controls="topbar-mobile-actions"]')!
+    act(() => actions.click())
+    expect(onCompactOverlayOpen).toHaveBeenCalledTimes(1)
+    expect(actions.getAttribute('aria-expanded')).toBe('true')
+
+    renderTopbar({ navigationOpen: true, onCompactOverlayOpen })
+    expect(container.querySelector('[aria-controls="app-navigation"]')?.getAttribute('aria-expanded')).toBe('true')
+    expect(container.querySelector('[aria-controls="topbar-mobile-actions"]')?.getAttribute('aria-expanded')).toBe('false')
   })
 
   it('shows the signed-in user with role in the account chip', () => {

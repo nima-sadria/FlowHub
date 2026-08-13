@@ -8,7 +8,7 @@ import type {
 } from '../../services/types'
 import type { WorkspaceChannelDefinition } from '../../services/unifiedWorkspace/types'
 import type { SourceChannel, SourceProfile } from '../sourceWorkspace/types'
-import { formatChannelDisplayName, localizedChannelName } from '../unifiedWorkspace/channelDisplayName'
+import { formatChannelDisplayName, formatSourceChannelDisplayName, localizedChannelName } from '../unifiedWorkspace/channelDisplayName'
 
 export type ResourceTier = 'configured' | 'attention' | 'disabled' | 'comingSoon'
 export type ResourceSection = 'active' | 'disabled' | 'comingSoon'
@@ -346,7 +346,7 @@ export function sourceChannelSignals(channel: SourceChannel): ResourceOrderingSi
   const implementationState = normalizeState(channel.implementationState)
   return {
     id: channel.channelId,
-    displayName: channel.name.trim() || formatChannelDisplayName(channel.channelId),
+    displayName: formatSourceChannelDisplayName(channel),
     enabled: channel.enabled,
     available: channel.available,
     configured: channel.configured ?? channel.available,

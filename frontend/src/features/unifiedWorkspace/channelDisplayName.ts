@@ -37,6 +37,12 @@ export interface ChannelDisplayMetadata {
   showInstance?: boolean
 }
 
+export interface SourceChannelDisplayMetadata {
+  channelId: string
+  name?: string | null
+  displayNameCustom?: boolean
+}
+
 /** Convert an internal channel identity into a stable, readable UI label. */
 export function formatChannelDisplayName(
   channelId: string,
@@ -55,6 +61,18 @@ export function formatChannelDisplayName(
   }
   if (!instance || (!metadata.showInstance && ['primary', 'main'].includes(instance.toLowerCase()))) return base
   return `${base} — ${instance}`
+}
+
+/**
+ * Canonical resolver for Source Workspace channel inventory. Keeping this in
+ * the shared channel-name module prevents table rows and responsive selectors
+ * from choosing different labels for the same channel identity.
+ */
+export function formatSourceChannelDisplayName(channel: SourceChannelDisplayMetadata): string {
+  return formatChannelDisplayName(channel.channelId, {
+    displayName: channel.name,
+    displayNameCustom: channel.displayNameCustom,
+  })
 }
 
 /**

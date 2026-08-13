@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from 'react'
+import { act, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -40,6 +40,26 @@ function renderAt(path: string, { collapsed = false, open = true, onExpand = () 
 }
 
 describe('Sidebar Settings active state', () => {
+  it('closes the mobile drawer with Escape and restores trigger focus in RTL', () => {
+    document.documentElement.dir = 'rtl'
+    function DrawerHarness() {
+      const [open, setOpen] = useState(false)
+      return <>
+        <button type="button" data-drawer-trigger onClick={() => setOpen(true)}>Open</button>
+        <Sidebar open={open} collapsed={false} onClose={() => setOpen(false)} user={user} health="ok" />
+      </>
+    }
+    act(() => root.render(<MemoryRouter><DrawerHarness /></MemoryRouter>))
+    const trigger = container.querySelector<HTMLButtonElement>('[data-drawer-trigger]')!
+    act(() => { trigger.focus(); trigger.click() })
+    expect(container.querySelector('aside')?.getAttribute('role')).toBe('dialog')
+    expect(document.activeElement).toBe(container.querySelector('[data-sidebar-close]'))
+
+    act(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+    expect(container.querySelector('aside')?.getAttribute('role')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+    document.documentElement.dir = 'ltr'
+  })
   it('keeps the FlowHub lockup left-to-right and places the mobile close action after it', () => {
     renderAt('/home', { open: false })
 

@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
 // Visual + structural audit of the Figma Screen/Orders hierarchy: header with
@@ -12,6 +12,7 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 
 const screenshotRoot = path.resolve('..', 'docs', 'screenshots', 'v1.3', 'orders-screen')
 mkdirSync(screenshotRoot, { recursive: true })
+const mockLogo = readFileSync(path.resolve('public', 'flowhub-logo.png'))
 
 interface OrderFixture {
   internalId: number
@@ -102,6 +103,7 @@ async function installOrdersMocks(page: Page, audit: TrafficAudit) {
       audit.externalRequests.push(`${method} ${url.href}`)
       return route.abort('blockedbyclient')
     }
+    if (url.pathname.startsWith('/static/logos/')) return route.fulfill({ status: 200, contentType: 'image/png', body: mockLogo })
     if (!url.pathname.startsWith('/api/')) return route.continue()
 
     if (url.pathname === '/api/auth/me' && method === 'GET') {
@@ -267,6 +269,36 @@ test('orders View details opens a visible accessible dialog and closes cleanly',
 
   await dialog.getByRole('button', { name: 'Close order details' }).click()
   await expect(dialog).toBeHidden()
+  expect(audit.externalRequests).toEqual([])
+  expect(audit.unhandledApiRequests).toEqual([])
+})
+
+test('orders retains its internal responsive-table scrolling at the reconciliation viewports', async ({ page }) => {
+  test.setTimeout(180_000)
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [] }
+  await installOrdersMocks(page, audit)
+  const matrix = [
+    { width: 1280, height: 800, locale: 'en', theme: 'light', label: 'ltr-light-desktop-1280x800' },
+    { width: 1024, height: 768, locale: 'en', theme: 'light', label: 'ltr-light-tablet-1024x768' },
+    { width: 768, height: 1024, locale: 'fa', theme: 'dark', label: 'rtl-dark-tablet-768x1024' },
+    { width: 390, height: 844, locale: 'en', theme: 'light', label: 'ltr-light-mobile-390x844' },
+    { width: 390, height: 844, locale: 'fa', theme: 'dark', label: 'rtl-dark-mobile-390x844' },
+    { width: 360, height: 800, locale: 'en', theme: 'light', label: 'ltr-light-mobile-360x800' },
+  ] as const
+
+  for (const cell of matrix) {
+    await page.setViewportSize({ width: cell.width, height: cell.height })
+    await seedSession(page, cell.locale, cell.theme)
+    await page.goto('/orders')
+    await expect(page.locator('[data-orders-table]')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+    const scroll = page.locator('[data-orders-table] .overflow-x-auto')
+    const metrics = await scroll.evaluate(element => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth, overflowX: getComputedStyle(element).overflowX }))
+    expect(metrics.overflowX).toBe('auto')
+    if (cell.width <= 1024) expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth)
+    await page.screenshot({ path: path.join(screenshotRoot, `orders-${cell.label}.png`), animations: 'disabled' })
+  }
+
   expect(audit.externalRequests).toEqual([])
   expect(audit.unhandledApiRequests).toEqual([])
 })

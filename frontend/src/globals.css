@@ -582,8 +582,12 @@
 }
 
 .fh-products-card {
+  min-width: 0;
+  max-width: 100%;
   width: 100%;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   background: var(--fh-ui-card);
   border: 1px solid var(--fh-ui-border);
   border-radius: var(--fh-radius-2xl);
@@ -676,6 +680,42 @@
   background: var(--fh-ui-surface-subtle);
   border-radius: var(--fh-radius-md);
   overflow: hidden;
+}
+
+/* Products follows the shared operational-table contract used by Orders:
+   narrow viewports scroll inside the card, never at page level. The Product
+   identity column remains visible while operators inspect Channel fields. */
+@media (max-width: 1279px) {
+  .fh-products-table {
+    min-width: 960px;
+  }
+
+  .fh-products-table thead th:first-child,
+  .fh-products-table tbody td:first-child {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    background: var(--fh-ui-card);
+    box-shadow: 1px 0 0 var(--fh-ui-border);
+  }
+
+  [dir="rtl"] .fh-products-table thead th:first-child,
+  [dir="rtl"] .fh-products-table tbody td:first-child {
+    box-shadow: -1px 0 0 var(--fh-ui-border);
+  }
+
+  .fh-products-table thead th:first-child {
+    z-index: 2;
+    background: var(--fh-ui-surface-muted);
+  }
+
+  .fh-products-table tbody.fh-products-group:nth-of-type(even) > tr > td:first-child {
+    background: var(--fh-ui-surface-subtle);
+  }
+
+  .fh-products-table tbody tr[data-pricing-row]:hover > td:first-child {
+    background: var(--fh-ui-surface-muted);
+  }
 }
 
 .fh-products-thumb img {

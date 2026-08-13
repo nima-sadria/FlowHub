@@ -14,6 +14,7 @@ import {
   resolveExactReviewSelection,
   setProductListingsSelected,
   sourceChannelDisplayName,
+  convertPricingUnit,
   validateDescriptorTarget,
 } from './DensePricingWorkspace'
 import type { GroupedWorkspacePage, SourceChannel } from './types'
@@ -31,6 +32,14 @@ describe('DensePricingWorkspace safety boundaries', () => {
       ownerAlias.channelId,
       new Map([[ownerAlias.channelId, ownerAlias]]),
     )).toBe('ووکامرس')
+  })
+
+  it('converts only explicit matching IRR units for presentation and reverses edits exactly', () => {
+    expect(convertPricingUnit('101', 'IRR', 'RIAL', 'TOMAN', 'IRR')).toBe('10.1')
+    expect(convertPricingUnit('10.1', 'IRR', 'TOMAN', 'RIAL', 'IRR')).toBe('101')
+    expect(convertPricingUnit('900719925474099312345', 'IRR', 'TOMAN', 'RIAL', 'IRR')).toBe('9007199254740993123450')
+    expect(convertPricingUnit('125', 'USD', 'USD', 'TOMAN', 'IRR')).toBe('125')
+    expect(convertPricingUnit('not-a-price', 'IRR', 'RIAL', 'TOMAN', 'IRR')).toBe('not-a-price')
   })
 
   it('requires every locally selected field to resolve to exactly one eligible Review item', () => {

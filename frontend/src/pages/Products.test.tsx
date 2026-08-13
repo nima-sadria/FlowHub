@@ -13,9 +13,9 @@ import Products from './Products'
 vi.mock('../features/sourceWorkspace/DensePricingWorkspace', async () => {
   const React = await import('react')
   return {
-    default: ({ workspace, initialSearch }: { workspace: UnifiedWorkspaceResource; initialSearch?: string }) => React.createElement(
+    default: ({ workspace, initialSearch, displayProfile }: { workspace: UnifiedWorkspaceResource; initialSearch?: string; displayProfile?: { currency: string; unit: string } | null }) => React.createElement(
       'section',
-      { 'data-inline-pricing-grid': workspace.id, 'data-initial-search': initialSearch },
+      { 'data-inline-pricing-grid': workspace.id, 'data-initial-search': initialSearch, 'data-display-profile': displayProfile ? `${displayProfile.currency}:${displayProfile.unit}` : '' },
       `Inline pricing ${workspace.id}`,
     ),
   }
@@ -72,6 +72,7 @@ describe('Products inline pricing entry', () => {
     expect(container.querySelector('input[type="checkbox"]')).toBeNull()
     expect(window.location.pathname).not.toBe('/workspace/catalog-workspace')
     expect(getProducts).not.toHaveBeenCalled()
+    await waitFor(() => container.querySelector('[data-display-profile="IRR:TOMAN"]') !== null)
   })
 
   it('resumes the immutable manual Workspace supplied by a compatibility redirect', async () => {
@@ -196,7 +197,9 @@ function servicesFor(overrides: {
       createCatalog: overrides.createCatalog ?? vi.fn(async () => WORKSPACE),
       getWorkspace: overrides.getWorkspace ?? vi.fn(async () => WORKSPACE),
     },
-    health: {}, sources: {}, workspace: {}, settings: {}, activity: {}, commerce: {}, writePipeline: {}, orders: {},
+    health: {}, sources: {}, workspace: {}, settings: {
+      getSettings: vi.fn(async () => ({ currency: 'IRR', currencyUnit: 'TOMAN' })),
+    }, activity: {}, commerce: {}, writePipeline: {}, orders: {},
   } as unknown as Services
 }
 

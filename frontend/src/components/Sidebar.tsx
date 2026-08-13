@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { translate } from '../i18n'
 import { NavLink, useLocation, useSearchParams } from 'react-router'
 import type { AuthUser } from '../auth'
@@ -142,6 +142,40 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
     settings: settingsRouteActive,
   })
+  const panelRef = useRef<HTMLElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  const wasOpenRef = useRef(false)
+
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
+  useEffect(() => {
+    if (!open) {
+      if (wasOpenRef.current) returnFocusRef.current?.focus()
+      wasOpenRef.current = false
+      return
+    }
+    wasOpenRef.current = true
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const panel = panelRef.current
+    panel?.querySelector<HTMLButtonElement>('[data-sidebar-close]')?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onCloseRef.current()
+        return
+      }
+      if (event.key !== 'Tab' || !panel) return
+      const focusable = [...panel.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), [tabindex]:not([tabindex="-1"])')]
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
 
   useEffect(() => {
     if (settingsRouteActive) {
@@ -173,6 +207,11 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
       )}
 
       <aside
+        id="app-navigation"
+        ref={panelRef}
+        role={open ? 'dialog' : undefined}
+        aria-modal={open ? true : undefined}
+        aria-labelledby={open ? 'sidebar-brand' : undefined}
         className={[
           'flex h-screen h-[100dvh] min-h-0 flex-shrink-0 flex-col border-e border-border',
           'bg-[color:var(--fh-nav-bg)]',
@@ -189,6 +228,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
           ].join(' ')}
         >
           <div
+            id="sidebar-brand"
             className="flex min-w-0 items-center gap-[6px]"
             dir="ltr"
             aria-label={translate('navigation:sidebar.flowhub')}
@@ -212,6 +252,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
 
           <IconButton
             onClick={onClose}
+            data-sidebar-close
             className="ms-auto border-transparent bg-transparent shadow-none xl:hidden"
             label={translate('navigation:sidebar.closeNavigation')}
           >

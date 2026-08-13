@@ -52,7 +52,7 @@ function CachedProductRow({ product }: { product: Product }) {
 }
 
 export default function Products() {
-  const { products: productService, unifiedWorkspace } = useServices()
+  const { products: productService, settings, unifiedWorkspace } = useServices()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const queryWorkspaceId = searchParams.get('workspace')?.trim() ?? ''
@@ -69,6 +69,7 @@ export default function Products() {
   const [categories, setCategories] = useState<Category[]>([])
   const [catalogConfigured, setCatalogConfigured] = useState<boolean | undefined>(undefined)
   const [catalogLoading, setCatalogLoading] = useState(false)
+  const [displayProfile, setDisplayProfile] = useState<{ currency: string; unit: string } | null>(null)
   const categoryOptions = useMemo(
     () => categories.map(category => ({ value: category.name, label: category.name })),
     [categories],
@@ -81,6 +82,21 @@ export default function Products() {
       .catch(() => { if (active) setCategories([]) })
     return () => { active = false }
   }, [productService])
+
+  useEffect(() => {
+    let active = true
+    const request = settings.getSettings?.()
+    if (!request) return () => { active = false }
+    request.then(result => {
+      const currency = result.currency?.trim().toUpperCase()
+      const unit = result.currencyUnit?.trim().toUpperCase()
+      if (active && currency && unit) setDisplayProfile({ currency, unit })
+    }).catch(() => {
+      // The grid remains truthful using its native field unit when the optional
+      // presentation preference cannot be loaded.
+    })
+    return () => { active = false }
+  }, [settings])
 
   useEffect(() => {
     if (!error) return
@@ -148,13 +164,14 @@ export default function Products() {
 
   if (workspace && unifiedWorkspace) {
     return <PageShell>
-      <Suspense fallback={<PricingWorkspaceStartup workspaceName={workspace.name} />}>
+      <Suspense fallback={<PricingWorkspaceStartup />}>
         <DensePricingWorkspace
           workspace={workspace}
           service={unifiedWorkspace}
           embedded
           categoryOptions={categoryOptions}
           initialSearch={querySearch}
+          displayProfile={displayProfile}
         />
       </Suspense>
     </PageShell>

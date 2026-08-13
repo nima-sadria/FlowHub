@@ -36,7 +36,7 @@ import {
   type PricingWorkspaceState,
 } from '../pricingWorkspace'
 import { channelIdentitySignals, prepareResourceCollection, sourceChannelSignals } from '../resourceOrdering/resourceOrdering'
-import { formatChannelDisplayName } from '../unifiedWorkspace/channelDisplayName'
+import { formatSourceChannelDisplayName } from '../unifiedWorkspace/channelDisplayName'
 import { workspaceApplyIdempotencyKey } from '../unifiedWorkspace/useUnifiedWorkspaceController'
 import { inputHint } from '../../utils/inputHint'
 import { sourceWorkspaceApi } from './api'
@@ -70,6 +70,14 @@ export interface DensePricingWorkspaceProps {
   categoryOptions?: readonly { value: string; label: string }[]
   /** Global Products search supplied by the q query parameter. */
   initialSearch?: string
+  /** Settings-owned unified display/pricing unit. Native Listing units remain
+   * unchanged in draft and Apply state. */
+  displayProfile?: PricingDisplayProfile | null
+}
+
+export interface PricingDisplayProfile {
+  currency: string
+  unit: string
 }
 
 export default function DensePricingWorkspace({
@@ -78,6 +86,7 @@ export default function DensePricingWorkspace({
   embedded = false,
   categoryOptions = [],
   initialSearch = '',
+  displayProfile = null,
 }: DensePricingWorkspaceProps) {
   const notify = useNotification()
   const gridLoaderRef = useRef(createLatestGridLoader<GroupedWorkspacePage>())
@@ -203,18 +212,27 @@ export default function DensePricingWorkspace({
   const visibleKeys = useMemo(() => new Set(visibleDescriptors.map(descriptor => pricingFieldKey(descriptor.identity))), [visibleDescriptors])
   const summary = useMemo(() => pricingWorkspaceSummary(pricingState, visibleKeys), [pricingState, visibleKeys])
   const pageCount = Math.max(1, Math.ceil((grid?.total ?? 0) / (grid?.pageSize || 100)))
-  // Figma labels the Price column with the catalog currency; the label stays
-  // generic whenever visible listings disagree.
-  const priceCurrency = useMemo(() => {
+  // Price presentation follows the Settings-owned unified unit when it matches
+  // the visible currency. Native Listing values remain the draft/apply contract.
+  const priceLabel = useMemo(() => {
     const currencies = new Set<string>()
+    const units = new Set<string>()
     for (const product of visibleGrid?.items ?? []) {
       for (const listing of product.children) {
         const currency = listing.fields.price.currency?.trim()
+        const unit = listing.fields.price.unit?.trim()
         if (currency) currencies.add(currency.toUpperCase())
+        if (unit) units.add(unit.toUpperCase())
       }
     }
-    return currencies.size === 1 ? [...currencies][0] : null
-  }, [visibleGrid])
+    const currency = currencies.size === 1 ? [...currencies][0] : null
+    if (!currency) return null
+    const configuredCurrency = displayProfile?.currency.trim().toUpperCase()
+    const configuredUnit = displayProfile?.unit.trim().toUpperCase()
+    if (configuredCurrency === currency && configuredUnit) return formatPricingUnitLabel(currency, configuredUnit)
+    const nativeUnit = units.size === 1 ? [...units][0] : null
+    return nativeUnit ? formatPricingUnitLabel(currency, nativeUnit) : formatCurrencyLabel(currency)
+  }, [displayProfile, visibleGrid])
 
   const mutatePricingState = useCallback((update: (current: PricingWorkspaceState) => PricingWorkspaceState) => {
     setPricingState(current => update(current))
@@ -336,7 +354,7 @@ export default function DensePricingWorkspace({
   if (!grid || !channelInventoryReady) {
     const loadingState = gridError ? <div className="fh-card fh-card-pad">
       <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>
-    </div> : <PricingWorkspaceStartup workspaceName={workspace.name} />
+    </div> : <PricingWorkspaceStartup />
     return embedded ? loadingState : <PageShell>{loadingState}</PageShell>
   }
 
@@ -449,8 +467,8 @@ export default function DensePricingWorkspace({
             <tr>
               <th scope="col" className="fh-products-col-product">{translate('products:column.product')}</th>
               <th scope="col">{translate('products:column.channel')}</th>
-              <th scope="col">{priceCurrency
-                ? translate('products:products.priceWithCurrency', { currency: formatCurrencyLabel(priceCurrency) })
+              <th scope="col" data-price-unit={priceLabel ?? undefined}>{priceLabel
+                ? translate('products:products.priceWithCurrency', { currency: priceLabel })
                 : translate('products:column.price')}</th>
               <th scope="col">{translate('products:column.stock')}</th>
               <th scope="col">{translate('products:column.availability')}</th>
@@ -472,6 +490,7 @@ export default function DensePricingWorkspace({
             onCommitEdit={commitEdit}
             onResetListing={resetListingChanges}
             onSetListingSelected={setListingSelected}
+            displayProfile={displayProfile}
           />)}
         </table>
       </div>
@@ -525,6 +544,7 @@ interface ProductGroupProps {
   onCommitEdit: (descriptor: PricingFieldDescriptor, rawValue: string) => void
   onResetListing: (listing: GroupedListing, product: GroupedProduct) => void
   onSetListingSelected: (listing: GroupedListing, product: GroupedProduct, selected: boolean) => void
+  displayProfile: PricingDisplayProfile | null
 }
 
 const ProductGroup = memo(function ProductGroup({
@@ -537,6 +557,7 @@ const ProductGroup = memo(function ProductGroup({
   onCommitEdit,
   onResetListing,
   onSetListingSelected,
+  displayProfile,
 }: ProductGroupProps) {
   return (
     <tbody className="fh-products-group" data-product-group data-product-id={product.sourceProductId}>
@@ -574,6 +595,7 @@ const ProductGroup = memo(function ProductGroup({
                   field: formatField('price'),
                 })}
                 onCommit={onCommitEdit}
+                displayProfile={displayProfile}
               />
             </td>
             <td className="fh-products-input-cell">
@@ -659,11 +681,15 @@ interface TargetInputProps {
   narrow?: boolean
   ariaLabel: string
   onCommit: (descriptor: PricingFieldDescriptor, rawValue: string) => void
+  displayProfile?: PricingDisplayProfile | null
 }
 
-function TargetInput({ descriptor, pricingState, field, inputMode, narrow = false, ariaLabel, onCommit }: TargetInputProps) {
+function TargetInput({ descriptor, pricingState, field, inputMode, narrow = false, ariaLabel, onCommit, displayProfile = null }: TargetInputProps) {
   const change = descriptor ? pricingFieldChange(pricingState, descriptor.identity) : undefined
   const committedValue = change?.targetValue ?? descriptor?.targetValue ?? descriptor?.currentValue ?? ''
+  const displayedValue = field === 'price' && descriptor && displayProfile
+    ? convertPricingUnit(committedValue, descriptor.currency, descriptor.unit, displayProfile.unit, displayProfile.currency)
+    : committedValue
   const [draft, setDraft] = useState<string | null>(null)
   const status = cellEditStatus(descriptor, change)
   const disabled = !descriptor || !descriptor.policy.writable || descriptor.policy.comingSoon || !descriptor.policy.channelEnabled || !descriptor.policy.supported || !descriptor.policy.mapped
@@ -673,7 +699,7 @@ function TargetInput({ descriptor, pricingState, field, inputMode, narrow = fals
       type="text"
       inputMode={inputMode}
       dir="ltr"
-      value={draft ?? committedValue}
+      value={draft ?? displayedValue}
       disabled={disabled}
       aria-label={ariaLabel}
       data-target-field={field}
@@ -681,9 +707,14 @@ function TargetInput({ descriptor, pricingState, field, inputMode, narrow = fals
       data-channel-id={descriptor?.identity.channelId}
       data-cell-status={status}
       onChange={event => setDraft(event.target.value)}
-      onFocus={() => setDraft(committedValue)}
+      onFocus={() => setDraft(displayedValue)}
       onBlur={() => {
-        if (descriptor && draft !== null && draft.trim() !== committedValue) onCommit(descriptor, draft)
+        if (descriptor && draft !== null && draft.trim() !== displayedValue) {
+          const nativeValue = field === 'price' && displayProfile
+            ? convertPricingUnit(draft, descriptor.currency, displayProfile.unit, descriptor.unit, displayProfile.currency)
+            : draft
+          onCommit(descriptor, nativeValue)
+        }
         setDraft(null)
       }}
       onKeyDown={event => {
@@ -959,7 +990,7 @@ export function sourceChannelDisplayName(
   channelById: ReadonlyMap<string, SourceChannel>,
 ): string {
   const channel = channelById.get(channelId)
-  return channel?.name.trim() || formatChannelDisplayName(channelId)
+  return formatSourceChannelDisplayName(channel ?? { channelId })
 }
 
 function fieldKey(product: GroupedProduct, listing: GroupedListing, field: PricingField): string {
@@ -991,6 +1022,57 @@ function formatCurrencyLabel(currency: string): string {
   } catch {
     return currency
   }
+}
+
+function formatPricingUnitLabel(currency: string, unit: string): string {
+  const normalizedCurrency = currency.trim().toUpperCase()
+  const normalizedUnit = unit.trim().toUpperCase()
+  if (normalizedCurrency === 'IRR' && normalizedUnit === 'RIAL') return translate('settings:settings.rial')
+  if (normalizedCurrency === 'IRR' && normalizedUnit === 'TOMAN') return translate('settings:settings.toman')
+  return formatCurrencyLabel(normalizedCurrency)
+}
+
+/** Exact presentation-only conversion between the two explicitly declared IRR
+ * units. Unsupported/malformed values stay unchanged and are never guessed. */
+export function convertPricingUnit(
+  value: string,
+  valueCurrency: string | null | undefined,
+  fromUnit: string | null | undefined,
+  toUnit: string | null | undefined,
+  displayCurrency: string | null | undefined,
+): string {
+  const currency = valueCurrency?.trim().toUpperCase()
+  if (!currency || currency !== displayCurrency?.trim().toUpperCase()) return value
+  const from = normalizeIrrUnit(fromUnit)
+  const to = normalizeIrrUnit(toUnit)
+  if (currency !== 'IRR' || !from || !to || from === to) return value
+  return shiftDecimal(value, from === 'RIAL' && to === 'TOMAN' ? -1 : 1)
+}
+
+function normalizeIrrUnit(unit: string | null | undefined): 'RIAL' | 'TOMAN' | null {
+  const normalized = unit?.trim().toUpperCase()
+  if (normalized === 'IRR' || normalized === 'RIAL') return 'RIAL'
+  return normalized === 'TOMAN' ? 'TOMAN' : null
+}
+
+function shiftDecimal(value: string, places: -1 | 1): string {
+  const match = value.trim().match(/^([+-]?)(\d+)(?:\.(\d+))?$/)
+  if (!match) return value
+  const [, sign, integer, fraction = ''] = match
+  const digits = `${integer}${fraction}`
+  const decimalAt = integer.length + places
+  const padded = decimalAt <= 0
+    ? `${'0'.repeat(-decimalAt + 1)}${digits}`
+    : decimalAt >= digits.length
+      ? `${digits}${'0'.repeat(decimalAt - digits.length)}`
+      : digits
+  const splitAt = decimalAt <= 0 ? 1 : decimalAt
+  const rawInteger = padded.slice(0, splitAt) || '0'
+  const rawFraction = padded.slice(splitAt)
+  const normalizedInteger = rawInteger.replace(/^0+(?=\d)/, '') || '0'
+  const normalizedFraction = rawFraction.replace(/0+$/, '')
+  const normalized = normalizedFraction ? `${normalizedInteger}.${normalizedFraction}` : normalizedInteger
+  return `${normalized === '0' ? '' : sign}${normalized}`
 }
 
 export function bulkScopeDescriptors(

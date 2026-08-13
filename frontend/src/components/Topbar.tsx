@@ -17,6 +17,8 @@ interface Props {
   onLogout: () => void
   exchangeRates?: ExchangeRateService
   hasUnreadNotifications?: boolean
+  navigationOpen?: boolean
+  onCompactOverlayOpen?: () => void
 }
 
 const LANGUAGES = [
@@ -48,7 +50,7 @@ function formatDecimalString(value: string, locale: string): string {
   return `${localizedSign}${grouped}${fraction ? `${decimalSeparator}${fraction}` : ''}`
 }
 
-function ExchangeRateStrip({ service, language }: { service: ExchangeRateService; language: string }) {
+function ExchangeRateStrip({ service, language, compactOpen, onCompactOpenChange }: { service: ExchangeRateService; language: string; compactOpen: boolean; onCompactOpenChange: (open: boolean) => void }) {
   const [rates, setRates] = useState<ExchangeRateSnapshotView[]>([])
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'unavailable'>('loading')
 
@@ -122,7 +124,9 @@ function ExchangeRateStrip({ service, language }: { service: ExchangeRateService
   return (
     <>
       <div className="fh-topbar-rates hidden xl:flex" aria-label={label}>{renderedItems}</div>
-      <details className="fh-topbar-rates-compact xl:hidden">
+      <details className="fh-topbar-rates-compact xl:hidden" open={compactOpen} onToggle={event => {
+        if (event.currentTarget.open !== compactOpen) onCompactOpenChange(event.currentTarget.open)
+      }}>
         <summary className="fh-topbar-control" aria-label={label} data-state={loadState}>
           <Icon name="rateLimits" size="md" />
           <span className="sr-only">{label}</span>
@@ -146,15 +150,38 @@ export default function Topbar({
   onLogout,
   exchangeRates,
   hasUnreadNotifications = false,
+  navigationOpen = false,
+  onCompactOverlayOpen = () => undefined,
 }: Props) {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false)
+  const [ratesOpen, setRatesOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const { theme, toggleTheme } = useTheme()
   const { language, setLanguage, setDirection } = useDirection()
+
+  useEffect(() => {
+    if (!navigationOpen) return
+    setMenuOpen(false)
+    setLangOpen(false)
+    setMobileActionsOpen(false)
+    setRatesOpen(false)
+  }, [navigationOpen])
+
+  function openCompactOverlay(kind: 'actions' | 'rates' | 'language' | 'account', open: boolean) {
+    if (open) onCompactOverlayOpen()
+    if (kind === 'actions') {
+      setMobileActionsOpen(open)
+      if (!open) { setRatesOpen(false); setLangOpen(false); setMenuOpen(false) }
+      return
+    }
+    setRatesOpen(kind === 'rates' && open)
+    setLangOpen(kind === 'language' && open)
+    setMenuOpen(kind === 'account' && open)
+  }
 
   function handleSearchSubmit(event: FormEvent) {
     event.preventDefault()
@@ -189,6 +216,8 @@ export default function Topbar({
           onClick={onMenuClick}
           className="fh-topbar-ghost xl:hidden"
           label={translate('navigation:topbar.openNavigation')}
+          aria-controls="app-navigation"
+          aria-expanded={navigationOpen}
         >
           <Icon name="menu" size="lg" strokeWidth={1.75} />
         </IconButton>
@@ -237,7 +266,7 @@ export default function Topbar({
         </form>
 
         <IconButton
-          onClick={() => setMobileActionsOpen(open => !open)}
+          onClick={() => openCompactOverlay('actions', !mobileActionsOpen)}
           className="fh-topbar-ghost fh-topbar-more xl:hidden"
           label={translate('common:action.actions')}
           aria-controls="topbar-mobile-actions"
@@ -253,7 +282,7 @@ export default function Topbar({
             mobileActionsOpen ? 'fh-topbar-actions-open' : '',
           ].filter(Boolean).join(' ')}
         >
-          {exchangeRates && <ExchangeRateStrip service={exchangeRates} language={language} />}
+          {exchangeRates && <ExchangeRateStrip service={exchangeRates} language={language} compactOpen={ratesOpen} onCompactOpenChange={open => openCompactOverlay('rates', open)} />}
 
           <button
             type="button"
@@ -288,7 +317,7 @@ export default function Topbar({
           >
             <button
               type="button"
-              onClick={() => setLangOpen(open => !open)}
+              onClick={() => openCompactOverlay('language', !langOpen)}
               aria-label={translate('settings:language.title')}
               aria-expanded={langOpen}
               className="fh-topbar-control fh-topbar-language"
@@ -329,7 +358,7 @@ export default function Topbar({
             >
               <button
                 type="button"
-                onClick={() => setMenuOpen(open => !open)}
+                onClick={() => openCompactOverlay('account', !menuOpen)}
                 aria-label={translate('navigation:topbar.userMenu')}
                 aria-expanded={menuOpen}
                 className="fh-topbar-user"

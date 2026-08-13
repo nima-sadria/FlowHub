@@ -7,6 +7,7 @@ import { NotificationProvider } from '../../notifications/NotificationProvider'
 import type { UnifiedWorkspaceService } from '../../services/unifiedWorkspace/UnifiedWorkspaceService'
 import type { ReviewResource, UnifiedWorkspaceResource } from '../../services/unifiedWorkspace/types'
 import { sourceWorkspaceApi } from './api'
+import { formatSourceChannelDisplayName } from '../unifiedWorkspace/channelDisplayName'
 import SourceCentricWorkspace from './SourceCentricWorkspace'
 import type { GroupedListing, GroupedWorkspacePage, SourceChannel } from './types'
 
@@ -98,6 +99,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
   let service: UnifiedWorkspaceService
 
   beforeEach(() => {
+    window.sessionStorage.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -130,9 +132,9 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       item => item.dataset.listingId,
     ))
     expect(listingIds).toEqual(new Set(['snap-black', 'snap-white', 'tapsi-main', 'woo-main']))
-    expect(container.textContent).toContain('SnappShop')
-    expect(container.textContent).toContain('TapsiShop')
-    expect(container.textContent).toContain('WooCommerce')
+    expect(container.textContent).toContain(formatSourceChannelDisplayName(sourceChannel('snappshop:main', 'SnappShop')))
+    expect(container.textContent).toContain(formatSourceChannelDisplayName(sourceChannel('tapsishop:main', 'TapsiShop')))
+    expect(container.textContent).toContain(formatSourceChannelDisplayName(sourceChannel('woocommerce:primary', 'WooCommerce')))
     expect(container.textContent).not.toContain('snappshop:main')
   })
 
@@ -198,6 +200,30 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     })]))
   })
 
+  it('renders the Settings display unit while persisting the exact native Listing value', async () => {
+    await renderWorkspace(container, root, service, false, { currency: 'IRR', unit: 'TOMAN' })
+    const targetPrice = container.querySelector<HTMLInputElement>('[data-listing-id="snap-black"][data-target-field="price"]')!
+    expect(container.querySelector('[data-price-unit]')?.textContent).toContain('Toman')
+    expect(targetPrice.value).toBe('11')
+
+    await act(async () => {
+      targetPrice.focus()
+      setInputValue(targetPrice, '12.5')
+      targetPrice.blur()
+    })
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-products-save]')?.click()
+      await Promise.resolve()
+    })
+
+    expect(vi.mocked(service.saveDraft).mock.calls[0][2]).toEqual(expect.arrayContaining([expect.objectContaining({
+      listing_id: 'snap-black',
+      target_value: '125',
+      currency: 'IRR',
+      unit: 'IRR',
+    })]))
+  })
+
   it('saves only exact selected fields with replace mode after manual deselection', async () => {
     await renderWorkspace(container, root, service)
     const trigger = container.querySelector<HTMLButtonElement>('[data-row-menu-trigger][data-listing-id="snap-black"]')
@@ -243,11 +269,12 @@ async function renderWorkspace(
   root: ReturnType<typeof createRoot>,
   service: UnifiedWorkspaceService,
   embedded = false,
+  displayProfile: { currency: string; unit: string } | null = null,
 ) {
   await act(async () => {
     root.render(
       <NotificationProvider>
-        <SourceCentricWorkspace workspace={WORKSPACE} service={service} embedded={embedded} />
+        <SourceCentricWorkspace workspace={WORKSPACE} service={service} embedded={embedded} displayProfile={displayProfile} />
       </NotificationProvider>,
     )
     await Promise.resolve()

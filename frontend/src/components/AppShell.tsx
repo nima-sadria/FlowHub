@@ -117,6 +117,8 @@ export default function AppShell() {
           user={user}
           onLogout={handleLogout}
           exchangeRates={exchangeRates}
+          navigationOpen={sidebarOpen}
+          onCompactOverlayOpen={() => setSidebarOpen(false)}
         />
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-bg-base">
           <div className="flex min-h-full flex-col">
