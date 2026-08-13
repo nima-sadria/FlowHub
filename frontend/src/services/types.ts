@@ -624,6 +624,8 @@ export interface CommerceSource {
   credential_status: string
   connection_configured?: boolean
   configuration_state?: 'not_configured' | 'setup_required' | 'configured' | string
+  /** Runtime availability of the persisted external connector. */
+  enabled?: boolean
   last_health_check: string | null
   data_role: string
   action_label: string

@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
@@ -262,6 +263,57 @@ def test_source_timestamps_are_explicit_utc_values() -> None:
 
     assert source["createdAt"].tzinfo is UTC
     assert source["updatedAt"].tzinfo is UTC
+
+
+def test_disabled_external_source_blocks_worksheet_discovery_before_nextcloud_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Direct Source Workspace discovery must honor the connector boundary."""
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    source = service.create_source(
+        name="Disabled external source",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=1,
+        user=user,
+    )
+    db.add(
+        IntegrationConnectorInstance(
+            id="nextcloud:primary",
+            connector_type="nextcloud",
+            name="Nextcloud",
+            enabled=False,
+            read_only=True,
+            status="disabled",
+        )
+    )
+    db.commit()
+
+    calls = 0
+
+    async def unexpected_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("a disabled Source must not call Nextcloud")
+
+    monkeypatch.setattr(
+        "app.flowhub.source_workspace.service.SpreadsheetSourceReadService.read_nextcloud_spreadsheet",
+        unexpected_read,
+    )
+
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(service.list_source_worksheets(source["id"], user))
+
+    assert error.value.status_code == 409
+    assert error.value.detail == {
+        "code": "SOURCE_DISABLED",
+        "message": "Nextcloud Source is disabled. Enable it before reading source data.",
+    }
+    assert calls == 0
 
 
 def test_mapping_supports_arbitrary_columns_multiple_channels_and_conservative_policy() -> None:

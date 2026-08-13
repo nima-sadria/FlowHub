@@ -573,7 +573,15 @@ class CommerceHubService:
         if placeholder:
             message = f"{meta['name']} is a read-only planned source. No external call was performed."
         elif str(meta["provider"]) == "nextcloud":
-            return await self._test_nextcloud_source_connection(body)
+            # A draft test may prove that proposed values can reach Nextcloud,
+            # but it cannot make an unsaved Source verified.  Surface the
+            # distinction explicitly so consumers do not turn a draft result
+            # into persisted readiness.
+            result = await self._test_nextcloud_source_connection(body)
+            result["configuration_matches_saved"] = (
+                self._nextcloud_test_matches_stored_configuration(body or {})
+            )
+            return result
         elif configured:
             message = "Local source configuration is present. No external call was performed."
         else:
@@ -593,6 +601,19 @@ class CommerceHubService:
         meta = self._source_meta(source_id)
         if str(meta["provider"]) != "nextcloud" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source browser is not available.")
+        instance = self.db.get(IntegrationConnectorInstance, source_id)
+        if (
+            instance is not None
+            and not instance.enabled
+            and self._nextcloud_connection_configured(instance)
+        ):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_DISABLED",
+                    "message": "Nextcloud Source is disabled. Enable it before browsing files.",
+                },
+            )
         values = self._nextcloud_values(body, allow_stored=True)
         if not values["url"] or not values["password"]:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud URL, username, and app password are required to browse files.")
@@ -657,18 +678,36 @@ class CommerceHubService:
         )
         if provider == "nextcloud":
             self._validate_nextcloud_source_body(body)
-        self._ensure_instance(meta)
-        self._update_instance_state(meta, body, access_mode=ACCESS_MODE_READ_ONLY)
-        if provider == "nextcloud":
-            self._persist_nextcloud_app_config(body)
-        result = self.integration.update_settings_contract(source_id, self._settings_body(body))
-        currency_profile = self._save_currency_declaration(
-            scope="source", scope_reference=source_id, body=body, user=user
-        )
-        if provider == "nextcloud" and previous_nextcloud_identity != (
-            self._nextcloud_configuration_identity({}, allow_stored=True)
-        ):
-            self._clear_source_health(source_id)
+        # Source connection, write-only connector settings, AppConfig values,
+        # and the monetary declaration are one saved configuration.  Do not
+        # commit an app password or enabled-state change before validating the
+        # trailing monetary policy.
+        try:
+            self._ensure_instance(meta, commit=False)
+            if provider == "nextcloud":
+                self._persist_nextcloud_app_config(body, commit=False)
+            self.integration.stage_settings_contract(source_id, self._settings_body(body))
+            self._update_instance_state(
+                meta, body, access_mode=ACCESS_MODE_READ_ONLY, commit=False
+            )
+            currency_profile = self._save_currency_declaration(
+                scope="source",
+                scope_reference=source_id,
+                body=body,
+                user=user,
+                commit=False,
+            )
+            if provider == "nextcloud" and previous_nextcloud_identity != (
+                self._nextcloud_configuration_identity({}, allow_stored=True)
+            ):
+                self._clear_source_health(source_id, commit=False)
+            self.db.flush()
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+        result = self.integration.get_settings_contract(source_id)
         instance = self.db.get(IntegrationConnectorInstance, source_id)
         connection_configured = (
             self._nextcloud_connection_configured(instance)
@@ -878,6 +917,14 @@ class CommerceHubService:
             if meta["provider"] == "nextcloud"
             else self._instance_configured(instance)
         )
+        # A bootstrap row has `enabled=False` before there is a persisted
+        # usable connection.  Expose that as unavailable state, not an Owner
+        # decision to disable a configured Source.
+        source_enabled: bool | None
+        if instance is None or (not instance.enabled and not connection_configured):
+            source_enabled = None
+        else:
+            source_enabled = bool(instance.enabled)
         setup_configured = self._source_setup_configured(
             source_id, str(meta["provider"]), instance
         )
@@ -892,7 +939,7 @@ class CommerceHubService:
                 connection_configured=connection_configured,
                 configured=setup_configured,
             ),
-            "enabled": bool(instance and instance.enabled),
+            "enabled": source_enabled,
             "access_mode": ACCESS_MODE_READ_ONLY,
             "settings": settings,
             "secrets": secret_status,
@@ -970,6 +1017,7 @@ class CommerceHubService:
         scope_reference: str,
         body: dict,
         user: FlowHubUser | None,
+        commit: bool = True,
     ) -> dict:
         currency = str(body.get("currency") or "").strip().upper()
         currency_unit = str(
@@ -1015,7 +1063,10 @@ class CommerceHubService:
                     commit=False,
                 )
         try:
-            self.db.commit()
+            if commit:
+                self.db.commit()
+            else:
+                self.db.flush()
         except Exception:
             self.db.rollback()
             raise
@@ -1055,6 +1106,15 @@ class CommerceHubService:
             if provider == "nextcloud"
             else configured
         )
+        # Bootstrap creates a disabled connector row even before any Source
+        # credentials exist.  That implementation detail is not an Owner
+        # choice to disable a usable Source, so omit the operational switch
+        # until there is a saved connection to operate.
+        source_enabled: bool | None
+        if instance is None or (not instance.enabled and not connection_configured):
+            source_enabled = None
+        else:
+            source_enabled = bool(instance.enabled)
         secret_status = self._secret_status(instance)
         setup_configured = self._source_setup_configured(
             str(meta["id"]), provider, instance
@@ -1082,6 +1142,11 @@ class CommerceHubService:
             "read_only": True,
             "settings_available": definition is not None,
         }
+        if source_enabled is not None:
+            # Only a saved connection can be meaningfully disabled.  A
+            # bootstrapped incomplete Source remains Not configured rather
+            # than being misrepresented as Disabled.
+            body["enabled"] = source_enabled
         if read_status is not None:
             body["read_status"] = read_status
             body["read_policy"] = {
@@ -2433,6 +2498,19 @@ class CommerceHubService:
         request_body = body or {}
         values = self._nextcloud_values(request_body, allow_stored=True)
         record_health = self._nextcloud_test_matches_stored_configuration(request_body)
+        instance = self.db.get(IntegrationConnectorInstance, "nextcloud:primary")
+
+        # The Source's enabled state is an operational boundary.  Do not make
+        # an outbound probe, or return a misleading healthy result, for a
+        # saved connection that has intentionally been disabled.  Draft tests
+        # before the first Save remain available because they have no persisted
+        # disabled instance yet.
+        if (
+            instance is not None
+            and not instance.enabled
+            and self._nextcloud_connection_configured(instance)
+        ):
+            return self._disabled_source_connection_result()
         if not values["url"] or not values["password"]:
             return {
                 **self._connection_base(),
@@ -2714,12 +2792,15 @@ class CommerceHubService:
             error_class=error_class,
         )
 
-    def _clear_source_health(self, source_id: str) -> None:
+    def _clear_source_health(self, source_id: str, *, commit: bool = True) -> None:
         health = self._health(source_id)
         if health is None:
             return
         self.db.delete(health)
-        self.db.commit()
+        if commit:
+            self.db.commit()
+        else:
+            self.db.flush()
 
     def _clear_channel_health(self, channel_id: str, *, commit: bool = True) -> None:
         """Remove stale health evidence as part of a channel settings save."""
@@ -3009,7 +3090,7 @@ class CommerceHubService:
             pairs, updated_by="commerce_hub", commit=commit
         )
 
-    def _persist_nextcloud_app_config(self, body: dict) -> None:
+    def _persist_nextcloud_app_config(self, body: dict, *, commit: bool = True) -> None:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
         pairs: dict[str, str] = {}
@@ -3035,7 +3116,9 @@ class CommerceHubService:
         if "worksheet_name" in settings:
             pairs["nextcloud.worksheet_name"] = str(settings.get("worksheet_name") or "").strip()
         if pairs:
-            self.integration.config.set_many(pairs, updated_by="commerce_hub")
+            self.integration.config.set_many(
+                pairs, updated_by="commerce_hub", commit=commit
+            )
 
     def _placeholder_connection_result(self) -> dict:
         return {
@@ -3098,6 +3181,27 @@ class CommerceHubService:
             "correlation_id": self._correlation_id(),
         }
 
+    def _disabled_source_connection_result(self) -> dict:
+        """Return a safe, non-probing result for a disabled saved Source."""
+        return {
+            **self._connection_base(),
+            "ok": False,
+            "connected": False,
+            "authenticated": False,
+            "status": "disabled",
+            "code": "SOURCE_DISABLED",
+            "error_class": "disabled",
+            "http_status": None,
+            "latency_ms": None,
+            "checked_at": self._checked_at(),
+            "message": "Nextcloud Source is disabled. Enable it before testing the saved connection.",
+            "webdav_reachable": False,
+            "spreadsheet_found": None,
+            "normalized_base_url": "",
+            "normalized_webdav_url": "",
+            "external_call_performed": False,
+        }
+
     def _channel_meta(self, channel_id: str) -> dict:
         for item in _CHANNELS:
             if item["id"] == channel_id or item["provider"] == channel_id:
@@ -3151,13 +3255,23 @@ class CommerceHubService:
             return "not_configured"
         if instance is None:
             return "not_configured"
-        if not instance.enabled:
-            return "disabled"
-        if not self._instance_configured(instance):
+        # Nextcloud has a two-layer setup: its connection can be saved and
+        # verified before a spreadsheet, worksheet mapping, and monetary
+        # declaration are complete.  Treat that saved connection as
+        # configured, while `configuration_state=setup_required` continues to
+        # describe the later Source setup work.
+        connection_configured = (
+            self._nextcloud_connection_configured(instance)
+            if str(meta.get("provider")) == "nextcloud"
+            else self._instance_configured(instance)
+        )
+        if not connection_configured:
             # A SnappShop token can be probed before an Owner selects a vendor,
             # but an incomplete persisted connector is never an operational
             # Product/Order channel.
             return "not_configured"
+        if not instance.enabled:
+            return "disabled"
         if health is None:
             return "configured"
         if health.status == "healthy":

@@ -70,7 +70,10 @@ export interface CommerceSourceConfiguration {
     latency_ms: number | null
     checked_at: string | null
   }
-  enabled: boolean
+  // Bootstrap Sources intentionally have no persisted operational state yet.
+  // The API returns null (or omits this legacy field) rather than falsely
+  // presenting them as disabled.
+  enabled?: boolean | null
   access_mode: 'read_only'
   settings: Record<string, unknown>
   secrets: Record<string, { status: string; replaced_at: string | null }>
@@ -135,7 +138,7 @@ export interface ChannelCacheRefreshResult {
 
 export interface CommerceConfigPayload {
   display_name: string
-  enabled: boolean
+  enabled?: boolean
   access_mode?: 'read_only' | 'write_enabled'
   description?: string
   settings: Record<string, unknown>

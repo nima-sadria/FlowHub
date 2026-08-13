@@ -105,6 +105,9 @@ function persistedSourceSetupState(source: CommerceSource): 'not_configured' | '
 
 function SourceSetupBadge({ source, fallback }: { source: CommerceSource; fallback: ResourceBadge }) {
   if (source.placeholder || !source.implemented) return <ResourceStateBadge badge={fallback} />
+  if (source.enabled === false) {
+    return <Badge variant="neutral">{translate('commerce:commerceHub.sourceDisabled')}</Badge>
+  }
   const state = persistedSourceSetupState(source)
   const presentation = state === 'configured'
     ? { label: translate('commerce:commerceHub.sourceStatus.configured'), variant: 'success' as const }
@@ -124,8 +127,9 @@ function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canMa
   canManage: boolean
 }) {
   const canUseNextcloudActions = canManage && source.provider === 'nextcloud' && !source.placeholder
-  const canOpenDataSheet = source.configuration_state === 'configured'
-  const canTestSavedConnection = source.connection_configured === true
+  const sourceDisabled = source.enabled === false
+  const canOpenDataSheet = !sourceDisabled && source.configuration_state === 'configured'
+  const canTestSavedConnection = !sourceDisabled && source.connection_configured === true
   const readStatus = source.read_status
   return (
     <div
@@ -147,7 +151,7 @@ function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canMa
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Badge variant="neutral">{formatStatus(source.health?.status ?? "unknown")}</Badge>
+        <Badge variant="neutral">{sourceDisabled ? translate('commerce:commerceHub.sourceDisabled') : formatStatus(source.health?.status ?? "unknown")}</Badge>
         <span className="fh-text-caption">{translate('commerce:commerceHub.lastRead')} {readStatus?.last_read_at ? formatDateTime(readStatus.last_read_at) : translate('commerce:commerceHub.notRead')}</span>
       </div>
 
@@ -438,6 +442,7 @@ function nextcloudConnectionSnapshot(
 }
 
 function nextcloudFailureCategory(result: Pick<ConnectionCheckResult, 'status' | 'message' | 'code' | 'error_class'>):
+  | 'disabled'
   | 'timeout'
   | 'authentication'
   | 'permission_denied'
@@ -445,6 +450,8 @@ function nextcloudFailureCategory(result: Pick<ConnectionCheckResult, 'status' |
   | 'invalid_webdav_path'
   | 'not_configured'
   | 'spreadsheet_unsupported'
+  | 'dns_failure'
+  | 'tls_failure'
   | 'unreachable'
   | 'unsafe_destination'
   | 'resource_not_found'
@@ -452,6 +459,7 @@ function nextcloudFailureCategory(result: Pick<ConnectionCheckResult, 'status' |
   const identity = [result.code, result.error_class, result.status].filter(Boolean).join(' ').toLowerCase()
   const message = String(result.message || '').toLowerCase()
   const evidence = `${identity} ${message}`
+  if (/(^|[\s_.-])source_disabled($|[\s_.-])|(^|[\s_.-])disabled($|[\s_.-])/.test(identity)) return 'disabled'
   if (/unsafe_destination|ssrf|private.network|trusted.network|blocked.*destination/.test(evidence)) return 'unsafe_destination'
   if (/timeout|timed.out|deadline.exceeded|did not respond in time/.test(evidence)) return 'timeout'
   if (/permission.denied|authorization.failed|forbidden|access.denied/.test(evidence)) return 'permission_denied'
@@ -461,6 +469,8 @@ function nextcloudFailureCategory(result: Pick<ConnectionCheckResult, 'status' |
   if (/invalid.url|malformed.url/.test(evidence)) return 'invalid_url'
   if (/invalid.webdav|webdav.path|malformed.*path|invalid.*path/.test(evidence)) return 'invalid_webdav_path'
   if (/file.not.found|spreadsheet.not.found|resource.not.found|missing.resource|\b404\b/.test(evidence)) return 'resource_not_found'
+  if (/dns|name.resolution|host.not.found|nxdomain/.test(evidence)) return 'dns_failure'
+  if (/tls|ssl|certificate/.test(evidence)) return 'tls_failure'
   if (/connection.failed|unreachable|dns|name resolution|connection refused|failed to fetch|networkerror|network|tls|certificate|502|503/.test(evidence)) return 'unreachable'
   return null
 }
@@ -469,6 +479,7 @@ function nextcloudConnectionFailureMessage(
   result: Pick<ConnectionCheckResult, 'status' | 'message' | 'code' | 'error_class'>,
 ): string {
   const category = nextcloudFailureCategory(result)
+  if (category === 'disabled') return translate('commerce:commerceHub.connectionError.disabled')
   if (category === 'unsafe_destination') return translate('errors:codes.unsafe_destination')
   if (category === 'timeout') return translate('commerce:commerceHub.connectionError.timeout')
   if (category === 'authentication') return translate('commerce:commerceHub.connectionError.authenticationRejected')
@@ -478,6 +489,8 @@ function nextcloudConnectionFailureMessage(
   if (category === 'not_configured') return translate('commerce:commerceHub.connectionError.notConfigured')
   if (category === 'spreadsheet_unsupported') return translate('commerce:commerceHub.connectionError.spreadsheetUnsupported')
   if (category === 'resource_not_found') return translate('commerce:commerceHub.connectionError.resourceNotFound')
+  if (category === 'dns_failure') return translate('commerce:commerceHub.connectionError.dnsFailure')
+  if (category === 'tls_failure') return translate('commerce:commerceHub.connectionError.tlsFailure')
   if (category === 'unreachable') return translate('commerce:commerceHub.connectionError.unreachable')
   return translate('commerce:commerceHub.connectionError.unknown')
 }
@@ -520,26 +533,32 @@ function NextcloudFilePicker({
   data,
   loading,
   error,
+  requestedPath,
+  selectedPath,
   onClose,
+  onRetry,
   onOpenDirectory,
   onSelectFile,
 }: {
   data: NextcloudBrowseResult | null
   loading: boolean
   error: string | null
+  requestedPath: string
+  selectedPath: string
   onClose: () => void
+  onRetry: () => void
   onOpenDirectory: (path: string) => void
   onSelectFile: (file: NextcloudBrowseItem) => void
 }) {
-  const currentPath = data?.path ?? '/'
+  const currentPath = data?.path ?? requestedPath
   const parentPath = currentPath === '/' ? null : `/${currentPath.split('/').filter(Boolean).slice(0, -1).join('/')}`
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-      <div className="fh-card w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" role="presentation">
+      <div className="fh-card w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col" role="dialog" aria-modal="true" aria-labelledby="nextcloud-file-picker-title">
         <div className="fh-panel-header !min-h-0 !items-start">
           <div>
-            <h3 className="fh-section-title">{translate('commerce:commerceHub.browseNextcloud')}</h3>
-            <p className="fh-section-subtitle mt-1">{currentPath}</p>
+            <h3 className="fh-section-title" id="nextcloud-file-picker-title">{translate('commerce:commerceHub.browseNextcloud')}</h3>
+            <p className="fh-section-subtitle mt-1" data-testid="nextcloud-current-folder">{currentPath}</p>
           </div>
           <button type="button" onClick={onClose} className="fh-button-secondary">
             <Icon name="close" />
@@ -547,9 +566,16 @@ function NextcloudFilePicker({
           </button>
         </div>
         <div className="overflow-auto p-4">
-          {error && <div className="fh-error-alert mb-3">{error}</div>}
+          {error && (
+            <div className="fh-error-alert mb-3 flex flex-wrap items-center justify-between gap-3" role="alert">
+              <span>{error}</span>
+              <button type="button" onClick={onRetry} disabled={loading} className="fh-button-secondary fh-button-sm">
+                {translate('common:action.retry')}
+              </button>
+            </div>
+          )}
           {loading ? (
-            <div className="flex items-center gap-2 fh-text-body-sm"><Spinner size="sm" />{translate('commerce:commerceHub.loadingFiles')}</div>
+            <div className="flex items-center gap-2 fh-text-body-sm" role="status" aria-live="polite"><Spinner size="sm" />{translate('commerce:commerceHub.loadingFiles')}</div>
           ) : (
             <div className="flex flex-col gap-2">
               {parentPath !== null && (
@@ -569,21 +595,29 @@ function NextcloudFilePicker({
                   {directory.name}
                 </button>
               ))}
-              {data?.files.map(file => (
-                <button
-                  key={file.path}
-                  type="button"
-                  disabled={!file.supported}
-                  onClick={() => onSelectFile(file)}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg-base px-3 py-3 text-left fh-text-body disabled:opacity-60"
-                >
-                  <span className="inline-flex min-w-0 items-center gap-2 font-medium text-text-base">
-                    <Icon name="file" />
-                    <span className="truncate">{file.name}</span>
-                  </span>
-                  <span className="fh-text-caption">{file.supported ? translate('commerce:commerceHub.spreadsheet') : translate('commerce:commerceHub.unsupported')}</span>
-                </button>
-              ))}
+              {data?.files.map(file => {
+                const selected = file.path === selectedPath
+                return (
+                  <button
+                    key={file.path}
+                    type="button"
+                    disabled={!file.supported}
+                    onClick={() => onSelectFile(file)}
+                    className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-3 text-left fh-text-body disabled:opacity-60 ${selected ? 'border-accent bg-accent/5' : 'border-border bg-bg-base'}`}
+                    data-selected={selected}
+                    aria-pressed={selected}
+                  >
+                    <span className="inline-flex min-w-0 items-center gap-2 font-medium text-text-base">
+                      <Icon name="file" />
+                      <span className="truncate">{file.name}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-2 fh-text-caption">
+                      {selected && <Badge variant="success">{translate('commerce:commerceHub.fileSelected')}</Badge>}
+                      {file.supported ? translate('commerce:commerceHub.spreadsheet') : translate('commerce:commerceHub.unsupported')}
+                    </span>
+                  </button>
+                )
+              })}
               {!loading && data && data.directories.length === 0 && data.files.length === 0 && (
                 <p className="fh-text-body-sm">{translate('commerce:commerceHub.noSpreadsheetFilesInThisFolder')}</p>
               )}
@@ -641,6 +675,7 @@ export function ConfigPanel({
   const [loadingConfiguration, setLoadingConfiguration] = useState(Boolean(initialResourceId))
   const [secretStatus, setSecretStatus] = useState<CommerceSourceConfiguration['secrets']>({})
   const [configurationWasConfigured, setConfigurationWasConfigured] = useState(false)
+  const [savedSourceEnabled, setSavedSourceEnabled] = useState<boolean | null>(null)
   const [savedNextcloudConnection, setSavedNextcloudConnection] = useState<SavedNextcloudConnection | null>(null)
   const [savedNextcloudSpreadsheetPath, setSavedNextcloudSpreadsheetPath] = useState('')
   const [lastTestEvidence, setLastTestEvidence] = useState<CommerceSourceConfiguration['last_test']>(undefined)
@@ -648,6 +683,7 @@ export function ConfigPanel({
   const [vendorInformation, setVendorInformation] = useState<CommerceVendor | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerLoading, setPickerLoading] = useState(false)
+  const [pickerPath, setPickerPath] = useState('/')
   const [pickerData, setPickerData] = useState<NextcloudBrowseResult | null>(null)
   const [pickerError, setPickerError] = useState<string | null>(null)
   const [connectionFeedback, setConnectionFeedback] = useState<{
@@ -676,12 +712,14 @@ export function ConfigPanel({
     setAccessMode('read_only')
     setSecretStatus({})
     setConfigurationWasConfigured(false)
+    setSavedSourceEnabled(null)
     setSavedNextcloudConnection(null)
     setSavedNextcloudSpreadsheetPath('')
     setLastTestEvidence(undefined)
     setVendors([])
     setVendorInformation(null)
     setPickerOpen(false)
+    setPickerPath('/')
     setPickerData(null)
     setPickerError(null)
     setConnectionFeedback(null)
@@ -707,7 +745,9 @@ export function ConfigPanel({
       .then(configuration => {
         if (!active) return
         setDisplayName(configuration.display_name)
-        setEnabled(configuration.enabled)
+        // A bootstrap Source has no persisted operational state. Keep its edit
+        // checkbox false without treating that absence as a disabled connection.
+        setEnabled(configuration.enabled === true)
         setAccessMode(configuration.access_mode)
         const loadedSettings = configuration.settings
         const secretSettingKeys = new Set(configuration.settings_schema.filter(field => field.secret).map(field => field.key))
@@ -741,6 +781,7 @@ export function ConfigPanel({
         setSecrets({})
         setSecretStatus(configuration.secrets)
         setConfigurationWasConfigured(configuration.configured)
+        setSavedSourceEnabled(kind === 'source' ? configuration.enabled ?? null : null)
         if (kind === 'source' && configuration.provider === 'nextcloud') {
           const sourceConfiguration = configuration as CommerceSourceConfiguration
           const passwordConfigured = configuration.secrets.password?.status === 'configured'
@@ -801,8 +842,51 @@ export function ConfigPanel({
   const spreadsheetSelected = Boolean(settings.spreadsheet_path?.trim())
   const nextcloudTestTargetSaved = nextcloudConnectionMatchesDraft
     && savedNextcloudSpreadsheetPath === String(settings.spreadsheet_path ?? '').trim()
-  const nextcloudConnectionUsable = persistedNextcloudConnectionConfigured
+  // Health evidence belongs to the persisted connection identity. A healthy
+  // result for URL/user/secret A must never unlock remote work for draft B.
+  const savedNextcloudConnectionHealthy = persistedNextcloudConnectionConfigured
     && lastTestEvidence?.status.trim().toLowerCase() === 'healthy'
+  const nextcloudConnectionUsable = savedNextcloudConnectionHealthy
+    && nextcloudConnectionMatchesDraft
+  const hasLastTestEvidence = Boolean(
+    lastTestEvidence
+      && (lastTestEvidence.checked_at
+        || !['', 'unknown', 'not_checked', 'not_tested'].includes(lastTestEvidence.status.trim().toLowerCase())),
+  )
+  // A predefined `nextcloud:primary` bootstrap or partially saved row can be
+  // addressed by URL before source setup is complete. Its route identity—or a
+  // saved connection alone—must not turn the remaining guided setup into an
+  // edit screen.
+  const isExistingNextcloudSource = isNextcloudSource
+    && Boolean(initialResourceId)
+    && configurationWasConfigured
+  const showNextcloudSetupSteps = isNextcloudSource && !isExistingNextcloudSource
+  // A new, unsaved Source can validate draft credentials. Once FlowHub has a
+  // persisted Source record, its saved enabled state is authoritative for
+  // external operations. This mirrors the API's SOURCE_DISABLED contract.
+  const nextcloudSourceDisabled = isNextcloudSource
+    && savedSourceEnabled === false
+    && persistedNextcloudConnectionConfigured
+  const nextcloudConnectionNeedsVerification = isNextcloudSource
+    && persistedNextcloudConnectionConfigured
+    && !nextcloudConnectionMatchesDraft
+    && !nextcloudSourceDisabled
+  const nextcloudSpreadsheetNeedsVerification = isNextcloudSource
+    && nextcloudConnectionUsable
+    && spreadsheetSelected
+    && !nextcloudTestTargetSaved
+  const nextcloudRemoteActionsAvailable = nextcloudConnectionUsable && !nextcloudSourceDisabled
+  const nextcloudConnectionState = !persistedNextcloudConnectionConfigured
+    ? 'not_configured'
+    : nextcloudSourceDisabled
+      ? 'disabled'
+      : !nextcloudConnectionMatchesDraft
+        ? 'unsaved_changes'
+        : lastTestEvidence?.status.trim().toLowerCase() === 'healthy'
+          ? 'healthy'
+          : hasLastTestEvidence
+            ? 'needs_attention'
+            : 'configured_not_verified'
   const worksheetSelected = spreadsheetSelected
     && (worksheetMode === 'all' || Boolean(worksheetName.trim()))
   const worksheetPolicyDraftValid = worksheetMode === 'all' || Boolean(worksheetName.trim())
@@ -812,16 +896,14 @@ export function ConfigPanel({
   const worksheetStepAvailable = !isNextcloudSource
     || nextcloudConnectionUsable
   const dataSheetStepAvailable = !isNextcloudSource
-    || (nextcloudConnectionUsable && worksheetSelected)
+    || (nextcloudConnectionUsable && nextcloudTestTargetSaved && worksheetSelected)
+  // Monetary representation is FlowHub-local. Keep it editable while an
+  // existing saved connection is healthy, even if the Owner is preparing a
+  // replacement connection that still needs verification.
   const monetaryStepAvailable = !isNextcloudSource
-    || nextcloudConnectionUsable
-  const hasLastTestEvidence = Boolean(
-    lastTestEvidence
-      && (lastTestEvidence.checked_at
-        || !['', 'unknown', 'not_checked', 'not_tested'].includes(lastTestEvidence.status.trim().toLowerCase())),
-  )
+    || (savedNextcloudConnectionHealthy && !nextcloudSourceDisabled)
   const canTest = selected.provider === 'nextcloud'
-    ? Boolean(settings.url?.trim()) && hasNextcloudUsername(settings) && hasSecret('password')
+    ? Boolean(settings.url?.trim()) && hasNextcloudUsername(settings) && hasSecret('password') && !nextcloudSourceDisabled
     : selected.provider === 'snappshop'
       ? Boolean(settings.agent_identifier?.trim()) && hasSecret('token')
       : selected.provider === 'tapsishop'
@@ -845,6 +927,19 @@ export function ConfigPanel({
       && worksheetPolicyDraftValid
     ))
     && (!vendorSelectionRequired || Boolean(settings.vendor_id?.trim()))
+  const spreadsheetSelectionSaved = spreadsheetSelected
+    && savedNextcloudSpreadsheetPath === String(settings.spreadsheet_path ?? '').trim()
+  const nextcloudConnectionBadge = nextcloudConnectionState === 'healthy'
+    ? { variant: 'success' as const, label: translate('commerce:commerceHub.sourceConnectionHealthy') }
+    : nextcloudConnectionState === 'needs_attention'
+      ? { variant: 'danger' as const, label: translate('commerce:commerceHub.sourceConnectionNeedsAttention') }
+      : nextcloudConnectionState === 'configured_not_verified'
+        ? { variant: 'warning' as const, label: translate('commerce:commerceHub.connectionConfiguredNotVerified') }
+        : nextcloudConnectionState === 'disabled'
+          ? { variant: 'neutral' as const, label: translate('commerce:commerceHub.sourceDisabled') }
+          : nextcloudConnectionState === 'unsaved_changes'
+            ? { variant: 'warning' as const, label: translate('commerce:commerceHub.connectionHasUnsavedChanges') }
+            : { variant: 'neutral' as const, label: translate('commerce:commerceHub.connectionNotConfigured') }
 
   function configurationPayload({
     includeCurrency = true,
@@ -900,6 +995,7 @@ export function ConfigPanel({
         setSecretStatus(nextSecretStatus)
         setSecrets({})
         setConfigurationWasConfigured(current => current || Boolean(sourceResult.configured))
+        setSavedSourceEnabled(enabled)
         if (isNextcloudSource) {
           const passwordConfigured = nextSecretStatus.password?.status === 'configured'
           setSavedNextcloudConnection(
@@ -916,6 +1012,7 @@ export function ConfigPanel({
         })
         return
       }
+      if (kind === 'source') setSavedSourceEnabled(enabled)
       const nextcloudNeedsSpreadsheet = hasSpreadsheetResource
         && !settings.spreadsheet_path?.trim()
       success(kind === 'source'
@@ -981,13 +1078,20 @@ export function ConfigPanel({
         : nextcloudConnectionSnapshot(settings, passwordConfigured)
       setSecretStatus(nextSecretStatus)
       setSavedNextcloudConnection(snapshot)
+      setSavedSourceEnabled(enabled)
       if (!nextcloudConnectionMatchesDraft) setLastTestEvidence(undefined)
       setSecrets({})
       setConfigurationWasConfigured(current => current || Boolean(result.configured))
       const feedback = {
         variant: 'success' as const,
         title: translate('commerce:commerceHub.connectionSettingsSaved'),
-        message: translate('commerce:commerceHub.connectionSettingsSavedDescription'),
+        message: !enabled
+          ? translate('commerce:commerceHub.sourceDisabledRemoteActions')
+          : nextcloudConnectionMatchesDraft
+            ? translate('commerce:commerceHub.connectionSettingsUnchangedDescription')
+            : configurationWasConfigured
+              ? translate('commerce:commerceHub.connectionSettingsSavedRetestDescription')
+              : translate('commerce:commerceHub.connectionSettingsSavedDescription'),
       }
       setConnectionFeedback(feedback)
       success({ title: feedback.title, description: feedback.message })
@@ -1008,16 +1112,16 @@ export function ConfigPanel({
   }
 
   async function saveNextcloudSetupAndOpenDataSheet() {
-    if (
-      completedSourceSetup
-      && (!nextcloudConnectionReady || Boolean(nextcloudUrlError) || !worksheetSelected)
-    ) {
+    // An existing configured Source already has a persisted Data Sheet. Opening
+    // it must not silently save unrelated connection or worksheet drafts.
+    if (completedSourceSetup && nextcloudConnectionUsable && nextcloudTestTargetSaved && onConfigureData) {
       onConfigureData?.(selectedType.id)
       return
     }
     if (
       !isNextcloudSource
       || !nextcloudConnectionUsable
+      || !nextcloudTestTargetSaved
       || !nextcloudConnectionReady
       || nextcloudUrlError
       || !worksheetSelected
@@ -1027,6 +1131,7 @@ export function ConfigPanel({
       const result = await commerce.saveSource(selectedType.id, configurationPayload())
       setSecretStatus(current => ({ ...current, ...result.secrets }))
       setConfigurationWasConfigured(current => current || (result.configured ?? true))
+      setSavedSourceEnabled(enabled)
       setSavedNextcloudSpreadsheetPath(String(settings.spreadsheet_path ?? '').trim())
       if (!nextcloudTestTargetSaved) setLastTestEvidence(undefined)
       setSecrets({})
@@ -1065,8 +1170,12 @@ export function ConfigPanel({
       const result = kind === 'source'
         ? await commerce.testSource(selectedType.id, configurationPayload())
         : await commerce.testChannel(selectedType.id, configurationPayload())
+      const sourceTestMatchesSaved = kind === 'source'
+        && (result.configuration_matches_saved ?? nextcloudTestTargetSaved)
+      const sourceTestDisabled = kind === 'source'
+        && nextcloudFailureCategory(result) === 'disabled'
       if (kind === 'source') {
-        if (nextcloudTestTargetSaved) {
+        if (sourceTestMatchesSaved && !sourceTestDisabled) {
           setLastTestEvidence({
             status: result.ok ? 'healthy' : 'unhealthy',
             message: result.message,
@@ -1075,15 +1184,17 @@ export function ConfigPanel({
             checked_at: result.checked_at ?? null,
           })
         }
-        try {
-          const refreshed = await commerce.getSourceConfiguration(selectedType.id)
-          const refreshedStatus = refreshed.last_test?.status.trim().toLowerCase()
-          if (refreshedStatus === 'healthy' || refreshedStatus === 'unhealthy') {
-            setLastTestEvidence(refreshed.last_test)
+        if (!sourceTestDisabled) {
+          try {
+            const refreshed = await commerce.getSourceConfiguration(selectedType.id)
+            const refreshedStatus = refreshed.last_test?.status.trim().toLowerCase()
+            if (refreshedStatus === 'healthy' || refreshedStatus === 'unhealthy') {
+              setLastTestEvidence(refreshed.last_test)
+            }
+          } catch {
+            // Connection feedback below still reports this test. Persisted evidence
+            // remains unchanged when the follow-up metadata read is unavailable.
           }
-        } catch {
-          // Connection feedback below still reports this test. Persisted evidence
-          // remains unchanged when the follow-up metadata read is unavailable.
         }
       }
       if (result.ok) {
@@ -1100,18 +1211,25 @@ export function ConfigPanel({
           }
         }
         if (kind === 'source') {
-          setConnectionFeedback({
-            variant: 'success',
-            title: translate('commerce:commerceHub.connectionDetailsVerified'),
-            message: translate('commerce:commerceHub.connectionDetailsVerifiedDescription'),
-          })
+          const feedback = sourceTestMatchesSaved
+            ? {
+                variant: 'success' as const,
+                title: translate('commerce:commerceHub.savedConnectionVerified'),
+                message: translate(
+                  configurationWasConfigured
+                    ? 'commerce:commerceHub.savedConnectionHealthyDescription'
+                    : 'commerce:commerceHub.savedConnectionVerifiedSetupDescription',
+                ),
+              }
+            : {
+                variant: 'success' as const,
+                title: translate('commerce:commerceHub.connectionDetailsVerified'),
+                message: translate('commerce:commerceHub.connectionDetailsVerifiedDescription'),
+          }
+          setConnectionFeedback(feedback)
+          success({ title: feedback.title, description: feedback.message })
         }
-        success(kind === 'source'
-          ? {
-              title: translate('commerce:commerceHub.sourceConnectedSuccessfully'),
-              description: translate('commerce:commerceHub.isReadyToUse', { value1: selectedType.name }),
-            }
-          : result.configuration_matches_saved !== true
+        if (kind !== 'source') success(result.configuration_matches_saved !== true
             ? {
                 title: translate('commerce:commerceHub.channelConnectionVerified'),
                 description: translate('commerce:commerceHub.saveDraftBeforeChannelReady'),
@@ -1155,34 +1273,34 @@ export function ConfigPanel({
       notifyError(nextcloudUrlError)
       return
     }
-    if (!nextcloudConnectionUsable || !savedNextcloudConnection) {
-      const message = translate('commerce:commerceHub.validation.saveConnectionBeforeBrowsing')
+    if (!nextcloudRemoteActionsAvailable || !savedNextcloudConnection) {
+      const message = nextcloudSourceDisabled
+        ? translate('commerce:commerceHub.sourceDisabledRemoteActions')
+        : nextcloudConnectionNeedsVerification
+          ? translate('commerce:commerceHub.connectionChangesRequireTest')
+          : translate('commerce:commerceHub.validation.saveConnectionBeforeBrowsing')
       setPickerError(message)
       notifyError(message)
       return
     }
     setPickerOpen(true)
+    setPickerPath(path)
     setPickerLoading(true)
     setPickerError(null)
     try {
-      // When connection fields have unsaved edits, browse the persisted target.
-      // This keeps completed setup editable without forwarding a stored secret
-      // to a draft URL that the Owner has not saved yet.
-      const browseSettings = nextcloudConnectionMatchesDraft
-        ? settings
-        : {
-            ...settings,
-            url: savedNextcloudConnection.url,
-            username: savedNextcloudConnection.username,
-          }
+      // Remote browsing is enabled only when the displayed connection identity
+      // is the saved, healthy one. Never browse a stale connection behind a
+      // changed URL, username, or replacement secret.
       const result = await commerce.browseNextcloud(selectedType.id, {
         path,
-        settings: browseSettings,
-        secrets: nextcloudConnectionMatchesDraft ? secrets : {},
+        settings,
+        secrets,
       })
       setPickerData(result)
     } catch (error) {
-      setPickerError(apiErrorMessage(error, 'Unable to browse Nextcloud'))
+      // Keep the previously loaded folder and selected file intact. The picker
+      // reports only a safe, structured category rather than provider text.
+      setPickerError(nextcloudConnectionExceptionMessage(error))
     } finally {
       setPickerLoading(false)
     }
@@ -1192,7 +1310,8 @@ export function ConfigPanel({
     if (!file.supported) return
     setSettings(current => ({ ...current, spreadsheet_path: file.path }))
     setConnectionFeedback(null)
-    setPickerOpen(false)
+          setPickerOpen(false)
+          setPickerPath('/')
   }
 
   function renderConnectionField(field: CommerceTypeField) {
@@ -1295,7 +1414,11 @@ export function ConfigPanel({
       <div className="fh-panel-header">
         <div>
           <HeadingTag className="fh-section-title">
-            {initialResourceId ? translate('commerce:commerceHub.configure2', { value1: localizedChannelName(selected.id, selected.name) }) : kind === "source" ? translate('commerce:commerceHub.addSource') : translate('commerce:commerceHub.addChannel')}
+            {initialResourceId
+              ? translate('commerce:commerceHub.configure2', { value1: localizedChannelName(selected.id, selected.name) })
+              : kind === "source"
+                ? translate('commerce:commerceHub.addSource')
+                : translate('commerce:commerceHub.addChannel')}
           </HeadingTag>
           <p className="fh-section-subtitle mt-1">
             {translate('commerce:commerceHub.credentialsAreStoredServerSideAndNever')}
@@ -1310,9 +1433,11 @@ export function ConfigPanel({
       <div className="fh-panel-body fh-stack">
       <div className="fh-form-section" data-setup-step={isNextcloudSource ? 'general' : undefined}>
         <div>
-          {isNextcloudSource && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 1 })}</p>}
+          {showNextcloudSetupSteps && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 1 })}</p>}
           <p className="fh-form-section-title">{translate('commerce:commerceHub.general')}</p>
-          <p className="fh-form-section-description">{translate('commerce:commerceHub.defineTheConnectorTypeDisplayNameAnd')}</p>
+          <p className="fh-form-section-description">{isExistingNextcloudSource
+            ? translate('commerce:commerceHub.editSourceGeneralDescription')
+            : translate('commerce:commerceHub.defineTheConnectorTypeDisplayNameAnd')}</p>
         </div>
         <div className="fh-form-grid md:grid-cols-2">
         <label className="fh-field">
@@ -1356,7 +1481,10 @@ export function ConfigPanel({
             type="checkbox"
             checked={enabled && !selected.placeholder}
             disabled={selected.placeholder}
-            onChange={event => setEnabled(event.target.checked)}
+            onChange={event => {
+              setEnabled(event.target.checked)
+              setConnectionFeedback(null)
+            }}
           />
           {translate('commerce:commerceHub.enabled')}
         </label>
@@ -1372,6 +1500,15 @@ export function ConfigPanel({
         )}
         {selected.placeholder && <Badge variant="neutral">{translate('commerce:commerceHub.notConfigured2')}</Badge>}
         </div>
+        {isNextcloudSource && (
+          <p className="fh-text-caption" data-testid="nextcloud-source-enabled-state" role="note">
+            <Icon name="info" /> {nextcloudSourceDisabled
+              ? translate('commerce:commerceHub.sourceDisabledRemoteActions')
+              : savedSourceEnabled === null
+                ? translate('commerce:commerceHub.lockedUntilConnectionSaved')
+                : translate('commerce:commerceHub.sourceEnabledRemoteActions')}
+          </p>
+        )}
       </div>
 
       {!isNextcloudSource && <div className="fh-form-section">
@@ -1419,18 +1556,18 @@ export function ConfigPanel({
       <div className="fh-form-section" data-setup-step={isNextcloudSource ? 'connection' : undefined}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            {isNextcloudSource && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 2 })}</p>}
+            {showNextcloudSetupSteps && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 2 })}</p>}
             <p className="fh-form-section-title">{translate('commerce:commerceHub.connectionSettings')}</p>
-            <p className="fh-form-section-description">{translate('commerce:commerceHub.enterTheCredentialsRequiredToVerifyThis')}</p>
+            <p className="fh-form-section-description">{isExistingNextcloudSource
+              ? translate('commerce:commerceHub.editConnectionSettingsDescription')
+              : translate('commerce:commerceHub.enterTheCredentialsRequiredToVerifyThis')}</p>
           </div>
           {isNextcloudSource && (
-            <Badge variant={nextcloudConnectionMatchesDraft ? 'success' : 'neutral'}>
-              {nextcloudConnectionMatchesDraft
-                ? translate('commerce:commerceHub.connectionConfigured')
-                : savedNextcloudConnection
-                  ? translate('commerce:commerceHub.connectionHasUnsavedChanges')
-                  : translate('commerce:commerceHub.connectionNotConfigured')}
-            </Badge>
+            <span data-testid="nextcloud-connection-state">
+              <Badge variant={nextcloudConnectionBadge.variant} className="nextcloud-connection-state">
+                {nextcloudConnectionBadge.label}
+              </Badge>
+            </span>
           )}
         </div>
       <div className="fh-form-grid md:grid-cols-2">
@@ -1460,7 +1597,13 @@ export function ConfigPanel({
             )}
           </div>
           <div className="fh-actions">
-            <button type="button" onClick={() => void testConnection()} disabled={testing || saving || !canTest} className="fh-button-secondary px-4">
+            <button
+              type="button"
+              onClick={() => void testConnection()}
+              disabled={testing || saving || !canTest}
+              title={nextcloudSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : undefined}
+              className="fh-button-secondary px-4"
+            >
               {testing && <Spinner size="sm" />}
               {!testing && <Icon name="testConnection" />}
               {testing ? translate('commerce:commerceHub.testing') : translate('commerce:commerceHub.testConnection')}
@@ -1471,6 +1614,9 @@ export function ConfigPanel({
               {saving ? translate('commerce:commerceHub.saving') : translate('commerce:commerceHub.saveConnection')}
             </button>
           </div>
+          {nextcloudSourceDisabled && (
+            <p className="fh-text-caption" role="note"><Icon name="info" /> {translate('commerce:commerceHub.sourceDisabledRemoteActions')}</p>
+          )}
           {connectionFeedback && (
             <Alert
               variant={connectionFeedback.variant}
@@ -1546,31 +1692,47 @@ export function ConfigPanel({
           >
             {selected.provider === "nextcloud" ? (
               <div>
-                <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 3 })}</p>
+                {showNextcloudSetupSteps && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 3 })}</p>}
                 <p className="fh-form-section-title">{translate('commerce:commerceHub.nextcloudSpreadsheetFile')}</p>
-                <p className="fh-form-section-description">{translate('commerce:commerceHub.useWebdavWithYourAppPasswordPublic')}</p>
+                <p className="fh-form-section-description">{isExistingNextcloudSource
+                  ? translate('commerce:commerceHub.editSpreadsheetDescription')
+                  : translate('commerce:commerceHub.useWebdavWithYourAppPasswordPublic')}</p>
                 <div
                   className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end"
                   data-testid="nextcloud-file-control-row"
                 >
                   <div className="fh-field min-w-0">
                     <span className="fh-help-text">{translate('commerce:commerceHub.selectedFile')}</span>
-                    <div className="min-h-10 rounded-md border border-border bg-bg-subtle px-3 py-2 fh-text-body">
-                      {settings.spreadsheet_path || translate('commerce:commerceHub.noSpreadsheetFileSelected')}
+                    <div
+                      className={`min-h-10 rounded-md border px-3 py-2 fh-text-body ${spreadsheetSelected ? 'border-accent bg-accent/5' : 'border-border bg-bg-subtle'}`}
+                      data-testid="nextcloud-selected-file"
+                      data-selected={spreadsheetSelected}
+                    >
+                      <span>{settings.spreadsheet_path || translate('commerce:commerceHub.noSpreadsheetFileSelected')}</span>
+                      {spreadsheetSelected && <Badge variant={spreadsheetSelectionSaved ? 'success' : 'warning'}>{translate(
+                        spreadsheetSelectionSaved
+                          ? 'commerce:commerceHub.fileSelected'
+                          : 'commerce:commerceHub.fileSelectionUnsaved',
+                      )}</Badge>}
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => void browseNextcloud('/')}
-                    disabled={!nextcloudConnectionUsable}
+                    disabled={!nextcloudRemoteActionsAvailable}
+                    title={nextcloudSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : undefined}
                     className="fh-button-secondary w-full px-4 md:w-auto"
                   >
                     {translate('commerce:commerceHub.browseNextcloud')}
                   </button>
                 </div>
-                {!nextcloudConnectionUsable && (
+                {!nextcloudRemoteActionsAvailable && (
                   <p className="mt-3 fh-text-caption" role="note">
-                    <Icon name="info" /> {translate('commerce:commerceHub.lockedUntilConnectionSaved')}
+                    <Icon name="info" /> {translate(nextcloudSourceDisabled
+                      ? 'commerce:commerceHub.sourceDisabledRemoteActions'
+                      : nextcloudConnectionNeedsVerification
+                        ? 'commerce:commerceHub.connectionChangesRequireTest'
+                        : 'commerce:commerceHub.lockedUntilConnectionSaved')}
                   </p>
                 )}
               </div>
@@ -1597,12 +1759,18 @@ export function ConfigPanel({
             data-setup-step="worksheet"
           >
             <div>
-              {isNextcloudSource && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 4 })}</p>}
+              {showNextcloudSetupSteps && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 4 })}</p>}
               <p className="fh-form-section-title">{translate('commerce:commerceHub.worksheet')}</p>
-              <p className="fh-form-section-description">{translate('commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet')}</p>
+              <p className="fh-form-section-description">{translate(isExistingNextcloudSource
+                ? 'commerce:commerceHub.editWorksheetDescription'
+                : 'commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet')}</p>
             </div>
             {!worksheetStepAvailable && (
-              <p className="fh-text-caption" role="note"><Icon name="info" /> {translate('commerce:commerceHub.lockedUntilConnectionSaved')}</p>
+              <p className="fh-text-caption" role="note"><Icon name="info" /> {translate(
+                nextcloudConnectionNeedsVerification
+                  ? 'commerce:commerceHub.connectionChangesRequireTest'
+                  : 'commerce:commerceHub.lockedUntilConnectionSaved',
+              )}</p>
             )}
             <fieldset
               className="flex flex-col gap-2 fh-text-body"
@@ -1644,9 +1812,9 @@ export function ConfigPanel({
             data-setup-step="data-sheet"
           >
             <div>
-              {isNextcloudSource && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 5 })}</p>}
+              {showNextcloudSetupSteps && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 5 })}</p>}
               <p className="fh-form-section-title">{translate('sources:sourceConfiguration.channelMappings')}</p>
-              <p className="fh-form-section-description">{translate('commerce:commerceHub.worksheetsMappingMovedToDataSheet')}</p>
+              <p className="fh-form-section-description">{translate('commerce:commerceHub.dataSheetMappingScopeDescription')}</p>
             </div>
             {isNextcloudSource ? (
               <button
@@ -1671,9 +1839,13 @@ export function ConfigPanel({
             )}
             {isNextcloudSource && !dataSheetStepAvailable && (
               <p className="fh-text-caption" role="note"><Icon name="info" /> {translate(
-                nextcloudConnectionUsable
-                  ? 'commerce:commerceHub.saveSourceSetupBeforeDataSheet'
-                  : 'commerce:commerceHub.lockedUntilConnectionSaved',
+                nextcloudConnectionNeedsVerification
+                  ? 'commerce:commerceHub.connectionChangesRequireTest'
+                  : nextcloudSpreadsheetNeedsVerification
+                    ? 'commerce:commerceHub.spreadsheetChangesRequireSaveAndTest'
+                  : nextcloudConnectionUsable
+                    ? 'commerce:commerceHub.saveSourceSetupBeforeDataSheet'
+                    : 'commerce:commerceHub.lockedUntilConnectionSaved',
               )}</p>
             )}
           </div>
@@ -1685,9 +1857,11 @@ export function ConfigPanel({
               data-setup-step="monetary-unit"
             >
               <div>
-                <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 6 })}</p>
+                {showNextcloudSetupSteps && <p className="fh-text-caption font-semibold">{translate('commerce:commerceHub.setupStep', { step: 6 })}</p>}
                 <p className="fh-form-section-title">{translate('commerce:commerceHub.monetaryUnit')}</p>
-                <p className="fh-form-section-description">{translate('commerce:commerceHub.monetaryUnitDescription')}</p>
+                <p className="fh-form-section-description">{translate(isExistingNextcloudSource
+                  ? 'commerce:commerceHub.editMonetaryDescription'
+                  : 'commerce:commerceHub.monetaryUnitDescription')}</p>
               </div>
               {!monetaryStepAvailable && (
                 <p className="fh-text-caption" role="note"><Icon name="info" /> {translate('commerce:commerceHub.lockedUntilConnectionSaved')}</p>
@@ -1760,7 +1934,10 @@ export function ConfigPanel({
           data={pickerData}
           loading={pickerLoading}
           error={pickerError}
+          requestedPath={pickerPath}
+          selectedPath={String(settings.spreadsheet_path ?? '').trim()}
           onClose={() => setPickerOpen(false)}
+          onRetry={() => void browseNextcloud(pickerPath)}
           onOpenDirectory={(path) => void browseNextcloud(path)}
           onSelectFile={selectNextcloudFile}
         />
@@ -1953,12 +2130,32 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
       item => item.sourceKind === 'external' && item.externalSourceId === externalId,
     )
     if (existing) return existing
+
+    // The first Nextcloud Data Sheet profile is a projection of the persisted
+    // Source policy. Do not seed a different Sheet1 policy, and do not mutate
+    // an existing profile/mapping revision when the connection policy changes.
+    let worksheetMode: 'all' | 'selected' = 'selected'
+    let worksheetName: string | null = 'Sheet1'
+    if (externalId.startsWith('nextcloud:')) {
+      const configuration = await commerce.getSourceConfiguration(externalId)
+      worksheetMode = configuration.settings.worksheet_mode === 'selected'
+        ? 'selected'
+        : 'all'
+      const configuredName = typeof configuration.settings.worksheet_name === 'string'
+        ? configuration.settings.worksheet_name.trim()
+        : ''
+      if (worksheetMode === 'selected' && !configuredName) {
+        throw new Error('Saved selected worksheet policy has no worksheet name.')
+      }
+      worksheetName = worksheetMode === 'selected' ? configuredName : null
+    }
+
     return sourceWorkspaceApi.createSource({
       name,
       source_kind: 'external',
       external_source_id: externalId,
-      worksheet_mode: 'selected',
-      worksheet_name: 'Sheet1',
+      worksheet_mode: worksheetMode,
+      worksheet_name: worksheetName,
       data_start_row: 2,
       currency,
       currency_unit: currencyUnit,

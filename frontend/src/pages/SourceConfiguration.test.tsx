@@ -358,7 +358,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
 
     await renderPage(editorAuth, '/sources/source-1', services)
     await act(async () => {
-      button('Validate Configuration').click()
+      button('Test connection').click()
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -368,6 +368,68 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('Source connection is ready')
     expect(container.textContent).toContain('Select a spreadsheet file in Source settings before detecting worksheets.')
     expect(container.textContent).not.toContain('Missing required setting: nextcloud.spreadsheet_path')
+  })
+
+  it('keeps Data Sheet editing available but blocks remote actions for a disabled external Source', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      sheetId: null,
+    })
+    const worksheets = vi.spyOn(sourceWorkspaceApi, 'worksheets')
+    const testSource = vi.fn()
+    const readSource = vi.fn()
+    const getSourceConfiguration = vi.fn().mockResolvedValue({
+      source_id: 'nextcloud:primary',
+      provider: 'nextcloud',
+      display_name: 'Nextcloud',
+      configured: true,
+      enabled: false,
+      access_mode: 'read_only',
+      settings: {},
+      secrets: {},
+      settings_schema: [],
+      credentials_returned: false,
+    })
+    const services = {
+      commerce: { testSource, readSource, getSourceConfiguration } as unknown as CommerceService,
+      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+    } as Services
+
+    await renderPage(adminAuth, '/sources/source-1', services)
+
+    expect(container.textContent).toContain('This Source is disabled. Review its configuration before using it again.')
+    expect(container.textContent).toContain('Connection Settings controls the remote spreadsheet policy.')
+    const testButtons = Array.from(container.querySelectorAll('button')).filter(item => item.textContent?.includes('Test connection'))
+    expect(testButtons.length).toBeGreaterThan(0)
+    expect(testButtons.every(item => (item as HTMLButtonElement).disabled)).toBe(true)
+    expect(button('Read now').disabled).toBe(true)
+    const detectButtons = Array.from(container.querySelectorAll('button'))
+      .filter(item => item.textContent?.includes('Detect worksheets')) as HTMLButtonElement[]
+    expect(detectButtons).toHaveLength(1)
+    expect(detectButtons.every(item => item.disabled)).toBe(true)
+    expect(detectButtons.every(item => item.title.includes('Enable and save it before testing'))).toBe(true)
+    await act(async () => {
+      detectButtons[0].click()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      (container.querySelector('input[name="worksheet-rule-mode"][value="per_worksheet"]') as HTMLInputElement).click()
+      await Promise.resolve()
+    })
+    const perWorksheetDetect = Array.from(container.querySelectorAll('button'))
+      .find(item => item.textContent?.includes('Detect worksheets')) as HTMLButtonElement
+    expect(perWorksheetDetect.disabled).toBe(true)
+    expect(perWorksheetDetect.title).toContain('Enable and save it before testing')
+    await act(async () => {
+      perWorksheetDetect.click()
+      await Promise.resolve()
+    })
+    expect(worksheets).not.toHaveBeenCalled()
+    expect((container.querySelector('fieldset#data-mapping') as HTMLFieldSetElement).disabled).toBe(false)
+    expect(testSource).not.toHaveBeenCalled()
+    expect(readSource).not.toHaveBeenCalled()
   })
 
   it('keeps every mobile action visible without horizontal scrolling', async () => {

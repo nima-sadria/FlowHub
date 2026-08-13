@@ -279,6 +279,7 @@ export function commerceSourceSignals(source: CommerceSource): ResourceOrderingS
     healthStatus: source.health?.status === 'unknown' ? undefined : source.health?.status,
     credentialStatus: source.credential_status,
     activityStatuses: [configurationState, source.read_status?.last_read_status],
+    enabled: source.enabled,
     configured: configurationState === 'configured',
     implemented: source.implemented,
     placeholder: source.placeholder,

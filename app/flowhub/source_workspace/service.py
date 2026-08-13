@@ -2276,6 +2276,19 @@ class SourceWorkspaceService:
                 "EXTERNAL_SOURCE_UNSUPPORTED",
                 "This external Source connector does not support read-once Workspace acquisition.",
             )
+        connector = self.db.get(IntegrationConnectorInstance, source.external_source_id)
+        if connector is not None and not connector.enabled:
+            # Worksheet discovery, previews, and snapshots all pass through
+            # this acquisition boundary.  A disabled connector must never
+            # reach WebDAV merely because a caller bypassed the CommerceHub
+            # configuration UI.
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_DISABLED",
+                    "message": "Nextcloud Source is disabled. Enable it before reading source data.",
+                },
+            )
         return await SpreadsheetSourceReadService(self.db).read_nextcloud_spreadsheet(
             triggered_by="source_workspace",
             triggered_by_id=user.id,

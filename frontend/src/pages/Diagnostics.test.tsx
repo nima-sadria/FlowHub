@@ -282,7 +282,7 @@ describe('Diagnostics', () => {
     const pending = sourceCards.find(card => card.textContent?.includes('Pending Source'))
 
     expect(ready?.textContent).toContain('Source connection is ready.')
-    expect(disabled?.textContent).toContain('This Source is disabled. Enable it before running a connection check.')
+    expect(disabled?.textContent).toContain('This Source is disabled. Enable and save it before running a connection check.')
     expect(disabled?.textContent).not.toContain('Source connection is ready.')
     expect(unchecked?.textContent).toContain('No connection check has been recorded for this Source.')
     expect(unchecked?.textContent).not.toContain('Source connection is ready.')
@@ -315,7 +315,7 @@ describe('Diagnostics', () => {
     }))
 
     const c = await renderPage()
-    expect(c.textContent).toContain('این منبع غیرفعال است. برای بررسی اتصال، ابتدا آن را فعال کنید.')
+    expect(c.textContent).toContain('این منبع غیرفعال است. پیش از بررسی اتصال، آن را فعال و ذخیره کنید.')
     expect(c.textContent).toContain('هنوز بررسی اتصالی برای این منبع ثبت نشده است.')
     expect(c.textContent).not.toContain('اتصال منبع آماده است.')
   })
@@ -523,7 +523,7 @@ describe('Diagnostics', () => {
     expect(calls.some(url => url.includes('/api/v2/commerce/channels/technolife%3Amain/test'))).toBe(true)
   })
 
-  it('tests disabled connectors with saved credentials and explains genuinely unavailable actions', async () => {
+  it('does not test a disabled Source and explains that it must be enabled and saved first', async () => {
     const health = channelHealthPayload()
     const woo = health.items[0]
     const channels = [
@@ -552,9 +552,19 @@ describe('Diagnostics', () => {
     expect((c.querySelector('[data-testid="diagnostics-channel-test-snappshop:main"]') as HTMLButtonElement).disabled).toBe(false)
     expect((c.querySelector('[data-testid="diagnostics-channel-test-tapsishop:main"]') as HTMLButtonElement).disabled).toBe(true)
     expect((c.querySelector('[data-testid="diagnostics-channel-test-shopify:main"]') as HTMLButtonElement).disabled).toBe(true)
-    expect((c.querySelector('[data-testid="diagnostics-source-test-nextcloud:primary"]') as HTMLButtonElement).disabled).toBe(false)
+    const disabledSourceTest = c.querySelector('[data-testid="diagnostics-source-test-nextcloud:primary"]') as HTMLButtonElement
+    expect(disabledSourceTest.disabled).toBe(true)
+    expect(c.querySelector('[data-testid="diagnostics-source-status-nextcloud:primary"]')?.textContent).toContain('Disabled')
+    expect(c.textContent).toContain('This Source is disabled. Enable and save it before running a connection check.')
     expect(c.textContent).toContain('Save the required credentials before testing this connection.')
     expect(c.textContent).toContain('This connector does not support a connection test.')
+
+    await act(async () => {
+      disabledSourceTest.click()
+      await Promise.resolve()
+    })
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map(call => String(call[0]))
+    expect(calls.some(url => url.includes('/api/v2/commerce/sources/nextcloud%3Aprimary/test'))).toBe(false)
   })
 
   it('preserves an Owner-defined channel display name while localizing system defaults', async () => {

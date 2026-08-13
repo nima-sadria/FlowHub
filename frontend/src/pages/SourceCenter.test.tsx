@@ -52,6 +52,7 @@ function commerceSource(
     healthy?: boolean
     configured?: boolean
     connectionConfigured?: boolean
+    enabled?: boolean
     configurationState?: CommerceSource['configuration_state']
     healthStatus?: string
   } = {},
@@ -70,6 +71,7 @@ function commerceSource(
     credential_status: connectionConfigured ? 'configured' : 'not_configured',
     connection_configured: connectionConfigured,
     configuration_state: options.configurationState ?? (configured ? 'configured' : 'not_configured'),
+    enabled: options.enabled ?? true,
     last_health_check: options.healthy ? '2026-07-15T10:00:00Z' : null,
     data_role: 'Spreadsheet price input',
     action_label: 'Manage',
@@ -272,9 +274,9 @@ describe('SourceCenter safe lifecycle', () => {
     expect(Array.from(container.querySelectorAll('[data-resource-id]')).map(item => item.getAttribute('data-resource-id')))
       .toEqual(['source-a', 'source-z', 'source-b'])
     const sections = Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section'))
-    expect([...new Set(sections)]).toEqual(['connected', 'setupRequired'])
+    expect([...new Set(sections)]).toEqual(['connected', 'disabled'])
     expect(container.querySelector('[data-resource-id="source-a"]')?.textContent).toContain('Connected')
-    expect(container.querySelector('[data-resource-id="source-b"]')?.textContent).toContain('Setup required')
+    expect(container.querySelector('[data-resource-id="source-b"]')?.textContent).toContain('Disabled')
     expect(sections).not.toContain('comingSoon')
   })
 
@@ -347,7 +349,72 @@ describe('SourceCenter safe lifecycle', () => {
     expect(empty.querySelector('.fh-badge-warning')?.textContent).toBe('Add now')
     expect(partial.querySelector('.fh-badge-info')?.textContent).toBe('Connected • Setup required')
     expect(ready.querySelector('.fh-badge-success')?.textContent).toBe('Configured')
-    expect(readyWarning.querySelector('.fh-badge-success')?.textContent).toBe('Configured')
+    expect(readyWarning.querySelector('.fh-badge-warning')?.textContent).toBe('Needs Attention')
+  })
+
+  it('groups actual Source failures under Needs Attention and excludes disabled historical failures from that KPI', async () => {
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [
+        commerceSource('nextcloud:attention', 'Connection needs attention', {
+          configured: true,
+          connectionConfigured: true,
+          healthStatus: 'unhealthy',
+        }),
+        commerceSource('nextcloud:disabled', 'Disabled historical failure', {
+          configured: true,
+          connectionConfigured: true,
+          enabled: false,
+          healthStatus: 'unhealthy',
+        }),
+      ],
+    })
+
+    await render()
+
+    const attention = container.querySelector('[data-source-card="integration:nextcloud:attention"]') as HTMLElement
+    const disabled = container.querySelector('[data-source-card="integration:nextcloud:disabled"]') as HTMLElement
+    expect(attention.getAttribute('data-resource-state')).toBe('needsAttention')
+    expect(disabled.getAttribute('data-resource-state')).toBe('disabled')
+    expect(container.querySelector('[data-resource-section="needsAttention"]')).not.toBeNull()
+    expect(container.querySelector('[data-resource-section="connected"]')).toBeNull()
+
+    const attentionKpi = Array.from(container.querySelectorAll('.fh-kpi-card'))
+      .find(card => card.textContent?.includes('Needs Attention'))
+    expect(attentionKpi?.textContent).toContain('1')
+
+    const filter = container.querySelector('select') as HTMLSelectElement
+    await act(async () => {
+      filter.value = 'attention'
+      filter.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(container.querySelector('[data-source-card="integration:nextcloud:attention"]')).not.toBeNull()
+    expect(container.querySelector('[data-source-card="integration:nextcloud:disabled"]')).toBeNull()
+  })
+
+  it('keeps a linked source in Disabled rather than Setup required when its saved connector is disabled', async () => {
+    const linked: SourceProfile = {
+      ...source,
+      name: 'Nextcloud prices',
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      sheetId: null,
+    }
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [linked] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [commerceSource('nextcloud:primary', 'Nextcloud', { healthy: true, enabled: false })],
+    })
+
+    await render()
+
+    const card = container.querySelector('[data-source-card="source-1"]') as HTMLElement
+    expect(card.getAttribute('data-resource-state')).toBe('disabled')
+    expect(card.textContent).toContain('Disabled')
+    expect(card.textContent).not.toContain('Setup Source')
+    expect(Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section')))
+      .toContain('disabled')
   })
 
   it('does not show an unfinished external Source as connected by default', async () => {

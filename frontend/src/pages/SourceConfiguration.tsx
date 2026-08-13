@@ -21,6 +21,7 @@ import { translate } from '../i18n'
 import { localizedApiError } from '../i18n/errors'
 import { useNotification } from '../notifications/NotificationProvider'
 import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
+import { connectionExceptionMessage, connectionResultMessage } from '../features/diagnostics/connectionErrorPresentation'
 import {
   orderRelatedItems,
   prepareResourceCollection,
@@ -49,6 +50,24 @@ interface SectionOpenSignal {
   ids: string[] | 'all'
   open: boolean
   token: number
+}
+
+function externalConnectionPresentation(
+  configuration: CommerceSourceConfiguration | null,
+  disabled: boolean,
+): { label: string; variant: 'success' | 'warning' | 'info' | 'disabled' } {
+  if (disabled) return { label: translate('common:status.disabled'), variant: 'disabled' }
+  if (!configuration?.connection_configured) {
+    return { label: translate('commerce:commerceHub.connectionNotConfigured'), variant: 'warning' }
+  }
+  const lastStatus = String(configuration.last_test?.status ?? '').trim().toLowerCase()
+  if (['healthy', 'ok', 'operational'].includes(lastStatus)) {
+    return { label: translate('common:status.healthy'), variant: 'success' }
+  }
+  if (lastStatus && !['unknown', 'not_checked', 'not_tested'].includes(lastStatus)) {
+    return { label: translate('sources:sourceCenter.needsAttentionKpi'), variant: 'warning' }
+  }
+  return { label: translate('commerce:commerceHub.connectionConfiguredNotVerified'), variant: 'info' }
 }
 
 function ConfigurationSection({ id, title, description, defaultOpen = false, openSignal, unsaved, children }: { id?: string; title: string; description?: string; defaultOpen?: boolean; openSignal?: SectionOpenSignal | null; unsaved?: boolean; children: ReactNode }) {
@@ -367,6 +386,11 @@ export default function SourceConfiguration() {
   }, [commerce, source?.externalSourceId, source?.sourceKind, reloadToken])
 
   const hasReadPolicySection = Boolean(source && source.sourceKind === 'external' && source.externalSourceId)
+  const externalSourceDisabled = Boolean(
+    source?.sourceKind === 'external'
+    && source.externalSourceId
+    && externalConfig?.enabled === false,
+  )
 
   useEffect(() => {
     if (loading || !source || typeof IntersectionObserver === 'undefined') return
@@ -618,6 +642,13 @@ export default function SourceConfiguration() {
   }
 
   async function validateConfiguration() {
+    if (externalSourceDisabled) {
+      notify.error({
+        title: translate('sources:sourceConfiguration.connectionCheckFailed'),
+        description: translate('sources:sourceCenter.setupReasonDisabled'),
+      })
+      return
+    }
     setConnectionChecking(true)
     try {
       if (source?.sourceKind === 'external' && source.externalSourceId && commerce) {
@@ -625,7 +656,7 @@ export default function SourceConfiguration() {
         if (!connection.ok) {
           notify.error({
             title: translate('sources:sourceConfiguration.connectionCheckFailed'),
-            description: translate('commerce:commerceHub.pleaseVerifyYourCredentialsAndTryAgain'),
+            description: connectionResultMessage(connection),
           })
           return
         }
@@ -642,7 +673,7 @@ export default function SourceConfiguration() {
       setDetectedWorksheets(result.items)
       notify.success({ title: translate('sources:sourceConfiguration.connectionReady'), description: translate('sources:sourceConfiguration.worksheetsDetected', { count: result.items.length }) })
     } catch (error) {
-      notify.error({ title: translate('sources:sourceConfiguration.connectionCheckFailed'), description: localizedApiError(error, 'sources:sourceConfiguration.tryAgain') })
+      notify.error({ title: translate('sources:sourceConfiguration.connectionCheckFailed'), description: connectionExceptionMessage(error) })
     } finally {
       setConnectionChecking(false)
     }
@@ -726,6 +757,13 @@ export default function SourceConfiguration() {
 
   async function readNow() {
     if (!source?.externalSourceId || !commerce) return
+    if (externalSourceDisabled) {
+      notify.error({
+        title: translate('commerce:commerceHub.unableToRefreshTheSource'),
+        description: translate('sources:sourceCenter.setupReasonDisabled'),
+      })
+      return
+    }
     setReading(true)
     try {
       const result = await commerce.readSource(source.externalSourceId)
@@ -751,6 +789,16 @@ export default function SourceConfiguration() {
   }
 
   async function detectWorksheets() {
+    // Mapping remains editable while a Source is disabled, but worksheet
+    // discovery is a remote read and follows the same enabled boundary as
+    // Test connection and Read now.
+    if (externalSourceDisabled) {
+      notify.error({
+        title: translate('sources:sourceConfiguration.worksheetDetectionFailed'),
+        description: translate('commerce:commerceHub.sourceDisabledRemoteActions'),
+      })
+      return
+    }
     setDetectingWorksheets(true)
     try {
       const result = await sourceWorkspaceApi.worksheets(sourceId)
@@ -843,7 +891,7 @@ export default function SourceConfiguration() {
     try {
       await commerce.saveSource(source.externalSourceId, {
         display_name: externalConfig.display_name,
-        enabled: externalConfig.enabled,
+        ...(typeof externalConfig.enabled === 'boolean' ? { enabled: externalConfig.enabled } : {}),
         access_mode: externalConfig.access_mode,
         description: '',
         settings: { ...externalConfig.settings, source_read_policy: readPolicy },
@@ -1036,6 +1084,7 @@ export default function SourceConfiguration() {
       </div>
 
       {!canEditSource && <div className="fh-alert fh-alert-info mb-5" role="status"><Icon name="info" /><span>{translate('sources:sourceConfiguration.readOnlyPermission')}</span></div>}
+      {externalSourceDisabled && <div className="fh-alert-warning mb-5" role="status"><Icon name="warning" /><span>{translate('sources:sourceCenter.setupReasonDisabled')}</span></div>}
 
       <section className="fh-card mb-5" id="overview">
         <div className="fh-panel-header">
@@ -1048,13 +1097,14 @@ export default function SourceConfiguration() {
           </div>
           <div className="fh-actions">
             {canManageCommerce && source.sourceKind === 'external' && source.externalSourceId && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(source.externalSourceId as string)}`)}><Icon name="settings" /> {translate('sources:sourceConfiguration.manageConnection')}</button>}
-            {canEditSource && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.validateConfiguration')}</button>}
+            {canEditSource && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
           </div>
         </div>
         <dl className="grid gap-x-6 gap-y-3 border-t border-border p-4 sm:grid-cols-2 xl:grid-cols-4">
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceName')}</dt><dd className="font-medium text-text-base">{source.name}</dd></div>
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceType')}</dt><dd className="font-medium text-text-base">{source.sourceKind === 'flowhub_sheet' ? translate('sources:sourceCenter.flowhubSheet') : source.sourceKind === 'imported_sheet' ? translate('sources:sourceCenter.importedSpreadsheet') : translate('sources:sourceCenter.linkedExternalSource')}</dd></div>
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><Badge variant={source.mapping ? 'success' : 'warning'}>{source.mapping ? translate('common:status.ready') : translate('sources:sourceConfiguration.notConfigured')}</Badge></dd></div>
+          {source.sourceKind === 'external' && <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.connectionStatus')}</dt><dd><Badge variant={externalConnectionPresentation(externalConfig, externalSourceDisabled).variant}>{externalConnectionPresentation(externalConfig, externalSourceDisabled).label}</Badge></dd></div>}
           <div id="connection"><dt className="fh-text-caption">{translate('sources:sourceConfiguration.section.accessScope')}</dt><dd className="font-medium text-text-base">{translate('sources:sourceConfiguration.accessScopePolicy')}</dd></div>
         </dl>
       </section>
@@ -1067,6 +1117,12 @@ export default function SourceConfiguration() {
       )}
 
       <fieldset className="min-w-0" id="data-mapping" disabled={!canEditSource}>
+      {source.sourceKind === 'external' && source.externalSourceId && (
+        <div className="fh-alert fh-alert-info mb-3" role="note">
+          <Icon name="info" />
+          <span>{translate('sources:sourceConfiguration.dataSheetWorksheetScopeHelp')}</span>
+        </div>
+      )}
       <ConfigurationSection id="worksheet-rules" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.worksheetRules')} description={translate('sources:sourceConfiguration.worksheetRulesSectionHelp')}>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}>
@@ -1097,7 +1153,7 @@ export default function SourceConfiguration() {
         {worksheetMode === 'selected' && <fieldset className="fh-worksheet-picker">
           <legend className="px-2 font-medium text-text-base">{translate('sources:sourceConfiguration.chooseParticipatingWorksheets')}</legend>
           <div className="fh-worksheet-picker-toolbar">
-            <button className="fh-button-secondary fh-button-sm" type="button" disabled={detectingWorksheets} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
+            <button className="fh-button-secondary fh-button-sm" type="button" disabled={detectingWorksheets || externalSourceDisabled} title={externalSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : undefined} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
             {detectedWorksheets.length > 0 && <><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames(detectedWorksheets.map(item => item.name))}>{translate('sources:sourceConfiguration.selectAll')}</button><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames([])}>{translate('sources:sourceConfiguration.clearAll')}</button></>}
             {detectedWorksheets.length === 0 && <label className="fh-field-label min-w-[260px]">{translate('sources:sourceConfiguration.worksheet')}<input className="fh-input mt-1" value={worksheetName} onChange={event => { setWorksheetName(event.target.value); setSelectedWorksheetNames(event.target.value.trim() ? [event.target.value.trim()] : []) }} /></label>}
           </div>
@@ -1282,7 +1338,7 @@ export default function SourceConfiguration() {
         <ConfigurationSection id="worksheet-columns" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.worksheetColumns')} description={translate('sources:sourceConfiguration.section.worksheetColumnsHelp')}>
           <div className="space-y-4" aria-label={translate('sources:sourceConfiguration.separateWorksheetRules')}>
         <div className="flex flex-wrap items-end gap-3">
-          <button className="fh-button-secondary" type="button" disabled={detectingWorksheets} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
+          <button className="fh-button-secondary" type="button" disabled={detectingWorksheets || externalSourceDisabled} title={externalSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : undefined} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
           <label className="fh-field-label min-w-[260px]">{translate('sources:sourceConfiguration.worksheetNamePrompt')}<input className="fh-input mt-1" value={newWorksheetName} onChange={event => setNewWorksheetName(event.target.value)} /></label>
           <button className="fh-button-secondary" type="button" disabled={!newWorksheetName.trim() || worksheetRules.some(item => item.worksheetName === newWorksheetName.trim())} onClick={addWorksheetRule}><Icon name="add" /> {translate('sources:sourceConfiguration.addWorksheet')}</button>
           <label className="fh-field-label ms-auto min-w-[280px]">{translate('sources:sourceConfiguration.duplicateProductPolicy')}<select className="fh-input mt-1" value={duplicateProductPolicy} onChange={event => setDuplicateProductPolicy(event.target.value as 'block' | 'last_sheet_wins')}><option value="block">{translate('sources:sourceConfiguration.blockDuplicates')}</option><option value="last_sheet_wins">{translate('sources:sourceConfiguration.lastWorksheetWins')}</option></select></label>
@@ -1409,9 +1465,9 @@ export default function SourceConfiguration() {
         <Badge variant={dirty ? 'warning' : 'success'}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</Badge>
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ms-auto sm:flex sm:w-auto sm:flex-wrap">
-          {canEditSource && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('sources:sourceConfiguration.validateConfiguration')}</button>}
+          {canEditSource && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
           {canEditSource && source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && (
-            <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={reading} onClick={() => void readNow()}><Icon name="refresh" /> {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}</button>
+            <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={reading || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void readNow()}><Icon name="refresh" /> {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}</button>
           )}
           {canEditSource && <button className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
           <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" onClick={closeConfiguration}><Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}</button>

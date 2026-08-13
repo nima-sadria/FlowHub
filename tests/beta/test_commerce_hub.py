@@ -17,6 +17,7 @@ from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
 from app.flowhub.integration_platform import models as _integration_platform_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
 from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 from app.flowhub.pricing_matrix import models as _pricing_matrix_models  # noqa: F401
 
@@ -1107,6 +1108,7 @@ def test_nextcloud_test_connection_uses_draft_credentials_without_persisting_the
 
     assert response.status_code == 200
     assert response.json()["ok"] is True
+    assert response.json()["configuration_matches_saved"] is False
     assert "draft-password" not in response.text
     assert observed == {
         "url": "https://draft.example.test",
@@ -1134,6 +1136,7 @@ def test_nextcloud_test_connection_uses_draft_credentials_without_persisting_the
     )
     assert stored_test.status_code == 200
     assert stored_test.json()["ok"] is True
+    assert stored_test.json()["configuration_matches_saved"] is True
     health = (
         db.query(DlConnectorHealth)
         .filter(DlConnectorHealth.connector_id == "nextcloud:primary")
@@ -1147,6 +1150,186 @@ def test_nextcloud_test_connection_uses_draft_credentials_without_persisting_the
     )
     assert reopened.status_code == 200
     assert reopened.json()["last_test"]["status"] == "healthy"
+
+
+def test_disabled_nextcloud_source_does_not_probe_or_claim_healthy(
+    client, auth_headers, monkeypatch
+):
+    """A disabled persisted Source cannot acquire fresh provider evidence."""
+
+    calls = 0
+
+    async def fail_browse(self, path="/"):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("disabled source must not call Nextcloud")
+
+    monkeypatch.setattr(
+        "app.flowhub.integrations.nextcloud.NextcloudClient.browse_directory",
+        fail_browse,
+    )
+    saved = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": False,
+            "settings": {
+                "url": "https://stored.example.test",
+                "username": "stored-user",
+            },
+            "secrets": {"password": "stored-app-password"},
+        },
+    )
+    assert saved.status_code == 200
+    assert "stored-app-password" not in saved.text
+
+    tested = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/test",
+        headers=auth_headers,
+        json={},
+    )
+
+    assert tested.status_code == 200
+    assert tested.json() | {"correlation_id": "redacted"} == {
+        "read_only": True,
+        "runtime_write_blocked": True,
+        "write_blocked": True,
+        "correlation_id": "redacted",
+        "ok": False,
+        "connected": False,
+        "authenticated": False,
+        "status": "disabled",
+        "code": "SOURCE_DISABLED",
+        "error_class": "disabled",
+        "http_status": None,
+        "latency_ms": None,
+        "checked_at": tested.json()["checked_at"],
+        "message": "Nextcloud Source is disabled. Enable it before testing the saved connection.",
+        "webdav_reachable": False,
+        "spreadsheet_found": None,
+        "normalized_base_url": "",
+        "normalized_webdav_url": "",
+        "external_call_performed": False,
+        "configuration_matches_saved": True,
+    }
+    assert calls == 0
+    assert "stored-app-password" not in tested.text
+
+    browsed = client.post(
+        "/api/v2/commerce/sources/nextcloud:primary/browse",
+        headers=auth_headers,
+        json={"path": "/"},
+    )
+    assert browsed.status_code == 409
+    assert browsed.json() == {
+        "detail": {
+            "code": "SOURCE_DISABLED",
+            "message": "Nextcloud Source is disabled. Enable it before browsing files.",
+        }
+    }
+    assert calls == 0
+    assert "stored-app-password" not in browsed.text
+
+    source = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers
+    )
+    assert source.status_code == 200
+    assert source.json()["enabled"] is False
+    assert source.json()["status"] == "disabled"
+    assert source.json()["health"]["status"] == "unknown"
+
+    configuration = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert configuration.status_code == 200
+    assert configuration.json()["connection_configured"] is True
+    assert configuration.json()["enabled"] is False
+
+
+def test_nextcloud_connection_is_configured_before_later_source_setup_is_complete(
+    client, auth_headers
+):
+    saved = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://stored.example.test",
+                "username": "stored-user",
+            },
+            "secrets": {"password": "stored-app-password"},
+        },
+    )
+    assert saved.status_code == 200
+
+    source = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers
+    )
+    assert source.status_code == 200
+    data = source.json()
+    assert data["enabled"] is True
+    assert data["credential_status"] == "configured"
+    assert data["status"] == "configured"
+    assert data["configuration_state"] == "setup_required"
+
+
+def test_nextcloud_source_settings_roll_back_connection_changes_when_currency_is_invalid(
+    client, auth_headers, db
+):
+    """A late monetary validation error cannot partially replace Source config."""
+    from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+    from app.flowhub.setup.service import AppConfigService
+
+    initial = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://original.example.test",
+                "username": "original-user",
+            },
+            "secrets": {"password": "original-app-password"},
+        },
+    )
+    assert initial.status_code == 200
+
+    rejected = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": False,
+            "settings": {
+                "url": "https://replacement.example.test",
+                "username": "replacement-user",
+            },
+            "secrets": {"password": "replacement-app-password"},
+            "currency": "IRR",
+        },
+    )
+
+    assert rejected.status_code == 422
+    assert "replacement-app-password" not in rejected.text
+
+    config = AppConfigService(db)
+    assert config.get("nextcloud.url") == "https://original.example.test"
+    assert config.get("nextcloud.username") == "original-user"
+    assert config.get("nextcloud.password") == "original-app-password"
+    instance = db.get(IntegrationConnectorInstance, "nextcloud:primary")
+    assert instance is not None
+    assert instance.enabled is True
+
+    reopened = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert reopened.status_code == 200
+    assert reopened.json()["enabled"] is True
+    assert reopened.json()["settings"]["url"] == "https://original.example.test"
+    assert reopened.json()["settings"]["username"] == "original-user"
+    assert reopened.json()["secrets"]["password"]["status"] == "configured"
 
 
 def test_nextcloud_test_connection_rejects_stored_public_share_url(client, auth_headers, db, monkeypatch):
@@ -1293,6 +1476,26 @@ def test_nextcloud_source_settings_allow_credentials_before_spreadsheet_selectio
     )
     assert initial_source["connection_configured"] is False
     assert initial_source["configuration_state"] == "not_configured"
+    assert initial_source["status"] == "not_configured"
+    assert "enabled" not in initial_source
+
+    initial_detail = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers
+    )
+    assert initial_detail.status_code == 200
+    assert initial_detail.json()["connection_configured"] is False
+    assert initial_detail.json()["configuration_state"] == "not_configured"
+    assert initial_detail.json()["status"] == "not_configured"
+    assert "enabled" not in initial_detail.json()
+
+    initial_configuration = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert initial_configuration.status_code == 200
+    assert initial_configuration.json()["connection_configured"] is False
+    assert initial_configuration.json()["configuration_state"] == "not_configured"
+    assert initial_configuration.json()["enabled"] is None
 
     response = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",
@@ -1318,6 +1521,13 @@ def test_nextcloud_source_settings_allow_credentials_before_spreadsheet_selectio
     assert detail.json()["credential_status"] == "configured"
     assert detail.json()["connection_configured"] is True
     assert detail.json()["configuration_state"] == "setup_required"
+
+    configured_connection = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert configured_connection.status_code == 200
+    assert configured_connection.json()["enabled"] is True
 
     completed = client.put(
         "/api/v2/commerce/sources/nextcloud:primary/settings",

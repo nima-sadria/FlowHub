@@ -542,7 +542,9 @@ async function openNextcloudSourceForm(c: HTMLElement) {
     const unit = selectByLabel(c, 'Price unit')
     unit.value = 'RIAL'
     unit.dispatchEvent(new Event('change', { bubbles: true }))
+    inputByLabel(c, 'Enabled').click()
   })
+  expect(inputByLabel(c, 'Enabled').checked).toBe(true)
 }
 
 function fillNextcloudCredentials(c: HTMLElement, baseUrl = 'https://softpple.business', username: string | null = 'owner') {
@@ -1319,13 +1321,17 @@ describe('CommerceHub', () => {
       setInputValue(inputByLabel(c, 'Worksheet name'), 'Prices')
       setInputValue(inputByLabel(c, 'Display name'), 'Owner workbook')
       setInputValue(inputByLabel(c, 'Description optional'), 'Saved before Data Sheet')
-      inputByLabel(c, 'Enabled').dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     await act(async () => {
       const openDataSheet = Array.from(c.querySelectorAll('button'))
         .find(button => button.textContent?.includes('Save and open Data Sheet')) as HTMLButtonElement
-      expect(openDataSheet.disabled).toBe(false)
-      openDataSheet.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      expect(openDataSheet.disabled).toBe(true)
+      expect(c.querySelector('[data-setup-step="data-sheet"]')?.textContent)
+        .toContain('Save the selected spreadsheet, then test the saved connection before opening the Data Sheet.')
+      const saveConfiguration = Array.from(c.querySelectorAll('button'))
+        .find(button => button.textContent === 'Save configuration') as HTMLButtonElement
+      expect(saveConfiguration.disabled).toBe(false)
+      saveConfiguration.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -1338,11 +1344,11 @@ describe('CommerceHub', () => {
     expect(captured.payload.display_name).toBe('Owner workbook')
     expect(captured.payload.description).toBe('Saved before Data Sheet')
     expect(captured.payload.enabled).toBe(true)
-    expect(c.textContent).toContain('The Source setup was saved. Opening the Data Sheet.')
+    expect(c.textContent).toContain('Source configured successfully')
     expect(c.querySelector('[data-notification-type="success"] .fh-notification-icon [data-icon="success"]')).not.toBeNull()
   })
 
-  it('keeps normal Save in setup when persisted Source state is still setup required', async () => {
+  it('requires a changed saved connection to be saved and verified before normal setup Save', async () => {
     const listSources = vi.spyOn(sourceWorkspaceApi, 'listSources').mockResolvedValue({ items: [] })
     const createSource = vi.spyOn(sourceWorkspaceApi, 'createSource')
     const browseNextcloud = vi.fn((sourceId, request) => commerce.browseNextcloud(sourceId, request))
@@ -1368,6 +1374,7 @@ describe('CommerceHub', () => {
         return {
           ...base,
           configured: false,
+          enabled: true,
           connection_configured: true,
           last_test: {
             status: 'healthy',
@@ -1398,6 +1405,11 @@ describe('CommerceHub', () => {
       inputByLabel(c, 'Nextcloud server URL'),
       'https://new.softpple.business/remote.php/dav/files/owner',
     ))
+    expect(save.disabled).toBe(true)
+    await saveNextcloudConnection(c)
+    expect(saveSource).toHaveBeenCalledTimes(1)
+    expect(save.disabled).toBe(true)
+    await testSavedNextcloudConnection(c)
     expect(save.disabled).toBe(false)
     await act(async () => {
       save.click()
@@ -1405,7 +1417,7 @@ describe('CommerceHub', () => {
       await Promise.resolve()
     })
 
-    expect(saveSource).toHaveBeenCalledTimes(1)
+    expect(saveSource).toHaveBeenCalledTimes(2)
     expect(listSources).not.toHaveBeenCalled()
     expect(createSource).not.toHaveBeenCalled()
     expect(c.textContent).toContain('Source settings updated successfully')
@@ -1413,12 +1425,9 @@ describe('CommerceHub', () => {
     expect(c.textContent).not.toContain('The Source is ready to use')
     expect(c.textContent).not.toContain('Opening the Data Sheet')
     expect(c.textContent).toContain('Configure Nextcloud')
-    expect(c.querySelector('[data-setup-step="connection"] .fh-badge-success')?.textContent).toBe('Configured')
 
     const browse = Array.from(c.querySelectorAll('button'))
       .find(button => button.textContent === 'Browse Nextcloud') as HTMLButtonElement
-    expect(browse.disabled).toBe(true)
-    await testSavedNextcloudConnection(c)
     expect(browse.disabled).toBe(false)
     await act(async () => {
       browse.click()
@@ -1457,7 +1466,7 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Save configuration')
   })
 
-  it('reloads saved Nextcloud metadata and downstream setup without returning the secret', async () => {
+  it('keeps saved Nextcloud evidence scoped to its connection identity without returning the secret', async () => {
     const savedSecret = 'never-return-this-app-password'
     const configuredCommerce: CommerceService = {
       ...commerce,
@@ -1468,6 +1477,7 @@ describe('CommerceHub', () => {
           display_name: 'Owner price source',
           description: 'Daily owner workbook',
           configured: true,
+          enabled: true,
           connection_configured: true,
           last_test: {
             status: 'healthy',
@@ -1476,7 +1486,6 @@ describe('CommerceHub', () => {
             latency_ms: 42,
             checked_at: '2026-08-10T10:30:00Z',
           },
-          enabled: true,
           settings: {
             url: 'https://softpple.business/remote.php/dav/files/woo',
             username: 'woo',
@@ -1530,16 +1539,18 @@ describe('CommerceHub', () => {
     act(() => setInputValue(inputByLabel(c, 'Nextcloud server URL'), 'https://changed.example.test'))
     expect(c.querySelector('[data-testid="nextcloud-last-test"]')?.textContent).toContain('Not tested')
     expect(c.querySelector('[data-testid="nextcloud-last-test"]')?.textContent).not.toContain('Healthy')
-    expect((c.querySelector('[data-setup-step="spreadsheet"] button') as HTMLButtonElement).disabled).toBe(false)
-    expect((c.querySelector('[data-setup-step="worksheet"] fieldset') as HTMLFieldSetElement).disabled).toBe(false)
-    expect((c.querySelector('[data-setup-step="data-sheet"] button') as HTMLButtonElement).disabled).toBe(false)
+    expect((c.querySelector('[data-setup-step="spreadsheet"] button') as HTMLButtonElement).disabled).toBe(true)
+    expect((c.querySelector('[data-setup-step="worksheet"] fieldset') as HTMLFieldSetElement).disabled).toBe(true)
+    expect((c.querySelector('[data-setup-step="data-sheet"] button') as HTMLButtonElement).disabled).toBe(true)
     expect((c.querySelector('[data-setup-step="monetary-unit"] fieldset') as HTMLFieldSetElement).disabled).toBe(false)
-    expect(Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Save configuration')?.disabled).toBe(false)
+    expect(Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Save configuration')?.disabled).toBe(true)
+    expect(c.querySelector('[data-setup-step="worksheet"]')?.textContent)
+      .toContain('Save and test the changed Connection Settings before continuing.')
 
     const replacementSecret = c.querySelector('input[type="password"]') as HTMLInputElement
     act(() => setInputValue(replacementSecret, 'replacement-pending-save'))
-    expect((c.querySelector('[data-setup-step="worksheet"] fieldset') as HTMLFieldSetElement).disabled).toBe(false)
-    expect((c.querySelector('[data-setup-step="data-sheet"] button') as HTMLButtonElement).disabled).toBe(false)
+    expect((c.querySelector('[data-setup-step="worksheet"] fieldset') as HTMLFieldSetElement).disabled).toBe(true)
+    expect((c.querySelector('[data-setup-step="data-sheet"] button') as HTMLButtonElement).disabled).toBe(true)
     expect((c.querySelector('[data-setup-step="monetary-unit"] fieldset') as HTMLFieldSetElement).disabled).toBe(false)
     act(() => setInputValue(replacementSecret, ''))
 
@@ -1574,6 +1585,7 @@ describe('CommerceHub', () => {
         return {
           ...base,
           configured: false,
+          enabled: true,
           connection_configured: true,
           configuration_state: 'setup_required',
           last_test: {
@@ -1687,6 +1699,7 @@ describe('CommerceHub', () => {
         return {
           ...base,
           configured: true,
+          enabled: true,
           connection_configured: true,
           configuration_state: 'configured',
           last_test: {
@@ -1739,6 +1752,7 @@ describe('CommerceHub', () => {
         return {
           ...base,
           configured: true,
+          enabled: true,
           connection_configured: true,
           configuration_state: 'configured',
           last_test: {
@@ -1823,6 +1837,7 @@ describe('CommerceHub', () => {
         const base = await commerce.getSourceConfiguration(sourceId)
         return {
           ...base,
+          enabled: true,
           connection_configured: true,
           settings: { url: 'https://softpple.business', username: 'woo' },
           secrets: { password: { status: 'configured', replaced_at: null } },
@@ -1853,6 +1868,7 @@ describe('CommerceHub', () => {
         const base = await commerce.getSourceConfiguration(sourceId)
         return {
           ...base,
+          enabled: true,
           connection_configured: true,
           last_test: {
             status: 'healthy',
@@ -1895,6 +1911,61 @@ describe('CommerceHub', () => {
     expect((c.querySelector('[data-setup-step="monetary-unit"] fieldset') as HTMLFieldSetElement).disabled).toBe(false)
   })
 
+  it('keeps a newly selected spreadsheet unsaved when only Connection Settings are saved', async () => {
+    const savedPayloads: NonNullable<Parameters<CommerceService['saveSource']>[1]>[] = []
+    const configuredCommerce: CommerceService = {
+      ...commerce,
+      async getSourceConfiguration(sourceId) {
+        const base = await commerce.getSourceConfiguration(sourceId)
+        return {
+          ...base,
+          configured: true,
+          enabled: true,
+          connection_configured: true,
+          last_test: {
+            status: 'healthy',
+            message: 'Connection successful.',
+            error_code: null,
+            latency_ms: 42,
+            checked_at: '2026-08-10T10:30:00Z',
+          },
+          settings: {
+            url: 'https://softpple.business',
+            username: 'woo',
+            spreadsheet_path: '/Reports/prices.xlsx',
+            worksheet_mode: 'selected',
+            worksheet_name: 'Prices',
+          },
+          secrets: { password: { status: 'configured', replaced_at: null } },
+        }
+      },
+      async saveSource(sourceId, payload) {
+        savedPayloads.push(payload)
+        return commerce.saveSource(sourceId, payload)
+      },
+    }
+    const c = await renderPage(adminUser, configuredCommerce, ['/commerce?tab=sources&resource=nextcloud%3Aprimary'])
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    await selectNextcloudSpreadsheet(c)
+    expect(c.querySelector('[data-testid="nextcloud-selected-file"]')?.textContent)
+      .toContain('Selected — save to keep')
+    const dataSheet = c.querySelector('[data-setup-step="data-sheet"] button') as HTMLButtonElement
+    expect(dataSheet.disabled).toBe(true)
+    expect(c.querySelector('[data-setup-step="data-sheet"]')?.textContent)
+      .toContain('Save the selected spreadsheet, then test the saved connection before opening the Data Sheet.')
+
+    await saveNextcloudConnection(c)
+
+    expect(savedPayloads).toHaveLength(1)
+    expect(savedPayloads[0].settings).not.toHaveProperty('spreadsheet_path')
+    expect(c.querySelector('[data-testid="nextcloud-selected-file"]')?.textContent)
+      .toContain('/prices.xlsx')
+    expect(c.querySelector('[data-testid="nextcloud-selected-file"]')?.textContent)
+      .toContain('Selected — save to keep')
+    expect(dataSheet.disabled).toBe(true)
+  })
+
   it('uses a replacement secret for Test without persisting it until Save connection', async () => {
     const testedSecrets: Array<Record<string, string>> = []
     const savedSecrets: Array<Record<string, string>> = []
@@ -1904,6 +1975,7 @@ describe('CommerceHub', () => {
         const base = await commerce.getSourceConfiguration(sourceId)
         return {
           ...base,
+          enabled: true,
           connection_configured: true,
           settings: { url: 'https://softpple.business', username: 'woo' },
           secrets: { password: { status: 'configured', replaced_at: null } },
@@ -1936,6 +2008,34 @@ describe('CommerceHub', () => {
     expect(c.textContent).not.toContain('replacement-app-password')
   })
 
+  it('keeps an unconfigured routed Nextcloud Source in first-time setup mode', async () => {
+    const bootstrapCommerce: CommerceService = {
+      ...commerce,
+      async getSourceConfiguration(sourceId) {
+        const base = await commerce.getSourceConfiguration(sourceId)
+        return {
+          ...base,
+          enabled: null,
+          connection_configured: false,
+          configured: false,
+        }
+      },
+    }
+
+    const c = await renderPage(
+      adminUser,
+      bootstrapCommerce,
+      ['/commerce?tab=sources&resource=nextcloud%3Aprimary'],
+    )
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    const general = c.querySelector('[data-setup-step="general"]')
+    expect(general?.textContent).toContain('Step 1')
+    expect(general?.textContent).toContain('Define the connector type')
+    expect(general?.textContent).not.toContain("Manage this Source's FlowHub identity")
+    expect(c.querySelector('[data-setup-step="worksheet"]')).toBeTruthy()
+  })
+
   it('locks each remote-dependent setup step until the saved connection is healthy', async () => {
     const c = await renderPage(adminUser, commerce, ['/commerce?tab=sources'])
     await openNextcloudSourceForm(c)
@@ -1949,6 +2049,10 @@ describe('CommerceHub', () => {
     expect(dataSheet.disabled).toBe(true)
     expect(monetary.disabled).toBe(true)
     expect(c.querySelector('[data-setup-step="data-sheet"]')?.textContent).toContain('Columns for each Channel')
+    expect(c.querySelector('[data-testid="nextcloud-source-enabled-state"]')?.textContent)
+      .toContain('Save and successfully test Connection Settings to continue.')
+    expect(c.querySelector('[data-testid="nextcloud-source-enabled-state"]')?.textContent)
+      .not.toContain('This Source is enabled.')
 
     fillNextcloudCredentials(c)
     await act(async () => {
@@ -1971,8 +2075,9 @@ describe('CommerceHub', () => {
     await selectNextcloudSpreadsheet(c)
     expect(worksheet.disabled).toBe(false)
     expect(monetary.disabled).toBe(false)
-    expect(dataSheet.disabled).toBe(false)
-    expect(dataSheet.textContent).toContain('Save and open Data Sheet')
+    expect(dataSheet.disabled).toBe(true)
+    expect(c.querySelector('[data-setup-step="data-sheet"]')?.textContent)
+      .toContain('Save the selected spreadsheet, then test the saved connection before opening the Data Sheet.')
   })
 
   it('verifies the unsaved Source credentials entered in Connection Settings', async () => {
@@ -2002,6 +2107,111 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Connection details verified')
     expect(c.textContent).toContain('These connection details are valid. Save them to continue.')
     expect(c.querySelector('.fh-alert-success')).not.toBeNull()
+  })
+
+  it('labels a successful saved Nextcloud connection as verified rather than asking the Owner to save again', async () => {
+    const savedCommerce: CommerceService = {
+      ...commerce,
+      async getSourceConfiguration(sourceId) {
+        const base = await commerce.getSourceConfiguration(sourceId)
+        return {
+          ...base,
+          configured: true,
+          enabled: true,
+          connection_configured: true,
+          last_test: {
+            status: 'healthy',
+            message: 'Connection successful.',
+            error_code: null,
+            latency_ms: 42,
+            checked_at: '2026-08-10T10:30:00Z',
+          },
+          settings: {
+            url: 'https://softpple.business',
+            username: 'woo',
+            spreadsheet_path: '/Reports/prices.xlsx',
+            worksheet_mode: 'selected',
+            worksheet_name: 'Prices',
+          },
+          secrets: { password: { status: 'configured', replaced_at: null } },
+        }
+      },
+      async testSource() {
+        return {
+          ok: true,
+          status: 'operational',
+          message: 'Connection successful.',
+          configuration_matches_saved: true,
+          external_call_performed: true,
+          read_only: true,
+          runtime_write_blocked: true,
+          write_blocked: true,
+          checked_at: '2026-08-10T11:00:00Z',
+        }
+      },
+    }
+    const c = await renderPage(adminUser, savedCommerce, ['/commerce?tab=sources&resource=nextcloud%3Aprimary'])
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    await testSavedNextcloudConnection(c)
+
+    expect(c.textContent).toContain('Saved connection verified')
+    expect(c.textContent).toContain('The saved connection is healthy. You can continue editing this Source.')
+    expect(c.textContent).not.toContain('Save them to continue.')
+  })
+
+  it('keeps saved evidence intact and skips the refresh when the API rejects a test for a disabled Source', async () => {
+    let configurationReads = 0
+    const disabledResultCommerce: CommerceService = {
+      ...commerce,
+      async getSourceConfiguration(sourceId) {
+        configurationReads += 1
+        const base = await commerce.getSourceConfiguration(sourceId)
+        return {
+          ...base,
+          configured: true,
+          enabled: true,
+          connection_configured: true,
+          last_test: {
+            status: 'healthy',
+            message: 'Connection successful.',
+            error_code: null,
+            latency_ms: 42,
+            checked_at: '2026-08-10T10:30:00Z',
+          },
+          settings: {
+            url: 'https://softpple.business',
+            username: 'woo',
+            spreadsheet_path: '/Reports/prices.xlsx',
+            worksheet_mode: 'selected',
+            worksheet_name: 'Prices',
+          },
+          secrets: { password: { status: 'configured', replaced_at: null } },
+        }
+      },
+      async testSource() {
+        return {
+          ok: false,
+          status: 'disabled',
+          code: 'SOURCE_DISABLED',
+          message: 'Source disabled.',
+          configuration_matches_saved: true,
+          external_call_performed: false,
+          read_only: true,
+          runtime_write_blocked: true,
+          write_blocked: true,
+        }
+      },
+    }
+    const c = await renderPage(adminUser, disabledResultCommerce, ['/commerce?tab=sources&resource=nextcloud%3Aprimary'])
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(configurationReads).toBe(1)
+
+    await testSavedNextcloudConnection(c)
+
+    expect(configurationReads).toBe(1)
+    expect(c.textContent).toContain('This Source is disabled. Enable and save it before testing the connection.')
+    expect(c.querySelector('[data-testid="nextcloud-last-test"]')?.textContent).toContain('Healthy')
   })
 
   it.each([
@@ -2550,6 +2760,73 @@ describe('CommerceHub', () => {
       .toEqual(['nextcloud:primary', 'csv:import', 'erp:api-import', 'gsheets:price-list'])
     expect(Array.from(c.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section')))
       .toEqual(['active', 'comingSoon'])
+  })
+
+  it('initializes the first Nextcloud Data Sheet from the saved worksheet policy', async () => {
+    const listSources = vi.spyOn(sourceWorkspaceApi, 'listSources').mockResolvedValue({ items: [] })
+    const createSource = vi.spyOn(sourceWorkspaceApi, 'createSource').mockResolvedValue({
+      id: 'managed-nextcloud',
+      name: 'Nextcloud',
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      worksheetMode: 'all',
+      worksheetName: null,
+      dataStartRow: 2,
+      status: 'active',
+      version: 1,
+      mappingVersion: 0,
+      sheetId: null,
+      createdAt: null,
+      updatedAt: null,
+    })
+    const policyCommerce: CommerceService = {
+      ...commerce,
+      async getSources() {
+        const data = await commerce.getSources()
+        return {
+          ...data,
+          items: data.items.map(item => item.id === 'nextcloud:primary'
+            ? {
+                ...item,
+                enabled: true,
+                status: 'healthy',
+                credential_status: 'configured',
+                connection_configured: true,
+                configuration_state: 'configured',
+                health: { status: 'healthy', message: '', latency_ms: 12, error_code: null },
+              }
+            : item),
+        }
+      },
+      async getSourceConfiguration(sourceId) {
+        const configuration = await commerce.getSourceConfiguration(sourceId)
+        return {
+          ...configuration,
+          enabled: true,
+          configured: true,
+          connection_configured: true,
+          settings: {
+            ...configuration.settings,
+            worksheet_mode: 'all',
+            worksheet_name: '',
+          },
+        }
+      },
+    }
+
+    const c = await renderPage(adminUser, policyCommerce, ['/commerce?tab=sources'])
+    await act(async () => {
+      resourceAction(c, 'Nextcloud', 'Configure Data').click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(listSources).toHaveBeenCalledTimes(1)
+    expect(createSource).toHaveBeenCalledWith(expect.objectContaining({
+      external_source_id: 'nextcloud:primary',
+      worksheet_mode: 'all',
+      worksheet_name: null,
+    }))
   })
 
   it('prefers the first Active configuration type and preserves an explicit edit selection', async () => {

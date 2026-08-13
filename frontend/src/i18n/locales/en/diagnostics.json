@@ -126,7 +126,7 @@
   "diagnostics.sourceChecks": "Source Checks",
   "diagnostics.sourceConnectionError": "The latest Source connection check failed.",
   "diagnostics.sourceConnectionReady": "Source connection is ready.",
-  "diagnostics.sourceDisabledDescription": "This Source is disabled. Enable it before running a connection check.",
+  "diagnostics.sourceDisabledDescription": "This Source is disabled. Enable and save it before running a connection check.",
   "diagnostics.sourceNeedsAttention": "The latest Source connection check needs attention.",
   "diagnostics.sourceNotCheckedDescription": "No connection check has been recorded for this Source.",
   "diagnostics.sourceResultPendingDescription": "A conclusive Source connection result is not available yet.",

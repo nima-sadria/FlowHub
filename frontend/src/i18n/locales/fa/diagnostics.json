@@ -126,7 +126,7 @@
   "diagnostics.sourceChecks": "بررسی منابع",
   "diagnostics.sourceConnectionError": "آخرین بررسی اتصال منبع ناموفق بود.",
   "diagnostics.sourceConnectionReady": "اتصال منبع آماده است.",
-  "diagnostics.sourceDisabledDescription": "این منبع غیرفعال است. برای بررسی اتصال، ابتدا آن را فعال کنید.",
+  "diagnostics.sourceDisabledDescription": "این منبع غیرفعال است. پیش از بررسی اتصال، آن را فعال و ذخیره کنید.",
   "diagnostics.sourceNeedsAttention": "آخرین بررسی اتصال منبع نیازمند توجه است.",
   "diagnostics.sourceNotCheckedDescription": "هنوز بررسی اتصالی برای این منبع ثبت نشده است.",
   "diagnostics.sourceResultPendingDescription": "هنوز نتیجه قطعی برای اتصال این منبع در دسترس نیست.",

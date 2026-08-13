@@ -494,10 +494,15 @@ function SourceHealthRow({
 }) {
   const presentation = sourcePresentation(connector)
   const lastChecked = connectorLastChecked(connector)
-  const connectionTestReason = connectionTestUnavailableReason({
-    supported: connector.connection_test_supported === true,
-    credentialsConfigured: connector.connection_configured === true,
-  })
+  // A persisted disabled Source is an operational boundary.  Keep the Test
+  // affordance visibly unavailable with the exact recovery action instead of
+  // allowing Diagnostics to issue an outbound probe.
+  const connectionTestReason = connector.enabled === false
+    ? presentation.description
+    : connectionTestUnavailableReason({
+      supported: connector.connection_test_supported === true,
+      credentialsConfigured: connector.connection_configured === true,
+    })
   return (
     <article id={`source-${connector.id}`} className="fh-card p-4" data-resource-id={connector.id}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
