@@ -33,6 +33,11 @@ import { connectionExceptionMessage, connectionResultMessage } from '../features
 
 type Tab = 'sources' | 'channels'
 type FormKind = 'source' | 'channel'
+
+function sourceConfigurationReturnPath(value: string | null): string | null {
+  if (!value || !/^\/sources\/[^/?#]+$/.test(value)) return null
+  return value
+}
 export type ReadPolicyDraft = { enabled: boolean; max_reads_per_24h: number; manual_read_allowed: boolean }
 
 export const DEFAULT_READ_POLICY: ReadPolicyDraft = {
@@ -1952,6 +1957,7 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
   const { success, error: notifyError } = useNotification()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const returnToSource = sourceConfigurationReturnPath(searchParams.get('returnTo'))
   const [tab, setTab] = useState<Tab>(initialTab ?? (searchParams.get('tab') === 'sources' ? 'sources' : 'channels'))
   const [sources, setSources] = useState<CommerceSource[]>([])
   const [channels, setChannels] = useState<CommerceChannel[]>([])
@@ -2219,8 +2225,18 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
         saved.currency || undefined,
         saved.currencyUnit || undefined,
       )
-      navigate(`/sources/${managed.id}`)
+      navigate(returnToSource ?? `/sources/${managed.id}`)
     }
+  }
+
+  function closeSourceEditor() {
+    if (returnToSource) {
+      navigate(returnToSource)
+      return
+    }
+    setFormKind(null)
+    setEditingSourceId(null)
+    setSearchParams({ tab: 'sources' })
   }
 
   return (
@@ -2255,8 +2271,10 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
           </div>
       ) : tab === "sources" ? (
         <section>
-          <button type="button" className="fh-button-secondary fh-button-sm mb-4" onClick={() => navigate('/sources')}>
-            <Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}
+          <button type="button" className="fh-button-secondary fh-button-sm mb-4" onClick={() => navigate(returnToSource ?? '/sources')}>
+            <Icon name="previous" /> {returnToSource
+              ? translate('sources:sourceConfiguration.backToDataSheet')
+              : translate('sources:sourceConfiguration.backToSources')}
           </button>
           <div className="fh-page-toolbar mb-4">
             <div>
@@ -2278,7 +2296,7 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
                 kind="source"
                 types={sourceTypes}
                 initialResourceId={editingSourceId}
-                onCancel={() => { setFormKind(null); setEditingSourceId(null); setSearchParams({ tab: 'sources' }) }}
+                onCancel={closeSourceEditor}
                 onSaved={reloadAfterSave}
                 onConfigureData={id => void handleSourceConfigure(id)}
               />

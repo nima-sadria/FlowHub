@@ -9,7 +9,7 @@ import json
 import re
 import uuid
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.business_observability.models import BusinessEvent
+from app.flowhub.data_layer.models import DlSourceIdentityValidation
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.setup.service import AppConfigService
@@ -65,8 +66,6 @@ from app.flowhub.source_workspace.repositories import (
 )
 from app.flowhub.sources.spreadsheet_source import (
     SOURCE_ID as LEGACY_EXTERNAL_SOURCE_ID,
-)
-from app.flowhub.sources.spreadsheet_source import (
     SourceImportResult,
     SpreadsheetSourceReadService,
     normalize_source_mapping,
@@ -131,6 +130,17 @@ def _unprocessable(code: str, message: str, details: dict[str, Any] | None = Non
 
 def _worksheet_read_quota(quota: dict[str, object]) -> dict[str, object]:
     """Translate the canonical read-policy state to this camel-case API."""
+    return {
+        "enabled": bool(quota["enabled"]),
+        "limit": int(quota["limit"]),
+        "usage": int(quota["usage"]),
+        "remaining": int(quota["remaining"]),
+        "resetAt": quota["reset_at"],
+        "exhausted": bool(quota["exhausted"]),
+    }
+
+
+def _worksheet_discovery_quota(quota: dict[str, object]) -> dict[str, object]:
     return {
         "enabled": bool(quota["enabled"]),
         "limit": int(quota["limit"]),
@@ -270,7 +280,8 @@ class SourceWorkspaceService:
         if source.source_kind == "external" and source.external_source_id == LEGACY_EXTERNAL_SOURCE_ID:
             reader = SpreadsheetSourceReadService(self.db)
             result["readQuota"] = reader.read_quota_contract(source_id=source.id)
-            result["worksheetDiscovery"] = reader.worksheet_discovery_state()
+            result["worksheetDiscovery"] = reader.worksheet_discovery_state(source_id=source.id)
+            result["discoveryQuota"] = reader.discovery_quota_contract(source_id=source.id)
         return result
 
     def source_lifecycle(self, source_id: str, user: FlowHubUser) -> dict[str, Any]:
@@ -407,11 +418,18 @@ class SourceWorkspaceService:
         return source
 
     async def list_source_worksheets(
-        self, source_id: str, user: FlowHubUser
+        self, source_id: str, user: FlowHubUser, *, refresh: bool = False
     ) -> dict[str, Any]:
-        """Return local worksheet metadata or acquire a workbook exactly once."""
+        """Return local metadata or explicitly refresh bounded remote metadata."""
         source = self._owned_source(source_id, user, require_active=True)
         reader = SpreadsheetSourceReadService(self.db)
+        if source.external_source_id:
+            connector = self.db.get(IntegrationConnectorInstance, source.external_source_id)
+            if connector is not None and not connector.enabled:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {"code": "SOURCE_DISABLED", "message": "Nextcloud Source is disabled. Enable it before reading source data."},
+                )
         sheet = self.sheets.for_source(source.id)
         if sheet is not None:
             revision = self.sheets.latest_revision(sheet.id)
@@ -427,6 +445,7 @@ class SourceWorkspaceService:
                 "readQuota": _worksheet_read_quota(
                     reader.read_quota_contract(source_id=source.id)
                 ),
+                "discoveryQuota": _worksheet_discovery_quota(reader.discovery_quota_contract(source_id=source.id)),
                 "worksheetDiscovery": {
                     "requiresRemoteRead": False,
                     "metadataSource": "flowhub_sheet",
@@ -436,55 +455,62 @@ class SourceWorkspaceService:
                     "snapshotAt": None,
                 },
             }
+        if refresh:
+            if source.external_source_id != LEGACY_EXTERNAL_SOURCE_ID:
+                raise _unprocessable("WORKSHEET_DISCOVERY_UNAVAILABLE", "Remote discovery is unavailable for this Source.")
+            refreshed = await reader.refresh_worksheet_discovery(source_profile_id=source.id, user_id=user.id)
+            return {
+                "sourceId": source.id,
+                "items": refreshed["worksheets"],
+                "sourceRevisionId": None,
+                "readQuota": _worksheet_read_quota(reader.read_quota_contract(source_id=source.id)),
+                "discoveryQuota": _worksheet_discovery_quota(refreshed["quota"]),
+                "worksheetDiscovery": {
+                    "requiresRemoteRead": False, "metadataSource": "remote_metadata", "remoteReadUsed": True,
+                    "snapshotId": None, "snapshotVersion": None, "snapshotAt": None,
+                    "discoveredAt": refreshed["discovered_at"],
+                },
+            }
         discovery = (
-            reader.worksheet_discovery_state()
+            reader.worksheet_discovery_state(source_id=source.id)
             if source.external_source_id == LEGACY_EXTERNAL_SOURCE_ID
             else None
         )
-        if discovery is not None and discovery["metadata_source"] == "snapshot":
+        if discovery is not None and discovery["metadata_source"] in {"snapshot", "discovery_cache"}:
             return {
                 "sourceId": source.id,
-                "items": [
-                    {"name": name, "rowCount": None}
-                    for name in discovery["worksheet_names"]
-                ],
-                "sourceRevisionId": f"external:{discovery['snapshot_id']}:{discovery['snapshot_version']}",
+                "items": discovery["worksheets"],
+                "sourceRevisionId": f"external:{discovery['snapshot_id']}:{discovery['snapshot_version']}" if discovery["snapshot_id"] is not None else None,
                 "readQuota": _worksheet_read_quota(
                     reader.read_quota_contract(source_id=source.id)
                 ),
+                "discoveryQuota": _worksheet_discovery_quota(reader.discovery_quota_contract(source_id=source.id)),
                 "worksheetDiscovery": {
                     "requiresRemoteRead": False,
-                    "metadataSource": "snapshot",
+                    "metadataSource": discovery["metadata_source"],
                     "remoteReadUsed": False,
                     "snapshotId": discovery["snapshot_id"],
                     "snapshotVersion": discovery["snapshot_version"],
                     "snapshotAt": discovery["snapshot_at"],
+                    **({"discoveredAt": discovery["discovered_at"]} if discovery.get("discovered_at") else {}),
                 },
             }
-        imported = await self._read_external_source(source, user, manual=True)
-        worksheets = imported.worksheets or {}
         return {
             "sourceId": source.id,
-            "items": [
-                {"name": name, "rowCount": len(rows)}
-                for name, rows in worksheets.items()
-            ],
-            "sourceRevisionId": (
-                f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}"
-            ),
+            "items": [],
+            "sourceRevisionId": None,
             "readQuota": _worksheet_read_quota(
                 reader.read_quota_contract(source_id=source.id)
             ),
+            "discoveryQuota": _worksheet_discovery_quota(reader.discovery_quota_contract(source_id=source.id)),
             "worksheetDiscovery": {
-                # This request acquired the workbook remotely, but the saved
-                # Snapshot now makes the next worksheet-detection request
-                # local.  Keep both facts explicit for the UI.
-                "requiresRemoteRead": False,
-                "metadataSource": "snapshot",
-                "remoteReadUsed": True,
-                "snapshotId": imported.snapshot.id,
-                "snapshotVersion": imported.snapshot.version_seq,
+                "requiresRemoteRead": True,
+                "metadataSource": "unavailable",
+                "remoteReadUsed": False,
+                "snapshotId": None,
+                "snapshotVersion": None,
                 "snapshotAt": None,
+                "discoveredAt": None,
             },
         }
 
@@ -503,6 +529,7 @@ class SourceWorkspaceService:
         selected_worksheet_names: list[str] | None = None,
         duplicate_product_policy: str = "block",
         worksheet_rules: list[dict[str, Any]] | None = None,
+        identity_policy_version: int = 1,
         user: FlowHubUser,
         _commit: bool = True,
     ) -> dict[str, Any]:
@@ -521,46 +548,56 @@ class SourceWorkspaceService:
         normalized_selected_worksheets = self._normalize_selected_worksheet_names(
             selected_worksheet_names or []
         )
-        if worksheet_rule_mode == "shared":
-            if worksheet_mode == "all":
-                if normalized_selected_worksheets:
-                    raise _unprocessable(
-                        "WORKSHEET_SELECTION_INVALID",
-                        "Selected worksheet names require selected worksheet mode.",
-                    )
-                self._validate_worksheet("all", None, data_start_row)
-                effective_worksheet_name = None
-            else:
-                if not normalized_selected_worksheets and str(worksheet_name or "").strip():
-                    normalized_selected_worksheets = [str(worksheet_name).strip()]
-                if not normalized_selected_worksheets:
-                    raise _unprocessable(
-                        "WORKSHEET_REQUIRED",
-                        "Select at least one worksheet for the shared rules.",
-                    )
-                if (
-                    worksheet_name
-                    and str(worksheet_name).strip() not in normalized_selected_worksheets
-                ):
-                    raise _unprocessable(
-                        "WORKSHEET_SELECTION_INVALID",
-                        "The compatibility worksheet must be one of the selected worksheets.",
-                    )
-                for selected_name in normalized_selected_worksheets:
-                    self._validate_worksheet("selected", selected_name, data_start_row)
-                effective_worksheet_name = (
-                    normalized_selected_worksheets[0]
-                    if len(normalized_selected_worksheets) == 1
-                    else None
-                )
-        else:
+        if worksheet_mode == "all":
             if normalized_selected_worksheets:
                 raise _unprocessable(
                     "WORKSHEET_SELECTION_INVALID",
-                    "Per-worksheet rules define their worksheet selection directly.",
+                    "Selected worksheet names cannot be combined with all-worksheets participation.",
                 )
-            self._validate_worksheet(worksheet_mode, worksheet_name, data_start_row)
-            effective_worksheet_name = worksheet_name
+            self._validate_worksheet("all", None, data_start_row)
+            effective_worksheet_name = None
+        else:
+            if not normalized_selected_worksheets and str(worksheet_name or "").strip():
+                normalized_selected_worksheets = [str(worksheet_name).strip()]
+            if not normalized_selected_worksheets:
+                raise _unprocessable("WORKSHEET_REQUIRED", "Select at least one participating worksheet.")
+            if worksheet_name and str(worksheet_name).strip() not in normalized_selected_worksheets:
+                raise _unprocessable(
+                    "WORKSHEET_SELECTION_INVALID",
+                    "The compatibility worksheet must participate in the Source.",
+                )
+            for selected_name in normalized_selected_worksheets:
+                self._validate_worksheet("selected", selected_name, data_start_row)
+            effective_worksheet_name = normalized_selected_worksheets[0] if len(normalized_selected_worksheets) == 1 else None
+        if worksheet_rule_mode == "per_worksheet" and worksheet_mode == "selected" and len(normalized_selected_worksheets) < 2:
+            raise _unprocessable(
+                "WORKSHEET_STRATEGY_INVALID",
+                "Separate worksheet mappings require more than one participating worksheet.",
+            )
+        candidate_checksum = self._mapping_candidate_checksum(
+            worksheet_mode=worksheet_mode, worksheet_name=worksheet_name,
+            data_start_row=data_start_row, source_fields=source_fields,
+            channel_mappings=channel_mappings, value_policy=value_policy,
+            worksheet_rule_mode=worksheet_rule_mode,
+            selected_worksheet_names=selected_worksheet_names or [],
+            duplicate_product_policy=duplicate_product_policy,
+            worksheet_rules=worksheet_rules or [], identity_policy_version=identity_policy_version,
+        )
+        if _commit and identity_policy_version >= 2:
+            validation = self.db.get(DlSourceIdentityValidation, source.id)
+            if (
+                validation is None
+                or validation.source_version != expected_source_version
+                or validation.candidate_checksum != candidate_checksum
+                or not validation.valid
+                or validation.validated_at < utcnow() - timedelta(hours=1)
+            ):
+                details = {"conflicts": list(validation.conflicts)} if validation is not None and not validation.valid else {}
+                raise _unprocessable(
+                    "SOURCE_IDENTITY_VALIDATION_REQUIRED",
+                    "Preview must confirm unique, non-blank Source Product Keys before this Mapping can be saved.",
+                    details,
+                )
         if duplicate_product_policy not in {"block", "last_sheet_wins"}:
             raise _unprocessable(
                 "DUPLICATE_PRODUCT_POLICY_INVALID",
@@ -569,7 +606,7 @@ class SourceWorkspaceService:
         normalized_source_fields = self._normalize_field_mappings(
             source_fields,
             SOURCE_FIELDS,
-            required_fields={"name"} if worksheet_rule_mode == "shared" else set(),
+            required_fields=({"name", "source_key"} if identity_policy_version >= 2 else {"name"}) if worksheet_rule_mode == "shared" else set(),
         )
         normalized_channels = self._normalize_channel_mappings(
             channel_mappings,
@@ -592,8 +629,22 @@ class SourceWorkspaceService:
             ]
         else:
             normalized_worksheet_rules = self._normalize_worksheet_rules(
-                worksheet_rules or []
+                worksheet_rules or [], require_source_key=identity_policy_version >= 2
             )
+            enabled_rule_names = {
+                rule["worksheetName"] for rule in normalized_worksheet_rules if rule["enabled"]
+            }
+            if worksheet_mode == "selected" and enabled_rule_names != set(normalized_selected_worksheets):
+                raise _unprocessable(
+                    "WORKSHEET_SCOPE_RULE_MISMATCH",
+                    "Enabled worksheet rules must exactly match the participating worksheets.",
+                    {"participating": normalized_selected_worksheets, "enabledRules": sorted(enabled_rule_names)},
+                )
+            if worksheet_mode == "all" and len(enabled_rule_names) < 2:
+                raise _unprocessable(
+                    "WORKSHEET_STRATEGY_INVALID",
+                    "Separate worksheet mappings require more than one participating worksheet.",
+                )
         if source.source_kind == "external":
             external_references = [
                 *[
@@ -628,6 +679,7 @@ class SourceWorkspaceService:
             "worksheetRuleMode": worksheet_rule_mode,
             "duplicateProductPolicy": duplicate_product_policy,
             "worksheetRules": normalized_worksheet_rules,
+            "identityPolicyVersion": identity_policy_version,
         }
         revision = SourceMappingRevision(
             id=_id(),
@@ -709,6 +761,7 @@ class SourceWorkspaceService:
         selected_worksheet_names: list[str] | None = None,
         duplicate_product_policy: str = "block",
         worksheet_rules: list[dict[str, Any]] | None = None,
+        identity_policy_version: int = 1,
         user: FlowHubUser,
         page: int = 1,
         page_size: int = 200,
@@ -721,6 +774,15 @@ class SourceWorkspaceService:
         """
 
         source = self._owned_source(source_id, user, require_active=True)
+        candidate_checksum = self._mapping_candidate_checksum(
+            worksheet_mode=worksheet_mode, worksheet_name=worksheet_name,
+            data_start_row=data_start_row, source_fields=source_fields,
+            channel_mappings=channel_mappings, value_policy=value_policy,
+            worksheet_rule_mode=worksheet_rule_mode,
+            selected_worksheet_names=selected_worksheet_names or [],
+            duplicate_product_policy=duplicate_product_policy,
+            worksheet_rules=worksheet_rules or [], identity_policy_version=identity_policy_version,
+        )
         sheet = self.sheets.for_source(source.id)
         imported_worksheets: dict[str, list[list[Any]]] | None = None
         sheet_revision: SheetRevision | None = None
@@ -748,6 +810,7 @@ class SourceWorkspaceService:
                 selected_worksheet_names=selected_worksheet_names,
                 duplicate_product_policy=duplicate_product_policy,
                 worksheet_rules=worksheet_rules,
+                identity_policy_version=identity_policy_version,
                 user=user,
                 _commit=False,
             )
@@ -771,6 +834,33 @@ class SourceWorkspaceService:
         finally:
             savepoint.rollback()
             self.db.expire_all()
+        if identity_policy_version >= 2:
+            identity_categories = {"missing_source_product_key", "duplicate_source_product_key"}
+            conflicts = [
+                {
+                    "row": str(record.get("rowKey") or "")[:255],
+                    "worksheet": str(record.get("worksheetName") or "")[:240],
+                    "rowNumber": record.get("rowNumber"),
+                    "categories": sorted({
+                        str(issue.get("category"))
+                        for issue in record.get("issues", [])
+                        if issue.get("category") in identity_categories
+                    }),
+                }
+                for record in records
+                if any(issue.get("category") in identity_categories for issue in record.get("issues", []))
+            ]
+            validation = self.db.get(DlSourceIdentityValidation, source_id)
+            if validation is None:
+                validation = DlSourceIdentityValidation(source_id=source_id)
+                self.db.add(validation)
+            validation.source_version = expected_source_version
+            validation.candidate_checksum = candidate_checksum
+            validation.source_revision_id = revision_id
+            validation.valid = not conflicts
+            validation.conflicts = conflicts
+            validation.validated_at = utcnow()
+            self.db.commit()
         return result
 
     async def source_preview(
@@ -822,6 +912,7 @@ class SourceWorkspaceService:
         page_records: list[dict[str, Any]] = []
         for record in records[start : start + min(max(page_size, 1), 500)]:
             shaped = dict(record)
+            shaped.pop("sourceKeyRequired", None)
             shaped["hasIssues"] = bool(record.get("issues"))
             shaped["ready"] = bool(record.get("recognized")) and not shaped["hasIssues"]
             page_records.append(shaped)
@@ -2365,6 +2456,10 @@ class SourceWorkspaceService:
         )
 
     @staticmethod
+    def _mapping_candidate_checksum(**values: Any) -> str:
+        return checksum(values)
+
+    @staticmethod
     def _validate_worksheet(mode: str, name: str | None, data_start_row: int) -> None:
         if mode not in {"all", "selected"}:
             raise _unprocessable("WORKSHEET_MODE_INVALID", "Use all or selected worksheet mode.")
@@ -2479,7 +2574,7 @@ class SourceWorkspaceService:
         return sorted(result, key=lambda item: item["channelId"])
 
     def _normalize_worksheet_rules(
-        self, rules: list[dict[str, Any]]
+        self, rules: list[dict[str, Any]], *, require_source_key: bool = False
     ) -> list[dict[str, Any]]:
         if not rules:
             raise _unprocessable(
@@ -2506,7 +2601,7 @@ class SourceWorkspaceService:
             source_fields = self._normalize_field_mappings(
                 list(raw.get("source_fields") or raw.get("sourceFields") or []),
                 SOURCE_FIELDS,
-                required_fields={"name"} if enabled else set(),
+                required_fields=({"name", "source_key"} if require_source_key else {"name"}) if enabled else set(),
             )
             channels = self._normalize_channel_mappings(
                 list(raw.get("channel_mappings") or raw.get("channels") or []),
@@ -2810,34 +2905,40 @@ class SourceWorkspaceService:
     ) -> None:
         grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for record in records:
-            if not record["recognized"]:
-                continue
             source = record.get("sourceProduct") or {}
-            identity = str(source.get("source_key") or source.get("name") or "").strip().casefold()
+            identity = str(
+                source.get("source_key")
+                or ("" if record.get("sourceKeyRequired") else source.get("name"))
+                or ""
+            ).strip().casefold()
             if identity:
                 grouped[identity].append(record)
         for matches in grouped.values():
-            if len({str(item.get("worksheetName") or "") for item in matches}) < 2:
+            if len(matches) < 2:
                 continue
-            if policy == "last_sheet_wins":
-                affected = matches[:-1]
-                category = "duplicate_source_product_superseded"
-                severity = "warning"
-                message = "A later participating worksheet explicitly replaces this Source Product."
-            else:
-                affected = matches
-                category = "duplicate_source_product"
-                severity = "blocked"
-                message = "The same Source Product appears in more than one participating worksheet."
-            for record in affected:
+            authoritative_key = any(bool(item.get("sourceKeyRequired")) for item in matches)
+            if not authoritative_key and len({str(item.get("worksheetName") or "") for item in matches}) < 2:
+                continue
+            if not authoritative_key and policy == "last_sheet_wins":
+                for record in matches[:-1]:
+                    record["recognized"] = False
+                    record["channels"] = []
+                    record["issues"].append({
+                        "category": "duplicate_source_product_superseded", "severity": "warning", "channelId": None,
+                        "message": "A later participating worksheet explicitly replaces this Source Product.",
+                    })
+                continue
+            references = [f"{item.get('worksheetName')}!{item.get('rowNumber')}" for item in matches]
+            for record in matches:
                 record["recognized"] = False
                 record["channels"] = []
                 record["issues"].append(
                     {
-                        "category": category,
-                        "severity": severity,
+                        "category": "duplicate_source_product_key" if authoritative_key else "duplicate_source_product",
+                        "severity": "blocked",
                         "channelId": None,
-                        "message": message,
+                        "message": "Source Product Key must be unique within this Source.",
+                        "details": {"conflictingRows": references},
                     }
                 )
 
@@ -2986,6 +3087,11 @@ class SourceWorkspaceService:
                     if field.reference_type != "disabled"
                 }
                 name = str(source_data.get("name") or "").strip()
+                source_key = str(source_data.get("source_key") or "").strip()
+                require_source_key = any(
+                    field.field == "source_key" and field.required
+                    for field in rule["sourceFields"]
+                )
                 channel_data: list[dict[str, Any]] = []
                 for channel in rule["channels"]:
                     channel_id = str(channel["channelId"])
@@ -3039,7 +3145,7 @@ class SourceWorkspaceService:
                                 "message": "Channel values exist but External Listing ID is missing.",
                             }
                         )
-                recognized = bool(name and channel_data)
+                recognized = bool(name and (source_key or not require_source_key) and channel_data)
                 if not name and channel_data:
                     row_issues.append(
                         {
@@ -3049,12 +3155,23 @@ class SourceWorkspaceService:
                             "message": "Source Product Name is required.",
                         }
                     )
+                if require_source_key and not source_key and (name or channel_data):
+                    row_issues.append(
+                        {
+                            "category": "missing_source_product_key",
+                            "severity": "blocked",
+                            "channelId": None,
+                            "message": "Source Product Key is required.",
+                            "details": {"row": f"{worksheet_name}!{row_number}"},
+                        }
+                    )
                 records.append(
                     {
                         "rowKey": f"external:{worksheet_name}:{row_number}",
                         "rowNumber": row_number,
                         "worksheetName": worksheet_name,
                         "recognized": recognized,
+                        "sourceKeyRequired": require_source_key,
                         "sourceProduct": source_data,
                         "channels": channel_data,
                         "valuePolicy": policy,
@@ -3162,6 +3279,10 @@ class SourceWorkspaceService:
                 if field.reference_type != "disabled"
             }
             name = str(source_data.get("name") or "").strip()
+            source_key = str(source_data.get("source_key") or "").strip()
+            require_source_key = any(
+                field.field == "source_key" and field.required for field in source_fields
+            )
             channel_data = []
             for channel in channels:
                 channel_id = str(channel["channelId"])
@@ -3198,7 +3319,7 @@ class SourceWorkspaceService:
                             "message": "Channel values exist but External Listing ID is missing.",
                         }
                     )
-            recognized = bool(name and channel_data)
+            recognized = bool(name and (source_key or not require_source_key) and channel_data)
             if not name and channel_data:
                 row_issues.append(
                     {
@@ -3207,18 +3328,30 @@ class SourceWorkspaceService:
                         "message": "Source Product Name is required.",
                     }
                 )
+            if require_source_key and not source_key and (name or channel_data):
+                row_issues.append(
+                    {
+                        "category": "missing_source_product_key",
+                        "severity": "blocked",
+                        "channelId": None,
+                        "message": "Source Product Key is required.",
+                        "details": {"row": str(row.position)},
+                    }
+                )
             records.append(
                 {
                     "rowKey": row.row_key,
                     "rowNumber": row.position,
                     "worksheetName": str(mapping.worksheet_name or "Sheet1"),
                     "recognized": recognized,
+                    "sourceKeyRequired": require_source_key,
                     "sourceProduct": source_data,
                     "channels": channel_data,
                     "valuePolicy": policy,
                     "issues": row_issues,
                 }
             )
+        self._apply_cross_worksheet_duplicate_policy(records, "block")
         return records
 
     @staticmethod

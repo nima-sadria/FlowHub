@@ -19,9 +19,12 @@ from sqlalchemy.orm import Session
 from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
 from app.connectors.common.source_http import SourceHttpClient, parse_trusted_private_networks
 from app.flowhub.data_layer.models import (
+    DlSourceDiscoveryLock,
+    DlSourceDiscoveryReservation,
     DlSourceReadLock,
     DlSourceReadReservation,
     DlSourceSnapshot,
+    DlWorksheetDiscoveryCache,
 )
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.integrations.errors import IntegrationError
@@ -31,6 +34,7 @@ from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_acquisition.execution import SourceAcquisitionExecutor
 from app.flowhub.source_acquisition.nextcloud_provider import NextcloudWebDavAcquisitionProvider
 from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.sources.xlsx_discovery import RangedXlsxDiscovery, XlsxDiscoveryError
 from app.flowhub.unified_workspace.domain import checksum
 
 SOURCE_ID = "nextcloud:primary"
@@ -48,6 +52,11 @@ DEFAULT_READ_POLICY: dict[str, object] = {
     "manual_read_allowed": True,
 }
 
+DEFAULT_DISCOVERY_POLICY: dict[str, object] = {
+    "enabled": True,
+    "max_refreshes_per_24h": 30,
+}
+
 _COLUMN_REF_RE = re.compile(r"^[A-Za-z]{1,3}$")
 _HEADER_REF_RE = re.compile(r"^[A-Za-z][A-Za-z0-9 _./()-]{0,63}$")
 _HISTORY_KEY = "nextcloud.source_read_history"
@@ -56,6 +65,7 @@ _LAST_READ_STATUS_KEY = "nextcloud.last_read_status"
 _LAST_READ_ROWS_KEY = "nextcloud.last_read_row_count"
 _LAST_READ_WARNINGS_KEY = "nextcloud.last_read_warning_count"
 _LAST_READ_ERRORS_KEY = "nextcloud.last_read_error_count"
+_DISCOVERY_POLICY_KEY = "nextcloud.worksheet_discovery_policy"
 
 
 @dataclass(frozen=True)
@@ -516,12 +526,12 @@ class SpreadsheetSourceReadService:
             "exhausted": bool(state["enabled"] and remaining <= 0),
         }
 
-    def worksheet_discovery_state(self) -> dict[str, object]:
+    def worksheet_discovery_state(self, *, source_id: str | None = None) -> dict[str, object]:
         """Describe whether worksheet discovery can use persisted Snapshot metadata.
 
-        Snapshot names are only reused for the exact currently-selected workbook
-        path.  When no such metadata exists, callers must acquire the workbook
-        and therefore reserve one remote-read slot before provider I/O.
+        Snapshot names are reused for the exact selected workbook path. Cached
+        discovery metadata is also local, but never represents a business
+        Snapshot. No provider I/O occurs in this method.
         """
         spreadsheet_path = str(self.config.get("nextcloud.spreadsheet_path") or "").strip()
         if not spreadsheet_path:
@@ -533,6 +543,7 @@ class SpreadsheetSourceReadService:
                 "snapshot_version": None,
                 "snapshot_at": None,
                 "worksheet_names": [],
+                "worksheets": [],
             }
         snapshot = (
             self.db.query(DlSourceSnapshot)
@@ -541,7 +552,18 @@ class SpreadsheetSourceReadService:
             .one_or_none()
         )
         worksheet_names = _safe_worksheet_names(snapshot.sheet_names if snapshot else None)
+        cache = self.db.get(DlWorksheetDiscoveryCache, source_id) if source_id else None
+        cached_worksheets = (
+            list(cache.worksheets)
+            if cache is not None and cache.file_path == spreadsheet_path and isinstance(cache.worksheets, list)
+            else []
+        )
         if snapshot is not None and worksheet_names:
+            cached_by_name = {
+                str(item.get("name") or ""): item
+                for item in cached_worksheets
+                if isinstance(item, dict)
+            }
             return {
                 "requires_remote_read": False,
                 "metadata_source": "snapshot",
@@ -550,6 +572,29 @@ class SpreadsheetSourceReadService:
                 "snapshot_version": snapshot.version_seq,
                 "snapshot_at": _iso(snapshot.snapshotted_at),
                 "worksheet_names": worksheet_names,
+                "worksheets": [
+                    {
+                        "name": name,
+                        "rowCount": None,
+                        **(
+                            {"columns": list(cached_by_name[name].get("columns") or [])}
+                            if name in cached_by_name else {}
+                        ),
+                    }
+                    for name in worksheet_names
+                ],
+            }
+        if cached_worksheets:
+            return {
+                "requires_remote_read": False,
+                "metadata_source": "discovery_cache",
+                "reason": None,
+                "snapshot_id": None,
+                "snapshot_version": None,
+                "snapshot_at": None,
+                "worksheet_names": [str(item.get("name") or "") for item in cached_worksheets],
+                "worksheets": cached_worksheets,
+                "discovered_at": _iso(cache.discovered_at),
             }
         return {
             "requires_remote_read": True,
@@ -559,7 +604,138 @@ class SpreadsheetSourceReadService:
             "snapshot_version": None,
             "snapshot_at": None,
             "worksheet_names": [],
+            "worksheets": [],
         }
+
+    def discovery_policy(self) -> dict[str, object]:
+        raw = _json_config(self.config.get(_DISCOVERY_POLICY_KEY))
+        data = raw if isinstance(raw, dict) else {}
+        try:
+            limit = int(data.get("max_refreshes_per_24h", DEFAULT_DISCOVERY_POLICY["max_refreshes_per_24h"]))
+        except (TypeError, ValueError):
+            limit = int(DEFAULT_DISCOVERY_POLICY["max_refreshes_per_24h"])
+        return {
+            "enabled": bool(data.get("enabled", DEFAULT_DISCOVERY_POLICY["enabled"])),
+            "max_refreshes_per_24h": min(max(limit, 1), 1000),
+        }
+
+    def discovery_quota_contract(self, *, source_id: str) -> dict[str, object]:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        policy = self.discovery_policy()
+        reservations = (
+            self.db.query(DlSourceDiscoveryReservation)
+            .filter(DlSourceDiscoveryReservation.source_id == source_id)
+            .filter(DlSourceDiscoveryReservation.reserved_at >= now - timedelta(hours=24))
+            .all()
+        )
+        limit = int(policy["max_refreshes_per_24h"])
+        usage = len(reservations) if policy["enabled"] else 0
+        reset_at = _iso(min(item.reserved_at for item in reservations) + timedelta(hours=24)) if reservations else None
+        return {
+            "enabled": bool(policy["enabled"]),
+            "limit": limit,
+            "usage": usage,
+            "remaining": max(limit - usage, 0) if policy["enabled"] else limit,
+            "reset_at": reset_at,
+            "exhausted": bool(policy["enabled"] and usage >= limit),
+        }
+
+    def reserve_discovery_slot(self, user_id: str, *, source_id: str) -> DlSourceDiscoveryReservation:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        self.db.commit()
+        dialect = self.db.get_bind().dialect.name
+        if dialect == "sqlite":
+            self.db.execute(text("BEGIN IMMEDIATE"))
+            self.db.execute(
+                text("INSERT OR IGNORE INTO dl_source_discovery_locks (source_id, updated_at) VALUES (:source_id, :updated_at)"),
+                {"source_id": source_id, "updated_at": now},
+            )
+        elif dialect == "postgresql":
+            self.db.execute(
+                text("INSERT INTO dl_source_discovery_locks (source_id, updated_at) VALUES (:source_id, :updated_at) ON CONFLICT (source_id) DO NOTHING"),
+                {"source_id": source_id, "updated_at": now},
+            )
+        else:
+            if self.db.get(DlSourceDiscoveryLock, source_id) is None:
+                self.db.add(DlSourceDiscoveryLock(source_id=source_id, updated_at=now))
+                self.db.flush()
+        lock = self.db.query(DlSourceDiscoveryLock).filter(DlSourceDiscoveryLock.source_id == source_id).with_for_update().one()
+        lock.updated_at = now
+        self.db.flush()
+        state = self.discovery_quota_contract(source_id=source_id)
+        if state["exhausted"]:
+            self.db.rollback()
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                {
+                    "code": "SOURCE_DISCOVERY_LIMIT_REACHED",
+                    "message": "The worksheet discovery allowance has been used.",
+                    "limit": state["limit"],
+                    "usage": state["usage"],
+                    "reset_at": state["reset_at"],
+                },
+            )
+        reservation = DlSourceDiscoveryReservation(
+            id=f"sdr_{uuid.uuid4().hex[:20]}", source_id=source_id, user_id=str(user_id), reserved_at=now, status="reserved"
+        )
+        self.db.add(reservation)
+        self.db.commit()
+        self.db.refresh(reservation)
+        return reservation
+
+    async def refresh_worksheet_discovery(
+        self, *, source_profile_id: str, user_id: str | int
+    ) -> dict[str, object]:
+        spreadsheet_path = self._required_config("nextcloud.spreadsheet_path")
+        username = str(self.config.get("nextcloud.username") or "").strip()
+        password = str(self.config.get("nextcloud.password") or "")
+        try:
+            normalized = normalize_nextcloud_url(self.config.get("nextcloud.url") or "", username)
+        except NextcloudUrlValidationError as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, {"code": exc.code, "message": str(exc)}) from exc
+        if not username or not password:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud source credentials are incomplete.")
+        provider = NextcloudWebDavAcquisitionProvider(
+            webdav_files_root_url=normalized["webdav_files_root_url"], spreadsheet_path=spreadsheet_path,
+            username=normalized["username"], app_password=password, capture_contract="worksheet-metadata-v1",
+        )
+        http = self._nextcloud_http_client()
+        reservation = self.reserve_discovery_slot(str(user_id), source_id=source_profile_id)
+        try:
+            # Reserve before DNS/egress preflight so every external refresh
+            # attempt is covered by the separate abuse allowance.
+            await http.preflight(provider.resource_url)
+            worksheets, change_token = await RangedXlsxDiscovery(http).discover(
+                provider.resource_url, basic_auth=(normalized["username"], password)
+            )
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            cache = self.db.get(DlWorksheetDiscoveryCache, source_profile_id)
+            if cache is None:
+                cache = DlWorksheetDiscoveryCache(source_id=source_profile_id)
+                self.db.add(cache)
+            cache.file_path = spreadsheet_path
+            cache.provider_change_token = change_token
+            cache.worksheets = worksheets
+            cache.metadata_checksum = checksum(worksheets)
+            cache.discovered_at = now
+            reservation.status = "succeeded"
+            reservation.completed_at = now
+            self.db.commit()
+            return {
+                "worksheets": worksheets,
+                "discovered_at": _iso(now),
+                "change_token": change_token,
+                "quota": self.discovery_quota_contract(source_id=source_profile_id),
+            }
+        except (XlsxDiscoveryError, SourceHttpError) as exc:
+            reservation.status = "failed"
+            reservation.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            reservation.error_code = getattr(exc, "code", type(exc).__name__)[:120]
+            self.db.commit()
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {"code": reservation.error_code, "message": "Worksheet metadata refresh could not be completed without a full workbook acquisition."},
+            ) from exc
 
     def read_policy_state(self, *, source_id: str | None = None, now: datetime | None = None) -> dict:
         source_id = self._quota_source_id(source_id, required=False)

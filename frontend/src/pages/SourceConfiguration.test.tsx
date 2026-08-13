@@ -259,7 +259,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await act(async () => button('Manage Connection').click())
 
     expect(container.querySelector('[data-testid="location-probe"]')?.textContent)
-      .toBe('/commerce?tab=sources&resource=nextcloud%3Aprimary')
+      .toBe('/commerce?tab=sources&resource=nextcloud%3Aprimary&returnTo=%2Fsources%2Fsource-1')
   })
 
   it('runs Read Now for an external Source and renders the read result', async () => {
@@ -379,7 +379,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
       mappingVersion: 0,
       sheetId: null,
     })
-    const worksheets = vi.spyOn(sourceWorkspaceApi, 'worksheets')
+    const worksheets = vi.spyOn(sourceWorkspaceApi, 'refreshWorksheets')
     const testSource = vi.fn().mockResolvedValue({
       ok: true,
       status: 'healthy',
@@ -405,18 +405,19 @@ describe('SourceConfiguration per-Channel mappings', () => {
 
     expect(testSource).toHaveBeenCalledWith('nextcloud:primary')
     expect(worksheets).not.toHaveBeenCalled()
-    expect(container.textContent).toContain('Use Detect worksheets when you are ready; it may use one remote read.')
+    expect(container.textContent).toContain('Detect worksheets stays local. Refresh from Nextcloud uses the separate metadata allowance.')
   })
 
-  it('shows an exhausted remote-read allowance and prevents a known-doomed worksheet request', async () => {
+  it('keeps local detection available while an exhausted discovery allowance blocks only remote refresh', async () => {
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
       ...source,
       sourceKind: 'external',
       externalSourceId: 'nextcloud:primary',
       readQuota: { enabled: true, limit: 10, usage: 10, remaining: 0, reset_at: '2030-08-14T00:00:00Z', exhausted: true },
+      discoveryQuota: { enabled: true, limit: 30, usage: 30, remaining: 0, reset_at: '2030-08-14T00:00:00Z', exhausted: true },
       worksheetDiscovery: { requires_remote_read: true, metadata_source: 'remote', reason: 'snapshot_metadata_unavailable', snapshot_id: null, snapshot_version: null, snapshot_at: null, worksheet_names: [] },
     })
-    const worksheets = vi.spyOn(sourceWorkspaceApi, 'worksheets')
+    const worksheets = vi.spyOn(sourceWorkspaceApi, 'refreshWorksheets')
     const getSourceConfiguration = vi.fn().mockResolvedValue({
       source_id: 'nextcloud:primary', provider: 'nextcloud', display_name: 'Nextcloud', configured: true, enabled: true,
       access_mode: 'read_only', settings: {}, secrets: {}, settings_schema: [], credentials_returned: false,
@@ -429,24 +430,27 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await renderPage(editorAuth, '/sources/source-1', services)
 
     const detect = button('Detect worksheets')
+    const refresh = button('Refresh from Nextcloud')
     expect(container.querySelector('[data-testid="remote-read-allowance"]')?.textContent).toContain('10 / 10 used in the last 24 hours')
-    expect(detect.disabled).toBe(true)
-    expect(detect.title).toContain('Daily remote-read limit reached (10/10)')
-    await act(async () => { detect.click(); await Promise.resolve() })
+    expect(container.querySelector('[data-testid="worksheet-discovery-quota"]')?.textContent).toContain('30 of 30 used')
+    expect(detect.disabled).toBe(false)
+    expect(refresh.disabled).toBe(true)
+    await act(async () => { refresh.click(); await Promise.resolve() })
     expect(worksheets).not.toHaveBeenCalled()
   })
 
-  it('retains structured quota exhaustion after a 429 and suppresses repeated Detect worksheets requests', async () => {
+  it('retains structured discovery exhaustion after a 429 and suppresses repeated remote refresh requests', async () => {
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
       ...source,
       sourceKind: 'external',
       externalSourceId: 'nextcloud:primary',
       readQuota: { enabled: true, limit: 10, usage: 9, remaining: 1, reset_at: '2030-08-14T00:00:00Z', exhausted: false },
+      discoveryQuota: { enabled: true, limit: 30, usage: 29, remaining: 1, reset_at: '2030-08-14T00:00:00Z', exhausted: false },
       worksheetDiscovery: { requires_remote_read: true, metadata_source: 'remote', reason: 'snapshot_metadata_unavailable', snapshot_id: null, snapshot_version: null, snapshot_at: null, worksheet_names: [] },
     })
-    const worksheets = vi.spyOn(sourceWorkspaceApi, 'worksheets').mockRejectedValue(
-      new ApiError(429, 'The source read allowance has been used.', 'SOURCE_READ_LIMIT_REACHED', {
-        limit: 10, usage: 10, resetAt: '2030-08-14T00:00:00Z', retryAfterSeconds: 60,
+    const worksheets = vi.spyOn(sourceWorkspaceApi, 'refreshWorksheets').mockRejectedValue(
+      new ApiError(429, 'The worksheet discovery allowance has been used.', 'SOURCE_DISCOVERY_LIMIT_REACHED', {
+        limit: 30, usage: 30, resetAt: '2030-08-14T00:00:00Z', retryAfterSeconds: 60,
       }),
     )
     const getSourceConfiguration = vi.fn().mockResolvedValue({
@@ -459,13 +463,17 @@ describe('SourceConfiguration per-Channel mappings', () => {
     } as Services
 
     await renderPage(editorAuth, '/sources/source-1', services)
-    await act(async () => { button('Detect worksheets').click(); await Promise.resolve(); await Promise.resolve() })
+    await act(async () => { button('Refresh from Nextcloud').click(); await Promise.resolve(); await Promise.resolve() })
 
     const detect = button('Detect worksheets')
+    const refresh = button('Refresh from Nextcloud')
     expect(worksheets).toHaveBeenCalledTimes(1)
-    expect(detect.disabled).toBe(true)
-    expect(container.textContent).toContain('Daily remote-read limit reached (10/10)')
-    await act(async () => { detect.click(); await Promise.resolve() })
+    expect(detect.disabled).toBe(false)
+    expect(refresh.disabled).toBe(true)
+    expect(container.textContent).toContain('30 of 30 remote metadata refreshes were used')
+    expect(container.querySelector('[data-testid="worksheet-discovery-feedback"]')?.textContent)
+      .toContain('30 of 30 remote metadata refreshes were used')
+    await act(async () => { refresh.click(); await Promise.resolve() })
     expect(worksheets).toHaveBeenCalledTimes(1)
   })
 
@@ -499,6 +507,9 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await act(async () => { button('Detect worksheets').click(); await Promise.resolve(); await Promise.resolve() })
     expect(worksheets).toHaveBeenCalledTimes(1)
     expect(container.textContent).toContain('Row count unavailable from saved metadata')
+    expect(container.querySelector('[data-testid="worksheet-discovery-feedback"]')?.textContent)
+      .toContain('no additional remote read was used')
+    expect(container.querySelector('input[name="worksheet-rule-mode"][value="per_worksheet"]')).toBeNull()
   })
 
   it('keeps Data Sheet editing available but blocks remote actions for a disabled external Source', async () => {
@@ -545,18 +556,8 @@ describe('SourceConfiguration per-Channel mappings', () => {
       detectButtons[0].click()
       await Promise.resolve()
     })
-    await act(async () => {
-      (container.querySelector('input[name="worksheet-rule-mode"][value="per_worksheet"]') as HTMLInputElement).click()
-      await Promise.resolve()
-    })
-    const perWorksheetDetect = Array.from(container.querySelectorAll('button'))
-      .find(item => item.textContent?.includes('Detect worksheets')) as HTMLButtonElement
-    expect(perWorksheetDetect.disabled).toBe(true)
-    expect(perWorksheetDetect.title).toContain('Enable and save it before testing')
-    await act(async () => {
-      perWorksheetDetect.click()
-      await Promise.resolve()
-    })
+    expect(container.querySelector('input[name="worksheet-rule-mode"][value="per_worksheet"]')).toBeNull()
+    expect(container.textContent).toContain('No local worksheet metadata is available')
     expect(worksheets).not.toHaveBeenCalled()
     expect((container.querySelector('fieldset#data-mapping') as HTMLFieldSetElement).disabled).toBe(false)
     expect(testSource).not.toHaveBeenCalled()
@@ -585,8 +586,8 @@ describe('SourceConfiguration per-Channel mappings', () => {
     normalizationSection.scrollIntoView = scrollSpy
 
     const nav = container.querySelector('nav') as HTMLElement
-    const overviewTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Overview')) as HTMLButtonElement
-    const normalizationTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Normalization')) as HTMLButtonElement
+    const overviewTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('General')) as HTMLButtonElement
+    const normalizationTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Value handling')) as HTMLButtonElement
     expect(overviewTab.getAttribute('aria-current')).toBe('true')
     expect(normalizationTab.getAttribute('aria-current')).toBeNull()
 
@@ -598,27 +599,28 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(overviewTab.getAttribute('aria-current')).toBeNull()
   })
 
-  it('opens every accordion inside Data mapping when that tab is clicked', async () => {
+  it('uses navigation chips that match and open their actual sections', async () => {
     await renderPage()
 
+    const discovery = container.querySelector('#worksheet-discovery') as HTMLDetailsElement
     const workbook = container.querySelector('#workbook') as HTMLDetailsElement
-    const channelColumns = container.querySelector('#channel-columns') as HTMLDetailsElement
+    expect(discovery.open).toBe(true)
     expect(workbook.open).toBe(false)
-    expect(channelColumns.open).toBe(false)
 
     const nav = container.querySelector('nav') as HTMLElement
-    const dataMappingTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Data mapping')) as HTMLButtonElement
-    await act(async () => { dataMappingTab.click(); await Promise.resolve() })
+    const workbookTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Data Sheet worksheet scope')) as HTMLButtonElement
+    await act(async () => { workbookTab.click(); await Promise.resolve() })
 
     expect(workbook.open).toBe(true)
-    expect(channelColumns.open).toBe(true)
+    expect(workbookTab.getAttribute('aria-current')).toBe('true')
+    expect(Array.from(nav.querySelectorAll('button')).some(item => item.textContent?.includes('Data mapping'))).toBe(false)
   })
 
   it('updates the active tab as sections scroll into view (scroll-spy)', async () => {
     await renderPage()
 
     const nav = container.querySelector('nav') as HTMLElement
-    const validationTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Validation')) as HTMLButtonElement
+    const validationTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Source Preview')) as HTMLButtonElement
     expect(validationTab.getAttribute('aria-current')).toBeNull()
 
     await act(async () => { fireIntersection('validation', true); await Promise.resolve() })
@@ -631,7 +633,8 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await renderPage()
 
     const detailsElements = () => Array.from(container.querySelectorAll('fieldset#data-mapping details')) as HTMLDetailsElement[]
-    expect(detailsElements().some(item => item.open)).toBe(false)
+    expect((container.querySelector('#worksheet-discovery') as HTMLDetailsElement).open).toBe(true)
+    expect(detailsElements().some(item => item.open)).toBe(true)
 
     const expandAll = Array.from(container.querySelectorAll('button')).find(item => item.textContent === 'Expand all') as HTMLButtonElement
     await act(async () => { expandAll.click(); await Promise.resolve() })
@@ -642,12 +645,12 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(detailsElements().every(item => item.open)).toBe(false)
   })
 
-  it('flags the Data mapping and Normalization tabs as unsaved once the mapping changes', async () => {
+  it('flags the concrete mapping-section tabs as unsaved once the mapping changes', async () => {
     await renderPage()
 
     const nav = container.querySelector('nav') as HTMLElement
-    const dataMappingTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Data mapping')) as HTMLButtonElement
-    expect(dataMappingTab.querySelector('.fh-status-dot')).toBeNull()
+    const workbookTab = Array.from(nav.querySelectorAll('button')).find(item => item.textContent?.includes('Data Sheet worksheet scope')) as HTMLButtonElement
+    expect(workbookTab.querySelector('.fh-status-dot')).toBeNull()
 
     const dataStartInput = Array.from(container.querySelectorAll('label')).find(label => label.textContent?.includes('Data starts at row'))?.querySelector('input') as HTMLInputElement
     await act(async () => {
@@ -656,7 +659,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
       await Promise.resolve()
     })
 
-    expect(dataMappingTab.querySelector('.fh-status-dot')).not.toBeNull()
+    expect(workbookTab.querySelector('.fh-status-dot')).not.toBeNull()
   })
 
   it('keeps the mapping workflow inside one full-width grid item', async () => {
@@ -679,11 +682,46 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(digikala?.querySelector('input[type="checkbox"]')).toHaveProperty('disabled', true)
     const sourceNameReference = translate('sources:sourceConfiguration.columnReference', { field: translate('sources:sourceConfiguration.sourceProductName') })
     const sourceNameInput = container.querySelector(`[aria-label="${sourceNameReference}"]`) as HTMLInputElement
+    const sourceNameReferenceType = container.querySelector(`[aria-label="${translate('sources:sourceConfiguration.referenceType', { field: translate('sources:sourceConfiguration.sourceProductName') })}"]`) as HTMLSelectElement
     expect(sourceNameInput.value).toBe('A')
-    expect(sourceNameInput.title).toBe(translate('sources:sourceConfiguration.smartInputHelpWithInternal'))
-    expect(sourceNameInput.placeholder).toBe(translate('sources:sourceConfiguration.smartInputPlaceholder'))
-    expect(container.textContent).toContain(translate('sources:sourceConfiguration.modeTagColumn'))
-    expect(container.textContent).toContain(translate('sources:sourceConfiguration.modeTagHeader'))
+    expect(sourceNameReferenceType.value).toBe('column_letter')
+    expect(sourceNameInput.placeholder).toBe(translate('sources:sourceConfiguration.exampleColumn'))
+    expect(container.textContent).toContain('Source Product Name, Source Product Key, and Cost are the primary mappings.')
+    expect(container.textContent).toContain('Cost is the Source or supplier cost. It is not a Channel selling price.')
+    const primaryFields = container.querySelector('[data-source-field-group="primary"]') as HTMLFieldSetElement
+    const optionalFields = container.querySelector('[data-source-field-group="classification"]') as HTMLElement
+    expect(primaryFields.textContent).toContain('Source Product Key')
+    expect(primaryFields.textContent).toContain('Cost')
+    expect(primaryFields.textContent).not.toContain('Category')
+    expect(optionalFields.querySelector('h3')?.textContent).toContain('Optional attributes')
+  })
+
+  it('keeps an ambiguous value under the explicitly selected reference type', async () => {
+    await renderPage()
+    const woo = container.querySelector('tr[data-channel-id="woocommerce:primary"]') as HTMLElement
+    const type = woo.querySelector('[aria-label="Price reference type"]') as HTMLSelectElement
+    const reference = woo.querySelector('[aria-label="Price column reference"]') as HTMLInputElement
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(type, 'header_name')
+      type.dispatchEvent(new Event('change', { bubbles: true }))
+      await Promise.resolve()
+    })
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(reference, 'H')
+      reference.dispatchEvent(new Event('input', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    expect(type.value).toBe('header_name')
+    expect(reference.value).toBe('H')
+    await previewThenSave()
+    const saveCalls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
+    const payload = saveCalls[saveCalls.length - 1]?.[1] as {
+      channel_mappings: Array<{ channel_id: string; fields: Array<{ field: string; reference_type: string; reference_value: string | null }> }>
+    }
+    const savedPrice = payload.channel_mappings.find(item => item.channel_id === 'woocommerce:primary')?.fields.find(item => item.field === 'price')
+    expect(savedPrice).toEqual(expect.objectContaining({ reference_type: 'header_name', reference_value: 'H' }))
   })
 
   it('allows an already-enabled incomplete Channel to be disabled but not re-enabled until mapping is complete', async () => {
@@ -1040,11 +1078,15 @@ describe('SourceConfiguration per-Channel mappings', () => {
         enabled: true,
         dataStartRow: 2,
         valuePolicy: {},
-        sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }],
+        sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'H', required: true }],
         channels: [
           { channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] },
           { channelId: 'snappshop:main', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'G' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'E' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'F' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] },
         ],
+      }, {
+        worksheetName: 'Surface', enabled: true, dataStartRow: 2, valuePolicy: {},
+        sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'H', required: true }],
+        channels: [],
       }],
     }
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
@@ -1117,7 +1159,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await act(async () => button('Select all').click())
     await act(async () => button('Enable selected').click())
     const surfaceEditor = container.querySelector('details[data-worksheet-rule="Surface"]') as HTMLDetailsElement
-    expect(surfaceEditor.textContent).toContain('Needs column settings')
+    expect(surfaceEditor.textContent).toContain('Contains validation errors')
     await act(async () => button('Ignore selected').click())
     expect(surfaceEditor.textContent).toContain('Ignored')
   })
@@ -1147,6 +1189,58 @@ describe('SourceConfiguration per-Channel mappings', () => {
       expect(editor.querySelector('[data-channel-rule="woocommerce:primary"] [aria-label="Price column reference"]')).toHaveProperty('value', 'C')
       expect(editor.querySelector('[data-channel-rule="snappshop:main"] [aria-label="Price column reference"]')).toHaveProperty('value', 'قیمت اسنپ')
     }
+  })
+
+  it('deterministically collapses a multi-sheet strategy when scope changes to one worksheet', async () => {
+    const sourceFields = (nameColumn: string, keyColumn: string) => [
+      { field: 'name', referenceType: 'column_letter' as const, referenceValue: nameColumn, required: true },
+      { field: 'source_key', referenceType: 'column_letter' as const, referenceValue: keyColumn, required: true },
+      { field: 'cost', referenceType: 'disabled' as const, referenceValue: null },
+      { field: 'category', referenceType: 'disabled' as const, referenceValue: null },
+      { field: 'brand', referenceType: 'disabled' as const, referenceValue: null },
+    ]
+    const perWorksheet: SourceMapping = {
+      ...mapping,
+      worksheetMode: 'selected',
+      worksheetName: null,
+      selectedWorksheetNames: ['Logitech', 'Surface'],
+      worksheetRuleMode: 'per_worksheet',
+      duplicateProductPolicy: 'block',
+      worksheetRules: [
+        { worksheetName: 'Logitech', enabled: true, dataStartRow: 3, valuePolicy: {}, sourceFields: sourceFields('A', 'B'), channels: [] },
+        { worksheetName: 'Surface', enabled: true, dataStartRow: 7, valuePolicy: {}, sourceFields: sourceFields('D', 'E'), channels: [] },
+      ],
+    }
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
+    vi.spyOn(sourceWorkspaceApi, 'worksheets').mockResolvedValue({
+      sourceId: source.id,
+      sourceRevisionId: 'revision-1',
+      items: [{ name: 'Logitech', rowCount: 20 }, { name: 'Surface', rowCount: 15 }],
+    })
+    await renderPage()
+    await act(async () => { button('Detect worksheets').click(); await Promise.resolve() })
+    expect(container.querySelector('input[name="worksheet-rule-mode"][value="per_worksheet"]')).not.toBeNull()
+
+    const surfaceScope = Array.from(container.querySelectorAll('label'))
+      .find(label => label.textContent?.includes('Surface') && label.querySelector('[data-selected]') === null)
+      ?.querySelector('input[type="checkbox"]') as HTMLInputElement
+    await act(async () => surfaceScope.click())
+
+    expect(container.querySelector('input[name="worksheet-rule-mode"]')).toBeNull()
+    await previewThenSave()
+    const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
+    const payload = calls[calls.length - 1]?.[1] as {
+      worksheet_rule_mode: string
+      selected_worksheet_names: string[]
+      data_start_row: number
+      source_fields: Array<{ field: string; reference_value: string | null }>
+      worksheet_rules: unknown[]
+    }
+    expect(payload.worksheet_rule_mode).toBe('shared')
+    expect(payload.selected_worksheet_names).toEqual(['Logitech'])
+    expect(payload.data_start_row).toBe(3)
+    expect(payload.source_fields.find(field => field.field === 'source_key')?.reference_value).toBe('B')
+    expect(payload.worksheet_rules).toEqual([])
   })
 
   it('shows a sticky dirty state and warns before closing unsaved column changes', async () => {

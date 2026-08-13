@@ -195,6 +195,56 @@ class DlSourceReadReservation(FlowHubBase):
     error_code = Column(String(120), nullable=True)
 
 
+class DlSourceDiscoveryLock(FlowHubBase):
+    """Per-source lock used to serialize worksheet-discovery reservations."""
+
+    __tablename__ = "dl_source_discovery_locks"
+
+    source_id = Column(String(255), primary_key=True)
+    updated_at = Column(DateTime, nullable=False)
+
+
+class DlSourceDiscoveryReservation(FlowHubBase):
+    """Durable accounting for bounded remote worksheet metadata refreshes."""
+
+    __tablename__ = "dl_source_discovery_reservations"
+
+    id = Column(String(120), primary_key=True)
+    source_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String(160), nullable=False, index=True)
+    reserved_at = Column(DateTime, nullable=False, index=True)
+    status = Column(String(30), nullable=False, index=True)
+    completed_at = Column(DateTime, nullable=True)
+    error_code = Column(String(120), nullable=True)
+
+
+class DlWorksheetDiscoveryCache(FlowHubBase):
+    """Latest non-business worksheet/header metadata for one Source."""
+
+    __tablename__ = "dl_worksheet_discovery_cache"
+
+    source_id = Column(String(255), primary_key=True)
+    file_path = Column(Text, nullable=False)
+    provider_change_token = Column(String(255), nullable=True)
+    worksheets = Column(JSON, nullable=False)
+    metadata_checksum = Column(String(64), nullable=False)
+    discovered_at = Column(DateTime, nullable=False)
+
+
+class DlSourceIdentityValidation(FlowHubBase):
+    """Latest authoritative preview validation for one candidate Mapping."""
+
+    __tablename__ = "dl_source_identity_validations"
+
+    source_id = Column(String(255), primary_key=True)
+    source_version = Column(Integer, nullable=False)
+    candidate_checksum = Column(String(64), nullable=False)
+    source_revision_id = Column(String(255), nullable=True)
+    valid = Column(Boolean, nullable=False)
+    conflicts = Column(JSON, nullable=False)
+    validated_at = Column(DateTime, nullable=False)
+
+
 class DlDestinationSnapshot(FlowHubBase):
     """Destination product/price snapshot. One row per (connector_id, product_id)."""
 

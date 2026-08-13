@@ -57,9 +57,12 @@ def test_legacy_revision_and_core_tables_upgrade_without_data_loss(tmp_path, mon
                 "pev_",
                 "sv_",
                 "ft_",
-                "bo_",
+                    "bo_",
+                    "dl_source_discovery_",
+                    "dl_worksheet_discovery_",
+                    "dl_source_identity_",
+                )
             )
-        )
     ]
     FlowHubBase.metadata.create_all(engine, tables=legacy_tables)
     with engine.begin() as conn:

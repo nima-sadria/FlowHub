@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SourceChannel, SourceWorksheetRule } from '../../features/sourceWorkspace/types'
 import { changeLocale } from '../../i18n'
-import WorksheetRuleEditor, { detectFieldMapping, smartInputDisplayValue } from './WorksheetRuleEditor'
+import WorksheetRuleEditor, { smartInputDisplayValue } from './WorksheetRuleEditor'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -36,41 +36,11 @@ const RULE: SourceWorksheetRule = {
 }
 
 describe('smart column mapping', () => {
-  it('infers column letters, exact headers, and internal column IDs', () => {
-    expect(detectFieldMapping('price', ' h ', false)).toEqual({
-      field: 'price',
-      referenceType: 'column_letter',
-      referenceValue: 'H',
-      required: false,
-    })
-    expect(detectFieldMapping('price', 'Price (Toman)', false)).toEqual({
-      field: 'price',
-      referenceType: 'header_name',
-      referenceValue: 'Price (Toman)',
-      required: false,
-    })
-    expect(detectFieldMapping('price', '#wc-price', true)).toEqual({
-      field: 'price',
-      referenceType: 'column_id',
-      referenceValue: 'wc-price',
-      required: false,
-    })
-    expect(smartInputDisplayValue(detectFieldMapping('price', '#wc-price', true))).toBe('#wc-price')
-  })
-
-  it('treats internal IDs as headers when unsupported and preserves required on clear', () => {
-    expect(detectFieldMapping('name', '#product-name', false, true)).toEqual({
-      field: 'name',
-      referenceType: 'header_name',
-      referenceValue: '#product-name',
-      required: true,
-    })
-    expect(detectFieldMapping('name', '   ', true, true)).toEqual({
-      field: 'name',
-      referenceType: 'disabled',
-      referenceValue: null,
-      required: true,
-    })
+  it('displays the value for the explicitly selected reference type without syntax guessing', () => {
+    expect(smartInputDisplayValue({ field: 'price', referenceType: 'column_letter', referenceValue: 'H' })).toBe('H')
+    expect(smartInputDisplayValue({ field: 'price', referenceType: 'header_name', referenceValue: 'H' })).toBe('H')
+    expect(smartInputDisplayValue({ field: 'price', referenceType: 'column_id', referenceValue: 'wc-price' })).toBe('wc-price')
+    expect(smartInputDisplayValue({ field: 'price', referenceType: 'disabled', referenceValue: null })).toBe('')
   })
 })
 
@@ -130,5 +100,62 @@ describe('WorksheetRuleEditor resource ordering', () => {
       'shopify:secondary',
       'digikala:main',
     ])
+  })
+
+  it('uses discovered headers as the primary picker and keeps manual modes advanced', async () => {
+    const onChange = vi.fn()
+    await act(async () => {
+      root.render(
+        <WorksheetRuleEditor
+          rule={RULE}
+          columns={[
+            { id: 'A', letter: 'A', header: 'Product Name' },
+            { id: 'B', letter: 'B', header: 'Cost' },
+            { id: 'H', letter: 'H', header: 'Stock' },
+          ]}
+          channels={CHANNELS}
+          sourceKind="external"
+          onChange={onChange}
+          onRemove={vi.fn()}
+        />,
+      )
+    })
+    const picker = container.querySelector('[aria-label="Source Product Name column reference"]') as HTMLSelectElement
+    expect(Array.from(picker.options).map(option => [option.value, option.textContent])).toContainEqual(['H', 'H — Stock'])
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(picker, 'H')
+      picker.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    const changed = onChange.mock.calls[0][0] as SourceWorksheetRule
+    expect(changed.sourceFields.find(item => item.field === 'name')).toMatchObject({ referenceType: 'column_letter', referenceValue: 'H' })
+
+    const advanced = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Advanced manual mapping')) as HTMLButtonElement
+    await act(async () => advanced.click())
+    expect(container.textContent).toContain('Exact header')
+    const manualType = Array.from(container.querySelectorAll('select')).find(select => select.querySelector('option[value="column_id"]')) as HTMLSelectElement
+    expect(manualType.querySelector<HTMLOptionElement>('option[value="column_id"]')?.disabled).toBe(true)
+  })
+
+  it('keeps Name, Key, and Cost primary while Classification remains optional and collapsed', async () => {
+    await act(async () => {
+      root.render(
+        <WorksheetRuleEditor
+          rule={RULE}
+          channels={CHANNELS}
+          sourceKind="external"
+          onChange={vi.fn()}
+          onRemove={vi.fn()}
+        />,
+      )
+    })
+    const primary = container.querySelector('[data-source-field-group="primary"]') as HTMLFieldSetElement
+    const optional = container.querySelector('[data-source-field-group="classification"]') as HTMLElement
+    expect(primary.textContent).toContain('Source Product Name')
+    expect(primary.textContent).toContain('Source Product Key')
+    expect(primary.textContent).toContain('Cost')
+    expect(primary.textContent).not.toContain('Category')
+    expect(optional.querySelector('h4')?.textContent).toContain('Optional attributes')
+    expect(optional.textContent).toContain('Category')
+    expect(optional.textContent).toContain('Brand')
   })
 })

@@ -9,6 +9,7 @@ import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDi
 import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import type {
   FieldMapping,
+  DiscoveredWorksheet,
   ReferenceType,
   SourceChannel,
   SourceMapping,
@@ -30,6 +31,8 @@ import {
 import WorksheetRuleEditor, {
   createWorksheetRule,
   emptyChannelFields as emptyWorksheetChannelFields,
+  SOURCE_FIELD_DEFINITIONS,
+  SOURCE_FIELD_GROUPS,
   SmartColumnInput,
   type WorksheetCopyIntent,
 } from './sourceConfiguration/WorksheetRuleEditor'
@@ -81,7 +84,13 @@ type RemoteReadQuota = {
 
 type WorksheetDiscoveryState = {
   requiresRemoteRead: boolean
-  metadataSource: 'snapshot' | 'remote' | 'unavailable'
+  metadataSource: 'local' | 'snapshot' | 'remote' | 'unavailable'
+}
+
+type WorksheetDiscoveryFeedback = {
+  variant: 'success' | 'warning' | 'danger'
+  title: string
+  message: string
 }
 
 function sourceReadQuota(source: SourceProfile | null): RemoteReadQuota | null {
@@ -102,7 +111,7 @@ function sourceWorksheetDiscovery(source: SourceProfile | null): WorksheetDiscov
   if (!discovery) return null
   return {
     requiresRemoteRead: discovery.requires_remote_read,
-    metadataSource: discovery.metadata_source,
+    metadataSource: discovery.metadata_source === 'discovery_cache' ? 'snapshot' : discovery.metadata_source,
   }
 }
 
@@ -142,13 +151,7 @@ function ConfigurationSection({ id, title, description, defaultOpen = false, ope
   </details>
 }
 
-const SOURCE_FIELDS = [
-  ['name', 'sources:sourceConfiguration.sourceProductName', true],
-  ['source_key', 'sources:sourceConfiguration.sourceProductKey', false],
-  ['category', 'sources:sourceConfiguration.category', false],
-  ['brand', 'sources:sourceConfiguration.brand', false],
-  ['cost', 'sources:sourceConfiguration.cost', false],
-] as const
+const SOURCE_FIELDS = SOURCE_FIELD_DEFINITIONS
 
 const CHANNEL_FIELDS = [
   ['external_id', 'sources:sourceConfiguration.productIdentifier'],
@@ -199,11 +202,6 @@ function fieldDisplayName(field: string): string {
 }
 
 const WOOCOMMERCE_CONNECTOR_TYPE = 'woocommerce'
-
-const DATA_MAPPING_SECTION_IDS = ['worksheet-rules', 'workbook', 'channel-columns', 'channel-columns-pw', 'worksheet-columns']
-const SECTION_GROUPS: Record<string, string[]> = {
-  'data-mapping': DATA_MAPPING_SECTION_IDS,
-}
 
 function isFieldFilled(field: FieldMapping | undefined): boolean {
   return Boolean(field && field.referenceType !== 'disabled' && field.referenceValue?.trim())
@@ -298,10 +296,11 @@ export default function SourceConfiguration() {
   const [worksheetRuleMode, setWorksheetRuleMode] = useState<'shared' | 'per_worksheet'>('shared')
   const [duplicateProductPolicy, setDuplicateProductPolicy] = useState<'block' | 'last_sheet_wins'>('block')
   const [worksheetRules, setWorksheetRules] = useState<SourceWorksheetRule[]>([])
-  const [detectedWorksheets, setDetectedWorksheets] = useState<Array<{ name: string; rowCount: number | null }>>([])
+  const [detectedWorksheets, setDetectedWorksheets] = useState<DiscoveredWorksheet[]>([])
   const [selectedWorksheetNames, setSelectedWorksheetNames] = useState<string[]>([])
   const [newWorksheetName, setNewWorksheetName] = useState('')
   const [detectingWorksheets, setDetectingWorksheets] = useState(false)
+  const [worksheetDiscoveryFeedback, setWorksheetDiscoveryFeedback] = useState<WorksheetDiscoveryFeedback | null>(null)
   const [dataStartRow, setDataStartRow] = useState(1)
   const [worksheetName, setWorksheetName] = useState('Sheet1')
   const [valuePolicy, setValuePolicy] = useState<Record<string, string>>(DEFAULT_VALUE_POLICY)
@@ -323,6 +322,7 @@ export default function SourceConfiguration() {
   const [channelSetupError, setChannelSetupError] = useState(false)
   const [externalConfig, setExternalConfig] = useState<CommerceSourceConfiguration | null>(null)
   const [readQuota, setReadQuota] = useState<RemoteReadQuota | null>(null)
+  const [discoveryQuota, setDiscoveryQuota] = useState<RemoteReadQuota | null>(null)
   const [worksheetDiscovery, setWorksheetDiscovery] = useState<WorksheetDiscoveryState | null>(null)
   const [readPolicy, setReadPolicy] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
   const [readPolicyBaseline, setReadPolicyBaseline] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
@@ -351,6 +351,11 @@ export default function SourceConfiguration() {
       if (!active) return
       setSource(loaded)
       setReadQuota(sourceReadQuota(loaded))
+      setDiscoveryQuota(loaded.discoveryQuota ? {
+        enabled: loaded.discoveryQuota.enabled, limit: loaded.discoveryQuota.limit,
+        usage: loaded.discoveryQuota.usage, remaining: loaded.discoveryQuota.remaining,
+        resetAt: loaded.discoveryQuota.reset_at, exhausted: loaded.discoveryQuota.exhausted,
+      } : null)
       setWorksheetDiscovery(sourceWorksheetDiscovery(loaded))
       setChannels(channelResult.ok ? channelResult.available.items : fallbackChannelsForSource(loaded))
       setChannelProfilesUnavailable(!channelResult.ok)
@@ -360,6 +365,8 @@ export default function SourceConfiguration() {
       setSelectedWorksheetNames(
         loaded.mapping?.selectedWorksheetNames?.length
           ? loaded.mapping.selectedWorksheetNames
+          : loaded.mapping?.worksheetRuleMode === 'per_worksheet'
+            ? (loaded.mapping.worksheetRules ?? []).filter(rule => rule.enabled).map(rule => rule.worksheetName)
           : loaded.mapping?.worksheetMode === 'selected' && loaded.mapping.worksheetName
             ? [loaded.mapping.worksheetName]
             : loaded.worksheetMode === 'selected' && loaded.worksheetName
@@ -449,13 +456,98 @@ export default function SourceConfiguration() {
   const remoteReadQuotaExhausted = Boolean(
     readQuota?.enabled && readQuota.exhausted && (!readQuota.resetAt || quotaResetPending),
   )
-  const worksheetDetectionRequiresRemoteRead = worksheetDiscovery?.requiresRemoteRead ?? true
-  const worksheetDetectionBlockedByQuota = worksheetDetectionRequiresRemoteRead && remoteReadQuotaExhausted
-  const worksheetDetectionHelp = worksheetDiscovery?.metadataSource === 'snapshot'
+  const effectiveDiscoveryQuota = discoveryQuota ?? (
+    worksheetDiscovery?.metadataSource === 'remote' ? readQuota : null
+  )
+  const discoveryRefreshBlocked = Boolean(effectiveDiscoveryQuota?.enabled && effectiveDiscoveryQuota.exhausted)
+  const worksheetDetectionHelp = source?.sourceKind !== 'external' || worksheetDiscovery?.metadataSource === 'local'
+    ? translate('sources:sourceConfiguration.worksheetDetectionUsesLocalSource')
+    : worksheetDiscovery?.metadataSource === 'snapshot'
     ? translate('sources:sourceConfiguration.worksheetDetectionUsesSnapshot')
     : worksheetDiscovery?.metadataSource === 'unavailable'
       ? translate('sources:sourceConfiguration.selectSpreadsheetBeforeWorksheetDetection')
       : translate('sources:sourceConfiguration.worksheetDetectionMayUseRead')
+
+  const configurationFingerprint = useMemo(() => JSON.stringify({
+    sourceFields,
+    channelFields,
+    channelWorksheets,
+    channelEnabled,
+    configuredChannelIds,
+    worksheetMode,
+    worksheetRuleMode,
+    duplicateProductPolicy,
+    worksheetRules,
+    selectedWorksheetNames,
+    dataStartRow,
+    worksheetName,
+    valuePolicy,
+  }), [channelEnabled, channelFields, channelWorksheets, configuredChannelIds, dataStartRow, duplicateProductPolicy, selectedWorksheetNames, sourceFields, valuePolicy, worksheetMode, worksheetName, worksheetRuleMode, worksheetRules])
+  const dirty = baselineFingerprint !== null && baselineFingerprint !== configurationFingerprint
+  const readPolicyDirty = JSON.stringify(readPolicy) !== JSON.stringify(readPolicyBaseline)
+  const savedParticipatingWorksheetNames = worksheetRules.filter(rule => rule.enabled).map(rule => rule.worksheetName)
+  const participatingWorksheetNames = worksheetMode === 'all'
+    ? (detectedWorksheets.length > 0 ? detectedWorksheets.map(item => item.name) : savedParticipatingWorksheetNames)
+    : (selectedWorksheetNames.length > 0 ? selectedWorksheetNames : savedParticipatingWorksheetNames)
+  const participatingWorksheetCount = participatingWorksheetNames.length
+  const effectiveWorksheetRuleMode = participatingWorksheetCount > 1 ? worksheetRuleMode : 'shared'
+  const renderedWorksheetRuleMode = worksheetRuleMode === 'per_worksheet' && worksheetRules.length > 0
+    ? 'per_worksheet'
+    : effectiveWorksheetRuleMode
+  const sharedDiscoveredColumns = detectedWorksheets.find(item => participatingWorksheetNames.includes(item.name))?.columns ?? []
+
+  useEffect(() => {
+    if (worksheetRuleMode !== 'per_worksheet') return
+    const participating = new Set(participatingWorksheetNames)
+    setWorksheetRules(current => current.map(rule => ({
+      ...rule,
+      enabled: participating.has(rule.worksheetName),
+    })))
+    if (participatingWorksheetNames.length === 1) {
+      const selectedRule = worksheetRules.find(rule => rule.worksheetName === participatingWorksheetNames[0])
+      if (selectedRule) {
+        setDataStartRow(selectedRule.dataStartRow)
+        setSourceFields(selectedRule.sourceFields.map(field => ({ ...field })))
+        setValuePolicy({ ...DEFAULT_VALUE_POLICY, ...selectedRule.valuePolicy })
+        setConfiguredChannelIds(selectedRule.channels.map(channel => channel.channelId))
+        setChannelEnabled(Object.fromEntries(selectedRule.channels.map(channel => [channel.channelId, channel.enabled])))
+        setChannelFields(Object.fromEntries(selectedRule.channels.map(channel => [
+          channel.channelId,
+          channel.fields.map(field => ({ ...field })),
+        ])))
+        setChannelWorksheets(Object.fromEntries(selectedRule.channels.map(channel => [
+          channel.channelId,
+          channel.worksheetName ?? selectedRule.worksheetName,
+        ])))
+      }
+    }
+  // Participating worksheet identities are the authoritative scope boundary.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worksheetMode, selectedWorksheetNames.join('\u0000'), detectedWorksheets.map(item => item.name).join('\u0000')])
+
+  const navigationSections = useMemo(() => [
+    { id: 'overview', labelKey: 'sources:sourceConfiguration.section.general', unsaved: false },
+    { id: 'worksheet-discovery', labelKey: 'sources:sourceConfiguration.section.worksheetDiscovery', unsaved: false },
+    { id: 'worksheet-participation', labelKey: 'sources:sourceConfiguration.chooseParticipatingWorksheets', unsaved: dirty },
+    ...(participatingWorksheetCount > 1 ? [{ id: 'worksheet-rules', labelKey: 'sources:sourceConfiguration.worksheetRules', unsaved: dirty }] : []),
+    ...(renderedWorksheetRuleMode === 'shared'
+      ? [
+          { id: 'workbook', labelKey: 'sources:sourceConfiguration.section.workbook', unsaved: dirty },
+          { id: 'channel-columns', labelKey: 'sources:sourceConfiguration.section.channelColumns', unsaved: dirty },
+          { id: 'normalization', labelKey: 'sources:sourceConfiguration.section.valueHandling', unsaved: dirty },
+        ]
+      : [
+          { id: 'channel-columns-pw', labelKey: 'sources:sourceConfiguration.section.channelColumns', unsaved: dirty },
+          { id: 'worksheet-columns', labelKey: 'sources:sourceConfiguration.section.worksheetColumns', unsaved: dirty },
+        ]),
+    ...(hasReadPolicySection
+      ? [{ id: 'read-policy', labelKey: 'sources:sourceConfiguration.section.readPolicy', unsaved: readPolicyDirty }]
+      : []),
+    { id: 'validation', labelKey: 'sources:sourceConfiguration.sourcePreview', unsaved: false },
+    { id: 'snapshots', labelKey: 'sources:sourceConfiguration.detail.snapshots', unsaved: false },
+    { id: 'activity', labelKey: 'sources:sourceConfiguration.detail.activity', unsaved: false },
+    { id: 'diagnostics', labelKey: 'sources:sourceConfiguration.detail.diagnostics', unsaved: false },
+  ], [dirty, hasReadPolicySection, participatingWorksheetCount, readPolicyDirty, renderedWorksheetRuleMode])
 
   function retainQuotaLimit(error: unknown) {
     if (!(error instanceof ApiError) || error.code !== 'SOURCE_READ_LIMIT_REACHED') return false
@@ -483,10 +575,36 @@ export default function SourceConfiguration() {
     })
   }
 
+  function retainDiscoveryQuotaLimit(error: unknown) {
+    if (!(error instanceof ApiError) || error.code !== 'SOURCE_DISCOVERY_LIMIT_REACHED') return false
+    const limit = error.details.limit ?? discoveryQuota?.limit ?? 0
+    const usage = error.details.usage ?? discoveryQuota?.usage ?? limit
+    setDiscoveryQuota({
+      enabled: true,
+      limit,
+      usage,
+      remaining: 0,
+      resetAt: error.details.resetAt ?? discoveryQuota?.resetAt ?? null,
+      exhausted: true,
+    })
+    return true
+  }
+
+  function discoveryQuotaDescription(error?: unknown) {
+    const quota = discoveryQuota ?? effectiveDiscoveryQuota
+    const limit = error instanceof ApiError ? error.details.limit ?? quota?.limit ?? 0 : quota?.limit ?? 0
+    const usage = error instanceof ApiError ? error.details.usage ?? quota?.usage ?? limit : quota?.usage ?? limit
+    const resetAt = error instanceof ApiError ? error.details.resetAt ?? quota?.resetAt : quota?.resetAt
+    return translate('sources:sourceConfiguration.discoveryLimitReached', {
+      usage,
+      limit,
+      reset: formatQuotaReset(resetAt),
+    })
+  }
+
   useEffect(() => {
     if (loading || !source || typeof IntersectionObserver === 'undefined') return
-    const ids = ['overview', 'connection', 'data-mapping', 'normalization', ...(hasReadPolicySection ? ['read-policy'] : []), 'validation', 'snapshots', 'activity', 'diagnostics']
-    const elements = ids
+    const elements = navigationSections.map(section => section.id)
       .map(id => document.getElementById(id))
       .filter((element): element is HTMLElement => element !== null)
     if (elements.length === 0) return
@@ -498,25 +616,7 @@ export default function SourceConfiguration() {
     }, { rootMargin: '-112px 0px -65% 0px', threshold: [0, 1] })
     elements.forEach(element => observer.observe(element))
     return () => observer.disconnect()
-  }, [loading, source, hasReadPolicySection])
-
-  const configurationFingerprint = useMemo(() => JSON.stringify({
-    sourceFields,
-    channelFields,
-    channelWorksheets,
-    channelEnabled,
-    configuredChannelIds,
-    worksheetMode,
-    worksheetRuleMode,
-    duplicateProductPolicy,
-    worksheetRules,
-    selectedWorksheetNames,
-    dataStartRow,
-    worksheetName,
-    valuePolicy,
-  }), [channelEnabled, channelFields, channelWorksheets, configuredChannelIds, dataStartRow, duplicateProductPolicy, selectedWorksheetNames, sourceFields, valuePolicy, worksheetMode, worksheetName, worksheetRuleMode, worksheetRules])
-  const dirty = baselineFingerprint !== null && baselineFingerprint !== configurationFingerprint
-  const readPolicyDirty = JSON.stringify(readPolicy) !== JSON.stringify(readPolicyBaseline)
+  }, [loading, navigationSections, source])
 
   useEffect(() => {
     if (source && baselineFingerprint === null) setBaselineFingerprint(configurationFingerprint)
@@ -621,18 +721,21 @@ export default function SourceConfiguration() {
   }
 
   function changeWorksheetRuleMode(mode: 'shared' | 'per_worksheet') {
-    setWorksheetRuleMode(mode)
     if (mode === 'per_worksheet' && worksheetRules.length === 0) {
       const detectedWorksheetNames = detectedWorksheets.map(item => item.name)
-      const worksheetNames = detectedWorksheetNames.length > 0
-        ? detectedWorksheetNames
-        : selectedWorksheetNames.length > 0
-          ? selectedWorksheetNames
-          : [worksheetName || 'Sheet1']
+      if (detectedWorksheetNames.length === 0) {
+        setWorksheetDiscoveryFeedback({
+          variant: 'warning',
+          title: translate('sources:sourceConfiguration.detectWorksheetsFirst'),
+          message: translate('sources:sourceConfiguration.detectWorksheetsBeforeSeparateRules'),
+        })
+        return
+      }
+      const worksheetNames = detectedWorksheetNames
       const selectedNames = new Set(selectedWorksheetNames)
       setWorksheetRules(worksheetNames.map(name => ({
         ...createWorksheetRule(name),
-        enabled: detectedWorksheetNames.length === 0 || selectedNames.has(name),
+        enabled: selectedNames.size === 0 || selectedNames.has(name),
         dataStartRow,
         valuePolicy: { ...valuePolicy },
         sourceFields: sourceFields.map(item => ({ ...item })),
@@ -643,10 +746,11 @@ export default function SourceConfiguration() {
           fields: (channelFields[channelId] ?? emptyChannelFields()).map(item => ({ ...item })),
         })),
       })))
-      const enabledWorksheetNames = worksheetNames.filter(name => detectedWorksheetNames.length === 0 || selectedNames.has(name))
+      const enabledWorksheetNames = worksheetNames.filter(name => selectedNames.size === 0 || selectedNames.has(name))
       setSelectedWorksheetRules(enabledWorksheetNames)
       setExpandedWorksheet(enabledWorksheetNames[0] ?? worksheetNames[0] ?? null)
     }
+    setWorksheetRuleMode(mode)
   }
 
   function addWorksheetRule() {
@@ -768,7 +872,7 @@ export default function SourceConfiguration() {
         return
       }
       const result = await sourceWorkspaceApi.worksheets(sourceId)
-      setDetectedWorksheets(result.items)
+      setDetectedWorksheets(result.items.map(item => ({ ...item, columns: item.columns ?? [] })))
       notify.success({ title: translate('sources:sourceConfiguration.connectionReady'), description: translate('sources:sourceConfiguration.worksheetsDetected', { count: result.items.length }) })
     } catch (error) {
       notify.error({ title: translate('sources:sourceConfiguration.connectionCheckFailed'), description: connectionExceptionMessage(error) })
@@ -841,7 +945,7 @@ export default function SourceConfiguration() {
 
   function goToSection(id: string) {
     setActiveNavId(id)
-    setSectionSignal({ ids: SECTION_GROUPS[id] ?? [id], open: true, token: Date.now() })
+    setSectionSignal({ ids: [id], open: true, token: Date.now() })
     document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   }
 
@@ -908,33 +1012,53 @@ export default function SourceConfiguration() {
     }
   }
 
-  async function detectWorksheets() {
+  async function detectWorksheets(refresh = false) {
     // Mapping remains editable while a Source is disabled, but worksheet
     // discovery is a remote read and follows the same enabled boundary as
     // Test connection and Read now.
-    if (externalSourceDisabled) {
+    if (refresh && externalSourceDisabled) {
+      setWorksheetDiscoveryFeedback({
+        variant: 'danger',
+        title: translate('sources:sourceConfiguration.worksheetDetectionFailed'),
+        message: translate('commerce:commerceHub.sourceDisabledRemoteActions'),
+      })
       notify.error({
         title: translate('sources:sourceConfiguration.worksheetDetectionFailed'),
         description: translate('commerce:commerceHub.sourceDisabledRemoteActions'),
       })
       return
     }
-    if (worksheetDetectionBlockedByQuota) {
+    if (refresh && discoveryRefreshBlocked) {
+      setWorksheetDiscoveryFeedback({
+        variant: 'danger',
+        title: translate('sources:sourceConfiguration.discoveryLimitReachedTitle'),
+        message: discoveryQuotaDescription(),
+      })
       notify.error({
-        title: translate('sources:sourceConfiguration.remoteReadsLimitReachedTitle'),
-        description: quotaLimitDescription(),
+        title: translate('sources:sourceConfiguration.discoveryLimitReachedTitle'),
+        description: discoveryQuotaDescription(),
       })
       return
     }
     setDetectingWorksheets(true)
+    setWorksheetDiscoveryFeedback(null)
     try {
-      const result = await sourceWorkspaceApi.worksheets(sourceId)
-      setDetectedWorksheets(result.items)
+      const result = refresh
+        ? await sourceWorkspaceApi.refreshWorksheets(sourceId)
+        : await sourceWorkspaceApi.worksheets(sourceId)
+      setDetectedWorksheets(result.items.map(item => ({ ...item, columns: item.columns ?? [] })))
       if (result.readQuota) setReadQuota(result.readQuota)
+      if (result.discoveryQuota) setDiscoveryQuota(result.discoveryQuota)
       if (result.worksheetDiscovery) {
         setWorksheetDiscovery({
           requiresRemoteRead: result.worksheetDiscovery.requiresRemoteRead,
-          metadataSource: result.worksheetDiscovery.metadataSource === 'snapshot' ? 'snapshot' : 'remote',
+          metadataSource: result.worksheetDiscovery.metadataSource === 'flowhub_sheet'
+            ? 'local'
+            : result.worksheetDiscovery.metadataSource === 'unavailable'
+              ? 'unavailable'
+              : result.worksheetDiscovery.metadataSource === 'snapshot'
+                ? 'snapshot'
+                : 'remote',
         })
       }
       if (worksheetRuleMode === 'shared' && worksheetMode === 'selected') {
@@ -949,6 +1073,7 @@ export default function SourceConfiguration() {
       if (worksheetRuleMode === 'per_worksheet') {
         setWorksheetRules(current => {
           const existing = new Set(current.map(item => item.worksheetName))
+          const detected = new Set(result.items.map(item => item.name))
           const additions = result.items
             .filter(item => !existing.has(item.name))
             .map(item => ({
@@ -963,20 +1088,35 @@ export default function SourceConfiguration() {
                   fields: (channelFields[channelId] ?? emptyWorksheetChannelFields()).map(field => ({ ...field })),
                 })),
             }))
-          return [...current, ...additions]
+          return [
+            ...current.map(rule => detected.has(rule.worksheetName) ? rule : { ...rule, enabled: false }),
+            ...additions,
+          ]
         })
         setSelectedWorksheetRules(current => current.filter(name => result.items.some(item => item.name === name)))
         setExpandedWorksheet(current => current ?? result.items[0]?.name ?? null)
       }
+      setWorksheetDiscoveryFeedback({
+        variant: 'success',
+        title: translate('sources:sourceConfiguration.worksheetsDetected', { count: result.items.length }),
+        message: result.items.length === 0
+          ? translate('sources:sourceConfiguration.refreshFromNextcloudRequired')
+          : result.worksheetDiscovery?.remoteReadUsed
+          ? translate('sources:sourceConfiguration.worksheetDiscoveryReadUsed')
+          : translate('sources:sourceConfiguration.worksheetDiscoveryLocal'),
+      })
     } catch (error) {
-      const quotaReached = retainQuotaLimit(error)
+      const quotaReached = refresh ? retainDiscoveryQuotaLimit(error) : false
+      const title = quotaReached
+        ? translate('sources:sourceConfiguration.discoveryLimitReachedTitle')
+        : translate('sources:sourceConfiguration.worksheetDetectionFailed')
+      const description = quotaReached
+        ? discoveryQuotaDescription(error)
+        : localizedApiError(error, 'sources:sourceConfiguration.tryAgain')
+      setWorksheetDiscoveryFeedback({ variant: 'danger', title, message: description })
       notify.error({
-        title: quotaReached
-          ? translate('sources:sourceConfiguration.remoteReadsLimitReachedTitle')
-          : translate('sources:sourceConfiguration.worksheetDetectionFailed'),
-        description: quotaReached
-          ? quotaLimitDescription(error)
-          : localizedApiError(error, 'sources:sourceConfiguration.tryAgain'),
+        title,
+        description,
       })
     } finally {
       setDetectingWorksheets(false)
@@ -987,17 +1127,17 @@ export default function SourceConfiguration() {
     if (!source) return null
     return {
       expected_source_version: source.version,
-      worksheet_mode: worksheetRuleMode === 'per_worksheet' ? 'all' : worksheetMode,
-      worksheet_name: worksheetRuleMode === 'shared' && worksheetMode === 'selected' && selectedWorksheetNames.length === 1 ? selectedWorksheetNames[0] : null,
-      selected_worksheet_names: worksheetRuleMode === 'shared' && worksheetMode === 'selected' ? selectedWorksheetNames : [],
-      data_start_row: worksheetRuleMode === 'shared' ? dataStartRow : 1,
-      source_fields: (worksheetRuleMode === 'shared' ? sourceFields : []).map(item => ({
+      worksheet_mode: worksheetMode,
+      worksheet_name: worksheetMode === 'selected' && selectedWorksheetNames.length === 1 ? selectedWorksheetNames[0] : null,
+      selected_worksheet_names: worksheetMode === 'selected' ? selectedWorksheetNames : [],
+      data_start_row: effectiveWorksheetRuleMode === 'shared' ? dataStartRow : 1,
+      source_fields: (effectiveWorksheetRuleMode === 'shared' ? sourceFields : []).map(item => ({
         field: item.field,
         reference_type: item.referenceType,
         reference_value: item.referenceValue,
         required: item.required ?? false,
       })),
-      channel_mappings: (worksheetRuleMode === 'shared' ? configuredChannelIds : []).map(channelId => ({
+      channel_mappings: (effectiveWorksheetRuleMode === 'shared' ? configuredChannelIds : []).map(channelId => ({
         channel_id: channelId,
         worksheet_name: channelWorksheets[channelId] || null,
         enabled: Boolean(channelEnabled[channelId]),
@@ -1009,9 +1149,9 @@ export default function SourceConfiguration() {
         })),
       })),
       value_policy: valuePolicy,
-      worksheet_rule_mode: worksheetRuleMode,
+      worksheet_rule_mode: effectiveWorksheetRuleMode,
       duplicate_product_policy: duplicateProductPolicy,
-      worksheet_rules: worksheetRuleMode === 'per_worksheet' ? worksheetRules.map(rule => ({
+      worksheet_rules: effectiveWorksheetRuleMode === 'per_worksheet' ? worksheetRules.map(rule => ({
         worksheet_name: rule.worksheetName,
         enabled: rule.enabled,
         data_start_row: rule.dataStartRow,
@@ -1024,6 +1164,7 @@ export default function SourceConfiguration() {
           fields: channel.fields.map(item => ({ field: item.field, reference_type: item.referenceType, reference_value: item.referenceValue, required: false })),
         })),
       })) : [],
+      identity_policy_version: 2,
     }
   }
 
@@ -1093,8 +1234,11 @@ export default function SourceConfiguration() {
     if (!payload) return
     setPreviewing(true)
     try {
-      setPreview(await sourceWorkspaceApi.previewUnsavedMapping(sourceId, payload))
-      setPreviewedFingerprint(configurationFingerprint)
+      const result = await sourceWorkspaceApi.previewUnsavedMapping(sourceId, payload)
+      setPreview(result)
+      const identityBlocked = result.items.some(item => item.issues.some(issue =>
+        issue.category === 'missing_source_product_key' || issue.category === 'duplicate_source_product_key'))
+      setPreviewedFingerprint(identityBlocked ? null : configurationFingerprint)
       setPreviewIndex(0)
     } catch (error) {
       notify.error({
@@ -1192,27 +1336,17 @@ export default function SourceConfiguration() {
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <nav className="no-scrollbar flex snap-x flex-1 gap-2 overflow-x-auto pb-1" aria-label={translate('sources:sourceConfiguration.sourceName')}>
-          {[
-            ['overview', 'sources:sourceConfiguration.detail.overview', false],
-            ['connection', 'sources:sourceConfiguration.detail.connection', false],
-            ['data-mapping', 'sources:sourceConfiguration.detail.dataMapping', dirty],
-            ['normalization', 'sources:sourceConfiguration.detail.normalization', dirty],
-            ...(hasReadPolicySection ? [['read-policy', 'sources:sourceConfiguration.section.readPolicy', readPolicyDirty]] : []),
-            ['validation', 'sources:sourceConfiguration.detail.validation', false],
-            ['snapshots', 'sources:sourceConfiguration.detail.snapshots', false],
-            ['activity', 'sources:sourceConfiguration.detail.activity', false],
-            ['diagnostics', 'sources:sourceConfiguration.detail.diagnostics', false],
-          ].map(([id, label, unsaved]) => {
+          {navigationSections.map(({ id, labelKey, unsaved }) => {
             const active = activeNavId === id
             return (
               <button
                 type="button"
                 className={`${active ? 'fh-button-primary' : 'fh-button-secondary'} fh-button-sm snap-start whitespace-nowrap`}
                 aria-current={active ? 'true' : undefined}
-                onClick={() => goToSection(id as string)}
-                key={id as string}
+                onClick={() => goToSection(id)}
+                key={id}
               >
-                {translate(label as string)}
+                {translate(labelKey)}
                 {unsaved && <span aria-hidden="true" className="fh-status-dot fh-status-dot-warning ms-1" />}
                 {unsaved && <span className="sr-only">{translate('sources:sourceConfiguration.unsavedChanges')}</span>}
               </button>
@@ -1238,8 +1372,8 @@ export default function SourceConfiguration() {
             </div>
           </div>
           <div className="fh-actions">
-            {canManageCommerce && source.sourceKind === 'external' && source.externalSourceId && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(source.externalSourceId as string)}`)}><Icon name="settings" /> {translate('sources:sourceConfiguration.manageConnection')}</button>}
-            {canEditSource && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
+            {canManageCommerce && source.sourceKind === 'external' && source.externalSourceId && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(source.externalSourceId as string)}&returnTo=${encodeURIComponent(`/sources/${source.id}`)}`)}><Icon name="settings" /> {translate('sources:sourceConfiguration.manageConnection')}</button>}
+            {canEditSource && source.sourceKind === 'external' && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
           </div>
         </div>
         <dl className="grid gap-x-6 gap-y-3 border-t border-border p-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -1247,7 +1381,7 @@ export default function SourceConfiguration() {
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceType')}</dt><dd className="font-medium text-text-base">{source.sourceKind === 'flowhub_sheet' ? translate('sources:sourceCenter.flowhubSheet') : source.sourceKind === 'imported_sheet' ? translate('sources:sourceCenter.importedSpreadsheet') : translate('sources:sourceCenter.linkedExternalSource')}</dd></div>
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><Badge variant={source.mapping ? 'success' : 'warning'}>{source.mapping ? translate('common:status.ready') : translate('sources:sourceConfiguration.notConfigured')}</Badge></dd></div>
           {source.sourceKind === 'external' && <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.connectionStatus')}</dt><dd><Badge variant={externalConnectionPresentation(externalConfig, externalSourceDisabled).variant}>{externalConnectionPresentation(externalConfig, externalSourceDisabled).label}</Badge></dd></div>}
-          <div id="connection"><dt className="fh-text-caption">{translate('sources:sourceConfiguration.section.accessScope')}</dt><dd className="font-medium text-text-base">{translate('sources:sourceConfiguration.accessScopePolicy')}</dd></div>
+          <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.section.accessScope')}</dt><dd className="font-medium text-text-base">{translate('sources:sourceConfiguration.accessScopePolicy')}</dd></div>
         </dl>
       </section>
 
@@ -1265,21 +1399,72 @@ export default function SourceConfiguration() {
           <span>{translate('sources:sourceConfiguration.dataSheetWorksheetScopeHelp')}</span>
         </div>
       )}
-      <ConfigurationSection id="worksheet-rules" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.worksheetRules')} description={translate('sources:sourceConfiguration.worksheetRulesSectionHelp')}>
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}>
-            <span className="flex items-center gap-2 font-medium text-text-base"><input type="radio" name="worksheet-rule-mode" value="shared" checked={worksheetRuleMode === 'shared'} onChange={() => changeWorksheetRuleMode('shared')} />{translate('sources:sourceConfiguration.sharedWorksheetRules')}</span>
-          </label>
-          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'per_worksheet' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.separateWorksheetRulesHelp')}>
-            <span className="flex items-center gap-2 font-medium text-text-base"><input type="radio" name="worksheet-rule-mode" value="per_worksheet" checked={worksheetRuleMode === 'per_worksheet'} onChange={() => changeWorksheetRuleMode('per_worksheet')} />{translate('sources:sourceConfiguration.separateWorksheetRules')}</span>
-          </label>
+      <ConfigurationSection id="worksheet-discovery" openSignal={sectionSignal} defaultOpen title={translate('sources:sourceConfiguration.section.worksheetDiscovery')} description={translate('sources:sourceConfiguration.section.worksheetDiscoveryHelp')}>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              className="fh-button-secondary"
+              type="button"
+              disabled={detectingWorksheets || externalSourceDisabled}
+              title={externalSourceDisabled
+                ? translate('commerce:commerceHub.sourceDisabledRemoteActions')
+                : worksheetDetectionHelp}
+              onClick={() => void detectWorksheets()}
+            >
+              <Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}
+            </button>
+            {source.sourceKind === 'external' && <button
+              className="fh-button-secondary"
+              type="button"
+              disabled={detectingWorksheets || externalSourceDisabled || discoveryRefreshBlocked}
+              title={externalSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : undefined}
+              onClick={() => void detectWorksheets(true)}
+            >
+              <Icon name="refresh" /> {translate('sources:sourceConfiguration.refreshFromNextcloud')}
+            </button>}
+            {canManageCommerce && source.sourceKind === 'external' && source.externalSourceId && (
+              <button className="fh-button-secondary" type="button" onClick={() => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(source.externalSourceId as string)}&returnTo=${encodeURIComponent(`/sources/${source.id}`)}`)}>
+                <Icon name="settings" /> {translate('sources:sourceConfiguration.manageConnection')}
+              </button>
+            )}
+          </div>
+          <p className="fh-text-caption" data-testid="worksheet-detection-help">{worksheetDetectionHelp}</p>
+          {effectiveDiscoveryQuota?.enabled && <p className="fh-text-caption" data-testid="worksheet-discovery-quota">
+            {translate('sources:sourceConfiguration.discoveryAllowance', {
+              usage: effectiveDiscoveryQuota.usage,
+              limit: effectiveDiscoveryQuota.limit,
+            })}
+          </p>}
+          {worksheetDiscoveryFeedback && (() => {
+            const feedback = worksheetDiscoveryFeedback ?? {
+              variant: 'danger' as const,
+              title: translate('sources:sourceConfiguration.discoveryLimitReachedTitle'),
+              message: discoveryQuotaDescription(),
+            }
+            const alertClass = feedback.variant === 'success'
+              ? 'fh-alert-success'
+              : feedback.variant === 'warning'
+                ? 'fh-alert-warning'
+                : 'fh-alert-danger'
+            return <div className={alertClass} role={feedback.variant === 'danger' ? 'alert' : 'status'} data-testid="worksheet-discovery-feedback">
+              <strong>{feedback.title}</strong>
+              <p className="mt-1">{feedback.message}</p>
+            </div>
+          })()}
+          {detectedWorksheets.length > 0 && <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3" data-testid="detected-worksheet-inventory">
+            {detectedWorksheets.map(item => <div className="rounded-lg border border-border bg-bg-subtle p-3" key={item.name}>
+              <strong className="block truncate text-text-base">{item.name}</strong>
+              <span className="fh-text-caption">{item.rowCount === null
+                ? translate('sources:sourceConfiguration.worksheetRowCountUnavailable')
+                : translate('sources:sourceConfiguration.worksheetRowCount', { count: item.rowCount })}</span>
+            </div>)}
+          </div>}
         </div>
       </ConfigurationSection>
 
-      <div className={`mt-3 ${worksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
-        <ConfigurationSection id="workbook" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.workbook')} description={translate('sources:sourceConfiguration.section.workbookHelp')}>
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+      <div className="mt-3">
+      <ConfigurationSection id="worksheet-participation" openSignal={sectionSignal} defaultOpen unsaved={dirty} title={translate('sources:sourceConfiguration.chooseParticipatingWorksheets')} description={translate('sources:sourceConfiguration.worksheetSellerHelp')}>
+        <div className="space-y-4">
           <label className="fh-field-label">
             {translate('sources:sourceConfiguration.worksheetPolicy')}
             <select className="fh-input mt-1" value={worksheetMode} onChange={event => setWorksheetMode(event.target.value as 'all' | 'selected')}>
@@ -1287,44 +1472,80 @@ export default function SourceConfiguration() {
               <option value="all">{translate('sources:sourceConfiguration.allWorksheets')}</option>
             </select>
           </label>
+          {worksheetMode === 'selected' && <fieldset className="fh-worksheet-picker">
+            <legend className="px-2 font-medium text-text-base">{translate('sources:sourceConfiguration.chooseParticipatingWorksheets')}</legend>
+            <div className="fh-worksheet-picker-toolbar">
+              {detectedWorksheets.length > 0 && <><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames(detectedWorksheets.map(item => item.name))}>{translate('sources:sourceConfiguration.selectAll')}</button><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames([])}>{translate('sources:sourceConfiguration.clearAll')}</button></>}
+            </div>
+            {detectedWorksheets.length > 0 && <div className="fh-worksheet-picker-grid" data-testid="worksheet-picker-grid">
+              {detectedWorksheets.map(item => {
+                const selected = selectedWorksheetNames.includes(item.name)
+                return <label className="fh-inline-check fh-worksheet-picker-item" data-selected={selected} key={item.name}><input type="checkbox" checked={selected} onChange={event => setSelectedWorksheetNames(current => event.target.checked ? [...new Set([...current, item.name])] : current.filter(name => name !== item.name))} /><span className="min-w-0"><strong className="block truncate text-text-base">{item.name}</strong></span></label>
+              })}
+            </div>}
+            {selectedWorksheetNames.length === 0 && <p className="fh-alert-warning mt-3" role="alert">{translate('sources:sourceConfiguration.selectAtLeastOneWorksheet')}</p>}
+          </fieldset>}
+        </div>
+      </ConfigurationSection>
+      </div>
+
+      {participatingWorksheetCount > 1 && <div className="mt-3">
+      <ConfigurationSection id="worksheet-rules" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.worksheetRules')} description={translate('sources:sourceConfiguration.worksheetRulesSectionHelp')}>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'shared' ? 'border-accent bg-accent/5' : 'border-border'}`} title={translate('sources:sourceConfiguration.sharedWorksheetRulesHelp')}>
+            <span className="flex items-center gap-2 font-medium text-text-base"><input type="radio" name="worksheet-rule-mode" value="shared" checked={worksheetRuleMode === 'shared'} onChange={() => changeWorksheetRuleMode('shared')} />{translate('sources:sourceConfiguration.sharedWorksheetRules')}</span>
+          </label>
+          <label className={`rounded-xl border p-4 ${worksheetRuleMode === 'per_worksheet' ? 'border-accent bg-accent/5' : 'border-border'} ${detectedWorksheets.length === 0 && worksheetRules.length === 0 ? 'opacity-70' : ''}`} title={translate('sources:sourceConfiguration.separateWorksheetRulesHelp')}>
+            <span className="flex items-center gap-2 font-medium text-text-base"><input type="radio" name="worksheet-rule-mode" value="per_worksheet" disabled={detectedWorksheets.length === 0 && worksheetRules.length === 0} checked={worksheetRuleMode === 'per_worksheet'} onChange={() => changeWorksheetRuleMode('per_worksheet')} />{translate('sources:sourceConfiguration.separateWorksheetRules')}</span>
+            {detectedWorksheets.length === 0 && worksheetRules.length === 0 && <span className="fh-text-caption mt-2 block">{translate('sources:sourceConfiguration.detectWorksheetsBeforeSeparateRules')}</span>}
+          </label>
+        </div>
+      </ConfigurationSection>
+      </div>}
+
+      <div className={`mt-3 ${renderedWorksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
+        <ConfigurationSection id="workbook" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.workbook')} description={translate('sources:sourceConfiguration.section.workbookHelp')}>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
           <label className="fh-field-label">
             {translate('sources:sourceConfiguration.dataStartsAtRow')}
             <input className="fh-input mt-1" type="number" min="1" value={dataStartRow} onChange={event => setDataStartRow(Number(event.target.value))} />
           </label>
         </div>
-        {worksheetMode === 'selected' && <fieldset className="fh-worksheet-picker">
-          <legend className="px-2 font-medium text-text-base">{translate('sources:sourceConfiguration.chooseParticipatingWorksheets')}</legend>
-          <div className="fh-worksheet-picker-toolbar">
-            <button className="fh-button-secondary fh-button-sm" type="button" disabled={detectingWorksheets || externalSourceDisabled || worksheetDetectionBlockedByQuota} title={externalSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : worksheetDetectionBlockedByQuota ? quotaLimitDescription() : worksheetDetectionHelp} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
-            {detectedWorksheets.length > 0 && <><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames(detectedWorksheets.map(item => item.name))}>{translate('sources:sourceConfiguration.selectAll')}</button><button className="fh-button-secondary fh-button-sm" type="button" onClick={() => setSelectedWorksheetNames([])}>{translate('sources:sourceConfiguration.clearAll')}</button></>}
-            {detectedWorksheets.length === 0 && <label className="fh-field-label min-w-[260px]">{translate('sources:sourceConfiguration.worksheet')}<input className="fh-input mt-1" value={worksheetName} onChange={event => { setWorksheetName(event.target.value); setSelectedWorksheetNames(event.target.value.trim() ? [event.target.value.trim()] : []) }} /></label>}
-          </div>
-          {detectedWorksheets.length > 0 && <div className="fh-worksheet-picker-grid" data-testid="worksheet-picker-grid">
-            {detectedWorksheets.map(item => {
-              const selected = selectedWorksheetNames.includes(item.name)
-              return <label className="fh-inline-check fh-worksheet-picker-item" data-selected={selected} key={item.name}><input type="checkbox" checked={selected} onChange={event => setSelectedWorksheetNames(current => event.target.checked ? [...new Set([...current, item.name])] : current.filter(name => name !== item.name))} /><span className="min-w-0"><strong className="block truncate text-text-base">{item.name}</strong><small className="fh-text-caption block truncate">{item.rowCount === null ? translate('sources:sourceConfiguration.worksheetRowCountUnavailable') : translate('sources:sourceConfiguration.worksheetRowCount', { count: item.rowCount })}</small></span></label>
-            })}
-          </div>}
-          <p className="fh-text-caption mt-2" data-testid="worksheet-detection-help">{worksheetDetectionHelp}</p>
-          {selectedWorksheetNames.length === 0 && <p className="fh-alert-warning mt-3" role="alert">{translate('sources:sourceConfiguration.selectAtLeastOneWorksheet')}</p>}
-        </fieldset>}
-        <p className="fh-text-caption">{translate('sources:sourceConfiguration.worksheetSellerHelp')}</p>
         <div>
           <h2 className="fh-section-title">{translate('sources:sourceConfiguration.sourceProductFields')}</h2>
           <p className="fh-text-caption">{translate('sources:sourceConfiguration.unmappedColumnsAreIgnoredHeaderSuggestionsNever')}</p>
         </div>
-        <div className="grid gap-3">
-          {SOURCE_FIELDS.map(([field, labelKey]) => (
-            <label className="grid gap-1" key={field}>
-              <span className="fh-field-label">{translate(labelKey)}</span>
-              <SmartColumnInput
-                mapping={sourceFields.find(item => item.field === field)!}
-                allowInternalColumnId={source.sourceKind === 'flowhub_sheet'}
-                onChange={value => updateSourceField(field, value)}
-              />
-            </label>
-          ))}
+        <div className="grid gap-4">
+          {SOURCE_FIELD_GROUPS.map(group => {
+            const controls = <>
+            <p className="fh-text-caption mb-3">{translate(group.helpKey)}</p>
+            {group.id === 'primary' && <p className="fh-text-caption mb-3">{translate('sources:sourceConfiguration.sourceProductCommercialHelp')}</p>}
+            <div className="grid gap-3 lg:grid-cols-2">
+              {SOURCE_FIELDS.filter(([field]) => (group.fields as readonly string[]).includes(field)).map(([field, labelKey]) => (
+                <label className="grid gap-1" key={field}>
+                  <span className="fh-field-label">{translate(labelKey)}</span>
+                  <SmartColumnInput
+                    mapping={sourceFields.find(item => item.field === field)!}
+                    columns={sharedDiscoveredColumns}
+                    allowInternalColumnId={source.sourceKind === 'flowhub_sheet'}
+                    onChange={value => updateSourceField(field, value)}
+                  />
+                </label>
+              ))}
             </div>
+            </>
+            return group.id === 'classification'
+              ? <section className="rounded-lg border border-dashed border-border bg-bg-base p-3" data-source-field-group={group.id} key={group.id}>
+                  <h3 className="font-medium text-text-base">{translate(group.titleKey)}</h3>
+                  <div className="mt-3">{controls}</div>
+                </section>
+              : <fieldset className="rounded-lg border border-border bg-bg-subtle p-3" data-source-field-group={group.id} key={group.id}>
+                  <legend className="px-1 font-medium text-text-base">{translate(group.titleKey)}</legend>
+                  {controls}
+                </fieldset>
+          })}
+        </div>
           </div>
         </ConfigurationSection>
       </div>
@@ -1392,7 +1613,7 @@ export default function SourceConfiguration() {
         </div>
       )}
 
-      <div className={`mt-5 space-y-3 ${worksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
+      <div className={`mt-5 space-y-3 ${renderedWorksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
         <ConfigurationSection id="channel-columns" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.channelColumns')} description={translate('sources:sourceConfiguration.section.channelColumnsHelp')}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <p className="fh-text-caption">{translate('sources:sourceConfiguration.mappingConfiguredAfterConnection')}</p>
@@ -1427,7 +1648,7 @@ export default function SourceConfiguration() {
                     ? <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>
                     : <Badge variant={mappedStatus.mapped ? 'success' : 'warning'}>{mappedStatus.mapped ? translate('sources:sourceConfiguration.mapped') : translate('sources:sourceConfiguration.mappingIncomplete')}</Badge>}</td>
                   <td><input className="fh-input min-w-[170px]" disabled={controlsDisabled} value={channelWorksheets[channel.channelId] ?? ''} onChange={event => setChannelWorksheets(current => ({ ...current, [channel.channelId]: event.target.value }))} placeholder={translate('sources:sourceConfiguration.useSourceWorksheet')} /></td>
-                  {CHANNEL_FIELDS.map(([field]) => <td key={field}><SmartColumnInput mapping={fields.find(item => item.field === field)!} disabled={controlsDisabled} allowInternalColumnId={source.sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channel.channelId, field, value)} /></td>)}
+                  {CHANNEL_FIELDS.map(([field]) => <td key={field}><SmartColumnInput mapping={fields.find(item => item.field === field)!} columns={sharedDiscoveredColumns} disabled={controlsDisabled} allowInternalColumnId={source.sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channel.channelId, field, value)} /></td>)}
                   <td><div className="grid min-w-[220px] gap-2"><select className="fh-input" aria-label={translate('sources:sourceConfiguration.copyMappingFrom')} disabled={controlsDisabled} value={copyFrom[channel.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channel.channelId]: event.target.value }))}><option value="">{translate('sources:sourceConfiguration.copyMappingFrom')}</option><ResourceOptionGroups resources={copyResources} renderLabel={item => item.displayName} /></select><div className="flex gap-2"><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled || !copyFrom[channel.channelId]} onClick={() => copyMapping(channel.channelId)}>{translate('sources:sourceConfiguration.copyMapping')}</button><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled} aria-label={translate('sources:sourceConfiguration.clearMapping')} onClick={() => clearMapping(channel.channelId)}><Icon name="close" /></button></div>{issues.length > 0 && <span className="fh-field-error">{issues[0]}</span>}</div></td>
                   <td className="text-end">{!configured
                     ? (canManageCommerce
@@ -1456,7 +1677,7 @@ export default function SourceConfiguration() {
         </ConfigurationSection>
       </div>
 
-      {worksheetRuleMode === 'per_worksheet' && <div className="mt-5 space-y-3">
+      {renderedWorksheetRuleMode === 'per_worksheet' && <div className="mt-5 space-y-3">
         <ConfigurationSection
           id="channel-columns-pw"
           openSignal={sectionSignal}
@@ -1494,8 +1715,6 @@ export default function SourceConfiguration() {
         <ConfigurationSection id="worksheet-columns" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.worksheetColumns')} description={translate('sources:sourceConfiguration.section.worksheetColumnsHelp')}>
           <div className="space-y-4" aria-label={translate('sources:sourceConfiguration.separateWorksheetRules')}>
         <div className="flex flex-wrap items-end gap-3">
-          <button className="fh-button-secondary" type="button" disabled={detectingWorksheets || externalSourceDisabled || worksheetDetectionBlockedByQuota} title={externalSourceDisabled ? translate('commerce:commerceHub.sourceDisabledRemoteActions') : worksheetDetectionBlockedByQuota ? quotaLimitDescription() : worksheetDetectionHelp} onClick={() => void detectWorksheets()}><Icon name="refresh" /> {detectingWorksheets ? translate('sources:sourceConfiguration.detectingWorksheets') : translate('sources:sourceConfiguration.detectWorksheets')}</button>
-          <p className="fh-text-caption basis-full" data-testid="worksheet-detection-help">{worksheetDetectionHelp}</p>
           <label className="fh-field-label min-w-[260px]">{translate('sources:sourceConfiguration.worksheetNamePrompt')}<input className="fh-input mt-1" value={newWorksheetName} onChange={event => setNewWorksheetName(event.target.value)} /></label>
           <button className="fh-button-secondary" type="button" disabled={!newWorksheetName.trim() || worksheetRules.some(item => item.worksheetName === newWorksheetName.trim())} onClick={addWorksheetRule}><Icon name="add" /> {translate('sources:sourceConfiguration.addWorksheet')}</button>
           <label className="fh-field-label ms-auto min-w-[280px]">{translate('sources:sourceConfiguration.duplicateProductPolicy')}<select className="fh-input mt-1" value={duplicateProductPolicy} onChange={event => setDuplicateProductPolicy(event.target.value as 'block' | 'last_sheet_wins')}><option value="block">{translate('sources:sourceConfiguration.blockDuplicates')}</option><option value="last_sheet_wins">{translate('sources:sourceConfiguration.lastWorksheetWins')}</option></select></label>
@@ -1512,6 +1731,7 @@ export default function SourceConfiguration() {
           key={rule.worksheetName}
           rule={rule}
           rowCount={detectedWorksheets.find(item => item.name === rule.worksheetName)?.rowCount ?? undefined}
+          columns={detectedWorksheets.find(item => item.name === rule.worksheetName)?.columns ?? []}
           channels={channelResources.ordered.map(item => item.item).filter(channel => channelEnabled[channel.channelId])}
           sourceKind={source.sourceKind}
           selected={selectedWorksheetRules.includes(rule.worksheetName)}
@@ -1622,11 +1842,11 @@ export default function SourceConfiguration() {
         <Badge variant={dirty ? 'warning' : 'success'}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</Badge>
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ms-auto sm:flex sm:w-auto sm:flex-wrap">
-          {canEditSource && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
+          {canEditSource && source.sourceKind === 'external' && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
           {canEditSource && source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && (
             <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={reading || externalSourceDisabled || remoteReadQuotaExhausted} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : remoteReadQuotaExhausted ? quotaLimitDescription() : undefined} onClick={() => void readNow()}><Icon name="refresh" /> {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}</button>
           )}
-          {canEditSource && <button className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (worksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
+          {canEditSource && <button className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (effectiveWorksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
           <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" onClick={closeConfiguration}><Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}</button>
         </div>
       </div>

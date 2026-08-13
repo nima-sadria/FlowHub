@@ -2377,6 +2377,72 @@ def test_source_profile_read_quotas_are_independent_and_shared(db):
     assert reader.read_policy_state(source_id="source-profile-b")["reads_used_last_24h"] == 1
 
 
+def test_discovery_allowance_is_separate_from_acquisition_allowance(db):
+    from app.flowhub.setup.service import AppConfigService
+    from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+
+    AppConfigService(db).set_many(
+        {
+            "nextcloud.source_read_policy": '{"enabled":true,"max_reads_per_24h":1,"manual_read_allowed":true}',
+            "nextcloud.worksheet_discovery_policy": '{"enabled":true,"max_refreshes_per_24h":2}',
+        },
+        updated_by="test",
+    )
+    reader = SpreadsheetSourceReadService(db)
+    reader.reserve_discovery_slot("owner", source_id="source-profile-primary")
+    assert reader.discovery_quota_contract(source_id="source-profile-primary")["usage"] == 1
+    assert reader.read_quota_contract(source_id="source-profile-primary")["usage"] == 0
+    reader.reserve_read_slot("owner", manual=True, source_id="source-profile-primary")
+    assert reader.read_quota_contract(source_id="source-profile-primary")["usage"] == 1
+    assert reader.discovery_quota_contract(source_id="source-profile-primary")["usage"] == 1
+
+
+def test_concurrent_discovery_refreshes_cannot_exceed_atomic_allowance(tmp_path):
+    from fastapi import HTTPException
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.flowhub.database import FlowHubBase
+    from app.flowhub.data_layer.models import DlSourceDiscoveryReservation
+    from app.flowhub.setup.service import AppConfigService
+    from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'discovery-quota.db'}",
+        connect_args={"check_same_thread": False, "timeout": 10},
+    )
+    FlowHubBase.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    setup_session = Session()
+    AppConfigService(setup_session).set(
+        "nextcloud.worksheet_discovery_policy",
+        '{"enabled":true,"max_refreshes_per_24h":1}',
+        updated_by="test",
+    )
+    setup_session.close()
+    barrier = Barrier(2)
+
+    def reserve(actor: str) -> int:
+        session = Session()
+        try:
+            barrier.wait()
+            SpreadsheetSourceReadService(session).reserve_discovery_slot(actor, source_id="source-profile-primary")
+            return 200
+        except HTTPException as exc:
+            return exc.status_code
+        finally:
+            session.close()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = sorted(executor.map(reserve, ["admin-a", "admin-b"]))
+
+    check_session = Session()
+    assert results == [200, 429]
+    assert check_session.query(DlSourceDiscoveryReservation).count() == 1
+    check_session.close()
+    engine.dispose()
+
+
 def test_source_read_allowance_resets_after_24_hours(db):
     from app.flowhub.data_layer.models import DlSourceReadReservation
     from app.flowhub.setup.service import AppConfigService

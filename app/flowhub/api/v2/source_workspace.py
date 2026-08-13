@@ -50,6 +50,7 @@ class WorksheetSummary(StrictModel):
     # Snapshot metadata retains worksheet identities, not a per-sheet row
     # count.  A null value is truthful and avoids a quota-consuming reread.
     rowCount: int | None = Field(default=None, ge=0)
+    columns: list[dict[str, str]] = Field(default_factory=list, max_length=200)
 
 
 class SourceReadQuota(StrictModel):
@@ -63,11 +64,12 @@ class SourceReadQuota(StrictModel):
 
 class WorksheetDiscovery(StrictModel):
     requiresRemoteRead: bool
-    metadataSource: Literal["flowhub_sheet", "snapshot"]
+    metadataSource: Literal["flowhub_sheet", "snapshot", "discovery_cache", "remote_metadata", "unavailable"]
     remoteReadUsed: bool
     snapshotId: int | None = None
     snapshotVersion: int | None = Field(default=None, ge=1)
     snapshotAt: datetime | None = None
+    discoveredAt: datetime | None = None
 
 
 class WorksheetListResponse(StrictModel):
@@ -75,6 +77,7 @@ class WorksheetListResponse(StrictModel):
     items: list[WorksheetSummary]
     sourceRevisionId: str | None = None
     readQuota: SourceReadQuota
+    discoveryQuota: SourceReadQuota
     worksheetDiscovery: WorksheetDiscovery
 
 
@@ -88,6 +91,7 @@ class SourcePreviewItemIssue(StrictModel):
     severity: str
     channelId: str | None = None
     message: str
+    details: dict[str, object] = Field(default_factory=dict)
 
 
 class SourcePreviewItem(StrictModel):
@@ -166,6 +170,7 @@ class MappingSaveRequest(StrictModel):
     selected_worksheet_names: list[str] = Field(default_factory=list, max_length=100)
     duplicate_product_policy: Literal["block", "last_sheet_wins"] = "block"
     worksheet_rules: list[WorksheetRuleInput] = Field(default_factory=list, max_length=100)
+    identity_policy_version: Literal[1, 2] = 1
 
 
 class SheetColumnInput(StrictModel):
@@ -372,6 +377,17 @@ async def list_source_worksheets(
 ) -> WorksheetListResponse:
     return WorksheetListResponse.model_validate(
         await service.list_source_worksheets(source_id, user)
+    )
+
+
+@router.post("/sources/{source_id}/worksheets/refresh", response_model=WorksheetListResponse)
+async def refresh_source_worksheets(
+    source_id: str,
+    user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
+    service: SourceWorkspaceService = Depends(_service),
+) -> WorksheetListResponse:
+    return WorksheetListResponse.model_validate(
+        await service.list_source_worksheets(source_id, user, refresh=True)
     )
 
 

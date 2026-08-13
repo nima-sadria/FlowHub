@@ -4,15 +4,30 @@ import BrandIcon from '../../components/BrandIcon'
 import Badge, { type BadgeVariant } from '../../components/Badge'
 import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../../components/ResourceOrdering'
 import { prepareResourceCollection, sourceChannelSignals } from '../../features/resourceOrdering/resourceOrdering'
-import type { FieldMapping, ReferenceType, SourceChannel, SourceWorksheetRule } from '../../features/sourceWorkspace/types'
+import type { DiscoveredColumn, FieldMapping, ReferenceType, SourceChannel, SourceWorksheetRule } from '../../features/sourceWorkspace/types'
 import { translate } from '../../i18n'
 
 export const SOURCE_FIELD_DEFINITIONS = [
   ['name', 'sources:sourceConfiguration.sourceProductName', true],
-  ['source_key', 'sources:sourceConfiguration.sourceProductKey', false],
+  ['source_key', 'sources:sourceConfiguration.sourceProductKey', true],
+  ['cost', 'sources:sourceConfiguration.cost', false],
   ['category', 'sources:sourceConfiguration.category', false],
   ['brand', 'sources:sourceConfiguration.brand', false],
-  ['cost', 'sources:sourceConfiguration.cost', false],
+] as const
+
+export const SOURCE_FIELD_GROUPS = [
+  {
+    id: 'primary',
+    titleKey: 'sources:sourceConfiguration.sourceProductIdentity',
+    helpKey: 'sources:sourceConfiguration.sourceProductIdentityHelp',
+    fields: ['name', 'source_key', 'cost'],
+  },
+  {
+    id: 'classification',
+    titleKey: 'sources:sourceConfiguration.sourceProductClassification',
+    helpKey: 'sources:sourceConfiguration.sourceProductClassificationHelp',
+    fields: ['category', 'brand'],
+  },
 ] as const
 
 export const CHANNEL_FIELD_DEFINITIONS = [
@@ -40,6 +55,10 @@ export const emptyFieldMapping = (field: string, required = false): FieldMapping
 export const emptySourceFields = (): FieldMapping[] => SOURCE_FIELD_DEFINITIONS.map(([field, _label, required]) => emptyFieldMapping(field, required))
 export const emptyChannelFields = (): FieldMapping[] => CHANNEL_FIELD_DEFINITIONS.map(([field]) => emptyFieldMapping(field))
 
+function sourceFieldRequired(field: string): boolean {
+  return SOURCE_FIELD_DEFINITIONS.find(([candidate]) => candidate === field)?.[2] ?? false
+}
+
 function fieldDisplayName(field: string): string {
   const sourceDefinition = SOURCE_FIELD_DEFINITIONS.find(([candidate]) => candidate === field)
   const channelDefinition = CHANNEL_FIELD_DEFINITIONS.find(([candidate]) => candidate === field)
@@ -48,55 +67,84 @@ function fieldDisplayName(field: string): string {
 }
 
 function sourceFieldMissing(mapping: FieldMapping): boolean {
-  return Boolean((mapping.required || mapping.field === 'name') && (mapping.referenceType === 'disabled' || !mapping.referenceValue?.trim()))
+  return Boolean((mapping.required || mapping.field === 'name' || mapping.field === 'source_key') && (mapping.referenceType === 'disabled' || !mapping.referenceValue?.trim()))
 }
 
 export function createWorksheetRule(name: string): SourceWorksheetRule {
   return { worksheetName: name, enabled: true, dataStartRow: 2, valuePolicy: { ...DEFAULT_SOURCE_VALUE_POLICY }, sourceFields: emptySourceFields(), channels: [] }
 }
 
-export function detectFieldMapping(field: string, rawValue: string, allowInternalColumnId: boolean, required = false): FieldMapping {
-  const trimmed = rawValue.trim()
-  if (!trimmed) return emptyFieldMapping(field, required)
-  if (allowInternalColumnId && trimmed.startsWith('#') && trimmed.length > 1) {
-    return { field, referenceType: 'column_id', referenceValue: trimmed.slice(1), required }
-  }
-  if (/^[A-Za-z]{1,3}$/.test(trimmed)) {
-    return { field, referenceType: 'column_letter', referenceValue: trimmed.toUpperCase(), required }
-  }
-  return { field, referenceType: 'header_name', referenceValue: rawValue, required }
-}
-
 export function smartInputDisplayValue(mapping: FieldMapping): string {
   if (mapping.referenceType === 'disabled') return ''
-  if (mapping.referenceType === 'column_id') return `#${mapping.referenceValue ?? ''}`
   return mapping.referenceValue ?? ''
 }
 
-const MODE_TAG_KEYS: Partial<Record<ReferenceType, string>> = {
-  column_letter: 'sources:sourceConfiguration.modeTagColumn',
-  header_name: 'sources:sourceConfiguration.modeTagHeader',
-  column_id: 'sources:sourceConfiguration.modeTagInternal',
+const REFERENCE_TYPE_KEYS: Record<ReferenceType, string> = {
+  disabled: 'sources:sourceConfiguration.disabled',
+  column_letter: 'sources:sourceConfiguration.columnLetter',
+  header_name: 'sources:sourceConfiguration.exactHeader',
+  column_id: 'sources:sourceConfiguration.internalColumnId',
 }
 
-export function SmartColumnInput({ mapping, disabled = false, allowInternalColumnId = true, invalid = false, describedBy, detectedHeader, onChange }: { mapping: FieldMapping; disabled?: boolean; allowInternalColumnId?: boolean; invalid?: boolean; describedBy?: string; detectedHeader?: string | null; onChange: (mapping: FieldMapping) => void }) {
+export function SmartColumnInput({ mapping, columns = [], disabled = false, allowInternalColumnId = true, invalid = false, describedBy, detectedHeader, onChange }: { mapping: FieldMapping; columns?: DiscoveredColumn[]; disabled?: boolean; allowInternalColumnId?: boolean; invalid?: boolean; describedBy?: string; detectedHeader?: string | null; onChange: (mapping: FieldMapping) => void }) {
+  const [advanced, setAdvanced] = useState(mapping.referenceType === 'header_name' || mapping.referenceType === 'column_id')
   const displayValue = smartInputDisplayValue(mapping)
-  const modeTagKey = MODE_TAG_KEYS[mapping.referenceType]
   const ariaLabel = translate('sources:sourceConfiguration.columnReference', { field: fieldDisplayName(mapping.field) })
+  const referenceTypeLabel = translate('sources:sourceConfiguration.referenceType', { field: fieldDisplayName(mapping.field) })
+  const referenceExample = mapping.referenceType === 'column_letter'
+    ? translate('sources:sourceConfiguration.exampleColumn')
+    : mapping.referenceType === 'header_name'
+      ? translate('sources:sourceConfiguration.exactHeaderExample')
+      : translate('sources:sourceConfiguration.internalColumnExample')
+  const changeReferenceType = (referenceType: ReferenceType) => {
+    if (referenceType === 'disabled') {
+      onChange(emptyFieldMapping(mapping.field, mapping.required))
+      return
+    }
+    onChange({
+      ...mapping,
+      referenceType,
+      referenceValue: mapping.referenceType === 'disabled' ? '' : mapping.referenceValue,
+    })
+  }
   return (
     <div className="grid gap-1">
+      {columns.length > 0 && !advanced && <select
+        className="fh-input"
+        disabled={disabled}
+        value={mapping.referenceType === 'column_letter' ? mapping.referenceValue ?? '' : ''}
+        aria-label={ariaLabel}
+        onChange={event => onChange(event.target.value
+          ? { ...mapping, referenceType: 'column_letter', referenceValue: event.target.value }
+          : emptyFieldMapping(mapping.field, mapping.required))}
+      >
+        <option value="">{translate('sources:sourceConfiguration.chooseDiscoveredColumn')}</option>
+        {columns.map(column => <option value={column.id} key={column.id}>{column.letter} — {column.header || translate('sources:sourceConfiguration.unnamedColumn')}</option>)}
+      </select>}
+      {columns.length > 0 && <button className="fh-button-ghost fh-button-sm justify-self-start" type="button" disabled={disabled} onClick={() => setAdvanced(current => !current)}>
+        {advanced ? translate('sources:sourceConfiguration.useDiscoveredColumns') : translate('sources:sourceConfiguration.advancedManualMapping')}
+      </button>}
+      {(columns.length === 0 || advanced) && <>
+      <select
+        className="fh-input"
+        disabled={disabled}
+        value={mapping.referenceType}
+        aria-label={referenceTypeLabel}
+        onChange={event => changeReferenceType(event.target.value as ReferenceType)}
+      >
+        {(Object.keys(REFERENCE_TYPE_KEYS) as ReferenceType[])
+          .map(referenceType => <option value={referenceType} disabled={referenceType === 'column_id' && !allowInternalColumnId} key={referenceType}>{translate(REFERENCE_TYPE_KEYS[referenceType])}</option>)}
+      </select>
       <div className="relative min-w-0">
-        {modeTagKey && <span className="pointer-events-none absolute -top-2 start-2 z-10 rounded-full bg-accent/10 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-accent">{translate(modeTagKey)}</span>}
         <input
           className="fh-input pe-8"
-          disabled={disabled}
+          disabled={disabled || mapping.referenceType === 'disabled'}
           value={displayValue}
           aria-label={ariaLabel}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? describedBy : undefined}
-          placeholder={translate('sources:sourceConfiguration.smartInputPlaceholder')}
-          title={allowInternalColumnId ? translate('sources:sourceConfiguration.smartInputHelpWithInternal') : translate('sources:sourceConfiguration.smartInputHelp')}
-          onChange={event => onChange(detectFieldMapping(mapping.field, event.target.value, allowInternalColumnId, mapping.required))}
+          placeholder={mapping.referenceType === 'disabled' ? translate('sources:sourceConfiguration.chooseReferenceType') : referenceExample}
+          onChange={event => onChange({ ...mapping, referenceValue: event.target.value })}
         />
         {displayValue && !disabled && (
           <button type="button" className="absolute inset-y-0 end-1 flex items-center px-1 text-text-muted hover:text-text-base" aria-label={translate('common:action.clear')} onClick={() => onChange(emptyFieldMapping(mapping.field, mapping.required))}>
@@ -104,6 +152,7 @@ export function SmartColumnInput({ mapping, disabled = false, allowInternalColum
           </button>
         )}
       </div>
+      </>}
       {displayValue && detectedHeader && <span className="fh-text-caption">{translate('sources:sourceConfiguration.detectedHeaderHint', { value: displayValue, header: detectedHeader })}</span>}
     </div>
   )
@@ -146,6 +195,7 @@ interface Props {
   rowCount?: number
   channels: SourceChannel[]
   sourceKind: 'flowhub_sheet' | 'imported_sheet' | 'external'
+  columns?: DiscoveredColumn[]
   selected?: boolean
   expanded?: boolean
   onSelectedChange?: (selected: boolean) => void
@@ -155,7 +205,7 @@ interface Props {
   onRequestCopy?: (intent: WorksheetCopyIntent) => void
 }
 
-export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKind, selected = false, expanded = rule.enabled, onSelectedChange = () => {}, onExpandedChange = () => {}, onChange, onRemove, onRequestCopy = () => {} }: Props) {
+export default function WorksheetRuleEditor({ rule, rowCount, columns = [], channels, sourceKind, selected = false, expanded = rule.enabled, onSelectedChange = () => {}, onExpandedChange = () => {}, onChange, onRemove, onRequestCopy = () => {} }: Props) {
   const [copyFrom, setCopyFrom] = useState<Record<string, string>>({})
   const [expandedChannels, setExpandedChannels] = useState<string[]>([])
   const editorId = useId().replace(/:/g, '')
@@ -199,11 +249,28 @@ export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKi
       </div>
       <section>
         <div className="flex flex-wrap items-center justify-between gap-3" title={translate('sources:sourceConfiguration.productColumnsHelp')}><h3 className="fh-form-section-title">{translate('sources:sourceConfiguration.productFieldsSharedByChannels')}</h3><button className="fh-button-secondary fh-button-sm" type="button" disabled={!rule.enabled} onClick={() => onRequestCopy({ kind: 'shared_fields', worksheetName: rule.worksheetName })}><Icon name="copy" /> {translate('sources:sourceConfiguration.copySharedFields')}</button></div>
-        <div className="mt-3 grid gap-3 lg:grid-cols-2">
-          {SOURCE_FIELD_DEFINITIONS.map(([field, key]) => {
-            const mapping = rule.sourceFields.find(item => item.field === field) ?? emptyFieldMapping(field, field === 'name')
-            const invalid = sourceFieldMissing(mapping)
-            return <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><SmartColumnInput mapping={mapping} disabled={!rule.enabled} invalid={invalid} describedBy={sourceErrorId} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateSource(field, value)} /></div>
+        <div className="mt-3 grid gap-4">
+          {SOURCE_FIELD_GROUPS.map(group => {
+            const controls = <>
+            <p className="fh-text-caption mb-3">{translate(group.helpKey)}</p>
+            {group.id === 'primary' && <p className="fh-text-caption mb-3">{translate('sources:sourceConfiguration.sourceProductCommercialHelp')}</p>}
+            <div className="grid gap-3 lg:grid-cols-2">
+              {SOURCE_FIELD_DEFINITIONS.filter(([field]) => (group.fields as readonly string[]).includes(field)).map(([field, key]) => {
+                const mapping = rule.sourceFields.find(item => item.field === field) ?? emptyFieldMapping(field, sourceFieldRequired(field))
+                const invalid = sourceFieldMissing(mapping)
+                return <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><SmartColumnInput mapping={mapping} columns={columns} disabled={!rule.enabled} invalid={invalid} describedBy={sourceErrorId} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateSource(field, value)} /></div>
+              })}
+            </div>
+            </>
+            return group.id === 'classification'
+              ? <section className="rounded-lg border border-dashed border-border bg-bg-base p-3" data-source-field-group={group.id} key={group.id}>
+                  <h4 className="font-medium text-text-base">{translate(group.titleKey)}</h4>
+                  <div className="mt-3">{controls}</div>
+                </section>
+              : <fieldset className="rounded-lg border border-border bg-bg-subtle p-3" data-source-field-group={group.id} key={group.id}>
+                  <legend className="px-1 font-medium text-text-base">{translate(group.titleKey)}</legend>
+                  {controls}
+                </fieldset>
           })}
         </div>
         {missingSourceFields.length > 0 && <p className="fh-alert-warning mt-3" id={sourceErrorId} role="alert">{translate('sources:sourceConfiguration.sourceProductNameRequired')}</p>}
@@ -231,7 +298,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, channels, sourceKi
                   <button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled} onClick={() => onRequestCopy({ kind: 'channel_to_worksheets', worksheetName: rule.worksheetName, channelId: channelInfo.channelId })}>{translate('sources:sourceConfiguration.copyToWorksheets')}</button>
                   <button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled} onClick={() => updateChannel(channelInfo.channelId, { ...channel, fields: emptyChannelFields() })}>{translate('sources:sourceConfiguration.clearMapping')}</button>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-2">{CHANNEL_FIELD_DEFINITIONS.map(([field, key]) => <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><SmartColumnInput mapping={channel.fields.find(item => item.field === field) ?? emptyFieldMapping(field)} disabled={disabled} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channelInfo.channelId, field, value)} /></div>)}</div>
+                <div className="grid gap-3 lg:grid-cols-2">{CHANNEL_FIELD_DEFINITIONS.map(([field, key]) => <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><SmartColumnInput mapping={channel.fields.find(item => item.field === field) ?? emptyFieldMapping(field)} columns={columns} disabled={disabled} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channelInfo.channelId, field, value)} /></div>)}</div>
                 {issues.length > 0 && <ul className="fh-alert-warning mt-3 list-disc ps-5">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
               </div>
             </details>

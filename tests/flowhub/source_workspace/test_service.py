@@ -1401,3 +1401,14 @@ def test_special_source_values_are_conservative_and_distinct() -> None:
     assert interpret("not-a-number", "price", policy)["issue"] == "INVALID_NUMERIC_VALUE"
     blocked_zero = {**policy, "zero": "blocked"}
     assert interpret("0", "stock", blocked_zero)["issue"] == "ZERO_VALUE_BLOCKED"
+
+def test_worksheet_metadata_query_and_remote_refresh_use_distinct_http_semantics() -> None:
+    from app.flowhub.api.v2.source_workspace import router
+
+    methods_by_path = {
+        route.path: set(route.methods or set())
+        for route in router.routes
+        if hasattr(route, "methods")
+    }
+    assert methods_by_path["/sources/{source_id}/worksheets"] == {"GET"}
+    assert methods_by_path["/sources/{source_id}/worksheets/refresh"] == {"POST"}

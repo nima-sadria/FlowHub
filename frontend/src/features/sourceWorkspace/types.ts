@@ -22,9 +22,17 @@ export interface SourceProfile {
     reset_at: string | null
     exhausted: boolean
   }
+  discoveryQuota?: {
+    enabled: boolean
+    limit: number
+    usage: number
+    remaining: number
+    reset_at: string | null
+    exhausted: boolean
+  }
   worksheetDiscovery?: {
     requires_remote_read: boolean
-    metadata_source: 'snapshot' | 'remote' | 'unavailable'
+    metadata_source: 'snapshot' | 'discovery_cache' | 'remote' | 'unavailable'
     reason: string | null
     snapshot_id: number | null
     snapshot_version: number | null
@@ -73,7 +81,7 @@ export interface SourcePreviewItem {
   sourceProduct: Record<string, SourcePreviewValue>
   channels: Array<{ channelId: string; fields: Record<string, SourcePreviewValue> }>
   valuePolicy: Record<string, string>
-  issues: Array<{ category: string; severity: string; channelId: string | null; message: string }>
+  issues: Array<{ category: string; severity: string; channelId: string | null; message: string; details?: Record<string, unknown> }>
 }
 
 export interface SourcePreview {
@@ -243,6 +251,18 @@ export interface GroupedProduct {
   selectedListingCount: number
   state: 'ready' | 'blocked' | 'unchanged'
   children: GroupedListing[]
+}
+
+export interface DiscoveredColumn {
+  id: string
+  letter: string
+  header: string
+}
+
+export interface DiscoveredWorksheet {
+  name: string
+  rowCount: number | null
+  columns: DiscoveredColumn[]
 }
 
 export interface GroupedWorkspacePage {

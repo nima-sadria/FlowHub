@@ -22,6 +22,19 @@ async function installQuotaMocks(page: Page) {
     if (!['127.0.0.1', 'localhost'].includes(url.hostname)) return route.abort('blockedbyclient')
     if (url.pathname.startsWith('/static/logos/')) return route.fulfill({ status: 204 })
     if (!url.pathname.startsWith('/api/')) return route.continue()
+    if (request.method() === 'POST' && url.pathname === `/api/v2/sources/${sourceId}/worksheets/refresh`) {
+      worksheetRequests += 1
+      return json(route, {
+        detail: {
+          code: 'SOURCE_DISCOVERY_LIMIT_REACHED',
+          message: 'The worksheet discovery allowance has been used.',
+          limit: 30,
+          usage: 30,
+          reset_at: '2030-08-14T00:00:00Z',
+          retry_after_seconds: 60,
+        },
+      }, 429)
+    }
     if (request.method() !== 'GET') return json(route, { code: 'MOCK_WRITE_BLOCKED' }, 405)
     if (url.pathname === '/api/auth/me') return json(route, {
       username: 'source-owner', role: 'admin', is_admin: true, is_super_admin: false,
@@ -37,6 +50,7 @@ async function installQuotaMocks(page: Page) {
       mappingVersion: 0, sheetId: null, createdAt: null, updatedAt: null, mapping: null, legacyMapping: null,
       configuredWorksheets: [],
       readQuota: { enabled: true, limit: 10, usage: 9, remaining: 1, reset_at: '2030-08-14T00:00:00Z', exhausted: false },
+      discoveryQuota: { enabled: true, limit: 30, usage: 29, remaining: 1, reset_at: '2030-08-14T00:00:00Z', exhausted: false },
       worksheetDiscovery: { requires_remote_read: true, metadata_source: 'remote', reason: 'snapshot_metadata_unavailable', snapshot_id: null, snapshot_version: null, snapshot_at: null, worksheet_names: [] },
     })
     if (url.pathname === '/api/v2/source-profiles/channels') return json(route, { items: [] })
@@ -47,36 +61,48 @@ async function installQuotaMocks(page: Page) {
       secrets: {}, settings_schema: [], credentials_returned: false,
     })
     if (url.pathname === `/api/v2/sources/${sourceId}/worksheets`) {
-      worksheetRequests += 1
       return json(route, {
-        detail: {
-          code: 'SOURCE_READ_LIMIT_REACHED',
-          message: 'The source read allowance has been used.',
-          limit: 10,
-          usage: 10,
-          reset_at: '2030-08-14T00:00:00Z',
-          retry_after_seconds: 60,
-        },
-      }, 429)
+        sourceId, sourceRevisionId: 'external:snapshot-1:1', items: [{
+          name: 'Prices', rowCount: null,
+          columns: [
+            { id: 'A', letter: 'A', header: 'Product Name' },
+            { id: 'B', letter: 'B', header: 'Cost' },
+            { id: 'C', letter: 'C', header: 'SKU' },
+            { id: 'H', letter: 'H', header: 'Stock' },
+          ],
+        }],
+        readQuota: { enabled: true, limit: 10, usage: 9, remaining: 1, resetAt: '2030-08-14T00:00:00Z', exhausted: false },
+        discoveryQuota: { enabled: true, limit: 30, usage: 29, remaining: 1, resetAt: '2030-08-14T00:00:00Z', exhausted: false },
+        worksheetDiscovery: { requiresRemoteRead: false, metadataSource: 'snapshot', remoteReadUsed: false, snapshotId: 1, snapshotVersion: 1, snapshotAt: '2030-08-13T00:00:00Z' },
+      })
     }
     return json(route, { code: 'UNHANDLED_TEST_REQUEST' }, 501)
   })
   return { worksheetRequests: () => worksheetRequests }
 }
 
-test('worksheet discovery presents structured quota exhaustion and suppresses repeated requests', async ({ page }) => {
+test('remote metadata refresh has a separate allowance while local detection remains available', async ({ page }) => {
   const audit = await installQuotaMocks(page)
 
   await page.goto(`/sources/${sourceId}`)
-  await page.getByRole('button', { name: 'Data mapping' }).click()
   const detect = page.getByRole('button', { name: 'Detect worksheets' })
+  const refresh = page.getByRole('button', { name: 'Refresh from Nextcloud' })
   await expect(detect).toBeEnabled()
   await expect(page.getByTestId('worksheet-detection-help')).toContainText(
-    'may read the workbook from Nextcloud and use 1 remote read',
+    'Detection stays local',
   )
-  await detect.click()
+  await expect(page.getByTestId('worksheet-discovery-quota')).toContainText('29 of 30 used')
+  await refresh.click()
 
-  await expect(page.getByText('Remote read allowance reached', { exact: true })).toBeVisible()
-  await expect(detect).toBeDisabled()
+  await expect(page.getByTestId('worksheet-discovery-feedback')).toContainText('Worksheet refresh allowance reached')
+  await expect(page.getByTestId('worksheet-discovery-feedback')).toContainText('30 of 30 remote metadata refreshes were used')
+  await expect(refresh).toBeDisabled()
+  await expect(detect).toBeEnabled()
+  expect(audit.worksheetRequests()).toBe(1)
+
+  await detect.click()
+  const productNamePicker = page.getByLabel('Source Product Name column reference')
+  await expect(productNamePicker).toContainText('A — Product Name')
+  await expect(productNamePicker).toContainText('H — Stock')
   expect(audit.worksheetRequests()).toBe(1)
 })
