@@ -39,6 +39,9 @@ REQUIRED_019_TESTS = (
     "test_sqlite_019_tables_match_source_workspace_metadata",
     "test_postgresql_019_foreign_keys_immutability_and_018_preservation",
 )
+REQUIRED_033_TESTS = (
+    "test_postgresql_032_to_033_is_additive",
+)
 REQUIRED_WORKSPACE_PERSISTENCE_TESTS = (
     "test_postgresql_manual_workspace_persists_snapshot_before_draft",
     "test_postgresql_catalog_workspace_persists_snapshot_before_draft",
@@ -63,6 +66,7 @@ def main() -> int:
         "017": REQUIRED_017_TESTS,
         "018": REQUIRED_018_TESTS,
         "019": REQUIRED_019_TESTS,
+        "033": REQUIRED_033_TESTS,
         "workspace-persistence": REQUIRED_WORKSPACE_PERSISTENCE_TESTS,
         "source-lifecycle": REQUIRED_SOURCE_LIFECYCLE_TESTS,
         "orders": REQUIRED_ORDER_TESTS,
