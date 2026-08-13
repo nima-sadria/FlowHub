@@ -366,7 +366,11 @@ def test_sqlite_migrated_schema_allows_service_to_finalize_scan(
 
     url = f"sqlite:///{(tmp_path / 'service-scan-019.sqlite').as_posix()}"
     monkeypatch.setenv("FLOWHUB_DATABASE_URL", url)
-    command.upgrade(_config(), "FLOWHUB_019")
+    # This is a current-service integration check for the tables introduced by
+    # FLOWHUB_019. Run the database through the current head so the current ORM
+    # contract is present; the adjacent tests keep the historical 018 -> 019
+    # migration boundary isolated.
+    command.upgrade(_config(), "head")
     _get_engine.cache_clear()
     engine = _get_engine(url)
     try:
@@ -386,10 +390,8 @@ def test_sqlite_migrated_schema_allows_service_to_finalize_scan(
                 )
             )
         with Session(engine) as db:
-            # This fixture intentionally stops at FLOWHUB_019. Querying the
-            # current ORM model would select columns introduced by later
-            # revisions (for example FLOWHUB_020.email), so use a detached
-            # actor with the historical row's identity.
+            # Use a detached actor with the inserted row's identity so this
+            # test remains focused on Source scan finalization.
             user = FlowHubUser(
                 id=1,
                 username="service-owner",
