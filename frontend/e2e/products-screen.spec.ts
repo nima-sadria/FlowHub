@@ -84,6 +84,15 @@ function groupedGridResource() {
       category: null,
       brand: null,
       productType: 'simple',
+      primaryImageUrl: product.productId === 'p1'
+        ? 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="36" height="36"%3E%3Crect width="36" height="36" fill="%233b82f6"/%3E%3C/svg%3E'
+        : null,
+      media: product.productId === 'p1' ? [{
+        type: 'image',
+        url: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="36" height="36"%3E%3Crect width="36" height="36" fill="%233b82f6"/%3E%3C/svg%3E',
+        position: 0,
+        source: 'woocommerce',
+      }] : [],
       mappedChannelCount: product.listings.length,
       listingCount: product.listings.length,
       changedListingCount: 0,
@@ -290,4 +299,20 @@ test('products matches the approved Figma hierarchy in Light/Dark and LTR/RTL at
 
   expect(audit.externalRequests, 'No request may leave the isolated local browser environment').toEqual([])
   expect(audit.unhandledApiRequests, 'Every Products API request must be explicitly mocked').toEqual([])
+})
+
+test('products renders canonical grid media without a metadata request per product', async ({ page }) => {
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [] }
+  await installProductsMocks(page, audit)
+  await seedSession(page, 'en', 'light')
+
+  await page.goto('/products')
+  const firstProduct = page.locator('[data-product-group][data-product-id="p1"]')
+  const image = firstProduct.locator('[data-product-thumbnail] img')
+  await expect(image).toBeVisible()
+  await expect(image).toHaveAttribute('src', /^data:image\/svg\+xml/)
+  expect(await image.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+
+  expect(audit.externalRequests).toEqual([])
+  expect(audit.unhandledApiRequests).toEqual([])
 })

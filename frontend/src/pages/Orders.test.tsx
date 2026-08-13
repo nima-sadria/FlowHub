@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
+import { ApiError } from '../api/client'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type { ChannelOrderDetail, ChannelOrderListItem } from '../services/types'
 import Orders from './Orders'
@@ -128,14 +129,42 @@ describe('Orders page', () => {
       button => button.textContent === 'T-200',
     )
     await act(async () => {
+      detailButton?.focus()
       detailButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     await flush()
 
+    expect(container.querySelector('[data-order-details-dialog]')).toBeTruthy()
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Order details')
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('provider-200')
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('7')
     expect(container.textContent).toContain('tap-item-1')
     expect(container.textContent).toContain('No SKU product')
     expect(container.textContent).toContain('9,000 IRR')
     expect(container.textContent).not.toContain('national')
+
+    const close = container.querySelector<HTMLButtonElement>('[aria-label="Close order details"]')
+    await act(async () => close?.click())
+    expect(container.querySelector('[data-order-details-dialog]')).toBeNull()
+    expect(document.activeElement).toBe(detailButton)
+  })
+
+  it('opens visible details from the row menu and invokes the internal order endpoint binding', async () => {
+    const mock = services()
+    const getOrder = vi.fn(mock.orders!.getOrder)
+    mock.orders!.getOrder = getOrder
+    await act(async () => root.render(<ServiceProvider services={mock}><Orders /></ServiceProvider>))
+    await flush()
+
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-row-menu-trigger]')?.click())
+    const viewDetails = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find(button => button.textContent === 'View details')
+    await act(async () => viewDetails?.click())
+    await flush()
+
+    expect(getOrder).toHaveBeenCalledWith(7)
+    expect(container.querySelector('[data-order-details-dialog]')).toBeTruthy()
+    expect(container.querySelector('[data-order-detail]')?.textContent).toContain('Test buyer')
   })
 
   it('distinguishes never-synchronized state and runs an explicit read-only sync', async () => {
@@ -259,6 +288,41 @@ describe('Orders page', () => {
     await flush()
 
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('Order details could not be loaded')
+    expect(container.querySelector('[data-order-details-dialog]')).toBeTruthy()
+  })
+
+  it('shows a specific not-found state', async () => {
+    const mock = services()
+    mock.orders!.getOrder = async () => { throw new ApiError(404, 'not found') }
+
+    await act(async () => root.render(<ServiceProvider services={mock}><Orders /></ServiceProvider>))
+    await flush()
+    const detailButton = Array.from(container.querySelectorAll('button')).find(
+      button => button.textContent === 'T-200',
+    )
+    await act(async () => detailButton?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    await flush()
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('This order could not be found')
+    expect(container.querySelector('[data-order-details-dialog]')).toBeTruthy()
+  })
+
+  it('keeps valid order details visible when optional exchange rates are unavailable', async () => {
+    const mock = services()
+    mock.exchangeRates = {
+      getLatest: async () => { throw new Error('optional exchange-rate failure') },
+    } as unknown as Services['exchangeRates']
+
+    await act(async () => root.render(<ServiceProvider services={mock}><Orders /></ServiceProvider>))
+    await flush()
+    const detailButton = Array.from(container.querySelectorAll('button')).find(
+      button => button.textContent === 'T-200',
+    )
+    await act(async () => detailButton?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    await flush()
+
+    expect(container.querySelector('[data-order-detail]')?.textContent).toContain('Test buyer')
+    expect(container.querySelector('[role="alert"]')).toBeNull()
   })
 })
 

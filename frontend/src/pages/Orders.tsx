@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ApiError } from '../api/client'
 import Badge from '../components/Badge'
 import Empty from '../components/Empty'
 import Icon from '../components/Icon'
@@ -78,30 +79,58 @@ function sortValue(
   }
 }
 
-function OrderDetail({ order }: { order: ChannelOrderDetail }) {
+function orderDetailFailure(error: unknown): string {
+  if (error instanceof ApiError && error.status === 404) return translate('orders:orders.orderNotFound')
+  if (error instanceof ApiError && error.status === 403) return translate('orders:orders.orderPermissionDenied')
+  return translate('orders:orders.orderDetailFailed')
+}
+
+function OrderDetail({ order, channelName }: { order: ChannelOrderDetail; channelName: string }) {
   return (
-    <div className="border-t border-border bg-bg-base/50 px-4 py-4">
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <section>
+    <div className="space-y-5" data-order-detail>
+      <section className="grid grid-cols-2 gap-3 rounded-md border border-border bg-bg-base/50 p-4 sm:grid-cols-3">
+        <DetailValue label={translate('orders:orders.channel')} value={channelName} />
+        <DetailValue label={translate('orders:orders.externalOrderId')} value={order.providerOrderId} />
+        <DetailValue label={translate('orders:orders.internalOrderId')} value={String(order.internalId)} />
+        <DetailValue label={translate('orders:orders.status')} value={formatStatus(order.normalizedStatus)} />
+        <DetailValue label={translate('orders:orders.providerStatus')} value={formatStatus(order.providerStatus)} />
+        <DetailValue label={translate('orders:orders.customer')} value={order.customerDisplay || '—'} />
+        <DetailValue label={translate('orders:orders.paymentStatus')} value={formatStatus(order.paymentStatus)} />
+        <DetailValue label={translate('orders:orders.fulfillmentStatus')} value={formatStatus(order.fulfillmentStatus)} />
+        <DetailValue label={translate('orders:orders.total')} value={formatMoney(order.finalAmount, { currency: order.currency })} />
+        <DetailValue label={translate('orders:orders.created')} value={formatTime(order.createdAtProvider)} />
+        <DetailValue label={translate('orders:orders.updated')} value={formatTime(order.updatedAtProvider)} />
+        <DetailValue label={translate('orders:orders.currency')} value={order.currency || '—'} />
+      </section>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <section className="xl:col-span-2">
           <h3 className="fh-section-title mb-3">{translate('orders:orders.items')}</h3>
-          <div className="overflow-x-auto">
+          {order.items.length === 0 ? <p className="fh-text-caption">{translate('orders:orders.noItemData')}</p> : <div className="overflow-x-auto">
             <table className="fh-table min-w-[720px]">
               <thead><tr><th>SKU</th><th>{translate('orders:orders.name')}</th><th>{translate('orders:orders.providerItem')}</th><th>{translate('orders:orders.qty')}</th><th>{translate('orders:orders.finalPrice')}</th><th>{translate('orders:orders.status')}</th></tr></thead>
               <tbody>{order.items.map(item => <tr key={item.providerItemId}><td>{item.sku || '—'}</td><td>{item.name || '—'}</td><td>{item.providerItemId}</td><td>{item.quantity}</td><td>{formatMoney(item.finalPrice, { currency: order.currency })}</td><td>{item.itemStatus || '—'}</td></tr>)}</tbody>
             </table>
-          </div>
+          </div>}
         </section>
         <section>
           <h3 className="fh-section-title mb-3">{translate('orders:orders.shipments')}</h3>
           {order.shipments.length === 0 ? <p className="fh-text-caption">{translate('orders:orders.noShipmentData')}</p> : <div className="space-y-2">{order.shipments.map(item => <div className="rounded-md border border-border bg-bg-card p-3" key={item.shipmentNumber}><div className="font-medium">{item.shipmentNumber}</div><div className="fh-text-caption">{item.statusTitle || item.statusCode || '—'}</div></div>)}</div>}
         </section>
         <section>
+          <h3 className="fh-section-title mb-3">{translate('orders:orders.invoices')}</h3>
+          {order.invoices.length === 0 ? <p className="fh-text-caption">{translate('orders:orders.noInvoiceData')}</p> : <div className="space-y-2">{order.invoices.map(item => <div className="rounded-md border border-border bg-bg-card p-3" key={item.invoiceNumber}><div className="font-medium">{item.invoiceNumber}</div><div className="fh-text-caption">{formatMoney(item.amount, { currency: item.currency || order.currency })}</div></div>)}</div>}
+        </section>
+        <section>
           <h3 className="fh-section-title mb-3">{translate('orders:orders.timeline')}</h3>
-          <div className="space-y-2">{order.timeline.map((event, index) => <div className="rounded-md border border-border bg-bg-card p-3" key={`${event.eventName}-${index}`}><div className="font-medium">{formatStatus(event.eventName)}</div><div className="fh-text-caption">{event.message}</div><div className="fh-text-caption">{formatTime(event.createdAt)}</div></div>)}</div>
+          {order.timeline.length === 0 ? <p className="fh-text-caption">{translate('orders:orders.noTimelineData')}</p> : <div className="space-y-2">{order.timeline.map((event, index) => <div className="rounded-md border border-border bg-bg-card p-3" key={`${event.eventName}-${index}`}><div className="font-medium">{formatStatus(event.eventName)}</div><div className="fh-text-caption">{event.message}</div><div className="fh-text-caption">{formatTime(event.createdAt)}</div></div>)}</div>}
         </section>
       </div>
     </div>
   )
+}
+
+function DetailValue({ label, value }: { label: string; value: string }) {
+  return <div><p className="fh-text-caption">{label}</p><p className="mt-1 font-medium text-text-base">{value}</p></div>
 }
 
 export default function Orders() {
@@ -122,7 +151,12 @@ export default function Orders() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<ChannelOrderDetail | null>(null)
+  const [detailTarget, setDetailTarget] = useState<ChannelOrderListItem | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
+  const detailDialogRef = useRef<HTMLDivElement | null>(null)
+  const detailTriggerRef = useRef<HTMLElement | null>(null)
+  const detailRequestRef = useRef(0)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [columnsOpen, setColumnsOpen] = useState(false)
   const [sortOpen, setSortOpen] = useState(false)
@@ -131,6 +165,7 @@ export default function Orders() {
   const [hiddenColumns, setHiddenColumns] = useState<Set<ColumnKey>>(new Set())
   const [sort, setSort] = useState<{ field: SortField; direction: 'asc' | 'desc' } | null>(null)
   const [showOnlyFailed, setShowOnlyFailed] = useState(false)
+  const detailOpen = detailTarget !== null
 
   const load = useCallback(async () => {
     if (!orders) {
@@ -171,6 +206,37 @@ export default function Orders() {
     return () => document.removeEventListener('mousedown', close)
   }, [columnsOpen, filtersOpen, rowMenuFor, savedViewsOpen, sortOpen])
 
+  useEffect(() => {
+    if (!detailOpen) return
+    const trigger = detailTriggerRef.current
+    const dialog = detailDialogRef.current
+    dialog?.querySelector<HTMLElement>('button:not([disabled])')?.focus()
+    const pageScroller = dialog?.closest('main') ?? document.querySelector('main')
+    if (pageScroller instanceof HTMLElement) pageScroller.classList.add('fh-modal-scroll-lock')
+    function handleDialogKeys(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeDetail()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(detailDialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]') ?? [])
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus()
+      }
+    }
+    window.addEventListener('keydown', handleDialogKeys)
+    return () => {
+      window.removeEventListener('keydown', handleDialogKeys)
+      if (pageScroller instanceof HTMLElement) pageScroller.classList.remove('fh-modal-scroll-lock')
+      trigger?.focus()
+    }
+  }, [detailOpen])
+
   const pages = Math.max(1, Math.ceil(total / pageSize))
   const selectedSyncStatus = useMemo(() => {
     if (channelId) return syncStatuses.find(item => item.channelId === channelId)
@@ -204,18 +270,34 @@ export default function Orders() {
   const rangeFrom = total === 0 ? 0 : (page - 1) * pageSize + 1
   const rangeTo = Math.min(page * pageSize, total)
 
-  async function openDetail(order: ChannelOrderListItem) {
+  async function loadDetail(order: ChannelOrderListItem) {
     if (!orders) return
+    const requestId = ++detailRequestRef.current
     setDetailLoading(true)
-    setError('')
+    setDetailError('')
+    setSelected(null)
     try {
-      setSelected(await orders.getOrder(order.internalId))
-    } catch {
-      setSelected(null)
-      setError(translate('orders:orders.orderDetailFailed'))
+      const detail = await orders.getOrder(order.internalId)
+      if (requestId === detailRequestRef.current) setSelected(detail)
+    } catch (cause) {
+      if (requestId === detailRequestRef.current) setDetailError(orderDetailFailure(cause))
     } finally {
-      setDetailLoading(false)
+      if (requestId === detailRequestRef.current) setDetailLoading(false)
     }
+  }
+
+  function openDetail(order: ChannelOrderListItem) {
+    detailTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setDetailTarget(order)
+    void loadDetail(order)
+  }
+
+  function closeDetail() {
+    detailRequestRef.current += 1
+    setDetailTarget(null)
+    setSelected(null)
+    setDetailLoading(false)
+    setDetailError('')
   }
 
   async function synchronize() {
@@ -446,8 +528,6 @@ export default function Orders() {
             <button type="button" className="fh-pager-arrow" aria-label={translate('common:pagination.next')} disabled={page >= pages} onClick={() => setPage(value => value + 1)}><Icon name="next" size="sm" /></button>
           </nav>
         </div>
-        {detailLoading && <div className="fh-panel-footer !justify-start"><span className="fh-text-caption">{translate('orders:orders.loadingOrderDetail')}</span></div>}
-        {selected && !detailLoading && <OrderDetail order={selected} />}
       </div>
 
       <section className="fh-card fh-card-pad mt-4 flex flex-wrap items-center justify-between gap-3" data-orders-summary-card>
@@ -460,6 +540,40 @@ export default function Orders() {
           <button type="button" className="fh-button-primary fh-button-sm" disabled={syncing || !canSync} onClick={() => void synchronize()}>{translate('orders:orders.syncNow')}</button>
         </div>
       </section>
+
+      {detailTarget && (
+        <div
+          ref={detailDialogRef}
+          className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="order-detail-title"
+          data-order-details-dialog
+        >
+          <div className="fh-card flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden">
+            <div className="fh-panel-header shrink-0">
+              <div>
+                <h2 className="fh-section-title" id="order-detail-title">{translate('orders:orders.orderDetails')}</h2>
+                <p className="fh-text-caption mt-1">{detailTarget.orderNumber || detailTarget.providerOrderId}</p>
+              </div>
+              <button type="button" className="fh-button-secondary fh-button-sm" onClick={closeDetail} aria-label={translate('orders:orders.closeOrderDetails')}>
+                <Icon name="close" size="sm" /> {translate('orders:orders.close')}
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+              {detailLoading && <div className="fh-text-body-sm" role="status" aria-live="polite" aria-busy="true">{translate('orders:orders.loadingOrderDetail')}</div>}
+              {!detailLoading && detailError && <div className="fh-alert fh-alert-danger" role="alert">
+                <span>{detailError}</span>
+                <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => void loadDetail(detailTarget)}>{translate('common:action.retry')}</button>
+              </div>}
+              {!detailLoading && selected && <OrderDetail
+                order={selected}
+                channelName={channelDisplayNames.get(selected.channelId) ?? formatChannelDisplayName(selected.channelId)}
+              />}
+            </div>
+          </div>
+        </div>
+      )}
     </PageShell>
   )
 }

@@ -310,6 +310,61 @@ def test_manual_workspace_supports_grouped_inline_pricing_grid(client, auth_head
     assert grouped["items"][0]["children"][0]["fields"]["price"]["current"] == "100"
 
 
+def test_grouped_grid_exposes_provider_neutral_product_media(client, auth_headers, db):
+    from sqlalchemy import event
+
+    from app.flowhub.data_layer.models import DlProductCache
+
+    _seed(db)
+    cache = db.query(DlProductCache).filter_by(
+        connector_id="woocommerce:primary", product_id="101"
+    ).one()
+    cache.images = [
+        {"src": "https://cdn.example.test/primary.jpg?consumer_secret=hidden"},
+        {"src": "https://cdn.example.test/second.jpg"},
+    ]
+    db.commit()
+    workspace = _create(client, auth_headers)
+    media_queries: list[str] = []
+
+    def capture_media_query(_connection, _cursor, statement, _parameters, _context, _many):
+        normalized_statement = " ".join(statement.lower().split())
+        if "(dl_product_cache.connector_id, dl_product_cache.product_id) in" in normalized_statement:
+            media_queries.append(statement)
+
+    engine = db.get_bind()
+    event.listen(engine, "before_cursor_execute", capture_media_query)
+    try:
+        response = client.get(
+            f"/api/v2/unified-workspaces/{workspace['id']}/grouped-grid?page=1&pageSize=100&view=all",
+            headers=auth_headers,
+        )
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_media_query)
+
+    assert response.status_code == 200, response.text
+    product = response.json()["items"][0]
+    assert product["primaryImageUrl"] == "https://cdn.example.test/primary.jpg"
+    assert product["media"] == [
+        {
+            "type": "image",
+            "url": "https://cdn.example.test/primary.jpg",
+            "position": 0,
+            "source": "woocommerce",
+        },
+        {
+            "type": "image",
+            "url": "https://cdn.example.test/second.jpg",
+            "position": 1,
+            "source": "woocommerce",
+        },
+    ]
+    assert "images" not in product
+    assert "src" not in product
+    assert "consumer_secret" not in repr(product)
+    assert len(media_queries) == 1
+
+
 def test_draft_optimistic_concurrency_and_no_external_write(client, auth_headers, db, monkeypatch):
     _seed(db)
     workspace = _create(client, auth_headers)

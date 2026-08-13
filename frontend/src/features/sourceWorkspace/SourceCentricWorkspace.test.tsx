@@ -66,6 +66,8 @@ const GRID: GroupedWorkspacePage = {
     category: null,
     brand: null,
     productType: 'simple',
+    primaryImageUrl: 'https://cdn.example.test/product-1.jpg',
+    media: [{ type: 'image', url: 'https://cdn.example.test/product-1.jpg', position: 0, source: 'woocommerce' }],
     mappedChannelCount: 3,
     listingCount: 4,
     changedListingCount: 4,
@@ -140,6 +142,33 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     expect(container.querySelector('[data-pricing-workspace]')).toBeTruthy()
     expect(container.querySelector('[data-products-critical-controls]')).toBeTruthy()
     expect(container.querySelector('.fh-page')).toBeNull()
+  })
+
+  it('renders canonical product media and falls back after an image error', async () => {
+    await renderWorkspace(container, root, service)
+
+    const thumbnail = container.querySelector('[data-product-thumbnail]')
+    const image = thumbnail?.querySelector('img')
+    expect(image?.getAttribute('src')).toBe('https://cdn.example.test/product-1.jpg')
+    expect(sourceWorkspaceApi.groupedGrid).toHaveBeenCalledTimes(1)
+
+    await act(async () => image?.dispatchEvent(new Event('error')))
+
+    expect(thumbnail?.querySelector('img')).toBeNull()
+    expect(thumbnail?.querySelector('svg')).toBeTruthy()
+  })
+
+  it('renders the existing product icon when canonical media is unavailable', async () => {
+    vi.mocked(sourceWorkspaceApi.groupedGrid).mockResolvedValue({
+      ...GRID,
+      items: [{ ...GRID.items[0], primaryImageUrl: null, media: [] }],
+    })
+
+    await renderWorkspace(container, root, service)
+
+    const thumbnail = container.querySelector('[data-product-thumbnail]')
+    expect(thumbnail?.querySelector('img')).toBeNull()
+    expect(thumbnail?.querySelector('svg')).toBeTruthy()
   })
 
   it('binds an edit from one of several marketplace Listings to that immutable Listing ID', async () => {

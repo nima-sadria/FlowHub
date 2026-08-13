@@ -557,7 +557,7 @@ const ProductGroup = memo(function ProductGroup({
                 populated on the group's first row and left empty after. */}
             <td className="fh-products-product-cell">
               {index === 0 && <span className="fh-products-product-inner">
-                <span className="fh-products-thumb" aria-hidden="true"><Icon name="products" /></span>
+                <ProductThumbnail imageUrl={product.primaryImageUrl} />
                 <span className="fh-products-name">{product.name}</span>
               </span>}
             </td>
@@ -638,6 +638,18 @@ const ProductGroup = memo(function ProductGroup({
     </tbody>
   )
 })
+
+function ProductThumbnail({ imageUrl }: { imageUrl?: string | null }) {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => setFailed(false), [imageUrl])
+  return (
+    <span className="fh-products-thumb" aria-hidden="true" data-product-thumbnail>
+      {imageUrl && !failed
+        ? <img src={imageUrl} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+        : <Icon name="products" />}
+    </span>
+  )
+}
 
 interface TargetInputProps {
   descriptor: PricingFieldDescriptor | undefined

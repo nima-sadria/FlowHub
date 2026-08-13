@@ -22,6 +22,7 @@ from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.pricing_authority.service import ChannelPricingAuthorityService
 from app.flowhub.pricing_matrix.models import WorkspacePricingBinding
 from app.flowhub.pricing_authority.contracts import PricingAuthority, PricingOrigin
+from app.flowhub.product_media import normalize_product_media, primary_image_url
 from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_workspace.models import SourceDataQualityIssue
@@ -414,7 +415,13 @@ class UnifiedWorkspaceService:
                 channel_map=channel_map,
                 refresh_existing_cache=_refresh_existing_cache,
             )
-            normalized = self._normalized_snapshot_data(canonical, listing, channel_cache)
+            normalized = self._normalized_snapshot_data(
+                canonical,
+                listing,
+                channel_cache,
+                media=cache_row.images,
+                media_source=cache_row.connector_id.split(":", 1)[0],
+            )
             row_payload = {
                 "row_number": row_number,
                 "canonical_product_id": canonical.id,
@@ -1286,9 +1293,33 @@ class UnifiedWorkspaceService:
             stock_state=stock_state,
         )
         all_product_count = self.workspaces.grouped_product_count(snapshot.id)
+        media_by_identity: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        media_identities = sorted(
+            {(listing.channel_id, listing.external_primary_id) for _, _, listing, _ in rows}
+        )
+        for batch in _batches(media_identities):
+            media_rows = (
+                self.db.query(DlProductCache)
+                .filter(
+                    tuple_(DlProductCache.connector_id, DlProductCache.product_id).in_(batch),
+                    DlProductCache.exists.is_(True),
+                )
+                .all()
+            )
+            for media_row in media_rows:
+                media_by_identity[(media_row.connector_id, media_row.product_id)] = (
+                    normalize_product_media(
+                        media_row.images,
+                        source=media_row.connector_id.split(":", 1)[0],
+                    )
+                )
         parents: dict[str, dict[str, Any]] = {}
         for snapshot_row, product, listing, cache in rows:
             source_product = snapshot_row.normalized_data_json.get("source_product") or {}
+            snapshot_media = normalize_product_media(snapshot_row.normalized_data_json.get("media"))
+            product_media = snapshot_media or media_by_identity.get(
+                (listing.channel_id, listing.external_primary_id), []
+            )
             parent = parents.setdefault(
                 product.id,
                 {
@@ -1299,9 +1330,14 @@ class UnifiedWorkspaceService:
                     "category": source_product.get("category") or product.category,
                     "brand": source_product.get("brand") or product.brand,
                     "productType": product.product_type,
+                    "primaryImageUrl": primary_image_url(product_media),
+                    "media": product_media,
                     "children": [],
                 },
             )
+            if not parent["media"] and product_media:
+                parent["primaryImageUrl"] = primary_image_url(product_media)
+                parent["media"] = product_media
             listing_changes = changes_by_listing.get(listing.id, {})
             source_targets = snapshot_row.normalized_data_json.get("targets") or {}
             capabilities = self._capabilities_or_none(listing.channel_id)
@@ -4235,8 +4271,14 @@ class UnifiedWorkspaceService:
 
     @staticmethod
     def _normalized_snapshot_data(
-        product: CanonicalProduct, listing: Listing, cache: ChannelCache
+        product: CanonicalProduct,
+        listing: Listing,
+        cache: ChannelCache,
+        *,
+        media: object = None,
+        media_source: str | None = None,
     ) -> dict[str, Any]:
+        normalized_media = normalize_product_media(media, source=media_source)
         return {
             "canonical_product_id": product.id,
             "canonical_name": product.name,
@@ -4247,6 +4289,7 @@ class UnifiedWorkspaceService:
             "mapping_version": listing.mapping_version,
             "cache_version": cache.cache_version,
             "cache_checksum": cache.checksum,
+            "media": normalized_media,
         }
 
     @staticmethod

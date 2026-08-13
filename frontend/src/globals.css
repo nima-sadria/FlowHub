@@ -675,6 +675,14 @@
   color: var(--fh-text-muted);
   background: var(--fh-ui-surface-subtle);
   border-radius: var(--fh-radius-md);
+  overflow: hidden;
+}
+
+.fh-products-thumb img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .fh-products-name {

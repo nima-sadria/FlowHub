@@ -27,6 +27,7 @@ from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob, DlSourceSnapshot, DlWorkspacePreview
 from app.flowhub.integration_platform.contracts import WorkspacePreviewResponse
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.product_media import primary_image_url
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
 from app.flowhub.workspace.preview_store import WorkspacePreviewStore
@@ -509,16 +510,7 @@ def _category_names(categories: Any) -> list[str]:
 
 
 def _image_url(images: Any) -> str | None:
-    if not isinstance(images, list):
-        return None
-    for item in images:
-        if isinstance(item, dict):
-            url = item.get("src") or item.get("url")
-            if url:
-                return str(url)
-        elif isinstance(item, str) and item:
-            return item
-    return None
+    return primary_image_url(images)
 
 
 def _resolved_image_url(product: DlProductCache, by_product_id: dict[str, DlProductCache]) -> str | None:

@@ -316,7 +316,7 @@ class IncrementalReadEngine:
                 "manage_stock": _bool_or_none(item.get("manage_stock")),
                 "backorders_allowed": str(item.get("backorders") or "").lower() in {"yes", "notify", "true", "1"},
                 "categories": item.get("categories") if isinstance(item.get("categories"), list) else [],
-                "images": item.get("images") if isinstance(item.get("images"), list) else [],
+                "images": item.get("media") if isinstance(item.get("media"), list) else [],
                 "channel_id": connector_id,
                 "last_successful_read": now,
                 "last_modified": item.get("last_modified") or item.get("date_modified_gmt") or item.get("updated_at"),

@@ -249,3 +249,24 @@ test('orders matches the approved Figma hierarchy in Light/Dark and LTR/RTL at 1
   expect(audit.externalRequests, 'No request may leave the isolated local browser environment').toEqual([])
   expect(audit.unhandledApiRequests, 'Every Orders API request must be explicitly mocked').toEqual([])
 })
+
+test('orders View details opens a visible accessible dialog and closes cleanly', async ({ page }) => {
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [] }
+  await installOrdersMocks(page, audit)
+  await seedSession(page, 'en', 'light')
+  await page.goto('/orders')
+
+  const firstRow = page.locator('[data-orders-row]').first()
+  await firstRow.locator('[data-row-menu-trigger]').click()
+  await page.getByRole('menuitem', { name: 'View details' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Order details' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText(`provider-${ORDERS[0].internalId}`, { exact: true })).toBeVisible()
+  await expect(dialog.getByText(ORDERS[0].customerDisplay, { exact: true })).toBeVisible()
+
+  await dialog.getByRole('button', { name: 'Close order details' }).click()
+  await expect(dialog).toBeHidden()
+  expect(audit.externalRequests).toEqual([])
+  expect(audit.unhandledApiRequests).toEqual([])
+})

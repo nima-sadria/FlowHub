@@ -19,6 +19,7 @@ from app.flowhub.channels.tapsishop import TapsiShopConnectorError
 from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.product_media import primary_image_url
 from app.flowhub.product_pricing.models import ProductPriceOperation, ProductPriceOperationItem
 from app.flowhub.security.redaction import redact_sensitive
 from app.flowhub.security.upstream_errors import normalize_upstream_error
@@ -679,9 +680,7 @@ def _price(row: DlProductCache | None) -> float | None:
 
 
 def _image_url(row: DlProductCache) -> str | None:
-    images = row.images if isinstance(row.images, list) else []
-    first = images[0] if images else None
-    return first.get("src") if isinstance(first, dict) else None
+    return primary_image_url(row.images)
 
 
 def _stale_token(row: DlProductCache | None) -> str:

@@ -62,6 +62,7 @@ from app.flowhub.integration_platform.models import (
     IntegrationWebhookEvent,
 )
 from app.flowhub.integration_platform.registry import registry
+from app.flowhub.product_media import primary_image_url
 from app.flowhub.security.redaction import is_sensitive_key, redact_sensitive
 from app.flowhub.setup.service import AppConfigService
 
@@ -1347,10 +1348,7 @@ class IntegrationPlatformService:
             for item in categories
             if item
         ]
-        image_url = None
-        if row.images and isinstance(row.images, list) and row.images:
-            first = row.images[0]
-            image_url = first.get("src") if isinstance(first, dict) else None
+        image_url = primary_image_url(row.images)
         return ConnectorProductShape(
             id=str(row.id),
             wcId=row.external_id,

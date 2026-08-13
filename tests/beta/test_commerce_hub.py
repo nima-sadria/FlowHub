@@ -2571,7 +2571,12 @@ def test_woocommerce_cache_refresh_populates_variations_and_upserts_without_writ
     assert simple.regular_price == "10.00"
     assert simple.stock_qty == 5
     assert simple.categories == [{"id": 7, "name": "Catalog"}]
-    assert simple.images == [{"src": "https://store.example.test/simple.jpg"}]
+    assert simple.images == [{
+        "type": "image",
+        "url": "https://store.example.test/simple.jpg",
+        "position": 0,
+        "source": "woocommerce",
+    }]
     assert simple.channel_id == "woocommerce:primary"
     assert parent.product_type == "variable"
     assert variation.product_type == "variation"

@@ -7,6 +7,7 @@ from datetime import datetime
 
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
 from app.connectors.destinations.woocommerce.rest_client import list_products_paged, list_variations
+from app.flowhub.product_media import normalize_product_media, primary_image_url
 from app.flowhub.read_engine.contracts import ConnectorReadCapabilities, ReadPage
 
 
@@ -141,13 +142,18 @@ def _normalize_product(raw: dict) -> dict | None:
     if not product_id.isdigit():
         return None
     product_type = str(raw.get("type") or raw.get("product_type") or "simple").strip().lower()
-    return {
+    media = normalize_product_media(raw.get("images"), source="woocommerce")
+    normalized = {
         **raw,
         "id": product_id,
         "product_id": product_id,
         "product_type": product_type,
         "parent_id": None,
+        "media": media,
+        "primary_image_url": primary_image_url(media),
     }
+    normalized.pop("images", None)
+    return normalized
 
 
 def _normalize_variation(raw: dict, parent: dict) -> dict | None:
@@ -159,7 +165,8 @@ def _normalize_variation(raw: dict, parent: dict) -> dict | None:
     if not isinstance(images, list):
         image = raw.get("image")
         images = [image] if isinstance(image, dict) and image else []
-    return {
+    media = normalize_product_media(images, source="woocommerce")
+    normalized = {
         **raw,
         "id": variation_id,
         "product_id": variation_id,
@@ -168,6 +175,10 @@ def _normalize_variation(raw: dict, parent: dict) -> dict | None:
         "parent_id": parent_id,
         "parent_name": parent.get("name"),
         "categories": raw.get("categories") or parent.get("categories") or [],
-        "images": images,
+        "media": media,
+        "primary_image_url": primary_image_url(media),
         "date_modified_gmt": raw.get("date_modified_gmt") or parent.get("date_modified_gmt"),
     }
+    normalized.pop("image", None)
+    normalized.pop("images", None)
+    return normalized

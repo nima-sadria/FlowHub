@@ -235,6 +235,8 @@ export interface GroupedProduct {
   category: string | null
   brand: string | null
   productType: 'simple' | 'variable' | 'variation'
+  primaryImageUrl?: string | null
+  media?: Array<{ type: 'image'; url: string; position: number; source?: string }>
   mappedChannelCount: number
   listingCount: number
   changedListingCount: number
