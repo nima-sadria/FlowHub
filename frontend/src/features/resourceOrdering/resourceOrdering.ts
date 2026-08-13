@@ -10,9 +10,9 @@ import type { WorkspaceChannelDefinition } from '../../services/unifiedWorkspace
 import type { SourceChannel, SourceProfile } from '../sourceWorkspace/types'
 import { formatChannelDisplayName, formatSourceChannelDisplayName, localizedChannelName } from '../unifiedWorkspace/channelDisplayName'
 
-export type ResourceTier = 'configured' | 'attention' | 'disabled' | 'comingSoon'
-export type ResourceSection = 'active' | 'disabled' | 'comingSoon'
-export type ResourceBadge = 'configured' | 'healthy' | 'warning' | 'disabled' | 'comingSoon'
+export type ResourceTier = 'configured' | 'attention' | 'disabled' | 'archived' | 'comingSoon'
+export type ResourceSection = 'active' | 'disabled' | 'archived' | 'comingSoon'
+export type ResourceBadge = 'configured' | 'healthy' | 'warning' | 'disabled' | 'archived' | 'comingSoon'
 
 export interface ResourceOrderingSignals {
   id: string
@@ -68,10 +68,11 @@ const TIER_ORDER: Record<ResourceTier, number> = {
   configured: 0,
   attention: 1,
   disabled: 2,
-  comingSoon: 3,
+  archived: 3,
+  comingSoon: 4,
 }
 
-const SECTION_ORDER: readonly ResourceSection[] = ['active', 'disabled', 'comingSoon']
+const SECTION_ORDER: readonly ResourceSection[] = ['active', 'disabled', 'archived', 'comingSoon']
 const COLLATOR = new Intl.Collator(['en', 'fa'], {
   numeric: true,
   sensitivity: 'base',
@@ -89,11 +90,12 @@ const COMING_SOON_STATES = new Set([
 ])
 
 const DISABLED_STATES = new Set([
-  'archived',
   'deactivated',
   'disabled',
   'inactive',
 ])
+
+const ARCHIVED_STATES = new Set(['archived'])
 
 const ATTENTION_STATES = new Set([
   'authentication_expiring',
@@ -164,6 +166,9 @@ function classify(signals: ResourceOrderingSignals): Pick<OrderedResource<never>
     || signals.implemented === false
     || states.some(state => COMING_SOON_STATES.has(state))
   if (comingSoon) return { tier: 'comingSoon', section: 'comingSoon', badge: 'comingSoon' }
+
+  const archived = states.some(state => ARCHIVED_STATES.has(state))
+  if (archived) return { tier: 'archived', section: 'archived', badge: 'archived' }
 
   const disabled = signals.enabled === false
     || signals.available === false

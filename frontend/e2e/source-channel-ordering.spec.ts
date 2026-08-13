@@ -12,6 +12,7 @@ const sourceOrder = [
   'source-google',
   'source-nextcloud',
   'source-disabled',
+  'source-archived',
   'source-erp',
 ] as const
 
@@ -37,6 +38,7 @@ const sourceProfiles = [
   sourceProfile('source-erp', 'ERP / API', 'coming_soon', 'external'),
   sourceProfile('source-nextcloud', 'Nextcloud', 'error', 'external'),
   sourceProfile('source-disabled', 'Old CSV', 'disabled', 'imported_sheet'),
+  { ...sourceProfile('source-archived', 'Historical catalog', 'archived', 'external'), archivedAt: '2026-07-14T08:00:00Z' },
   sourceProfile('source-google', 'Google Sheets', 'active', 'external'),
   sourceProfile('source-csv', 'CSV', 'active', 'imported_sheet'),
 ]
@@ -55,6 +57,7 @@ const commerceSources = [
   commerceSource('source-erp', 'erp', 'ERP / API', 'planned', 'unknown', false, true),
   commerceSource('source-google', 'google_sheets', 'Google Sheets', 'configured', 'healthy'),
   commerceSource('source-disabled', 'csv', 'Old CSV', 'disabled', 'unknown'),
+  { ...commerceSource('source-archived', 'nextcloud', 'Historical catalog', 'archived', 'unknown'), enabled: false, source_profile_id: 'source-archived', lifecycle_status: 'archived', archived_at: '2026-07-14T08:00:00Z' },
   commerceSource('source-csv', 'csv', 'CSV', 'configured', 'healthy'),
 ]
 
@@ -525,6 +528,10 @@ async function installStrictMockApi(page: Page, audit: MockAudit, locale: 'en' |
     })
     if (pathname === '/api/health') return json({ status: 'ok', version: 'ordering-isolated' })
     if (pathname === '/api/v2/exchange-rates/me') return json({ selections: [], rates: [] })
+    if (pathname === '/api/v2/settings') return json({
+      woocommerceUrl: '', nextcloudUrl: '', syncIntervalMinutes: 15, timezone: 'UTC',
+      currency: 'IRR', currencyUnit: 'IRR', environment: 'test', wcConfigured: true, ncConfigured: false,
+    })
     if (pathname === '/api/v2/source-profiles') return json({ items: sourceProfiles })
     if (pathname === '/api/v2/source-profiles/channels') return json({ items: sourceChannels })
     if (pathname === '/api/v2/sources/source-csv/configuration') return json(sourceConfiguration())
@@ -641,15 +648,22 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await page.setViewportSize({ width: 1440, height: 900 })
 
   await page.goto('/sources')
-  await expectGroupedOrder(page, sourceOrder)
+  await expectGroupedOrder(page, sourceOrder, ['connected', 'setupRequired', 'disabled', 'archived', 'comingSoon'])
   await expect(page.locator('[data-resource-id="source-csv"]')).toContainText('Healthy')
   await expect(page.locator('[data-resource-id="source-nextcloud"]')).toContainText('Setup required')
   await expect(page.locator('[data-resource-id="source-disabled"]')).toContainText('Disabled')
+  const archivedSource = page.locator('[data-resource-id="source-archived"]')
+  await expect(archivedSource).toContainText('Archived')
+  await expect(archivedSource.getByRole('button', { name: 'View Data Sheet' })).toBeVisible()
+  await expect(archivedSource.getByRole('button', { name: /Edit|Delete|Test/ })).toHaveCount(0)
   await expect(page.locator('[data-resource-id="source-erp"]')).toContainText('Coming Soon')
   await page.screenshot({ path: path.join(screenshotRoot, 'en-sources.png'), fullPage: true })
 
   await page.goto('/commerce?tab=sources')
-  await expectGroupedOrder(page, sourceOrder, ['active', 'disabled', 'comingSoon'])
+  await expectGroupedOrder(page, sourceOrder, ['active', 'disabled', 'archived', 'comingSoon'])
+  const archivedCommerceSource = page.locator('[data-resource-id="source-archived"]')
+  await expect(archivedCommerceSource).toContainText('Archived')
+  await expect(archivedCommerceSource.getByRole('button', { name: /Edit|Test/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Add Source' }).click()
   const typeSelector = page.getByLabel('Source type')
   await expect(typeSelector).toHaveValue('source-type-csv')
@@ -666,7 +680,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await page.getByRole('button', { name: 'Close' }).click()
 
   await page.getByRole('button', { name: 'Channels' }).click()
-  await expectGroupedOrder(page, channelLifecycleOrder)
+  await expectGroupedOrder(page, channelLifecycleOrder, ['connected', 'needsAttention', 'disabled', 'comingSoon'])
   await expect(page.locator('[data-resource-id="snappshop:main"]')).toContainText('Healthy')
   await expect(page.locator('[data-resource-id="attention:main"]')).toContainText('Warning')
   await expect(page.locator('[data-resource-id="disabled:main"]')).toContainText('Disabled')
@@ -708,7 +722,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
     'WooCommerce',
     'Alpha attention',
     'Disabled Store',
-    'Digikala',
+    'Digikala — Future',
   ])
   await page.screenshot({ path: path.join(screenshotRoot, 'en-products.png'), fullPage: true })
 
@@ -730,7 +744,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await expectNoUnsafeTraffic(audit)
 })
 
-test('the same ordering remains stable in Persian RTL without translating technical identities', async ({ page }) => {
+test('the same ordering and technical identities remain stable in Persian RTL', async ({ page }) => {
   const audit: MockAudit = { externalRequests: [], unhandledApiRequests: [], interceptedWrites: [] }
   await installStrictMockApi(page, audit, 'fa')
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -747,6 +761,8 @@ test('the same ordering remains stable in Persian RTL without translating techni
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     if (name === 'source-configuration') await openSourceConfigurationChannelColumns(page)
     if (name === 'source-configuration') await expectSourceChannelTableOrder(page, expectedOrder)
+    else if (name === 'sources') await expectGroupedOrder(page, expectedOrder, ['connected', 'setupRequired', 'disabled', 'archived', 'comingSoon'])
+    else if (name === 'commerce-channels') await expectGroupedOrder(page, expectedOrder, ['connected', 'needsAttention', 'disabled', 'comingSoon'])
     else await expectGroupedOrder(page, expectedOrder)
     await page.screenshot({ path: path.join(screenshotRoot, `fa-${name}.png`), fullPage: true })
   }
@@ -765,8 +781,8 @@ test('the same ordering remains stable in Persian RTL without translating techni
   const productChannelFilter = page.locator('select').filter({ has: page.locator('option[value="snappshop:main"]') }).first()
   await expect(productChannelFilter).toHaveValue('')
   await expectGroupedChannelOptions(productChannelFilter)
-  await expect(productChannelFilter.locator('option[value="woocommerce:primary"]')).toHaveText('WooCommerce')
-  await expect(productChannelFilter.locator('option[value="snappshop:main"]')).toHaveText('SnappShop')
+  await expect(productChannelFilter.locator('option[value="woocommerce:primary"]')).toHaveText('ووکامرس')
+  await expect(productChannelFilter.locator('option[value="snappshop:main"]')).toHaveText('اسنپ شاپ')
   await page.screenshot({ path: path.join(screenshotRoot, 'fa-products.png'), fullPage: true })
 
   await expectNoUnsafeTraffic(audit)

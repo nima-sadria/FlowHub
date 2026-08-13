@@ -601,6 +601,37 @@ async function selectNextcloudSpreadsheet(c: HTMLElement) {
 }
 
 describe('CommerceHub', () => {
+  it('presents an archived linked Source without enable, edit, or provider actions', async () => {
+    const original = await commerce.getSources()
+    const archivedCommerce: CommerceService = {
+      ...commerce,
+      async getSources() {
+        return {
+          ...original,
+          items: [{
+            ...original.items[0],
+            status: 'archived',
+            lifecycle_status: 'archived',
+            source_profile_id: 'source-archived',
+            archived_at: '2026-08-13T08:30:00Z',
+            enabled: false,
+            credential_status: 'configured',
+            connection_configured: true,
+            configuration_state: 'configured',
+          }],
+        }
+      },
+    }
+
+    const c = await renderPage(adminUser, archivedCommerce, ['/commerce?tab=sources'])
+    const card = c.querySelector('[data-source-id="nextcloud:primary"]') as HTMLElement
+    expect(card.textContent).toContain('Archived')
+    expect(card.textContent).toContain('View Data Sheet')
+    expect(Array.from(card.querySelectorAll('button')).some(button => button.textContent === 'Edit connection')).toBe(false)
+    expect(Array.from(card.querySelectorAll('button')).some(button => button.textContent === 'Test connection')).toBe(false)
+    expect(c.querySelector('[data-resource-section="archived"]')).not.toBeNull()
+  })
+
   it('renders the three persisted Source setup states with Owner-approved semantics', async () => {
     const original = await commerce.getSources()
     const base = original.items[0]

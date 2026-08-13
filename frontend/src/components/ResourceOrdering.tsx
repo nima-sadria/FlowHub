@@ -11,6 +11,7 @@ import Badge, { type BadgeVariant } from './Badge'
 function sectionLabel(section: ResourceSection): string {
   if (section === 'active') return translate('common:resourceGroup.active')
   if (section === 'disabled') return translate('common:resourceGroup.disabled')
+  if (section === 'archived') return translate('common:resourceGroup.archived')
   return translate('common:resourceGroup.comingSoon')
 }
 
@@ -19,6 +20,7 @@ function badgePresentation(badge: ResourceBadge): { label: string; variant: Badg
   if (badge === 'configured') return { label: translate('common:resourceBadge.configured'), variant: 'success' }
   if (badge === 'warning') return { label: translate('common:resourceBadge.warning'), variant: 'warning' }
   if (badge === 'disabled') return { label: translate('common:resourceBadge.disabled'), variant: 'disabled' }
+  if (badge === 'archived') return { label: translate('common:resourceBadge.archived'), variant: 'neutral' }
   return { label: translate('common:resourceBadge.comingSoon'), variant: 'neutral' }
 }
 
@@ -78,7 +80,7 @@ export function ManagementResourceSections<T>({
   renderItem: (item: OrderedResource<T>) => ReactNode
   className?: string
   setupRequiredLabel?: string
-  groupFor?: (item: OrderedResource<T>) => 'connected' | 'needsAttention' | 'setupRequired' | 'disabled' | 'comingSoon'
+  groupFor?: (item: OrderedResource<T>) => 'connected' | 'needsAttention' | 'setupRequired' | 'disabled' | 'archived' | 'comingSoon'
   needsAttentionLabel?: string
 }) {
   const groups = groupFor
@@ -87,11 +89,13 @@ export function ManagementResourceSections<T>({
       { key: 'needsAttention', label: needsAttentionLabel, items: resources.ordered.filter(item => groupFor(item) === 'needsAttention') },
       { key: 'setupRequired', label: setupRequiredLabel ?? translate('common:status.setupRequired'), items: resources.ordered.filter(item => groupFor(item) === 'setupRequired') },
       { key: 'disabled', label: translate('common:status.disabled'), items: resources.ordered.filter(item => groupFor(item) === 'disabled') },
+      { key: 'archived', label: translate('common:status.archived'), items: resources.ordered.filter(item => groupFor(item) === 'archived') },
       { key: 'comingSoon', label: translate('common:resourceGroup.comingSoon'), items: resources.ordered.filter(item => groupFor(item) === 'comingSoon') },
     ]
     : [
       { key: 'connected', label: translate('common:status.connected'), items: resources.ordered.filter(item => item.tier === 'configured') },
       { key: 'setupRequired', label: setupRequiredLabel ?? translate('common:status.setupRequired'), items: resources.ordered.filter(item => item.tier === 'attention' || item.tier === 'disabled') },
+      { key: 'archived', label: translate('common:status.archived'), items: resources.ordered.filter(item => item.tier === 'archived') },
       { key: 'comingSoon', label: translate('common:resourceGroup.comingSoon'), items: resources.ordered.filter(item => item.tier === 'comingSoon') },
     ]
 

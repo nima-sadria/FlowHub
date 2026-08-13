@@ -33,7 +33,7 @@ import { formatMoney } from '../utils/price'
 
 const CARD = 'fh-card'
 const EXCLUDED_ORDER_STATUSES = new Set(['cancelled', 'canceled', 'refunded', 'failed'])
-const TIER_RANK: Record<ResourceTier, number> = { configured: 0, attention: 1, disabled: 2, comingSoon: 3 }
+const TIER_RANK: Record<ResourceTier, number> = { configured: 0, attention: 1, disabled: 2, archived: 3, comingSoon: 4 }
 
 interface RevenueAmount {
   currency: string

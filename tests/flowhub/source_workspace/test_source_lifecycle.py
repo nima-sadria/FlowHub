@@ -193,7 +193,8 @@ def test_protected_source_is_archived_and_history_remains_readable_but_not_mutab
 
     assert result["outcome"] == "archived"
     archived = service.get_source(str(source["id"]), user)
-    assert archived["status"] == "disabled"
+    assert archived["status"] == "archived"
+    assert archived["archivedAt"] is not None
     assert db.get(SheetRevision, revision_id) is not None
     assert service.get_sheet(str(sheet["id"]), user, page=1, page_size=200)["revisionId"] == revision_id
     audit = db.query(UnifiedAuditEntry).filter_by(event_type="source_archived").one()
@@ -242,6 +243,30 @@ def test_protected_source_is_archived_and_history_remains_readable_but_not_mutab
     assert cast(dict[str, Any], candidate_error.value.detail)["code"] == "SOURCE_ARCHIVED"
 
     with pytest.raises(SourceAcquisitionError, match="source_archived"):
+        SourceAcquisitionService(db).request_run(
+            source_id=str(source["id"]),
+            trigger_kind="manual",
+        )
+
+
+def test_disabled_source_remains_distinct_from_terminal_archive() -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    source = _empty_source(service, user, "Paused pricing source")
+    row = db.get(SourceProfile, str(source["id"]))
+    row.status = "disabled"
+    db.commit()
+
+    serialized = service.get_source(str(source["id"]), user)
+    assert serialized["status"] == "disabled"
+    assert serialized["archivedAt"] is None
+
+    with pytest.raises(HTTPException) as processing_error:
+        asyncio.run(service.source_preview(str(source["id"]), user, page=1, page_size=10))
+    assert cast(dict[str, Any], processing_error.value.detail)["code"] == "SOURCE_DISABLED"
+
+    with pytest.raises(SourceAcquisitionError, match="source_disabled"):
         SourceAcquisitionService(db).request_run(
             source_id=str(source["id"]),
             trigger_kind="manual",

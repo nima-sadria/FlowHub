@@ -32,7 +32,7 @@ const KIND_LABELS: Record<SourceProfile['sourceKind'], string> = {
   external: 'sources:sourceCenter.linkedExternalSource',
 }
 
-type SourceFilter = 'all' | 'active' | 'attention' | 'disabled' | 'comingSoon'
+type SourceFilter = 'all' | 'active' | 'attention' | 'disabled' | 'archived' | 'comingSoon'
 
 interface SourceCardModel {
   id: string
@@ -42,7 +42,12 @@ interface SourceCardModel {
 }
 
 function sourceIsEnabled(source: SourceProfile): boolean {
-  return source.status.trim().toLocaleLowerCase() !== 'disabled'
+  const lifecycle = source.status.trim().toLocaleLowerCase()
+  return lifecycle !== 'disabled' && lifecycle !== 'archived'
+}
+
+function sourceIsArchived(source: SourceProfile): boolean {
+  return source.status.trim().toLocaleLowerCase() === 'archived'
 }
 
 function sourceConfigurationState(source: CommerceSource): string {
@@ -74,6 +79,7 @@ function sourceCardSignals(card: SourceCardModel): ResourceOrderingSignals {
   return {
     id: card.id,
     displayName: card.displayName,
+    status: source.status,
     // A linked external connector is the effective runtime switch.  Do not
     // render an active Source profile as operational when its connector is
     // deliberately disabled.
@@ -106,6 +112,7 @@ function matchesFilter(state: OperationalResourceState, filter: SourceFilter): b
   if (filter === 'all') return true
   if (filter === 'active') return state === 'connected' || state === 'setupRequired' || state === 'needsAttention'
   if (filter === 'attention') return state === 'needsAttention'
+  if (filter === 'archived') return state === 'archived'
   return state === filter
 }
 
@@ -113,6 +120,7 @@ function sourceBadgeTone(badge: ResourceBadge): BadgeVariant {
   if (badge === 'healthy' || badge === 'configured') return 'success'
   if (badge === 'warning') return 'warning'
   if (badge === 'disabled') return 'disabled'
+  if (badge === 'archived') return 'neutral'
   return 'neutral'
 }
 
@@ -120,6 +128,7 @@ function sourceBadgeLabel(badge: ResourceBadge): string {
   if (badge === 'healthy' || badge === 'configured') return translate('common:status.connected')
   if (badge === 'warning') return translate('common:status.setupRequired')
   if (badge === 'disabled') return translate('common:status.disabled')
+  if (badge === 'archived') return translate('common:status.archived')
   return translate('common:resourceBadge.comingSoon')
 }
 
@@ -128,6 +137,12 @@ function sourceSetupPresentation(
   fallbackBadge: ResourceBadge,
 ): { label: string; variant: BadgeVariant } {
   const integration = card.integration
+  if (card.profile && sourceIsArchived(card.profile)) {
+    return {
+      label: translate('common:status.archived'),
+      variant: 'neutral',
+    }
+  }
   if (!integration || integration.placeholder || !integration.implemented) {
     return {
       label: sourceBadgeLabel(fallbackBadge),
@@ -172,6 +187,7 @@ function cardUpdatedAt(card: SourceCardModel): string | null {
 
 function operationalState(card: SourceCardModel, tier: ResourceTier): OperationalResourceState {
   if (tier === 'comingSoon') return 'comingSoon'
+  if (tier === 'archived') return 'archived'
   if (tier === 'disabled') return 'disabled'
   if (sourceNeedsOperationalAttention(card.integration)) return 'needsAttention'
   if (tier === 'configured') return 'connected'
@@ -441,7 +457,7 @@ export default function SourceCenter() {
       const result = await sourceWorkspaceApi.deleteSource(pendingDelete)
       setSources(current => result.outcome === 'deleted'
         ? current.filter(item => item.id !== pendingDelete.id)
-        : current.map(item => item.id === pendingDelete.id ? { ...item, status: 'disabled', version: item.version + 1 } : item))
+        : current.map(item => item.id === pendingDelete.id ? result.source ?? item : item))
       notify.success({
         title: result.outcome === 'deleted'
           ? translate('sources:sourceCenter.sourceDeleted')
@@ -501,6 +517,7 @@ export default function SourceCenter() {
     { value: 'active', label: translate('common:resourceGroup.active') },
     { value: 'attention', label: translate('sources:sourceCenter.needsReview') },
     { value: 'disabled', label: translate('common:resourceGroup.disabled') },
+    { value: 'archived', label: translate('common:resourceGroup.archived') },
     { value: 'comingSoon', label: translate('common:resourceGroup.comingSoon') },
   ]
 
@@ -634,12 +651,14 @@ export default function SourceCenter() {
               : source?.mappingVersion
                 ? translate('sources:sourceCenter.mappingReady')
                 : translate('sources:sourceCenter.mappingRequired')
-            const setupReason = (source && !sourceIsEnabled(source)) || integration?.enabled === false
-              ? translate('sources:sourceCenter.setupReasonDisabled')
+            const setupReason = source && sourceIsArchived(source)
+              ? translate('sources:sourceCenter.archivedReadOnly')
+              : (source && !sourceIsEnabled(source)) || integration?.enabled === false
+                ? translate('sources:sourceCenter.setupReasonDisabled')
               : integration && integration.credential_status !== 'configured'
                 ? translate('sources:sourceCenter.setupReasonConnection')
                 : translate('sources:sourceCenter.setupReasonMapping')
-            const facts = state === 'comingSoon' ? [] : state === 'setupRequired' || state === 'disabled'
+            const facts = state === 'comingSoon' ? [] : state === 'setupRequired' || state === 'disabled' || state === 'archived'
               ? [
                 { label: translate('sources:sourceCenter.sourceTypeLabel'), value: sourceCardDescription(card) },
                 { label: translate('sources:sourceCenter.validationStatus'), value: validationStatus },
@@ -660,7 +679,13 @@ export default function SourceCenter() {
               ]
             const setupDestination = setupDestinationFor(card)
             const canSetup = Boolean(source ? canEditSources : canManageConnectors)
-            const actions: OperationalResourceAction[] = state === 'comingSoon' ? [] : state === 'setupRequired'
+            const actions: OperationalResourceAction[] = state === 'comingSoon' ? [] : state === 'archived'
+              ? [
+                ...(source ? [{ label: translate('sources:sourceCenter.viewDataSheet'), icon: 'preview' as const, primary: true, onClick: () => navigate(`/sources/${source.id}`) }] : []),
+                ...(canViewActivity ? [{ label: translate('common:action.viewActivity'), icon: 'preview' as const, onClick: () => navigate(`/activity?source=${encodeURIComponent(integration?.id ?? source?.id ?? card.id)}`) }] : []),
+                ...(canViewDiagnostics ? [{ label: translate('common:action.diagnostics'), icon: 'diagnostics' as const, onClick: () => navigate(`/diagnostics#source-${integration?.id ?? source?.id ?? card.id}`) }] : []),
+              ]
+              : state === 'setupRequired'
               ? (setupDestination && canSetup
                   ? [{ label: translate('sources:sourceCenter.setupSource'), icon: 'settings' as const, primary: true, onClick: () => navigate(setupDestination) }]
                   : [])
@@ -687,7 +712,7 @@ export default function SourceCenter() {
                 statusVariant={statusPresentation.variant}
                 statusDetail={state === 'connected' && updatedAt ? `${translate('sources:sourceCenter.updatedPrefix')} ${formatRelativeTime(updatedAt)}` : undefined}
                 facts={facts}
-                issue={state === 'setupRequired' || state === 'disabled'
+                issue={state === 'setupRequired' || state === 'disabled' || state === 'archived'
                   ? setupReason
                   : sourceNeedsOperationalAttention(integration)
                     ? `${formatStatus(integration?.health.status)} · ${formatStatus(integration?.read_status?.last_read_status)}`

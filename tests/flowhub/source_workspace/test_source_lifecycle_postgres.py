@@ -161,7 +161,9 @@ def test_postgresql_archives_source_history_and_disables_only_bound_connector(
         db.expire_all()
 
         assert result["outcome"] == "archived"
-        assert db.get(SourceProfile, str(source["id"])).status == "disabled"
+        archived_source = db.get(SourceProfile, str(source["id"]))
+        assert archived_source.status == "archived"
+        assert archived_source.archived_at is not None
         assert db.get(SourceProfile, str(unrelated_source["id"])).status == "active"
         assert db.get(IntegrationConnectorInstance, target_connector.id).enabled is False
         assert db.get(IntegrationConnectorInstance, unrelated_connector.id).enabled is True

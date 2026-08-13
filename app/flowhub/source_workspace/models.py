@@ -30,7 +30,10 @@ class SourceProfile(FlowHubBase):
             "source_kind IN ('flowhub_sheet','imported_sheet','external')",
             name="ck_sc_source_kind",
         ),
-        CheckConstraint("status IN ('active','disabled')", name="ck_sc_source_status"),
+        CheckConstraint(
+            "status IN ('active','disabled','archived')",
+            name="ck_sc_source_status",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -41,6 +44,7 @@ class SourceProfile(FlowHubBase):
     worksheet_name: Mapped[str | None] = mapped_column(String(240), nullable=True)
     data_start_row: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", index=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     owner_user_id: Mapped[int] = mapped_column(
         ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=False, index=True

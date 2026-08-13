@@ -3,7 +3,7 @@ import Badge, { type BadgeVariant } from './Badge'
 import BrandIcon from './BrandIcon'
 import Icon, { type IconName } from './Icon'
 
-export type OperationalResourceState = 'connected' | 'needsAttention' | 'setupRequired' | 'disabled' | 'comingSoon'
+export type OperationalResourceState = 'connected' | 'needsAttention' | 'setupRequired' | 'disabled' | 'archived' | 'comingSoon'
 
 export interface OperationalResourceFact {
   label: string

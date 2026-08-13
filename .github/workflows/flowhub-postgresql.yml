@@ -189,6 +189,23 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL FLOWHUB_034 Source lifecycle migration test
+        id: postgres-034-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-034-junit.xml \
+            tests/flowhub/migration/test_source_lifecycle_034.py::test_postgresql_033_to_034_preserves_disabled_and_backfills_archived \
+            2>&1 | tee postgres-034-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-034-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-034-junit.xml 034 | tee postgres-034-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-034-junit.xml' | tee postgres-034-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL Workspace snapshot persistence tests
         id: postgres-workspace-persistence-tests
         run: |
@@ -274,6 +291,9 @@ jobs:
             postgres-source-lifecycle-junit.xml
             postgres-source-lifecycle-output.log
             postgres-source-lifecycle-manifest.log
+            postgres-034-junit.xml
+            postgres-034-output.log
+            postgres-034-manifest.log
             postgres-workspace-persistence-junit.xml
             postgres-workspace-persistence-output.log
             postgres-workspace-persistence-manifest.log

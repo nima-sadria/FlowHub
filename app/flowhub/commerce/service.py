@@ -567,6 +567,7 @@ class CommerceHubService:
 
     async def test_source_connection(self, source_id: str, body: dict | None = None) -> dict:
         meta = self._source_meta(source_id)
+        self._assert_source_not_archived(source_id)
         item = self._source_contract(meta)
         configured = item["credential_status"] == "configured"
         placeholder = bool(meta["placeholder"])
@@ -599,6 +600,7 @@ class CommerceHubService:
 
     async def browse_source_files(self, source_id: str, body: dict) -> dict:
         meta = self._source_meta(source_id)
+        self._assert_source_not_archived(source_id)
         if str(meta["provider"]) != "nextcloud" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source browser is not available.")
         instance = self.db.get(IntegrationConnectorInstance, source_id)
@@ -645,6 +647,7 @@ class CommerceHubService:
 
     async def read_source_now(self, source_id: str, actor: str, actor_id: int | str | None = None) -> dict:
         meta = self._source_meta(source_id)
+        self._assert_source_not_archived(source_id)
         if str(meta["provider"]) != "nextcloud" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source read is not available.")
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
@@ -668,6 +671,7 @@ class CommerceHubService:
         self, source_id: str, body: dict, *, user: FlowHubUser | None = None
     ) -> dict:
         meta = self._source_meta(source_id)
+        self._assert_source_not_archived(source_id)
         provider = str(meta["provider"])
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source settings are not available.")
@@ -930,6 +934,7 @@ class CommerceHubService:
         )
         return {
             "source_id": source_id,
+            **self._source_lifecycle_contract(source_id),
             "provider": meta["provider"],
             "display_name": instance.name if instance else meta["name"],
             "configured": setup_configured,
@@ -1120,9 +1125,15 @@ class CommerceHubService:
             str(meta["id"]), provider, instance
         )
         read_status = SpreadsheetSourceReadService(self.db).read_status() if provider == "nextcloud" else None
+        lifecycle = self._source_lifecycle_contract(str(meta["id"]))
         body = {
             **meta,
-            "status": self._status(meta, instance, health),
+            "status": (
+                "archived"
+                if lifecycle["lifecycle_status"] == "archived"
+                else self._status(meta, instance, health)
+            ),
+            **lifecycle,
             # Nextcloud connection credentials are complete before the later
             # spreadsheet setup is complete. Keep those states distinct so
             # clients do not have to infer persisted setup from health or UI
@@ -3213,6 +3224,33 @@ class CommerceHubService:
             if item["id"] == source_id or item["provider"] == source_id:
                 return item
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Source not found.")
+
+    def _source_lifecycle_contract(self, source_id: str) -> dict[str, str | None]:
+        profile = (
+            self.db.query(SourceProfile)
+            .filter(SourceProfile.external_source_id == source_id)
+            .one_or_none()
+        )
+        return {
+            "source_profile_id": profile.id if profile is not None else None,
+            "lifecycle_status": profile.status if profile is not None else None,
+            "archived_at": (
+                self._iso(profile.archived_at)
+                if profile is not None and profile.archived_at is not None
+                else None
+            ),
+        }
+
+    def _assert_source_not_archived(self, source_id: str) -> None:
+        lifecycle = self._source_lifecycle_contract(source_id)
+        if lifecycle["lifecycle_status"] == "archived":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_ARCHIVED",
+                    "message": "Archived Sources are read-only and cannot start new processing.",
+                },
+            )
 
     def _type_contract(self, meta: dict, *, kind: str) -> dict:
         definition = registry.get_definition(str(meta["provider"]))

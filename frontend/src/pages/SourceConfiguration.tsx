@@ -19,6 +19,8 @@ import type {
   SourceWorksheetRule,
 } from '../features/sourceWorkspace/types'
 import { translate } from '../i18n'
+import { formatStatus } from '../i18n/display'
+import { formatDateTime } from '../i18n/format'
 import { localizedApiError } from '../i18n/errors'
 import { useNotification } from '../notifications/NotificationProvider'
 import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
@@ -1299,6 +1301,9 @@ export default function SourceConfiguration() {
     )
   }
 
+  const sourceArchived = source.status === 'archived'
+  const canMutateSource = canEditSource && !sourceArchived
+
   const previewSummary = preview?.businessSummary ?? null
   const previewItems = preview?.items.filter(item => previewFilter === 'all' || (previewFilter === 'ready' ? item.ready : item.hasIssues)) ?? []
   const currentPreviewIndex = Math.min(previewIndex, Math.max(0, previewItems.length - 1))
@@ -1327,7 +1332,7 @@ export default function SourceConfiguration() {
         <div>
           <h1 className="fh-page-title">{source.name}</h1>
         </div>
-        {canCreateWorkspace && (
+        {canCreateWorkspace && !sourceArchived && (
           <button className="fh-button-primary" type="button" disabled={!source.mapping} onClick={() => void createWorkspace()}>
             <Icon name="workspace" /> {translate('sources:sourceConfiguration.openWorkspace')}
           </button>
@@ -1360,7 +1365,8 @@ export default function SourceConfiguration() {
       </div>
 
       {!canEditSource && <div className="fh-alert fh-alert-info mb-5" role="status"><Icon name="info" /><span>{translate('sources:sourceConfiguration.readOnlyPermission')}</span></div>}
-      {externalSourceDisabled && <div className="fh-alert-warning mb-5" role="status"><Icon name="warning" /><span>{translate('sources:sourceCenter.setupReasonDisabled')}</span></div>}
+      {sourceArchived && <div className="fh-alert fh-alert-info mb-5" role="status" data-testid="archived-source-read-only"><Icon name="info" /><span><strong>{translate('common:status.archived')}</strong> {translate('sources:sourceCenter.archivedReadOnly')}</span></div>}
+      {externalSourceDisabled && !sourceArchived && <div className="fh-alert-warning mb-5" role="status"><Icon name="warning" /><span>{translate('sources:sourceCenter.setupReasonDisabled')}</span></div>}
 
       <section className="fh-card mb-5" id="overview">
         <div className="fh-panel-header">
@@ -1372,15 +1378,19 @@ export default function SourceConfiguration() {
             </div>
           </div>
           <div className="fh-actions">
-            {canManageCommerce && source.sourceKind === 'external' && source.externalSourceId && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(source.externalSourceId as string)}&returnTo=${encodeURIComponent(`/sources/${source.id}`)}`)}><Icon name="settings" /> {translate('sources:sourceConfiguration.manageConnection')}</button>}
-            {canEditSource && source.sourceKind === 'external' && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
+            {canManageCommerce && !sourceArchived && source.sourceKind === 'external' && source.externalSourceId && <button className="fh-button-secondary fh-button-sm" type="button" onClick={() => navigate(`/commerce?tab=sources&resource=${encodeURIComponent(source.externalSourceId as string)}&returnTo=${encodeURIComponent(`/sources/${source.id}`)}`)}><Icon name="settings" /> {translate('sources:sourceConfiguration.manageConnection')}</button>}
+            {canMutateSource && source.sourceKind === 'external' && <button className="fh-button-secondary fh-button-sm" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
           </div>
         </div>
         <dl className="grid gap-x-6 gap-y-3 border-t border-border p-4 sm:grid-cols-2 xl:grid-cols-4">
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceName')}</dt><dd className="font-medium text-text-base">{source.name}</dd></div>
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceType')}</dt><dd className="font-medium text-text-base">{source.sourceKind === 'flowhub_sheet' ? translate('sources:sourceCenter.flowhubSheet') : source.sourceKind === 'imported_sheet' ? translate('sources:sourceCenter.importedSpreadsheet') : translate('sources:sourceCenter.linkedExternalSource')}</dd></div>
+          <div><dt className="fh-text-caption">{translate('sources:sourceCenter.lifecycleStatus')}</dt><dd><Badge variant={sourceArchived ? 'neutral' : source.status === 'active' ? 'success' : 'disabled'}>{formatStatus(source.status)}</Badge></dd></div>
+          {source.archivedAt && <div><dt className="fh-text-caption">{translate('sources:sourceCenter.archivedAt')}</dt><dd className="font-medium text-text-base">{formatDateTime(source.archivedAt)}</dd></div>}
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><Badge variant={source.mapping ? 'success' : 'warning'}>{source.mapping ? translate('common:status.ready') : translate('sources:sourceConfiguration.notConfigured')}</Badge></dd></div>
-          {source.sourceKind === 'external' && <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.connectionStatus')}</dt><dd><Badge variant={externalConnectionPresentation(externalConfig, externalSourceDisabled).variant}>{externalConnectionPresentation(externalConfig, externalSourceDisabled).label}</Badge></dd></div>}
+          {source.sourceKind === 'external' && <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.connectionStatus')}</dt><dd>{sourceArchived
+            ? <Badge variant="neutral">{translate('common:status.archived')}</Badge>
+            : <Badge variant={externalConnectionPresentation(externalConfig, externalSourceDisabled).variant}>{externalConnectionPresentation(externalConfig, externalSourceDisabled).label}</Badge>}</dd></div>}
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.section.accessScope')}</dt><dd className="font-medium text-text-base">{translate('sources:sourceConfiguration.accessScopePolicy')}</dd></div>
         </dl>
       </section>
@@ -1392,7 +1402,7 @@ export default function SourceConfiguration() {
         </section>
       )}
 
-      <fieldset className="min-w-0" id="data-mapping" disabled={!canEditSource}>
+      <fieldset className="min-w-0" id="data-mapping" disabled={!canMutateSource}>
       {source.sourceKind === 'external' && source.externalSourceId && (
         <div className="fh-alert fh-alert-info mb-3" role="note">
           <Icon name="info" />
@@ -1842,11 +1852,11 @@ export default function SourceConfiguration() {
         <Badge variant={dirty ? 'warning' : 'success'}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</Badge>
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ms-auto sm:flex sm:w-auto sm:flex-wrap">
-          {canEditSource && source.sourceKind === 'external' && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
-          {canEditSource && source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && (
+          {canMutateSource && source.sourceKind === 'external' && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
+          {canMutateSource && source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && (
             <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={reading || externalSourceDisabled || remoteReadQuotaExhausted} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : remoteReadQuotaExhausted ? quotaLimitDescription() : undefined} onClick={() => void readNow()}><Icon name="refresh" /> {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}</button>
           )}
-          {canEditSource && <button className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (effectiveWorksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
+          {canMutateSource && <button className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (effectiveWorksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
           <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" onClick={closeConfiguration}><Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}</button>
         </div>
       </div>

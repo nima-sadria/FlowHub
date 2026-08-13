@@ -287,8 +287,10 @@ class SourceAcquisitionService:
         )
         if source is None:
             raise SourceAcquisitionError("source_not_found")
-        if source.status != "active":
+        if source.status == "archived":
             raise SourceAcquisitionError("source_archived")
+        if source.status != "active":
+            raise SourceAcquisitionError("source_disabled")
         trigger_kind = self._trigger_kind(trigger_kind)
         resource_scope = self._opaque(resource_scope, "resource_scope")
         idempotency_key = self._optional_opaque(idempotency_key, "idempotency_key")

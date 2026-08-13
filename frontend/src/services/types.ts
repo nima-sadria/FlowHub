@@ -626,6 +626,9 @@ export interface CommerceSource {
   configuration_state?: 'not_configured' | 'setup_required' | 'configured' | string
   /** Runtime availability of the persisted external connector. */
   enabled?: boolean
+  source_profile_id?: string | null
+  lifecycle_status?: 'active' | 'disabled' | 'archived' | string | null
+  archived_at?: string | null
   last_health_check: string | null
   data_role: string
   action_label: string

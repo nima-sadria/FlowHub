@@ -567,6 +567,38 @@ describe('Diagnostics', () => {
     expect(calls.some(url => url.includes('/api/v2/commerce/sources/nextcloud%3Aprimary/test'))).toBe(false)
   })
 
+  it('keeps an archived Source distinct from Disabled and blocks Diagnostics provider actions', async () => {
+    const health = channelHealthPayload()
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'ok',
+          checkedAt: health.checkedAt,
+          checks: [{ category: 'database', status: 'pass' }],
+          connectors: [{
+            id: 'nextcloud:primary', name: 'Historical Nextcloud', connector_type: 'nextcloud', enabled: false,
+            status: 'disabled', source_lifecycle_status: 'archived', source_archived_at: '2026-08-13T08:30:00Z',
+            connection_test_supported: true, connection_configured: true, credentials_configured: true,
+          }],
+          channelHealth: { ...health, orderSyncRunner: undefined, items: [] },
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const source = c.querySelector('#source-nextcloud\\:primary') as HTMLElement
+    expect(source.textContent).toContain('Archived')
+    expect(source.textContent).not.toContain('Disabled')
+    expect(source.textContent).toContain('archived and read-only')
+    const testButton = source.querySelector('[data-testid="diagnostics-source-test-nextcloud:primary"]') as HTMLButtonElement
+    expect(testButton.disabled).toBe(true)
+    await act(async () => { testButton.click(); await Promise.resolve() })
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map(call => String(call[0]))
+    expect(calls.some(url => url.includes('/api/v2/commerce/sources/nextcloud%3Aprimary/test'))).toBe(false)
+  })
+
   it('preserves an Owner-defined channel display name while localizing system defaults', async () => {
     const health = channelHealthPayload()
     const channels = [

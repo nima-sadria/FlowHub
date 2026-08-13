@@ -370,6 +370,26 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).not.toContain('Missing required setting: nextcloud.spreadsheet_path')
   })
 
+  it('renders an archived Source as historical read-only state without processing controls', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValueOnce({
+      ...source,
+      status: 'archived',
+      archivedAt: '2026-08-13T08:30:00Z',
+    })
+
+    await renderPage(adminAuth)
+
+    expect(container.querySelector('[data-testid="archived-source-read-only"]')?.textContent).toContain('Archived')
+    expect(container.textContent).not.toContain('This Source is disabled')
+    expect(container.querySelector('fieldset#data-mapping')?.hasAttribute('disabled')).toBe(true)
+    expect(container.textContent).toContain('Lifecycle status')
+    expect(container.textContent).toContain('Aug')
+    expect(Array.from(container.querySelectorAll('button')).some(item => item.textContent?.includes('Open Workspace'))).toBe(false)
+    expect(Array.from(container.querySelectorAll('button')).some(item => item.textContent?.includes('Save column setup'))).toBe(false)
+    expect(Array.from(container.querySelectorAll('button')).some(item => item.textContent?.includes('Test Connection'))).toBe(false)
+    expect(Array.from(container.querySelectorAll('button')).some(item => item.textContent?.includes('Delete Source'))).toBe(false)
+  })
+
   it('does not spend a worksheet read after a successful connection test', async () => {
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
       ...source,
@@ -784,7 +804,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
       sourceId: source.id,
       sourceName: source.name,
       outcome: 'archived',
-      source: { ...source, status: 'disabled', version: source.version + 1 },
+      source: { ...source, status: 'archived', archivedAt: '2026-08-13T08:30:00Z', version: source.version + 1 },
       impact: {
         sourceId: source.id,
         sourceName: source.name,

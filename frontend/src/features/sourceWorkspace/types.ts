@@ -9,6 +9,7 @@ export interface SourceProfile {
   worksheetName: string | null
   dataStartRow: number
   status: string
+  archivedAt?: string | null
   version: number
   mappingVersion: number
   sheetId: string | null

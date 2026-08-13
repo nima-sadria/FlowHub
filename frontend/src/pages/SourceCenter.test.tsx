@@ -108,7 +108,7 @@ describe('SourceCenter safe lifecycle', () => {
     vi.spyOn(sourceWorkspaceApi, 'listSources').mockResolvedValue({ items: [source] })
     vi.spyOn(sourceWorkspaceApi, 'source').mockResolvedValue({ ...source, mapping: null })
     vi.spyOn(sourceWorkspaceApi, 'sourceLifecycle').mockResolvedValue({ sourceId: source.id, sourceName: source.name, sourceVersion: source.version, sourceStatus: 'active', action: 'archive', blockers: {}, protectedHistory: { mappingRevisions: 1 } })
-    vi.spyOn(sourceWorkspaceApi, 'deleteSource').mockResolvedValue({ sourceId: source.id, sourceName: source.name, outcome: 'archived', source: { ...source, status: 'disabled', version: 4 }, impact: { sourceId: source.id, sourceName: source.name, sourceVersion: source.version, sourceStatus: 'active', action: 'archive', blockers: {}, protectedHistory: { mappingRevisions: 1 } } })
+    vi.spyOn(sourceWorkspaceApi, 'deleteSource').mockResolvedValue({ sourceId: source.id, sourceName: source.name, outcome: 'archived', source: { ...source, status: 'archived', archivedAt: '2026-08-13T08:30:00Z', version: 4 }, impact: { sourceId: source.id, sourceName: source.name, sourceVersion: source.version, sourceStatus: 'active', action: 'archive', blockers: {}, protectedHistory: { mappingRevisions: 1 } } })
   })
   afterEach(() => { act(() => root.unmount()); container.remove(); vi.restoreAllMocks() })
 
@@ -264,19 +264,27 @@ describe('SourceCenter safe lifecycle', () => {
   it('groups managed Sources consistently and sorts display names inside each group', async () => {
     const activeZebra = { ...source, id: 'source-z', name: 'Zebra prices' }
     const activeAlpha = { ...source, id: 'source-a', name: 'Alpha prices' }
-    const disabledBeta = { ...source, id: 'source-b', name: 'Beta archive', status: 'disabled', sheetId: null }
+    const disabledBeta = { ...source, id: 'source-b', name: 'Beta paused', status: 'disabled', sheetId: null }
+    const archivedGamma = { ...source, id: 'source-c', name: 'Gamma history', status: 'archived', archivedAt: '2026-08-13T08:30:00Z' }
     vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({
-      items: [disabledBeta, activeZebra, activeAlpha],
+      items: [archivedGamma, disabledBeta, activeZebra, activeAlpha],
     })
 
     await render()
 
     expect(Array.from(container.querySelectorAll('[data-resource-id]')).map(item => item.getAttribute('data-resource-id')))
-      .toEqual(['source-a', 'source-z', 'source-b'])
+      .toEqual(['source-a', 'source-z', 'source-b', 'source-c'])
     const sections = Array.from(container.querySelectorAll('[data-resource-section]')).map(item => item.getAttribute('data-resource-section'))
-    expect([...new Set(sections)]).toEqual(['connected', 'disabled'])
+    expect([...new Set(sections)]).toEqual(['connected', 'disabled', 'archived'])
     expect(container.querySelector('[data-resource-id="source-a"]')?.textContent).toContain('Connected')
     expect(container.querySelector('[data-resource-id="source-b"]')?.textContent).toContain('Disabled')
+    const archivedCard = container.querySelector('[data-source-card="source-c"]') as HTMLElement
+    expect(archivedCard.getAttribute('data-resource-state')).toBe('archived')
+    expect(archivedCard.textContent).toContain('Archived')
+    expect(archivedCard.textContent).toContain('View Data Sheet')
+    expect(archivedCard.textContent).not.toContain('Edit Source')
+    expect(archivedCard.querySelector('[data-source-menu-trigger]')).toBeNull()
+    expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('2')
     expect(sections).not.toContain('comingSoon')
   })
 

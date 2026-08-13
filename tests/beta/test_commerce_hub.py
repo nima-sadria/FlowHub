@@ -1248,6 +1248,117 @@ def test_disabled_nextcloud_source_does_not_probe_or_claim_healthy(
     assert configuration.json()["connection_configured"] is True
     assert configuration.json()["enabled"] is False
 
+    reenabled = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://stored.example.test",
+                "username": "stored-user",
+            },
+            "secrets": {"password": ""},
+        },
+    )
+    assert reenabled.status_code == 200
+    restored = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers
+    )
+    assert restored.status_code == 200
+    assert restored.json()["enabled"] is True
+    assert restored.json()["status"] != "archived"
+    assert calls == 0
+
+
+def test_archived_nextcloud_lifecycle_is_serialized_and_blocks_all_provider_operations(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.commerce.service import CommerceHubService
+    from app.flowhub.source_workspace.models import SourceProfile
+
+    saved = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://stored.example.test",
+                "username": "stored-user",
+                "spreadsheet_path": "/Prices.xlsx",
+            },
+            "secrets": {"password": "stored-app-password"},
+        },
+    )
+    assert saved.status_code == 200
+    owner = db.query(FlowHubUser).one()
+    archived_at = datetime(2026, 8, 13, 8, 30, 0)
+    db.add(
+        SourceProfile(
+            id=str(uuid.uuid4()),
+            name="Historical Nextcloud prices",
+            source_kind="external",
+            external_source_id="nextcloud:primary",
+            worksheet_mode="selected",
+            worksheet_name="Prices",
+            data_start_row=2,
+            status="archived",
+            archived_at=archived_at,
+            version=4,
+            owner_user_id=owner.id,
+            created_at=archived_at,
+            updated_at=archived_at,
+        )
+    )
+    db.commit()
+
+    calls = 0
+
+    async def should_not_call_provider(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("archived Source reached provider I/O")
+
+    monkeypatch.setattr(
+        CommerceHubService,
+        "_test_nextcloud_source_connection",
+        should_not_call_provider,
+    )
+
+    listed = client.get("/api/v2/commerce/sources", headers=auth_headers)
+    source = next(item for item in listed.json()["items"] if item["id"] == "nextcloud:primary")
+    assert source["status"] == "archived"
+    assert source["lifecycle_status"] == "archived"
+    assert source["archived_at"] == "2026-08-13T08:30:00Z"
+
+    configuration = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert configuration.status_code == 200
+    assert configuration.json()["lifecycle_status"] == "archived"
+
+    for method, path, body in (
+        ("post", "/api/v2/commerce/sources/nextcloud:primary/test", {}),
+        ("post", "/api/v2/commerce/sources/nextcloud:primary/browse", {"path": "/"}),
+        ("post", "/api/v2/commerce/sources/nextcloud:primary/read", {}),
+        ("put", "/api/v2/commerce/sources/nextcloud:primary/settings", {"enabled": True}),
+    ):
+        response = getattr(client, method)(path, headers=auth_headers, json=body)
+        assert response.status_code == 409
+        assert response.json()["detail"]["code"] == "SOURCE_ARCHIVED"
+    assert calls == 0
+
+    diagnostics = client.get("/api/v2/diagnostics/status", headers=auth_headers)
+    assert diagnostics.status_code == 200
+    diagnostic_source = next(
+        item for item in diagnostics.json()["connectors"]
+        if item["id"] == "nextcloud:primary"
+    )
+    assert diagnostic_source["source_lifecycle_status"] == "archived"
+    assert diagnostic_source["source_archived_at"] == "2026-08-13T08:30:00Z"
+    assert diagnostics.json()["external_call_performed"] is False
+
 
 def test_nextcloud_connection_is_configured_before_later_source_setup_is_complete(
     client, auth_headers

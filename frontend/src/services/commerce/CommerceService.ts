@@ -63,6 +63,9 @@ export interface CommerceSourceConfiguration {
   configured: boolean
   connection_configured?: boolean
   configuration_state?: 'not_configured' | 'setup_required' | 'configured' | string
+  source_profile_id?: string | null
+  lifecycle_status?: 'active' | 'disabled' | 'archived' | string | null
+  archived_at?: string | null
   last_test?: {
     status: string
     message: string

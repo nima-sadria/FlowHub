@@ -62,6 +62,9 @@ interface ConnectorStatus {
   connection_test_supported?: boolean
   connection_configured?: boolean
   credentials_configured?: boolean
+  source_profile_id?: string | null
+  source_lifecycle_status?: string | null
+  source_archived_at?: string | null
 }
 
 interface DiagnosticCheck {
@@ -204,6 +207,13 @@ interface SourcePresentation {
 }
 
 function sourcePresentation(connector: ConnectorStatus): SourcePresentation {
+  if (connector.source_lifecycle_status === 'archived') {
+    return {
+      status: 'INFO',
+      label: translate('common:status.archived'),
+      description: translate('sources:sourceCenter.archivedReadOnly'),
+    }
+  }
   if (connector.enabled === false) {
     return {
       status: 'DISABLED',
@@ -497,7 +507,9 @@ function SourceHealthRow({
   // A persisted disabled Source is an operational boundary.  Keep the Test
   // affordance visibly unavailable with the exact recovery action instead of
   // allowing Diagnostics to issue an outbound probe.
-  const connectionTestReason = connector.enabled === false
+  const connectionTestReason = connector.source_lifecycle_status === 'archived'
+    ? presentation.description
+    : connector.enabled === false
     ? presentation.description
     : connectionTestUnavailableReason({
       supported: connector.connection_test_supported === true,
@@ -510,7 +522,9 @@ function SourceHealthRow({
           <div className="flex flex-wrap items-center gap-2">
             <BrandIcon identity={connector.connector_type} label={displayName} size={36} />
             <h3 className="fh-text-body font-semibold text-text-base">{displayName}</h3>
-            <DiagnosticStateBadge state={presentation.status} testId={`diagnostics-source-status-${connector.id}`} />
+            {connector.source_lifecycle_status === 'archived'
+              ? <Badge variant="neutral">{presentation.label}</Badge>
+              : <DiagnosticStateBadge state={presentation.status} testId={`diagnostics-source-status-${connector.id}`} />}
           </div>
           <p className="mt-2 fh-text-caption">{presentation.description}</p>
           <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -556,7 +570,7 @@ function SourceHealthRow({
         </summary>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={translate('diagnostics:diagnostics.connector')} value={connector.connector_type ?? translate('common:status.unknown')} />
-          <Field label={translate('diagnostics:diagnostics.status')} value={formatStatus(connectorHealth(connector))} />
+          <Field label={translate('diagnostics:diagnostics.status')} value={formatStatus(connector.source_lifecycle_status ?? connectorHealth(connector))} />
         </dl>
       </details>
     </article>
@@ -731,6 +745,7 @@ export default function Diagnostics() {
   const orderedSources = useMemo(
     () => prepareResourceCollection(sourceConnectors, connector => diagnosticSourceSignals({
       ...connector,
+      status: connector.source_lifecycle_status ?? connector.status,
       health: connectorHealth(connector),
     })),
     [sourceConnectors],

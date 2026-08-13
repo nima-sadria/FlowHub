@@ -23,6 +23,7 @@ from app.flowhub.database import get_db
 from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.rate_limit.service import RateLimitService
+from app.flowhub.source_workspace.models import SourceProfile
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
 logger = logging.getLogger(__name__)
@@ -83,9 +84,17 @@ async def diagnostics_status(
             .all()
         )
     }
+    source_profiles = {
+        profile.external_source_id: profile
+        for profile in db.query(SourceProfile).filter(
+            SourceProfile.external_source_id.is_not(None)
+        ).all()
+        if profile.external_source_id
+    }
     connectors = [
         {
             **item,
+            **_source_lifecycle_metadata(item, source_profiles),
             **_source_connection_test_metadata(item, db),
             "last_successful_operation": (
                 source_last_reads[item["id"]].isoformat() + "Z"
@@ -109,6 +118,23 @@ async def diagnostics_status(
         "telemetryContract": telemetry_contract,
         "rateLimiter": rate_limits,
         "external_call_performed": False,
+    }
+
+
+def _source_lifecycle_metadata(
+    connector: dict[str, Any], source_profiles: dict[str, SourceProfile]
+) -> dict[str, Any]:
+    """Join canonical Source lifecycle without performing provider I/O."""
+    connector_id = str(connector.get("id") or "")
+    profile = source_profiles.get(connector_id)
+    return {
+        "source_profile_id": profile.id if profile is not None else None,
+        "source_lifecycle_status": profile.status if profile is not None else None,
+        "source_archived_at": (
+            profile.archived_at.isoformat() + "Z"
+            if profile is not None and profile.archived_at is not None
+            else None
+        ),
     }
 
 

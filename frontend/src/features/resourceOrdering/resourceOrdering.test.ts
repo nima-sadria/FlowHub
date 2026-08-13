@@ -25,11 +25,12 @@ function fixtureSignals(item: Fixture): ResourceOrderingSignals {
 }
 
 describe('resource ordering', () => {
-  it('puts configured and healthy first, warnings inside Active, then disabled and coming soon', () => {
+  it('puts configured and healthy first, warnings inside Active, then disabled, archived, and coming soon', () => {
     const items: Fixture[] = [
       { id: 'future', label: 'Aardvark', signals: { placeholder: true } },
       { id: 'warning', label: 'Aaron', signals: { configured: true, healthStatus: 'warning' } },
       { id: 'disabled', label: 'Beta', signals: { enabled: false, configured: true } },
+      { id: 'archived', label: 'Gamma', signals: { enabled: false, status: 'archived' } },
       { id: 'healthy', label: 'Zulu', signals: { configured: true, healthStatus: 'healthy' } },
       { id: 'configured', label: 'Alpha', signals: { configured: true } },
     ]
@@ -41,15 +42,17 @@ describe('resource ordering', () => {
       'healthy',
       'warning',
       'disabled',
+      'archived',
       'future',
     ])
-    expect(collection.sections.map(section => section.key)).toEqual(['active', 'disabled', 'comingSoon'])
+    expect(collection.sections.map(section => section.key)).toEqual(['active', 'disabled', 'archived', 'comingSoon'])
     expect(collection.sections[0].items.map(item => item.id)).toEqual(['configured', 'healthy', 'warning'])
     expect(collection.ordered.map(item => item.badge)).toEqual([
       'configured',
       'healthy',
       'warning',
       'disabled',
+      'archived',
       'comingSoon',
     ])
     expect(collection.defaultActiveId).toBe('configured')

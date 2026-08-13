@@ -110,6 +110,9 @@ function persistedSourceSetupState(source: CommerceSource): 'not_configured' | '
 
 function SourceSetupBadge({ source, fallback }: { source: CommerceSource; fallback: ResourceBadge }) {
   if (source.placeholder || !source.implemented) return <ResourceStateBadge badge={fallback} />
+  if (source.lifecycle_status === 'archived') {
+    return <Badge variant="neutral">{translate('common:status.archived')}</Badge>
+  }
   if (source.enabled === false) {
     return <Badge variant="neutral">{translate('commerce:commerceHub.sourceDisabled')}</Badge>
   }
@@ -131,7 +134,8 @@ function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canMa
   testing: boolean
   canManage: boolean
 }) {
-  const canUseNextcloudActions = canManage && source.provider === 'nextcloud' && !source.placeholder
+  const sourceArchived = source.lifecycle_status === 'archived'
+  const canUseNextcloudActions = canManage && source.provider === 'nextcloud' && !source.placeholder && !sourceArchived
   const sourceDisabled = source.enabled === false
   const canOpenDataSheet = !sourceDisabled && source.configuration_state === 'configured'
   const canTestSavedConnection = !sourceDisabled && source.connection_configured === true
@@ -156,7 +160,7 @@ function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canMa
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Badge variant="neutral">{sourceDisabled ? translate('commerce:commerceHub.sourceDisabled') : formatStatus(source.health?.status ?? "unknown")}</Badge>
+        <Badge variant="neutral">{sourceArchived ? translate('common:status.archived') : sourceDisabled ? translate('commerce:commerceHub.sourceDisabled') : formatStatus(source.health?.status ?? "unknown")}</Badge>
         <span className="fh-text-caption">{translate('commerce:commerceHub.lastRead')} {readStatus?.last_read_at ? formatDateTime(readStatus.last_read_at) : translate('commerce:commerceHub.notRead')}</span>
       </div>
 
@@ -166,6 +170,7 @@ function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canMa
           <p><span className="text-wp-muted">{translate('commerce:commerceHub.credentialStatus')} </span><span className="font-medium text-text-base">{formatStatus(source.credential_status)}</span></p>
           <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastHealthCheck')} </span><span className="font-medium text-text-base">{source.last_health_check ? formatDateTime(source.last_health_check) : translate('commerce:commerceHub.notChecked')}</span></p>
           <p><span className="text-wp-muted">{translate('commerce:commerceHub.dataRole')} </span><span className="font-medium text-text-base">{formatDataRole(source.data_role)}</span></p>
+          {source.archived_at && <p><span className="text-wp-muted">{translate('sources:sourceCenter.archivedAt')} </span><span className="font-medium text-text-base">{formatDateTime(source.archived_at)}</span></p>}
           {readStatus && <>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.readsRemaining')} </span><span className="font-medium text-text-base">{readStatus.reads_remaining}</span></p>
             <p><span className="text-wp-muted">{translate('commerce:commerceHub.lastReadStatus')} </span><span className="font-medium text-text-base">{readStatus.last_read_status ? formatStatus(readStatus.last_read_status) : translate('commerce:commerceHub.notRead')}</span></p>
@@ -209,6 +214,11 @@ function SourceCard({ source, badge, onTest, onEdit, onConfigure, testing, canMa
               </button>
             )}
           </div>
+        )}
+        {sourceArchived && source.source_profile_id && (
+          <button type="button" className="fh-button-secondary fh-button-sm" onClick={() => onConfigure(source.id)}>
+            <Icon name="preview" /> {translate('sources:sourceCenter.viewDataSheet')}
+          </button>
         )}
       </div>
     </div>
@@ -681,6 +691,8 @@ export function ConfigPanel({
   const [secretStatus, setSecretStatus] = useState<CommerceSourceConfiguration['secrets']>({})
   const [configurationWasConfigured, setConfigurationWasConfigured] = useState(false)
   const [savedSourceEnabled, setSavedSourceEnabled] = useState<boolean | null>(null)
+  const [sourceLifecycleStatus, setSourceLifecycleStatus] = useState<string | null>(null)
+  const [sourceArchivedAt, setSourceArchivedAt] = useState<string | null>(null)
   const [savedNextcloudConnection, setSavedNextcloudConnection] = useState<SavedNextcloudConnection | null>(null)
   const [savedNextcloudSpreadsheetPath, setSavedNextcloudSpreadsheetPath] = useState('')
   const [lastTestEvidence, setLastTestEvidence] = useState<CommerceSourceConfiguration['last_test']>(undefined)
@@ -718,6 +730,8 @@ export function ConfigPanel({
     setSecretStatus({})
     setConfigurationWasConfigured(false)
     setSavedSourceEnabled(null)
+    setSourceLifecycleStatus(null)
+    setSourceArchivedAt(null)
     setSavedNextcloudConnection(null)
     setSavedNextcloudSpreadsheetPath('')
     setLastTestEvidence(undefined)
@@ -787,15 +801,20 @@ export function ConfigPanel({
         setSecretStatus(configuration.secrets)
         setConfigurationWasConfigured(configuration.configured)
         setSavedSourceEnabled(kind === 'source' ? configuration.enabled ?? null : null)
+        const sourceConfiguration = kind === 'source'
+          ? configuration as CommerceSourceConfiguration
+          : null
+        setSourceLifecycleStatus(sourceConfiguration?.lifecycle_status ?? null)
+        setSourceArchivedAt(sourceConfiguration?.archived_at ?? null)
         if (kind === 'source' && configuration.provider === 'nextcloud') {
-          const sourceConfiguration = configuration as CommerceSourceConfiguration
+          const nextcloudSourceConfiguration = configuration as CommerceSourceConfiguration
           const passwordConfigured = configuration.secrets.password?.status === 'configured'
           setSavedNextcloudConnection(
-            sourceConfiguration.connection_configured === false
+            nextcloudSourceConfiguration.connection_configured === false
               ? null
               : nextcloudConnectionSnapshot(editableSettings, passwordConfigured),
           )
-          setLastTestEvidence(sourceConfiguration.last_test)
+          setLastTestEvidence(nextcloudSourceConfiguration.last_test)
           setSavedNextcloudSpreadsheetPath(String(editableSettings.spreadsheet_path ?? '').trim())
         } else {
           setSavedNextcloudConnection(null)
@@ -1393,6 +1412,25 @@ export function ConfigPanel({
 
   if (loadingConfiguration) {
     return <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm" role="status" aria-live="polite" aria-busy="true"><Spinner size="sm" />{kind === 'source' ? translate('commerce:commerceHub.loadingSourceConfiguration') : translate('commerce:commerceHub.loadingChannelConfiguration')}</div>
+  }
+
+  if (kind === 'source' && sourceLifecycleStatus === 'archived') {
+    return (
+      <section className="fh-card fh-card-pad" data-testid="archived-source-configuration" role="status">
+        <div className="flex items-center gap-3">
+          <BrandIcon identity={{ provider: selected.provider, sourceType: selected.type }} label={selected.name} size={40} />
+          <div>
+            <h3 className="fh-section-title">{translate('common:status.archived')}</h3>
+            <p className="fh-section-subtitle mt-1">{translate('sources:sourceCenter.archivedReadOnly')}</p>
+            {sourceArchivedAt && <p className="fh-text-caption mt-1">{translate('sources:sourceCenter.archivedAt')} {formatDateTime(sourceArchivedAt)}</p>}
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {onConfigureData && <button type="button" className="fh-button-secondary" onClick={() => onConfigureData(selected.id)}><Icon name="preview" /> {translate('sources:sourceCenter.viewDataSheet')}</button>}
+          <button type="button" className="fh-button-secondary" onClick={onCancel}>{translate('commerce:commerceHub.close')}</button>
+        </div>
+      </section>
+    )
   }
 
   if (isCommerceTypeComingSoon(selected)) {

@@ -319,12 +319,20 @@ class SourceWorkspaceService:
                     "message": "Enter the current Source name to confirm this action.",
                 },
             )
-        if source.status != "active":
+        if source.status == "archived":
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 {
                     "code": "SOURCE_ALREADY_ARCHIVED",
                     "message": "This Source is already archived.",
+                },
+            )
+        if source.status != "active":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_DISABLED",
+                    "message": "Enable this Source before removing it.",
                 },
             )
 
@@ -358,9 +366,10 @@ class SourceWorkspaceService:
             "connectorDisabled": connector_disabled,
         }
         if impact["action"] == "archive":
-            source.status = "disabled"
+            source.status = "archived"
+            source.archived_at = utcnow()
             source.version += 1
-            source.updated_at = utcnow()
+            source.updated_at = source.archived_at
             self._append_source_lifecycle_audit(
                 event_type="source_archived",
                 user=user,
@@ -2027,12 +2036,20 @@ class SourceWorkspaceService:
         source = query.populate_existing().one_or_none()
         if source is None or (source.owner_user_id != user.id and user.role != "admin"):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source not found.")
-        if require_active and source.status != "active":
+        if require_active and source.status == "archived":
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 {
                     "code": "SOURCE_ARCHIVED",
                     "message": "Archived Sources are read-only and cannot start new processing.",
+                },
+            )
+        if require_active and source.status != "active":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_DISABLED",
+                    "message": "Disabled Sources cannot start new processing.",
                 },
             )
         return source
@@ -2214,6 +2231,7 @@ class SourceWorkspaceService:
             "worksheetName": source.worksheet_name,
             "dataStartRow": source.data_start_row,
             "status": source.status,
+            "archivedAt": _utc_timestamp(source.archived_at),
             "version": source.version,
             "mappingVersion": mapping.version if mapping else 0,
             "sheetId": sheet.id if sheet else None,
