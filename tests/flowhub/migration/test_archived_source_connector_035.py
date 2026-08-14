@@ -110,6 +110,12 @@ def test_flowhub_035_is_forward_only() -> None:
     assert "raise RuntimeError(" in source
 
 
+def test_postgresql_manifest_requires_the_flowhub_035_migration_test() -> None:
+    source = (ROOT / "scripts/assert_postgres_junit.py").read_text(encoding="utf-8")
+    assert '"035": REQUIRED_035_TESTS' in source
+    assert "test_postgresql_034_to_035_retires_only_archived_connector" in source
+
+
 @pytest.mark.postgres
 def test_postgresql_034_to_035_retires_only_archived_connector(
     monkeypatch: pytest.MonkeyPatch,

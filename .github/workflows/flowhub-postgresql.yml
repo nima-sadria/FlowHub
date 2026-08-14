@@ -311,6 +311,9 @@ jobs:
             postgres-034-junit.xml
             postgres-034-output.log
             postgres-034-manifest.log
+            postgres-035-junit.xml
+            postgres-035-output.log
+            postgres-035-manifest.log
             postgres-workspace-persistence-junit.xml
             postgres-workspace-persistence-output.log
             postgres-workspace-persistence-manifest.log
