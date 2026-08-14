@@ -82,6 +82,26 @@ export class ApiCommerceService implements CommerceService {
     })
   }
 
+  async createSource(sourceTypeId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult> {
+    return apiFetch<CommerceSettingsResult>('/api/v2/commerce/sources', authFetch, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_type_id: sourceTypeId, configuration: payload }),
+    })
+  }
+
+  async testSourceType(sourceTypeId: string, payload: CommerceConfigPayload): Promise<ConnectionCheckResult> {
+    return apiFetch<ConnectionCheckResult>(
+      `/api/v2/commerce/source-types/${encodeURIComponent(sourceTypeId)}/test`,
+      authFetch,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    )
+  }
+
   async testChannel(channelId: string, payload?: CommerceConfigPayload): Promise<ConnectionCheckResult> {
     return apiFetch<ConnectionCheckResult>(`/api/v2/commerce/channels/${encodeURIComponent(channelId)}/test`, authFetch, {
       method: 'POST',

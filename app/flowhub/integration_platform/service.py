@@ -484,13 +484,32 @@ class IntegrationPlatformService:
             "spreadsheet_path": self.config.get("nextcloud.spreadsheet_path"),
         }
         if any(nc_values.values()):
-            self.ensure_connector_from_settings(
+            connector = self.ensure_connector_from_settings(
                 connector_type="nextcloud",
                 connector_id="nextcloud:primary",
                 name="Nextcloud Spreadsheet",
                 values=nc_values,
                 preserve_existing_enabled=True,
             )
+            # FLOWHUB_034 can restore archived lifecycle truth from immutable
+            # audit evidence after a legacy connector was absent. A later
+            # AppConfig bootstrap must not resurrect that historical binding
+            # as operational.
+            from app.flowhub.source_workspace.models import SourceProfile
+
+            archived_binding = (
+                self.db.query(SourceProfile.id)
+                .filter(
+                    SourceProfile.external_source_id == connector.id,
+                    SourceProfile.status == "archived",
+                )
+                .first()
+            )
+            if archived_binding and (connector.enabled or connector.status != "disabled"):
+                connector.enabled = False
+                connector.status = "disabled"
+                connector.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                self.db.commit()
 
     def ensure_connector_from_settings(
         self,

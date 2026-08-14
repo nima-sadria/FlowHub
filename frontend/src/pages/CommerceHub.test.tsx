@@ -214,6 +214,12 @@ const commerce: CommerceService = {
       write_blocked: true,
     }
   },
+  async createSource(_sourceTypeId, payload) {
+    return {
+      ...(await this.saveSource('nextcloud:test-replacement', payload)),
+      source_id: 'nextcloud:test-replacement',
+    }
+  },
   async saveChannel() {
     return {
       settings: {},
@@ -238,6 +244,9 @@ const commerce: CommerceService = {
       normalized_webdav_url: 'https://softpple.business/remote.php/dav/files/woo/',
       checked_at: '2026-07-09T10:00:00Z',
     }
+  },
+  async testSourceType(sourceTypeId, payload) {
+    return this.testSource(sourceTypeId, payload)
   },
   async readSource() {
     return {
@@ -630,6 +639,50 @@ describe('CommerceHub', () => {
     expect(Array.from(card.querySelectorAll('button')).some(button => button.textContent === 'Edit connection')).toBe(false)
     expect(Array.from(card.querySelectorAll('button')).some(button => button.textContent === 'Test connection')).toBe(false)
     expect(c.querySelector('[data-resource-section="archived"]')).not.toBeNull()
+  })
+
+  it('creates and tests a fresh connector instead of reusing an archived Nextcloud identity', async () => {
+    const createSource = vi.fn(async (_sourceTypeId, payload) => ({
+      ...(await commerce.saveSource('nextcloud:replacement-1', payload)),
+      source_id: 'nextcloud:replacement-1',
+      connection_configured: true,
+      configuration_state: 'setup_required' as const,
+    }))
+    const saveSource = vi.fn(async () => {
+      throw new Error('the archived connector must not receive the new configuration')
+    })
+    const testSource = vi.fn((sourceId, payload) => commerce.testSource(sourceId, payload))
+    const testSourceType = vi.fn((sourceTypeId, payload) => commerce.testSourceType(sourceTypeId, payload))
+    const replacementCommerce: CommerceService = {
+      ...commerce,
+      createSource,
+      saveSource,
+      testSource,
+      testSourceType,
+    }
+    const c = await renderPage(adminUser, replacementCommerce, ['/commerce?tab=sources'])
+    await openNextcloudSourceForm(c)
+    fillNextcloudCredentials(c, 'https://replacement.example.test', 'replacement-owner')
+
+    await saveNextcloudConnection(c)
+    expect(createSource).toHaveBeenCalledWith(
+      'nextcloud:primary',
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          url: 'https://replacement.example.test',
+          username: 'replacement-owner',
+        }),
+        secrets: { password: 'app-password-value' },
+      }),
+    )
+    expect(saveSource).not.toHaveBeenCalled()
+
+    await testSavedNextcloudConnection(c)
+    expect(testSource).toHaveBeenCalledWith(
+      'nextcloud:replacement-1',
+      expect.any(Object),
+    )
+    expect(testSourceType).not.toHaveBeenCalled()
   })
 
   it('renders the three persisted Source setup states with Owner-approved semantics', async () => {

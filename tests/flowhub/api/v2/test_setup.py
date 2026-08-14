@@ -429,9 +429,12 @@ class TestAppConfigService:
         svc.set("woocommerce.key", "ck_supersecretkey")
         svc.set("woocommerce.secret", "cs_supersecret")
         svc.set("nextcloud.password", "mypass")
+        svc.set("connector_secret.nextcloud:replacement.password", "replacement-pass")
         svc.set("server.domain", "example.com")
         safe = svc.get_safe()
         assert safe["woocommerce.key"] == "[REDACTED]"
         assert safe["woocommerce.secret"] == "[REDACTED]"
         assert safe["nextcloud.password"] == "[REDACTED]"
+        assert safe["connector_secret.nextcloud:replacement.password"] == "[REDACTED]"
+        assert "connector_secret.nextcloud:replacement.password" not in svc.get_non_secret()
         assert safe["server.domain"] == "example.com"

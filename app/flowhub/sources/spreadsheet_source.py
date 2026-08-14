@@ -27,6 +27,7 @@ from app.flowhub.data_layer.models import (
     DlWorksheetDiscoveryCache,
 )
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
 from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
@@ -82,8 +83,15 @@ class SourceImportResult:
 
 
 class SpreadsheetSourceReadService:
-    def __init__(self, db: Session, *, source_http_client: SourceHttpClient | None = None) -> None:
+    def __init__(
+        self,
+        db: Session,
+        *,
+        connector_id: str = SOURCE_ID,
+        source_http_client: SourceHttpClient | None = None,
+    ) -> None:
         self.db = db
+        self.connector_id = connector_id
         self.config = AppConfigService(db)
         self.integration = IntegrationPlatformService(db)
         self.source_http_client = source_http_client or SourceHttpClient()
@@ -98,23 +106,23 @@ class SpreadsheetSourceReadService:
         source_profile_id: str | None = None,
         idempotency_key: str | None = None,
     ) -> SourceImportResult:
-        spreadsheet_path = self._required_config("nextcloud.spreadsheet_path")
+        spreadsheet_path = self._required_connector_setting("spreadsheet_path")
         mapping = None if capture_raw_worksheets else self.mapping()
-        worksheet = self.worksheet_selection()
+        worksheet = self.worksheet_selection(source_profile_id=source_profile_id)
         try:
             normalize_nextcloud_url(
-                self.config.get("nextcloud.url") or "",
-                self.config.get("nextcloud.username") or "",
+                self._connector_setting("url"),
+                self._connector_setting("username"),
             )
         except NextcloudUrlValidationError as exc:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 {"code": exc.code, "message": str(exc)},
             ) from exc
-        username = str(self.config.get("nextcloud.username") or "").strip()
-        password = str(self.config.get("nextcloud.password") or "")
+        username = self._connector_setting("username").strip()
+        password = self._connector_setting("password")
         normalized = normalize_nextcloud_url(
-            self.config.get("nextcloud.url") or "",
+            self._connector_setting("url"),
             username,
         )
         if not username or not password:
@@ -395,11 +403,11 @@ class SpreadsheetSourceReadService:
         if source is None:
             source = (
                 self.db.query(SourceProfile)
-                .filter(SourceProfile.external_source_id == SOURCE_ID)
+                .filter(SourceProfile.external_source_id == self.connector_id)
                 .one_or_none()
             )
         if source is not None:
-            if source.external_source_id != SOURCE_ID or source.status != "active":
+            if source.external_source_id != self.connector_id or source.status != "active":
                 raise HTTPException(
                     status.HTTP_409_CONFLICT,
                     {"code": "source_profile_invalid", "message": "Source profile is not active Nextcloud."},
@@ -414,7 +422,7 @@ class SpreadsheetSourceReadService:
             id=str(uuid.uuid4()),
             name="Nextcloud",
             source_kind="external",
-            external_source_id=SOURCE_ID,
+            external_source_id=self.connector_id,
             worksheet_mode=worksheet["mode"],
             worksheet_name=worksheet["name"] or None,
             data_start_row=2,
@@ -430,7 +438,7 @@ class SpreadsheetSourceReadService:
             self.db.rollback()
             existing = (
                 self.db.query(SourceProfile)
-                .filter(SourceProfile.external_source_id == SOURCE_ID)
+                .filter(SourceProfile.external_source_id == self.connector_id)
                 .one_or_none()
             )
             if existing is None or existing.status != "active":
@@ -495,7 +503,13 @@ class SpreadsheetSourceReadService:
         raw = _json_config(self.config.get("nextcloud.source_read_policy"))
         return normalize_read_policy(raw)
 
-    def worksheet_selection(self) -> dict[str, str]:
+    def worksheet_selection(self, *, source_profile_id: str | None = None) -> dict[str, str]:
+        source = self.db.get(SourceProfile, source_profile_id) if source_profile_id else None
+        if source is not None and source.external_source_id == self.connector_id:
+            return {
+                "mode": source.worksheet_mode,
+                "name": str(source.worksheet_name or "").strip(),
+            }
         mode = str(self.config.get("nextcloud.worksheet_mode") or "all").strip().lower()
         if mode not in {"all", "selected"}:
             mode = "all"
@@ -533,7 +547,7 @@ class SpreadsheetSourceReadService:
         discovery metadata is also local, but never represents a business
         Snapshot. No provider I/O occurs in this method.
         """
-        spreadsheet_path = str(self.config.get("nextcloud.spreadsheet_path") or "").strip()
+        spreadsheet_path = self._connector_setting("spreadsheet_path").strip()
         if not spreadsheet_path:
             return {
                 "requires_remote_read": False,
@@ -547,7 +561,7 @@ class SpreadsheetSourceReadService:
             }
         snapshot = (
             self.db.query(DlSourceSnapshot)
-            .filter(DlSourceSnapshot.connector_id == SOURCE_ID)
+            .filter(DlSourceSnapshot.connector_id == self.connector_id)
             .filter(DlSourceSnapshot.file_path == spreadsheet_path)
             .one_or_none()
         )
@@ -686,11 +700,11 @@ class SpreadsheetSourceReadService:
     async def refresh_worksheet_discovery(
         self, *, source_profile_id: str, user_id: str | int
     ) -> dict[str, object]:
-        spreadsheet_path = self._required_config("nextcloud.spreadsheet_path")
-        username = str(self.config.get("nextcloud.username") or "").strip()
-        password = str(self.config.get("nextcloud.password") or "")
+        spreadsheet_path = self._required_connector_setting("spreadsheet_path")
+        username = self._connector_setting("username").strip()
+        password = self._connector_setting("password")
         try:
-            normalized = normalize_nextcloud_url(self.config.get("nextcloud.url") or "", username)
+            normalized = normalize_nextcloud_url(self._connector_setting("url"), username)
         except NextcloudUrlValidationError as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, {"code": exc.code, "message": str(exc)}) from exc
         if not username or not password:
@@ -904,7 +918,7 @@ class SpreadsheetSourceReadService:
             return source_id
         profile_id = (
             self.db.query(SourceProfile.id)
-            .filter(SourceProfile.external_source_id == SOURCE_ID)
+            .filter(SourceProfile.external_source_id == self.connector_id)
             .scalar()
         )
         if profile_id:
@@ -922,10 +936,39 @@ class SpreadsheetSourceReadService:
         )
         return self.source_http_client.with_allowed_private_networks(networks)
 
-    def _required_config(self, key: str) -> str:
-        value = self.config.get(key)
+    def _connector_setting(self, key: str) -> str:
+        # The primary identity is the explicit compatibility boundary for the
+        # pre-v2 AppConfig-backed connector. Independent replacements never
+        # read through this singleton namespace.
+        if self.connector_id == SOURCE_ID:
+            return str(self.config.get(f"nextcloud.{key}") or "")
+        connector = self.db.get(IntegrationConnectorInstance, self.connector_id)
+        if connector is not None:
+            setting = next(
+                (
+                    item
+                    for item in connector.settings
+                    if item.key == key and item.configured
+                ),
+                None,
+            )
+            if setting is not None:
+                if setting.secret:
+                    scoped_secret = self.config.get(
+                        f"connector_secret.{self.connector_id}.{key}"
+                    )
+                    if scoped_secret is not None:
+                        return str(scoped_secret)
+                return str(setting.value_json or "")
+        return ""
+
+    def _required_connector_setting(self, key: str) -> str:
+        value = self._connector_setting(key)
         if not value:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Missing required setting: {key}")
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"Missing required setting: {key}",
+            )
         return value
 
     def _upsert_source_snapshot(
@@ -943,13 +986,13 @@ class SpreadsheetSourceReadService:
         integrity_hash = hashlib.sha256(content).hexdigest()
         snapshot = (
             self.db.query(DlSourceSnapshot)
-            .filter(DlSourceSnapshot.connector_id == SOURCE_ID)
+            .filter(DlSourceSnapshot.connector_id == self.connector_id)
             .filter(DlSourceSnapshot.file_path == file_path)
             .one_or_none()
         )
         if snapshot is None:
             snapshot = DlSourceSnapshot(
-                connector_id=SOURCE_ID,
+                connector_id=self.connector_id,
                 file_path=file_path,
                 version_seq=1,
                 snapshotted_at=now,
@@ -979,7 +1022,7 @@ class SpreadsheetSourceReadService:
         severity: str = "info",
     ) -> None:
         self.integration.record_event(
-            connector_id=SOURCE_ID,
+            connector_id=self.connector_id,
             event_name=event_name,
             message=message,
             severity=severity,

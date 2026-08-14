@@ -28,7 +28,7 @@ function json(route: Route, body: unknown, status = 200) {
 async function installNextcloudSourceMocks(
   page: Page,
   audit: TrafficAudit,
-  options: { enabled: boolean; allowSave?: boolean },
+  options: { enabled: boolean; allowSave?: boolean; allowCreate?: boolean; archived?: boolean },
 ) {
   await page.addInitScript(() => {
     localStorage.setItem('wp_token', 'nextcloud-source-semantics-isolated-token')
@@ -65,6 +65,40 @@ async function installNextcloudSourceMocks(
         read_only: true,
         runtime_write_blocked: true,
         write_blocked: true,
+      })
+    }
+    if (options.allowCreate && method === 'POST' && url.pathname === '/api/v2/commerce/sources') {
+      audit.writes.push(`${method} ${url.pathname}`)
+      audit.savedPayloads.push(request.postDataJSON())
+      return json(route, {
+        source_id: 'nextcloud:replacement-1',
+        settings: {
+          url: 'https://replacement.example.test', username: 'replacement-owner',
+          spreadsheet_path: '', worksheet_mode: 'all', worksheet_name: '',
+        },
+        secrets: { password: { status: 'configured', replaced_at: '2026-08-14T08:00:00Z' } },
+        configured: false,
+        connection_configured: true,
+        configuration_state: 'setup_required',
+        read_only: true,
+        runtime_write_blocked: true,
+        write_blocked: true,
+        credentials_returned: false,
+        external_call_performed: false,
+      }, 201)
+    }
+    if (
+      options.allowCreate
+      && method === 'POST'
+      && decodeURIComponent(url.pathname) === '/api/v2/commerce/sources/nextcloud:replacement-1/test'
+    ) {
+      audit.writes.push(`${method} ${decodeURIComponent(url.pathname)}`)
+      return json(route, {
+        ok: true,
+        status: 'healthy',
+        message: 'Connection successful.',
+        configuration_matches_saved: true,
+        external_call_performed: true,
       })
     }
     if (method !== 'GET') {
@@ -131,7 +165,9 @@ async function installNextcloudSourceMocks(
         provider: 'nextcloud',
         name: 'Nextcloud',
         type: 'Source',
-        status: options.enabled ? 'configured' : 'disabled',
+        status: options.archived ? 'archived' : options.enabled ? 'configured' : 'disabled',
+        lifecycle_status: options.archived ? 'archived' : 'active',
+        archived_at: options.archived ? '2026-08-13T08:00:00Z' : null,
         implemented: true,
         placeholder: false,
         enabled: options.enabled,
@@ -170,6 +206,33 @@ async function installNextcloudSourceMocks(
       }],
     })
     if (url.pathname === '/api/v2/commerce/channel-types') return json(route, { items: [] })
+    if (
+      options.allowCreate
+      && decodeURIComponent(url.pathname) === '/api/v2/commerce/sources/nextcloud:replacement-1/configuration'
+    ) {
+      return json(route, {
+        source_id: 'nextcloud:replacement-1',
+        provider: 'nextcloud',
+        display_name: 'Nextcloud',
+        configured: false,
+        connection_configured: true,
+        configuration_state: 'setup_required',
+        last_test: {
+          status: 'healthy', message: 'Connection successful.', error_code: null,
+          latency_ms: 12, checked_at: '2026-08-14T08:00:00Z',
+        },
+        enabled: true,
+        access_mode: 'read_only',
+        settings: {
+          url: 'https://replacement.example.test', username: 'replacement-owner',
+          spreadsheet_path: '', worksheet_mode: 'all', worksheet_name: '',
+        },
+        secrets: { password: { status: 'configured', replaced_at: '2026-08-14T08:00:00Z' } },
+        settings_schema: settingsSchema,
+        credentials_returned: false,
+        currency_profile: { status: 'resolved', currency: 'IRR', unit: 'RIAL' },
+      })
+    }
     if (decodeURIComponent(url.pathname) === `/api/v2/commerce/sources/${sourceId}/configuration`) {
       return json(route, {
         source_id: sourceId,
@@ -269,6 +332,45 @@ test('Manage Connection opens the canonical editor and a blank-secret Save retur
   expect(audit.savedPayloads).toHaveLength(1)
   expect(audit.savedPayloads[0]).toMatchObject({ secrets: {} })
   expect(audit.writes).toEqual([`PUT /api/v2/commerce/sources/${sourceId}/settings`])
+  expect(audit.externalRequests).toEqual([])
+  expect(audit.unhandledApiRequests).toEqual([])
+})
+
+test('Add Source creates and tests an independent Nextcloud connector while archived history remains visible', async ({ page }) => {
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [], writes: [], savedPayloads: [] }
+  await installNextcloudSourceMocks(page, audit, {
+    enabled: false,
+    allowCreate: true,
+    archived: true,
+  })
+
+  await page.goto('/commerce?tab=sources')
+  await expect(page.locator(`[data-source-id="${sourceId}"]`).getByText('Archived', { exact: true }).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Add source' }).click()
+  await page.getByLabel('Enabled').check()
+  await page.getByLabel('Nextcloud server URL').fill('https://replacement.example.test')
+  await page.getByLabel('Username').fill('replacement-owner')
+  await page.locator('input[type="password"]').fill('replacement-secret')
+  await page.getByRole('button', { name: 'Save connection' }).click()
+
+  await expect.poll(() => audit.writes).toEqual(['POST /api/v2/commerce/sources'])
+  expect(audit.savedPayloads[0]).toMatchObject({
+    source_type_id: sourceId,
+    configuration: {
+      settings: {
+        url: 'https://replacement.example.test',
+        username: 'replacement-owner',
+      },
+      secrets: { password: 'replacement-secret' },
+    },
+  })
+
+  await page.getByRole('button', { name: 'Test connection' }).click()
+  await expect.poll(() => audit.writes).toEqual([
+    'POST /api/v2/commerce/sources',
+    'POST /api/v2/commerce/sources/nextcloud:replacement-1/test',
+  ])
+  expect(audit.writes).not.toContain('PUT /api/v2/commerce/sources/nextcloud:primary/settings')
   expect(audit.externalRequests).toEqual([])
   expect(audit.unhandledApiRequests).toEqual([])
 })

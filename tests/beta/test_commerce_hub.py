@@ -1360,6 +1360,206 @@ def test_archived_nextcloud_lifecycle_is_serialized_and_blocks_all_provider_oper
     assert diagnostics.json()["external_call_performed"] is False
 
 
+def test_archived_nextcloud_allows_fresh_independent_replacement_source(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.integration_platform.models import (
+        IntegrationConnectorInstance,
+        IntegrationConnectorSetting,
+    )
+    from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.setup.service import AppConfigService
+    from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+    from app.flowhub.source_workspace.models import SourceProfile
+
+    legacy = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://historical.example.test",
+                "username": "historical-user",
+                "spreadsheet_path": "/Historical.xlsx",
+            },
+            "secrets": {"password": "historical-secret"},
+        },
+    )
+    assert legacy.status_code == 200
+    owner = db.query(FlowHubUser).one()
+    historical = SourceProfile(
+        id=str(uuid.uuid4()),
+        name="Historical Nextcloud prices",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=2,
+        status="archived",
+        archived_at=datetime(2026, 8, 13, 8, 30, 0),
+        version=4,
+        owner_user_id=owner.id,
+    )
+    db.add(historical)
+    db.commit()
+
+    async def no_provider_io(*_args, **_kwargs):
+        raise AssertionError("saving a replacement Source must not call Nextcloud")
+
+    monkeypatch.setattr(NextcloudClient, "browse_directory", no_provider_io)
+
+    # This is the exact legacy Add Source target and remains correctly blocked.
+    blocked = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={"enabled": True},
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"]["code"] == "SOURCE_ARCHIVED"
+
+    replacement = client.post(
+        "/api/v2/commerce/sources",
+        headers=auth_headers,
+        json={
+            "source_type_id": "nextcloud:primary",
+            "configuration": {
+                "display_name": "Current Nextcloud prices",
+                "enabled": True,
+                "settings": {
+                    "url": "https://current.example.test",
+                    "username": "current-user",
+                    "spreadsheet_path": "/Current.xlsx",
+                    "worksheet_mode": "all",
+                    "worksheet_name": "",
+                },
+                "secrets": {"password": "current-secret"},
+            },
+        },
+    )
+    assert replacement.status_code == 201
+    replacement_id = replacement.json()["source_id"]
+    assert replacement_id.startswith("nextcloud:")
+    assert replacement_id != "nextcloud:primary"
+    assert replacement.json()["credentials_returned"] is False
+    assert replacement.json()["external_call_performed"] is False
+
+    profile = client.post(
+        "/api/v2/sources",
+        headers=auth_headers,
+        json={
+            "name": "Current Nextcloud prices",
+            "source_kind": "external",
+            "external_source_id": replacement_id,
+            "worksheet_mode": "all",
+            "worksheet_name": None,
+            "data_start_row": 2,
+        },
+    )
+    assert profile.status_code == 201
+    assert profile.json()["externalSourceId"] == replacement_id
+
+    blank_secret_save = client.put(
+        f"/api/v2/commerce/sources/{replacement_id}/settings",
+        headers=auth_headers,
+        json={
+            "display_name": "Current Nextcloud prices",
+            "enabled": True,
+            "settings": {
+                "url": "https://current.example.test",
+                "username": "current-user",
+                "spreadsheet_path": "/Current.xlsx",
+                "worksheet_mode": "all",
+                "worksheet_name": "",
+            },
+            "secrets": {},
+        },
+    )
+    assert blank_secret_save.status_code == 200
+
+    exercised: dict[str, str] = {}
+
+    async def successful_browse(nextcloud, _path):
+        exercised["url"] = nextcloud._creds.url
+        exercised["username"] = nextcloud._creds.username
+        exercised["password"] = nextcloud._creds.password
+        return {"directories": [], "files": [], "path": "/"}
+
+    async def successful_info(_nextcloud, _path):
+        return {"type": "file", "supported": True}
+
+    async def successful_preflight(_http, _url):
+        return None
+
+    monkeypatch.setattr(NextcloudClient, "browse_directory", successful_browse)
+    monkeypatch.setattr(NextcloudClient, "get_resource_info", successful_info)
+    monkeypatch.setattr(
+        "app.connectors.common.source_http.SourceHttpClient.preflight",
+        successful_preflight,
+    )
+    tested = client.post(
+        f"/api/v2/commerce/sources/{replacement_id}/test",
+        headers=auth_headers,
+        json={},
+    )
+    assert tested.status_code == 200
+    assert tested.json()["ok"] is True
+    assert exercised == {
+        "url": "https://current.example.test",
+        "username": "current-user",
+        "password": "current-secret",
+    }
+
+    db.expire_all()
+    old_connector = db.get(IntegrationConnectorInstance, "nextcloud:primary")
+    new_connector = db.get(IntegrationConnectorInstance, replacement_id)
+    assert old_connector is not None and old_connector.enabled is False
+    assert new_connector is not None and new_connector.enabled is True
+    old_secret = db.query(IntegrationConnectorSetting).filter_by(
+        connector_id="nextcloud:primary", key="password"
+    ).one()
+    new_secret = db.query(IntegrationConnectorSetting).filter_by(
+        connector_id=replacement_id, key="password"
+    ).one()
+    assert old_secret.value_json is None
+    assert old_secret.configured is True
+    assert new_secret.value_json is None
+    assert new_secret.configured is True
+    config = AppConfigService(db)
+    assert config.get("nextcloud.password") == "historical-secret"
+    assert (
+        config.get(f"connector_secret.{replacement_id}.password")
+        == "current-secret"
+    )
+    replacement_reader = SpreadsheetSourceReadService(
+        db, connector_id=replacement_id
+    )
+    assert replacement_reader._connector_setting("url") == "https://current.example.test"
+    assert replacement_reader._connector_setting("password") == "current-secret"
+
+    listed = client.get("/api/v2/commerce/sources", headers=auth_headers)
+    assert listed.status_code == 200
+    by_id = {item["id"]: item for item in listed.json()["items"]}
+    assert by_id["nextcloud:primary"]["lifecycle_status"] == "archived"
+    assert by_id[replacement_id]["lifecycle_status"] == "active"
+
+    duplicate_binding = client.post(
+        "/api/v2/sources",
+        headers=auth_headers,
+        json={
+            "name": "Duplicate binding",
+            "source_kind": "external",
+            "external_source_id": "nextcloud:primary",
+            "worksheet_mode": "all",
+            "worksheet_name": None,
+            "data_start_row": 2,
+        },
+    )
+    assert duplicate_binding.status_code == 409
+    assert duplicate_binding.json()["detail"]["code"] == "SOURCE_CONNECTOR_ALREADY_BOUND"
+    assert duplicate_binding.json()["detail"]["lifecycle_status"] == "archived"
+
+
 def test_nextcloud_connection_is_configured_before_later_source_setup_is_complete(
     client, auth_headers
 ):

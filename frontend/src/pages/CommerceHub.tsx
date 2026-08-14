@@ -7,7 +7,7 @@ import Badge from '../components/Badge'
 import Alert from '../components/Alert'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
-import type { ChannelCacheRefreshResult, CommerceSourceConfiguration, CommerceVendor, ConnectionCheckResult, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
+import type { ChannelCacheRefreshResult, CommerceConfigPayload, CommerceSourceConfiguration, CommerceVendor, ConnectionCheckResult, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import SecretField from '../components/SecretField'
 import BrandIcon from '../components/BrandIcon'
@@ -673,6 +673,9 @@ export function ConfigPanel({
   const [selectedId, setSelectedId] = useState(
     () => preferredResourceId(initialResourceId, typeResources) ?? '',
   )
+  const [persistedResourceId, setPersistedResourceId] = useState<string | null>(
+    initialResourceId ?? null,
+  )
   const selected = useMemo(
     () => typeResources.ordered.find(item => item.id === selectedId)?.item,
     [selectedId, typeResources],
@@ -745,6 +748,7 @@ export function ConfigPanel({
     setWorksheetMode('all')
     setWorksheetName('')
     setReadPolicy(DEFAULT_READ_POLICY)
+    setPersistedResourceId(null)
   }, [selected?.id, initialResourceId, kind])
 
   useEffect(() => {
@@ -756,13 +760,17 @@ export function ConfigPanel({
     }
     let active = true
     setLoadingConfiguration(true)
-    setSelectedId(initialResourceId)
+    const matchingType = types.find(item => item.id === initialResourceId)
+    if (matchingType) setSelectedId(matchingType.id)
     const request = kind === 'source'
       ? commerce.getSourceConfiguration(initialResourceId)
       : commerce.getChannelConfiguration(initialResourceId)
     request
       .then(configuration => {
         if (!active) return
+        setPersistedResourceId(initialResourceId)
+        const providerType = types.find(item => item.provider === configuration.provider)
+        if (providerType) setSelectedId(providerType.id)
         setDisplayName(configuration.display_name)
         // A bootstrap Source has no persisted operational state. Keep its edit
         // checkbox false without treating that absence as a disabled connection.
@@ -844,6 +852,7 @@ export function ConfigPanel({
 
   if (!selected) return null
   const selectedType = selected
+  const sourceTargetId = persistedResourceId ?? selectedType.id
   // Any source connector whose settings schema exposes a spreadsheet_path field gets the
   // same file-selection + worksheet + Configure Data treatment, not just Nextcloud —
   // this keeps Nextcloud, and any future spreadsheet-backed connector, on one shared UX.
@@ -1000,6 +1009,19 @@ export function ConfigPanel({
     }
   }
 
+  async function saveSourceConfiguration(payload: CommerceConfigPayload) {
+    if (persistedResourceId) {
+      return commerce.saveSource(persistedResourceId, payload)
+    }
+    if (selectedType.provider !== 'nextcloud') {
+      return commerce.saveSource(selectedType.id, payload)
+    }
+    const created = await commerce.createSource(selectedType.id, payload)
+    if (!created.source_id) throw new Error('Created Source connector has no identity.')
+    setPersistedResourceId(created.source_id)
+    return created
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (nextcloudUrlError) {
@@ -1010,7 +1032,7 @@ export function ConfigPanel({
     try {
       const payload = configurationPayload()
       const sourceResult = kind === 'source'
-        ? await commerce.saveSource(selectedType.id, payload)
+        ? await saveSourceConfiguration(payload)
         : null
       if (kind === 'channel') await commerce.saveChannel(selectedType.id, payload)
 
@@ -1065,7 +1087,7 @@ export function ConfigPanel({
             })
       await onSaved({
         kind,
-        externalId: selectedType.id,
+        externalId: sourceResult?.source_id ?? sourceTargetId,
         name: displayName || selectedType.name,
         currency,
         currencyUnit,
@@ -1091,8 +1113,7 @@ export function ConfigPanel({
     try {
       // Step 2 deliberately omits a monetary declaration. Existing downstream
       // settings remain in the payload, so correcting a connection never erases them.
-      const result = await commerce.saveSource(
-        selectedType.id,
+      const result = await saveSourceConfiguration(
         configurationPayload({ includeCurrency: false, connectionOnly: true }),
       )
       const nextSecretStatus = { ...secretStatus, ...result.secrets }
@@ -1139,7 +1160,7 @@ export function ConfigPanel({
     // An existing configured Source already has a persisted Data Sheet. Opening
     // it must not silently save unrelated connection or worksheet drafts.
     if (completedSourceSetup && nextcloudConnectionUsable && nextcloudTestTargetSaved && onConfigureData) {
-      onConfigureData?.(selectedType.id)
+      onConfigureData?.(sourceTargetId)
       return
     }
     if (
@@ -1152,7 +1173,7 @@ export function ConfigPanel({
     ) return
     setSaving(true)
     try {
-      const result = await commerce.saveSource(selectedType.id, configurationPayload())
+      const result = await saveSourceConfiguration(configurationPayload())
       setSecretStatus(current => ({ ...current, ...result.secrets }))
       setConfigurationWasConfigured(current => current || (result.configured ?? true))
       setSavedSourceEnabled(enabled)
@@ -1165,7 +1186,7 @@ export function ConfigPanel({
       })
       await onSaved({
         kind: 'source',
-        externalId: selectedType.id,
+        externalId: result.source_id ?? sourceTargetId,
         name: displayName || selectedType.name,
         currency,
         currencyUnit,
@@ -1192,7 +1213,11 @@ export function ConfigPanel({
     setTesting(true)
     try {
       const result = kind === 'source'
-        ? await commerce.testSource(selectedType.id, configurationPayload())
+        ? persistedResourceId
+          ? await commerce.testSource(persistedResourceId, configurationPayload())
+          : selectedType.provider === 'nextcloud'
+            ? await commerce.testSourceType(selectedType.id, configurationPayload())
+            : await commerce.testSource(selectedType.id, configurationPayload())
         : await commerce.testChannel(selectedType.id, configurationPayload())
       const sourceTestMatchesSaved = kind === 'source'
         && (result.configuration_matches_saved ?? nextcloudTestTargetSaved)
@@ -1210,7 +1235,7 @@ export function ConfigPanel({
         }
         if (!sourceTestDisabled) {
           try {
-            const refreshed = await commerce.getSourceConfiguration(selectedType.id)
+            const refreshed = await commerce.getSourceConfiguration(sourceTargetId)
             const refreshedStatus = refreshed.last_test?.status.trim().toLowerCase()
             if (refreshedStatus === 'healthy' || refreshedStatus === 'unhealthy') {
               setLastTestEvidence(refreshed.last_test)
@@ -1315,7 +1340,7 @@ export function ConfigPanel({
       // Remote browsing is enabled only when the displayed connection identity
       // is the saved, healthy one. Never browse a stale connection behind a
       // changed URL, username, or replacement secret.
-      const result = await commerce.browseNextcloud(selectedType.id, {
+      const result = await commerce.browseNextcloud(sourceTargetId, {
         path,
         settings,
         secrets,
@@ -1873,7 +1898,7 @@ export function ConfigPanel({
               <button
                 type="button"
                 className="fh-button-secondary px-4 w-fit"
-                onClick={() => onConfigureData(selectedType.id)}
+                onClick={() => onConfigureData(sourceTargetId)}
               >
                 <Icon name="workspace" /> {translate('commerce:commerceHub.configureData')} <Icon name="next" />
               </button>

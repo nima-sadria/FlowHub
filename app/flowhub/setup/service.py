@@ -35,6 +35,10 @@ _SECRET_KEYS: frozenset[str] = frozenset({
 })
 
 
+def _is_secret_config_key(key: str) -> bool:
+    return key in _SECRET_KEYS or key.startswith("connector_secret.")
+
+
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -101,11 +105,11 @@ class AppConfigService:
         """Return all config entries, masking secret values."""
         rows = self._db.query(FlowHubAppConfig).all()
         return {
-            r.key: ("[REDACTED]" if r.key in _SECRET_KEYS else r.value)
+            r.key: ("[REDACTED]" if _is_secret_config_key(r.key) else r.value)
             for r in rows
         }
 
     def get_non_secret(self) -> dict[str, str | None]:
         """Return only non-secret config entries."""
         rows = self._db.query(FlowHubAppConfig).all()
-        return {r.key: r.value for r in rows if r.key not in _SECRET_KEYS}
+        return {r.key: r.value for r in rows if not _is_secret_config_key(r.key)}

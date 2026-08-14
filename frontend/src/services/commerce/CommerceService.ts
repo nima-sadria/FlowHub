@@ -104,6 +104,8 @@ export interface CommerceService {
   getSourceConfiguration(sourceId: string): Promise<CommerceSourceConfiguration>
   getChannelConfiguration(channelId: string): Promise<CommerceChannelConfiguration>
   saveSource(sourceId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult>
+  createSource(sourceTypeId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult>
+  testSourceType(sourceTypeId: string, payload: CommerceConfigPayload): Promise<ConnectionCheckResult>
   saveChannel(channelId: string, payload: CommerceConfigPayload): Promise<CommerceSettingsResult>
   testSource(sourceId: string, payload?: CommerceConfigPayload): Promise<ConnectionCheckResult>
   testChannel(channelId: string, payload?: CommerceConfigPayload): Promise<ConnectionCheckResult>
@@ -151,6 +153,7 @@ export interface CommerceConfigPayload {
 }
 
 export interface CommerceSettingsResult {
+  source_id?: string
   settings: Record<string, unknown>
   secrets: Record<string, { status: string; replaced_at: string | null }>
   configured?: boolean

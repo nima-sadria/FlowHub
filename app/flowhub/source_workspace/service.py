@@ -217,6 +217,24 @@ class SourceWorkspaceService:
             raise _unprocessable(
                 "EXTERNAL_SOURCE_REQUIRED", "External Sources require an existing Source identity."
             )
+        if source_kind == "external" and external_source_id:
+            existing_binding = (
+                self.db.query(SourceProfile)
+                .filter(SourceProfile.external_source_id == external_source_id)
+                .one_or_none()
+            )
+            if existing_binding is not None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "SOURCE_CONNECTOR_ALREADY_BOUND",
+                        "message": (
+                            "This connector already belongs to a Source. "
+                            "Create a fresh connector for a replacement Source."
+                        ),
+                        "lifecycle_status": existing_binding.status,
+                    },
+                )
         self._validate_worksheet(worksheet_mode, worksheet_name, data_start_row)
         source = SourceProfile(
             id=_id(),
@@ -277,8 +295,10 @@ class SourceWorkspaceService:
             )
         else:
             result["configuredWorksheets"] = []
-        if source.source_kind == "external" and source.external_source_id == LEGACY_EXTERNAL_SOURCE_ID:
-            reader = SpreadsheetSourceReadService(self.db)
+        if source.source_kind == "external" and self._is_nextcloud_connector(source.external_source_id):
+            reader = SpreadsheetSourceReadService(
+                self.db, connector_id=str(source.external_source_id)
+            )
             result["readQuota"] = reader.read_quota_contract(source_id=source.id)
             result["worksheetDiscovery"] = reader.worksheet_discovery_state(source_id=source.id)
             result["discoveryQuota"] = reader.discovery_quota_contract(source_id=source.id)
@@ -431,7 +451,10 @@ class SourceWorkspaceService:
     ) -> dict[str, Any]:
         """Return local metadata or explicitly refresh bounded remote metadata."""
         source = self._owned_source(source_id, user, require_active=True)
-        reader = SpreadsheetSourceReadService(self.db)
+        reader = SpreadsheetSourceReadService(
+            self.db,
+            connector_id=source.external_source_id or LEGACY_EXTERNAL_SOURCE_ID,
+        )
         if source.external_source_id:
             connector = self.db.get(IntegrationConnectorInstance, source.external_source_id)
             if connector is not None and not connector.enabled:
@@ -465,7 +488,7 @@ class SourceWorkspaceService:
                 },
             }
         if refresh:
-            if source.external_source_id != LEGACY_EXTERNAL_SOURCE_ID:
+            if not self._is_nextcloud_connector(source.external_source_id):
                 raise _unprocessable("WORKSHEET_DISCOVERY_UNAVAILABLE", "Remote discovery is unavailable for this Source.")
             refreshed = await reader.refresh_worksheet_discovery(source_profile_id=source.id, user_id=user.id)
             return {
@@ -482,7 +505,7 @@ class SourceWorkspaceService:
             }
         discovery = (
             reader.worksheet_discovery_state(source_id=source.id)
-            if source.external_source_id == LEGACY_EXTERNAL_SOURCE_ID
+            if self._is_nextcloud_connector(source.external_source_id)
             else None
         )
         if discovery is not None and discovery["metadata_source"] in {"snapshot", "discovery_cache"}:
@@ -2447,7 +2470,7 @@ class SourceWorkspaceService:
     async def _read_external_source(
         self, source: SourceProfile, user: FlowHubUser, *, manual: bool
     ) -> SourceImportResult:
-        if source.external_source_id != LEGACY_EXTERNAL_SOURCE_ID:
+        if not self._is_nextcloud_connector(source.external_source_id):
             raise _unprocessable(
                 "EXTERNAL_SOURCE_UNSUPPORTED",
                 "This external Source connector does not support read-once Workspace acquisition.",
@@ -2465,13 +2488,23 @@ class SourceWorkspaceService:
                     "message": "Nextcloud Source is disabled. Enable it before reading source data.",
                 },
             )
-        return await SpreadsheetSourceReadService(self.db).read_nextcloud_spreadsheet(
+        return await SpreadsheetSourceReadService(
+            self.db, connector_id=str(source.external_source_id)
+        ).read_nextcloud_spreadsheet(
             triggered_by="source_workspace",
             triggered_by_id=user.id,
             manual=manual,
             capture_raw_worksheets=True,
             source_profile_id=source.id,
         )
+
+    def _is_nextcloud_connector(self, connector_id: str | None) -> bool:
+        if not connector_id:
+            return False
+        if connector_id == LEGACY_EXTERNAL_SOURCE_ID:
+            return True
+        connector = self.db.get(IntegrationConnectorInstance, connector_id)
+        return bool(connector and connector.connector_type == "nextcloud")
 
     @staticmethod
     def _mapping_candidate_checksum(**values: Any) -> str:

@@ -42,6 +42,29 @@ async def list_source_types(
     return service.list_source_types()
 
 
+@router.post("/sources", status_code=status.HTTP_201_CREATED)
+async def create_source_connection(
+    body: dict,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    """Create a fresh local connector instance from a Source type template."""
+    _require_admin(user)
+    return service.create_source_settings(body, user=user)
+
+
+@router.post("/source-types/{source_type_id}/test")
+async def test_source_type_connection(
+    source_type_id: str,
+    body: dict | None = None,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    """Test an unsaved Source draft without borrowing an existing instance."""
+    _require_admin(user)
+    return await service.test_source_type_connection(source_type_id, body)
+
+
 @router.get("/sources/{source_id}")
 async def get_source_detail(
     source_id: str,

@@ -225,7 +225,33 @@ class CommerceHubService:
 
     def list_sources(self) -> dict:
         self.integration.bootstrap_from_app_config()
-        items = [self._source_contract(item) for item in _SOURCES]
+        items: list[dict] = []
+        source_templates = {
+            str(item["provider"]): item
+            for item in _SOURCES
+            if str(item["provider"]) == "nextcloud"
+        }
+        instances = (
+            self.db.query(IntegrationConnectorInstance)
+            .filter(IntegrationConnectorInstance.connector_type.in_(source_templates))
+            .order_by(
+                IntegrationConnectorInstance.connector_type.asc(),
+                IntegrationConnectorInstance.created_at.asc(),
+            )
+            .all()
+        )
+        instance_providers = {row.connector_type for row in instances}
+        for row in instances:
+            template = source_templates[row.connector_type]
+            items.append(
+                self._source_contract(
+                    {**template, "id": row.id, "name": row.name}
+                )
+            )
+        for item in _SOURCES:
+            provider = str(item["provider"])
+            if provider not in source_templates or provider not in instance_providers:
+                items.append(self._source_contract(item))
         return {
             "items": items,
             "runtime_write_blocked": True,
@@ -578,9 +604,11 @@ class CommerceHubService:
             # but it cannot make an unsaved Source verified.  Surface the
             # distinction explicitly so consumers do not turn a draft result
             # into persisted readiness.
-            result = await self._test_nextcloud_source_connection(body)
+            result = await self._test_nextcloud_source_connection(source_id, body)
             result["configuration_matches_saved"] = (
-                self._nextcloud_test_matches_stored_configuration(body or {})
+                self._nextcloud_test_matches_stored_configuration(
+                    source_id, body or {}
+                )
             )
             return result
         elif configured:
@@ -616,7 +644,9 @@ class CommerceHubService:
                     "message": "Nextcloud Source is disabled. Enable it before browsing files.",
                 },
             )
-        values = self._nextcloud_values(body, allow_stored=True)
+        values = self._nextcloud_values(
+            source_id, body, allow_stored=True
+        )
         if not values["url"] or not values["password"]:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nextcloud URL, username, and app password are required to browse files.")
         normalized = self._normalize_nextcloud_url(values["url"], values["username"])
@@ -653,7 +683,7 @@ class CommerceHubService:
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
         if instance is None or not instance.enabled:
             raise HTTPException(status.HTTP_409_CONFLICT, "Source must be enabled before Read now.")
-        reader = SpreadsheetSourceReadService(self.db)
+        reader = SpreadsheetSourceReadService(self.db, connector_id=source_id)
         result = await reader.read_nextcloud_spreadsheet(
             triggered_by=actor,
             triggered_by_id=actor_id,
@@ -676,20 +706,24 @@ class CommerceHubService:
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source settings are not available.")
         previous_nextcloud_identity = (
-            self._nextcloud_configuration_identity({}, allow_stored=True)
+            self._nextcloud_configuration_identity(
+                source_id, {}, allow_stored=True
+            )
             if provider == "nextcloud"
             else None
         )
         if provider == "nextcloud":
-            self._validate_nextcloud_source_body(body)
+            self._validate_nextcloud_source_body(body, source_id=source_id)
         # Source connection, write-only connector settings, AppConfig values,
         # and the monetary declaration are one saved configuration.  Do not
         # commit an app password or enabled-state change before validating the
         # trailing monetary policy.
         try:
             self._ensure_instance(meta, commit=False)
-            if provider == "nextcloud":
+            if provider == "nextcloud" and source_id == "nextcloud:primary":
                 self._persist_nextcloud_app_config(body, commit=False)
+            elif provider == "nextcloud":
+                self._stage_scoped_source_secrets(source_id, body)
             self.integration.stage_settings_contract(source_id, self._settings_body(body))
             self._update_instance_state(
                 meta, body, access_mode=ACCESS_MODE_READ_ONLY, commit=False
@@ -702,7 +736,9 @@ class CommerceHubService:
                 commit=False,
             )
             if provider == "nextcloud" and previous_nextcloud_identity != (
-                self._nextcloud_configuration_identity({}, allow_stored=True)
+                self._nextcloud_configuration_identity(
+                    source_id, {}, allow_stored=True
+                )
             ):
                 self._clear_source_health(source_id, commit=False)
             self.db.flush()
@@ -1124,8 +1160,14 @@ class CommerceHubService:
         setup_configured = self._source_setup_configured(
             str(meta["id"]), provider, instance
         )
-        read_status = SpreadsheetSourceReadService(self.db).read_status() if provider == "nextcloud" else None
         lifecycle = self._source_lifecycle_contract(str(meta["id"]))
+        read_status = (
+            SpreadsheetSourceReadService(
+                self.db, connector_id=str(meta["id"])
+            ).read_status(source_id=lifecycle["source_profile_id"])
+            if provider == "nextcloud"
+            else None
+        )
         body = {
             **meta,
             "status": (
@@ -1153,6 +1195,7 @@ class CommerceHubService:
             "read_only": True,
             "settings_available": definition is not None,
         }
+
         if source_enabled is not None:
             # Only a saved connection can be meaningfully disabled.  A
             # bootstrapped incomplete Source remains Not configured rather
@@ -1348,6 +1391,125 @@ class CommerceHubService:
             ] if definition else []
             body["secrets"] = secret_status if not coming_soon else {}
         return body
+
+    def create_source_settings(
+        self, body: dict, *, user: FlowHubUser | None = None
+    ) -> dict:
+        """Create an independent Source connector and save its first revision."""
+        source_type_id = str(body.get("source_type_id") or "").strip()
+        payload = body.get("configuration")
+        if not source_type_id or not isinstance(payload, dict):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {
+                    "code": "SOURCE_CREATE_INVALID",
+                    "message": "source_type_id and configuration are required.",
+                },
+            )
+        template = self._source_type_meta(source_type_id)
+        if not bool(template.get("implemented")):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source type is not available.")
+        provider = str(template["provider"])
+        if provider != "nextcloud" or registry.get_definition(provider) is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source type is not available.")
+        self._validate_nextcloud_source_body(
+            payload, source_id=None, allow_stored=False
+        )
+        connector_id = f"{provider}:{uuid.uuid4().hex[:12]}"
+        meta = {
+            **template,
+            "id": connector_id,
+            "name": str(payload.get("display_name") or template["name"]).strip()
+            or str(template["name"]),
+        }
+        try:
+            self._stage_archived_connector_retirement()
+            self._ensure_instance(meta, commit=False)
+            self._stage_scoped_source_secrets(connector_id, payload)
+            self.integration.stage_settings_contract(
+                connector_id, self._settings_body(payload)
+            )
+            self._update_instance_state(
+                meta, payload, access_mode=ACCESS_MODE_READ_ONLY, commit=False
+            )
+            currency_profile = self._save_currency_declaration(
+                scope="source",
+                scope_reference=connector_id,
+                body=payload,
+                user=user,
+                commit=False,
+            )
+            self.integration.record_event(
+                connector_id=connector_id,
+                event_name="source_connector_created",
+                message="Independent Source connector created in local configuration.",
+                metadata={
+                    "source_type": provider,
+                    "secret_values_returned": False,
+                    "external_call_performed": False,
+                },
+                commit=False,
+            )
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+        instance = self.db.get(IntegrationConnectorInstance, connector_id)
+        connection_configured = (
+            self._nextcloud_connection_configured(instance)
+            if provider == "nextcloud"
+            else self._instance_configured(instance)
+        )
+        configured = self._source_setup_configured(connector_id, provider, instance)
+        return {
+            **self.integration.get_settings_contract(connector_id),
+            "source_id": connector_id,
+            "provider": provider,
+            "configured": configured,
+            "connection_configured": connection_configured,
+            "configuration_state": self._source_configuration_state(
+                meta,
+                connection_configured=connection_configured,
+                configured=configured,
+            ),
+            "access_mode": ACCESS_MODE_READ_ONLY,
+            "read_only": True,
+            "runtime_write_blocked": True,
+            "write_blocked": True,
+            "credentials_returned": False,
+            "external_call_performed": False,
+            "currency_profile": currency_profile,
+        }
+
+    async def test_source_type_connection(
+        self, source_type_id: str, body: dict | None = None
+    ) -> dict:
+        template = self._source_type_meta(source_type_id)
+        if not bool(template.get("implemented")):
+            return self._placeholder_connection_result()
+        if str(template["provider"]) == "nextcloud":
+            return await self._test_nextcloud_source_connection(
+                None, body, allow_stored=False
+            )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Source test is not available.")
+
+    def _stage_archived_connector_retirement(self) -> None:
+        """Keep terminal Source bindings non-operational without detaching history."""
+        rows = (
+            self.db.query(IntegrationConnectorInstance)
+            .join(
+                SourceProfile,
+                SourceProfile.external_source_id == IntegrationConnectorInstance.id,
+            )
+            .filter(SourceProfile.status == "archived")
+            .all()
+        )
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        for row in rows:
+            if row.enabled or row.status != "disabled":
+                row.enabled = False
+                row.status = "disabled"
+                row.updated_at = now
 
     @staticmethod
     def _channel_display_name(
@@ -2505,11 +2667,28 @@ class CommerceHubService:
             self.db.rollback()
             raise
 
-    async def _test_nextcloud_source_connection(self, body: dict | None = None) -> dict:
+    async def _test_nextcloud_source_connection(
+        self,
+        source_id: str | None,
+        body: dict | None = None,
+        *,
+        allow_stored: bool = True,
+    ) -> dict:
         request_body = body or {}
-        values = self._nextcloud_values(request_body, allow_stored=True)
-        record_health = self._nextcloud_test_matches_stored_configuration(request_body)
-        instance = self.db.get(IntegrationConnectorInstance, "nextcloud:primary")
+        values = self._nextcloud_values(
+            source_id, request_body, allow_stored=allow_stored
+        )
+        record_health = bool(
+            source_id
+            and self._nextcloud_test_matches_stored_configuration(
+                source_id, request_body
+            )
+        )
+        instance = (
+            self.db.get(IntegrationConnectorInstance, source_id)
+            if source_id
+            else None
+        )
 
         # The Source's enabled state is an operational boundary.  Do not make
         # an outbound probe, or return a misleading healthy result, for a
@@ -2561,6 +2740,7 @@ class CommerceHubService:
                 error_class="invalid_url",
                 code=str(detail.get("code") or "INVALID_NEXTCLOUD_URL"),
                 record_health=record_health,
+                source_id=source_id,
             )
         if not normalized["username"]:
             return {
@@ -2613,6 +2793,7 @@ class CommerceHubService:
                             http_status=exc.status_code,
                             error_class=error_class,
                             record_health=record_health,
+                source_id=source_id,
                         )
                     return self._nextcloud_test_failure(
                         started,
@@ -2626,6 +2807,7 @@ class CommerceHubService:
                         http_status=exc.status_code,
                         error_class="resource_not_found",
                         record_health=record_health,
+                source_id=source_id,
                     )
                 if item["type"] != "file":
                     return self._nextcloud_test_failure(
@@ -2639,6 +2821,7 @@ class CommerceHubService:
                         external=True,
                         error_class="invalid_webdav_path",
                         record_health=record_health,
+                source_id=source_id,
                     )
                 if item.get("supported") is not True:
                     return self._nextcloud_test_failure(
@@ -2652,6 +2835,7 @@ class CommerceHubService:
                         external=True,
                         error_class="spreadsheet_unsupported",
                         record_health=record_health,
+                source_id=source_id,
                     )
                 spreadsheet_found = True
                 provider = NextcloudWebDavAcquisitionProvider(
@@ -2683,6 +2867,7 @@ class CommerceHubService:
                         error_class=safety_code,
                         code=safety_code,
                         record_health=record_health,
+                source_id=source_id,
                     )
             latency_ms = round((monotonic() - started) * 1000, 2)
             message = (
@@ -2692,7 +2877,7 @@ class CommerceHubService:
             )
             if record_health:
                 self._record_source_health(
-                    "nextcloud:primary", "healthy", latency_ms, message, None
+                    str(source_id), "healthy", latency_ms, message, None
                 )
             return {
                 **self._connection_base(),
@@ -2723,6 +2908,7 @@ class CommerceHubService:
                 http_status=exc.status_code,
                 error_class=self._nextcloud_error_class(exc),
                 record_health=record_health,
+                source_id=source_id,
             )
         except HTTPException:
             raise
@@ -2738,6 +2924,7 @@ class CommerceHubService:
                 external=True,
                 error_class="connection_failed",
                 record_health=record_health,
+                source_id=source_id,
             )
 
     def _nextcloud_test_failure(
@@ -2755,13 +2942,14 @@ class CommerceHubService:
         error_class: str | None = None,
         code: str | None = None,
         record_health: bool = False,
+        source_id: str | None = None,
     ) -> dict:
         latency_ms = round((monotonic() - started) * 1000, 2)
         stable_error_class = error_class or "connection_failed"
         response_code = code or stable_error_class
         if record_health:
             self._record_source_health(
-                "nextcloud:primary",
+                str(source_id),
                 "unhealthy",
                 latency_ms,
                 message,
@@ -2900,10 +3088,12 @@ class CommerceHubService:
         return "connection_failed"
 
     def _nextcloud_configuration_identity(
-        self, body: dict, *, allow_stored: bool
+        self, source_id: str | None, body: dict, *, allow_stored: bool
     ) -> tuple[str, str, str, str, str] | None:
         """Return an internal-only identity for the values exercised by Test."""
-        values = self._nextcloud_values(body, allow_stored=allow_stored)
+        values = self._nextcloud_values(
+            source_id, body, allow_stored=allow_stored
+        )
         if not values["url"] or not values["password"]:
             return None
         try:
@@ -2926,12 +3116,20 @@ class CommerceHubService:
             values["spreadsheet_path"],
         )
 
-    def _nextcloud_test_matches_stored_configuration(self, body: dict) -> bool:
-        stored = self._nextcloud_configuration_identity({}, allow_stored=True)
-        candidate = self._nextcloud_configuration_identity(body, allow_stored=True)
+    def _nextcloud_test_matches_stored_configuration(
+        self, source_id: str, body: dict
+    ) -> bool:
+        stored = self._nextcloud_configuration_identity(
+            source_id, {}, allow_stored=True
+        )
+        candidate = self._nextcloud_configuration_identity(
+            source_id, body, allow_stored=True
+        )
         return stored is not None and candidate == stored
 
-    def _nextcloud_values(self, body: dict, *, allow_stored: bool) -> dict[str, str]:
+    def _nextcloud_values(
+        self, source_id: str | None, body: dict, *, allow_stored: bool
+    ) -> dict[str, str]:
         settings = dict(body.get("settings") or {}) if isinstance(body, dict) else {}
         secrets = dict(body.get("secrets") or {}) if isinstance(body, dict) else {}
         values = {
@@ -2942,17 +3140,70 @@ class CommerceHubService:
             "webdav_files_root_url": str(settings.get("webdav_files_root_url") or "").strip(),
         }
         if allow_stored:
+            stored = self._connector_setting_values(source_id)
+            legacy = source_id in {None, "nextcloud:primary"}
             values = {
-                "url": values["url"] or str(self.integration.config.get("nextcloud.url") or "").strip(),
-                "username": values["username"] or str(self.integration.config.get("nextcloud.username") or "").strip(),
-                "password": values["password"] or str(self.integration.config.get("nextcloud.password") or "").strip(),
-                "spreadsheet_path": values["spreadsheet_path"] or str(self.integration.config.get("nextcloud.spreadsheet_path") or "").strip(),
-                "webdav_files_root_url": values["webdav_files_root_url"] or str(self.integration.config.get("nextcloud.webdav_files_root_url") or "").strip(),
+                key: values[key]
+                or str(stored.get(key) or "").strip()
+                or (
+                    str(self.integration.config.get(f"nextcloud.{key}") or "").strip()
+                    if legacy
+                    else ""
+                )
+                for key in values
             }
         return values
 
-    def _validate_nextcloud_source_body(self, body: dict) -> None:
-        values = self._nextcloud_values(body, allow_stored=True)
+    def _connector_setting_values(self, source_id: str | None) -> dict[str, object]:
+        if not source_id:
+            return {}
+        instance = self.db.get(IntegrationConnectorInstance, source_id)
+        values = (
+            {item.key: item.value_json for item in instance.settings if item.configured}
+            if instance is not None
+            else {}
+        )
+        if source_id:
+            definition = registry.get_definition("nextcloud")
+            if definition is not None:
+                for key in (
+                    item.key for item in definition.settings_schema if item.secret
+                ):
+                    secret = self.integration.config.get(
+                        self._scoped_source_secret_key(source_id, key)
+                    )
+                    if secret is not None:
+                        values[key] = secret
+        return values
+
+    @staticmethod
+    def _scoped_source_secret_key(source_id: str, key: str) -> str:
+        return f"connector_secret.{source_id}.{key}"
+
+    def _stage_scoped_source_secrets(self, source_id: str, body: dict) -> None:
+        secrets = body.get("secrets") if isinstance(body, dict) else None
+        if not isinstance(secrets, dict):
+            return
+        pairs = {
+            self._scoped_source_secret_key(source_id, str(key)): str(value)
+            for key, value in secrets.items()
+            if value not in (None, "")
+        }
+        if pairs:
+            self.integration.config.set_many(
+                pairs, updated_by="commerce_hub", commit=False
+            )
+
+    def _validate_nextcloud_source_body(
+        self,
+        body: dict,
+        *,
+        source_id: str | None,
+        allow_stored: bool = True,
+    ) -> None:
+        values = self._nextcloud_values(
+            source_id, body, allow_stored=allow_stored
+        )
         if values["url"]:
             normalized = self._normalize_nextcloud_url(values["url"], values["username"])
             values["username"] = values["username"] or normalized["username"]
@@ -3223,7 +3474,19 @@ class CommerceHubService:
         for item in _SOURCES:
             if item["id"] == source_id or item["provider"] == source_id:
                 return item
+        instance = self.db.get(IntegrationConnectorInstance, source_id)
+        if instance is not None:
+            for item in _SOURCES:
+                if item["provider"] == instance.connector_type:
+                    return {**item, "id": instance.id, "name": instance.name}
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Source not found.")
+
+    @staticmethod
+    def _source_type_meta(source_type_id: str) -> dict:
+        for item in _SOURCES:
+            if item["id"] == source_type_id or item["provider"] == source_type_id:
+                return item
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Source type not found.")
 
     def _source_lifecycle_contract(self, source_id: str) -> dict[str, str | None]:
         profile = (
