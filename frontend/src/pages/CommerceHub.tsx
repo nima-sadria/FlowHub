@@ -873,13 +873,15 @@ export function ConfigPanel({
       && !secrets.password?.trim(),
   )
   const spreadsheetSelected = Boolean(settings.spreadsheet_path?.trim())
-  const nextcloudTestTargetSaved = nextcloudConnectionMatchesDraft
+  const spreadsheetSelectionSaved = spreadsheetSelected
     && savedNextcloudSpreadsheetPath === String(settings.spreadsheet_path ?? '').trim()
+  // Connection-test evidence belongs to the persisted connection identity, not
+  // to the selected workbook. A workbook can be saved later without making a
+  // successful, matching connection test disappear.
+  const nextcloudTestTargetSaved = nextcloudConnectionMatchesDraft
   // Health evidence belongs to the persisted connection identity. A healthy
   // result for URL/user/secret A must never unlock remote work for draft B.
-  const savedNextcloudConnectionHealthy = persistedNextcloudConnectionConfigured
-    && lastTestEvidence?.status.trim().toLowerCase() === 'healthy'
-  const nextcloudConnectionUsable = savedNextcloudConnectionHealthy
+  const nextcloudConnectionConfigured = persistedNextcloudConnectionConfigured
     && nextcloudConnectionMatchesDraft
   const hasLastTestEvidence = Boolean(
     lastTestEvidence
@@ -900,15 +902,15 @@ export function ConfigPanel({
   const nextcloudSourceDisabled = isNextcloudSource
     && savedSourceEnabled === false
     && persistedNextcloudConnectionConfigured
-  const nextcloudConnectionNeedsVerification = isNextcloudSource
+  const nextcloudConnectionNeedsSave = isNextcloudSource
     && persistedNextcloudConnectionConfigured
     && !nextcloudConnectionMatchesDraft
     && !nextcloudSourceDisabled
-  const nextcloudSpreadsheetNeedsVerification = isNextcloudSource
-    && nextcloudConnectionUsable
+  const nextcloudSpreadsheetNeedsSave = isNextcloudSource
+    && nextcloudConnectionConfigured
     && spreadsheetSelected
-    && !nextcloudTestTargetSaved
-  const nextcloudRemoteActionsAvailable = nextcloudConnectionUsable && !nextcloudSourceDisabled
+    && !spreadsheetSelectionSaved
+  const nextcloudRemoteActionsAvailable = nextcloudConnectionConfigured && !nextcloudSourceDisabled
   const nextcloudConnectionState = !persistedNextcloudConnectionConfigured
     ? 'not_configured'
     : nextcloudSourceDisabled
@@ -920,21 +922,17 @@ export function ConfigPanel({
           : hasLastTestEvidence
             ? 'needs_attention'
             : 'configured_not_verified'
-  const worksheetSelected = spreadsheetSelected
-    && (worksheetMode === 'all' || Boolean(worksheetName.trim()))
-  const worksheetPolicyDraftValid = worksheetMode === 'all' || Boolean(worksheetName.trim())
-  // Connection health unlocks connection-independent declarations. Workbook
-  // selection remains a separate prerequisite only for the Data Sheet.
+  // A workbook is a valid persisted partial-setup state. Worksheet participation
+  // is chosen only after its real inventory can be discovered in the Data Sheet.
   const completedSourceSetup = isNextcloudSource && configurationWasConfigured
   const worksheetStepAvailable = !isNextcloudSource
-    || nextcloudConnectionUsable
+    || (nextcloudConnectionConfigured && spreadsheetSelectionSaved)
   const dataSheetStepAvailable = !isNextcloudSource
-    || (nextcloudConnectionUsable && nextcloudTestTargetSaved && worksheetSelected)
-  // Monetary representation is FlowHub-local. Keep it editable while an
-  // existing saved connection is healthy, even if the Owner is preparing a
-  // replacement connection that still needs verification.
+    || (nextcloudConnectionConfigured && spreadsheetSelectionSaved)
+  // Monetary representation is FlowHub-local. It follows the saved connection
+  // identity, not optional health evidence from a separate Test operation.
   const monetaryStepAvailable = !isNextcloudSource
-    || (savedNextcloudConnectionHealthy && !nextcloudSourceDisabled)
+    || (nextcloudConnectionConfigured && !nextcloudSourceDisabled)
   const canTest = selected.provider === 'nextcloud'
     ? Boolean(settings.url?.trim()) && hasNextcloudUsername(settings) && hasSecret('password') && !nextcloudSourceDisabled
     : selected.provider === 'snappshop'
@@ -952,16 +950,13 @@ export function ConfigPanel({
   const canSaveConnection = isNextcloudSource
     && nextcloudConnectionReady
     && !nextcloudUrlError
-  const canSave = Boolean(currency) && Boolean(currencyUnit)
-    && (!isNextcloudSource || (
-      nextcloudConnectionUsable
+  const canSave = (!isNextcloudSource || (
+      nextcloudConnectionConfigured
       && nextcloudConnectionReady
       && !nextcloudUrlError
-      && worksheetPolicyDraftValid
     ))
+    && (isNextcloudSource || (Boolean(currency) && Boolean(currencyUnit)))
     && (!vendorSelectionRequired || Boolean(settings.vendor_id?.trim()))
-  const spreadsheetSelectionSaved = spreadsheetSelected
-    && savedNextcloudSpreadsheetPath === String(settings.spreadsheet_path ?? '').trim()
   const nextcloudConnectionBadge = nextcloudConnectionState === 'healthy'
     ? { variant: 'success' as const, label: translate('commerce:commerceHub.sourceConnectionHealthy') }
     : nextcloudConnectionState === 'needs_attention'
@@ -1050,7 +1045,7 @@ export function ConfigPanel({
               : nextcloudConnectionSnapshot(settings, passwordConfigured),
           )
           setSavedNextcloudSpreadsheetPath(String(settings.spreadsheet_path ?? '').trim())
-          if (!nextcloudTestTargetSaved) setLastTestEvidence(undefined)
+          if (!nextcloudConnectionMatchesDraft) setLastTestEvidence(undefined)
         }
         success({
           title: translate('commerce:commerceHub.sourceSettingsUpdatedSuccessfully'),
@@ -1159,17 +1154,16 @@ export function ConfigPanel({
   async function saveNextcloudSetupAndOpenDataSheet() {
     // An existing configured Source already has a persisted Data Sheet. Opening
     // it must not silently save unrelated connection or worksheet drafts.
-    if (completedSourceSetup && nextcloudConnectionUsable && nextcloudTestTargetSaved && onConfigureData) {
+    if (completedSourceSetup && nextcloudConnectionConfigured && spreadsheetSelectionSaved && onConfigureData) {
       onConfigureData?.(sourceTargetId)
       return
     }
     if (
       !isNextcloudSource
-      || !nextcloudConnectionUsable
-      || !nextcloudTestTargetSaved
+      || !nextcloudConnectionConfigured
+      || !spreadsheetSelectionSaved
       || !nextcloudConnectionReady
       || nextcloudUrlError
-      || !worksheetSelected
     ) return
     setSaving(true)
     try {
@@ -1178,7 +1172,7 @@ export function ConfigPanel({
       setConfigurationWasConfigured(current => current || (result.configured ?? true))
       setSavedSourceEnabled(enabled)
       setSavedNextcloudSpreadsheetPath(String(settings.spreadsheet_path ?? '').trim())
-      if (!nextcloudTestTargetSaved) setLastTestEvidence(undefined)
+      if (!nextcloudConnectionMatchesDraft) setLastTestEvidence(undefined)
       setSecrets({})
       success({
         title: translate('commerce:commerceHub.sourceSettingsUpdatedSuccessfully'),
@@ -1325,8 +1319,8 @@ export function ConfigPanel({
     if (!nextcloudRemoteActionsAvailable || !savedNextcloudConnection) {
       const message = nextcloudSourceDisabled
         ? translate('commerce:commerceHub.sourceDisabledRemoteActions')
-        : nextcloudConnectionNeedsVerification
-          ? translate('commerce:commerceHub.connectionChangesRequireTest')
+        : nextcloudConnectionNeedsSave
+          ? translate('commerce:commerceHub.connectionChangesRequireSave')
           : translate('commerce:commerceHub.validation.saveConnectionBeforeBrowsing')
       setPickerError(message)
       notifyError(message)
@@ -1337,9 +1331,11 @@ export function ConfigPanel({
     setPickerLoading(true)
     setPickerError(null)
     try {
-      // Remote browsing is enabled only when the displayed connection identity
-      // is the saved, healthy one. Never browse a stale connection behind a
-      // changed URL, username, or replacement secret.
+      // Remote browsing uses only the saved connection identity. Test evidence
+      // remains useful health information, but it is not a hidden prerequisite
+      // for provider I/O that the backend permits for a configured connection.
+      // Never browse a stale connection behind a changed URL, username, or
+      // replacement secret.
       const result = await commerce.browseNextcloud(sourceTargetId, {
         path,
         settings,
@@ -1754,8 +1750,8 @@ export function ConfigPanel({
       {hasSpreadsheetResource && (
         <div className="fh-stack">
           <div
-            className={["fh-form-section", isNextcloudSource && !nextcloudConnectionUsable ? "opacity-70" : ''].join(' ')}
-            aria-disabled={isNextcloudSource && !nextcloudConnectionUsable}
+            className={["fh-form-section", isNextcloudSource && !nextcloudConnectionConfigured ? "opacity-70" : ''].join(' ')}
+            aria-disabled={isNextcloudSource && !nextcloudConnectionConfigured}
             data-setup-step="spreadsheet"
           >
             {selected.provider === "nextcloud" ? (
@@ -1798,8 +1794,8 @@ export function ConfigPanel({
                   <p className="mt-3 fh-text-caption" role="note">
                     <Icon name="info" /> {translate(nextcloudSourceDisabled
                       ? 'commerce:commerceHub.sourceDisabledRemoteActions'
-                      : nextcloudConnectionNeedsVerification
-                        ? 'commerce:commerceHub.connectionChangesRequireTest'
+                      : nextcloudConnectionNeedsSave
+                        ? 'commerce:commerceHub.connectionChangesRequireSave'
                         : 'commerce:commerceHub.lockedUntilConnectionSaved')}
                   </p>
                 )}
@@ -1831,16 +1827,24 @@ export function ConfigPanel({
               <p className="fh-form-section-title">{translate('commerce:commerceHub.worksheet')}</p>
               <p className="fh-form-section-description">{translate(isExistingNextcloudSource
                 ? 'commerce:commerceHub.editWorksheetDescription'
-                : 'commerce:commerceHub.chooseWhetherFlowhubShouldReadEveryWorksheet')}</p>
+                : 'commerce:commerceHub.worksheetScopeAfterWorkbookSave')}</p>
             </div>
             {!worksheetStepAvailable && (
               <p className="fh-text-caption" role="note"><Icon name="info" /> {translate(
-                nextcloudConnectionNeedsVerification
-                  ? 'commerce:commerceHub.connectionChangesRequireTest'
-                  : 'commerce:commerceHub.lockedUntilConnectionSaved',
+                nextcloudConnectionNeedsSave
+                  ? 'commerce:commerceHub.connectionChangesRequireSave'
+                  : spreadsheetSelected
+                    ? 'commerce:commerceHub.spreadsheetChangesRequireSave'
+                    : 'commerce:commerceHub.lockedUntilConnectionSaved',
               )}</p>
             )}
-            <fieldset
+            {isNextcloudSource && !isExistingNextcloudSource ? (
+              <p className="fh-text-caption" role="note"><Icon name="info" /> {translate(
+                worksheetStepAvailable
+                  ? 'commerce:commerceHub.worksheetScopeAfterWorkbookSave'
+                  : 'commerce:commerceHub.saveWorkbookBeforeWorksheetScope',
+              )}</p>
+            ) : <fieldset
               className="flex flex-col gap-2 fh-text-body"
               disabled={!worksheetStepAvailable}
             >
@@ -1871,7 +1875,7 @@ export function ConfigPanel({
                   className="fh-input"
                 />
               </label>
-            </fieldset>
+            </fieldset>}
           </div>
 
           <div
@@ -1907,11 +1911,11 @@ export function ConfigPanel({
             )}
             {isNextcloudSource && !dataSheetStepAvailable && (
               <p className="fh-text-caption" role="note"><Icon name="info" /> {translate(
-                nextcloudConnectionNeedsVerification
-                  ? 'commerce:commerceHub.connectionChangesRequireTest'
-                  : nextcloudSpreadsheetNeedsVerification
-                    ? 'commerce:commerceHub.spreadsheetChangesRequireSaveAndTest'
-                  : nextcloudConnectionUsable
+                nextcloudConnectionNeedsSave
+                  ? 'commerce:commerceHub.connectionChangesRequireSave'
+                  : nextcloudSpreadsheetNeedsSave
+                    ? 'commerce:commerceHub.spreadsheetChangesRequireSave'
+                  : nextcloudConnectionConfigured
                     ? 'commerce:commerceHub.saveSourceSetupBeforeDataSheet'
                     : 'commerce:commerceHub.lockedUntilConnectionSaved',
               )}</p>
@@ -1958,7 +1962,7 @@ export function ConfigPanel({
                       value={currencyUnit}
                       onChange={event => setCurrencyUnit(event.target.value)}
                       className="fh-select"
-                      required
+                      required={!isNextcloudSource}
                     >
                       <option value="">{translate('commerce:commerceHub.selectCurrencyUnit')}</option>
                       <option value="RIAL">{translate('commerce:commerceHub.rial')}</option>
@@ -2201,10 +2205,11 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
     if (existing) return existing
 
     // The first Nextcloud Data Sheet profile is a projection of the persisted
-    // Source policy. Do not seed a different Sheet1 policy, and do not mutate
-    // an existing profile/mapping revision when the connection policy changes.
-    let worksheetMode: 'all' | 'selected' = 'selected'
-    let worksheetName: string | null = 'Sheet1'
+    // Source policy. Never invent Sheet1: a partial selected-workbook setup
+    // has no discovered worksheet yet, so the Data Sheet starts with neutral
+    // all-worksheet participation until the user detects real inventory.
+    let worksheetMode: 'all' | 'selected' = 'all'
+    let worksheetName: string | null = null
     if (externalId.startsWith('nextcloud:')) {
       const configuration = await commerce.getSourceConfiguration(externalId)
       worksheetMode = configuration.settings.worksheet_mode === 'selected'
@@ -2213,10 +2218,14 @@ export function CommerceHubContent({ initialTab }: { initialTab?: Tab } = {}) {
       const configuredName = typeof configuration.settings.worksheet_name === 'string'
         ? configuration.settings.worksheet_name.trim()
         : ''
-      if (worksheetMode === 'selected' && !configuredName) {
-        throw new Error('Saved selected worksheet policy has no worksheet name.')
+      if (worksheetMode === 'selected' && configuredName) {
+        worksheetName = configuredName
+      } else if (worksheetMode === 'selected') {
+        // The workbook is persisted but scope is intentionally incomplete.
+        // SourceWorkspace accepts all/null as its safe provisional profile;
+        // it does not imply that a particular worksheet will be read.
+        worksheetMode = 'all'
       }
-      worksheetName = worksheetMode === 'selected' ? configuredName : null
     }
 
     return sourceWorkspaceApi.createSource({

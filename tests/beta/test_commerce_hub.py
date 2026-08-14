@@ -2347,10 +2347,6 @@ def test_nextcloud_source_mapping_and_read_policy_are_saved(client, auth_headers
             },
             "Duplicate enabled source mapping column",
         ),
-        (
-            {"worksheet_mode": "selected", "worksheet_name": ""},
-            "worksheet_name is required",
-        ),
     ],
 )
 def test_nextcloud_source_mapping_validation_rejects_invalid_settings(client, auth_headers, settings, message):
@@ -2367,6 +2363,46 @@ def test_nextcloud_source_mapping_validation_rejects_invalid_settings(client, au
     assert response.status_code == 422
     assert message in response.text
     assert "app-password-secret" not in response.text
+
+
+def test_nextcloud_workbook_can_be_saved_before_worksheet_selection(
+    client, auth_headers
+):
+    response = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/prices.xlsx",
+                "worksheet_mode": "selected",
+                "worksheet_name": "",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "app-password-secret" not in response.text
+    saved = response.json()
+    assert saved["connection_configured"] is True
+    assert saved["configured"] is False
+    assert saved["configuration_state"] == "setup_required"
+
+    reopened = client.get(
+        "/api/v2/commerce/sources/nextcloud:primary/configuration",
+        headers=auth_headers,
+    )
+    assert reopened.status_code == 200
+    body = reopened.json()
+    assert body["settings"]["spreadsheet_path"] == "/Reports/prices.xlsx"
+    assert body["settings"]["worksheet_mode"] == "selected"
+    assert body["settings"]["worksheet_name"] == ""
+    assert body["secrets"]["password"]["status"] == "configured"
+    assert body["configured"] is False
+    assert body["configuration_state"] == "setup_required"
 
 
 def test_nextcloud_manual_read_now_uses_mapping_and_never_writes(client, auth_headers, monkeypatch):

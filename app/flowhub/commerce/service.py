@@ -3228,8 +3228,11 @@ class CommerceHubService:
         worksheet_mode = str(settings.get("worksheet_mode") or "all").strip().lower()
         if worksheet_mode not in {"all", "selected"}:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "worksheet_mode must be all or selected.")
-        if worksheet_mode == "selected" and not str(settings.get("worksheet_name") or "").strip():
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "worksheet_name is required when selected worksheet mode is enabled.")
+        # A saved connection and workbook are a valid partial setup. The
+        # worksheet inventory is only available after the workbook is
+        # persisted, so selected mode may temporarily have no name. Complete
+        # setup remains false in _source_setup_configured(), and the canonical
+        # Data Sheet mapping validation still requires a real worksheet scope.
 
     def _validate_nextcloud_base_url(self, raw_url: str) -> str:
         return self._normalize_nextcloud_url(raw_url, "")["server_root_url"]

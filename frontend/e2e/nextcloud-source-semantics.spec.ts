@@ -28,8 +28,12 @@ function json(route: Route, body: unknown, status = 200) {
 async function installNextcloudSourceMocks(
   page: Page,
   audit: TrafficAudit,
-  options: { enabled: boolean; allowSave?: boolean; allowCreate?: boolean; archived?: boolean },
+  options: { enabled: boolean; allowSave?: boolean; allowCreate?: boolean; archived?: boolean; workbookFlow?: boolean },
 ) {
+  const workbookSourceId = 'nextcloud:workbook-flow'
+  const workbookManagedSourceId = 'managed-nextcloud-workbook-flow'
+  let workbookSourceCreated = false
+  let persistedWorkbookPath = ''
   await page.addInitScript(() => {
     localStorage.setItem('wp_token', 'nextcloud-source-semantics-isolated-token')
     localStorage.setItem('flowhub.locale', 'en')
@@ -46,6 +50,84 @@ async function installNextcloudSourceMocks(
     }
     if (url.pathname.startsWith('/static/logos/')) return route.fulfill({ status: 204 })
     if (!url.pathname.startsWith('/api/')) return route.continue()
+    if (options.workbookFlow
+      && method === 'POST'
+      && url.pathname === '/api/v2/commerce/sources') {
+      workbookSourceCreated = true
+      audit.writes.push(`${method} ${url.pathname}`)
+      audit.savedPayloads.push(request.postDataJSON())
+      return json(route, {
+        source_id: workbookSourceId,
+        settings: {
+          url: 'https://workbook.example.test', username: 'workbook-owner',
+          spreadsheet_path: '', worksheet_mode: 'selected', worksheet_name: '',
+        },
+        secrets: { password: { status: 'configured', replaced_at: '2026-08-14T09:00:00Z' } },
+        configured: false,
+        connection_configured: true,
+        configuration_state: 'setup_required',
+        read_only: true,
+        runtime_write_blocked: true,
+        write_blocked: true,
+        credentials_returned: false,
+        external_call_performed: false,
+      }, 201)
+    }
+    if (options.workbookFlow
+      && method === 'POST'
+      && decodeURIComponent(url.pathname) === `/api/v2/commerce/sources/${workbookSourceId}/browse`) {
+      return json(route, {
+        path: '/',
+        directories: [],
+        files: [{
+          name: 'Price List.xlsx', path: '/wooprice/Price List.xlsx', type: 'file', extension: '.xlsx',
+          modified_at: null, size: 1024, supported: true,
+        }],
+        read_only: true,
+        write_blocked: true,
+        external_call_performed: true,
+      })
+    }
+    if (options.workbookFlow
+      && method === 'PUT'
+      && decodeURIComponent(url.pathname) === `/api/v2/commerce/sources/${workbookSourceId}/settings`) {
+      const payload = request.postDataJSON() as { settings?: { spreadsheet_path?: string } }
+      persistedWorkbookPath = payload.settings?.spreadsheet_path ?? persistedWorkbookPath
+      audit.writes.push(`${method} ${decodeURIComponent(url.pathname)}`)
+      audit.savedPayloads.push(payload)
+      return json(route, {
+        settings: {
+          url: 'https://workbook.example.test', username: 'workbook-owner',
+          spreadsheet_path: persistedWorkbookPath, worksheet_mode: 'selected', worksheet_name: '',
+        },
+        secrets: { password: { status: 'configured', replaced_at: '2026-08-14T09:00:00Z' } },
+        configured: false,
+        connection_configured: true,
+        configuration_state: 'setup_required',
+        read_only: true,
+        runtime_write_blocked: true,
+        write_blocked: true,
+      })
+    }
+    if (options.workbookFlow && method === 'POST' && url.pathname === '/api/v2/sources') {
+      audit.writes.push(`${method} ${url.pathname}`)
+      audit.savedPayloads.push(request.postDataJSON())
+      return json(route, {
+        id: workbookManagedSourceId,
+        name: 'Nextcloud Data Sheet',
+        sourceKind: 'external',
+        externalSourceId: workbookSourceId,
+        worksheetMode: 'all',
+        worksheetName: null,
+        dataStartRow: 2,
+        status: 'active',
+        version: 1,
+        mappingVersion: 0,
+        sheetId: null,
+        createdAt: null,
+        updatedAt: null,
+      }, 201)
+    }
     if (
       options.allowSave
       && method === 'PUT'
@@ -123,6 +205,35 @@ async function installNextcloudSourceMocks(
     if (url.pathname === '/api/v2/setup/status') return json(route, { completed: true })
     if (url.pathname === '/api/health') return json(route, { status: 'ok', env: 'test', version: 'nextcloud-source-semantics-mock' })
     if (url.pathname === '/api/v2/exchange-rates/me') return json(route, { selections: [], rates: [] })
+    if (options.workbookFlow && url.pathname === '/api/v2/source-profiles') return json(route, { items: [] })
+    if (options.workbookFlow && url.pathname === `/api/v2/sources/${workbookManagedSourceId}/configuration`) return json(route, {
+      id: workbookManagedSourceId,
+      name: 'Nextcloud Data Sheet',
+      sourceKind: 'external',
+      externalSourceId: workbookSourceId,
+      worksheetMode: 'all',
+      worksheetName: null,
+      dataStartRow: 2,
+      status: 'active',
+      version: 1,
+      mappingVersion: 0,
+      sheetId: null,
+      createdAt: null,
+      updatedAt: null,
+      mapping: null,
+      legacyMapping: null,
+      configuredWorksheets: [],
+      readQuota: { enabled: true, limit: 10, usage: 0, remaining: 10, reset_at: null, exhausted: false },
+      worksheetDiscovery: { requires_remote_read: false, metadata_source: 'discovery_cache', reason: null, snapshot_id: null, snapshot_version: null, snapshot_at: null, worksheet_names: [] },
+    })
+    if (options.workbookFlow && url.pathname === `/api/v2/sources/${workbookManagedSourceId}/worksheets`) return json(route, {
+      sourceId: workbookManagedSourceId,
+      sourceRevisionId: null,
+      items: [],
+      readQuota: { enabled: true, limit: 10, usage: 0, remaining: 10, resetAt: null, exhausted: false },
+      discoveryQuota: { enabled: true, limit: 30, usage: 0, remaining: 30, resetAt: null, exhausted: false },
+      worksheetDiscovery: { requiresRemoteRead: false, metadataSource: 'discovery_cache', remoteReadUsed: false, snapshotId: null, snapshotVersion: null, snapshotAt: null },
+    })
     if (url.pathname === '/api/v2/source-profiles') return json(route, { items: [{
       id: managedSourceId,
       name: 'Nextcloud Data Sheet',
@@ -158,6 +269,37 @@ async function installNextcloudSourceMocks(
       configuredWorksheets: [],
       readQuota: { enabled: true, limit: 10, usage: 2, remaining: 8, reset_at: null, exhausted: false },
       worksheetDiscovery: { requires_remote_read: false, metadata_source: 'snapshot', reason: null, snapshot_id: 5, snapshot_version: 1, snapshot_at: '2026-08-13T08:00:00Z', worksheet_names: ['Prices'] },
+    })
+    if (options.workbookFlow && url.pathname === '/api/v2/commerce/sources') return json(route, {
+      items: workbookSourceCreated ? [{
+        id: workbookSourceId,
+        provider: 'nextcloud',
+        name: 'Nextcloud',
+        type: 'Source',
+        status: 'setup_required',
+        lifecycle_status: 'active',
+        archived_at: null,
+        implemented: true,
+        placeholder: false,
+        enabled: true,
+        credential_status: 'configured',
+        connection_configured: true,
+        configuration_state: 'setup_required',
+        last_health_check: null,
+        data_role: 'Spreadsheet price input',
+        action_label: 'Manage',
+        action_href: '/commerce?tab=sources',
+        health: { status: 'unknown', message: '', latency_ms: null, error_code: null },
+        read_only: true,
+        runtime_write_blocked: true,
+        settings_available: true,
+      }] : [],
+      relationship_map: {
+        nodes: ['Source', 'FlowHub / Data Layer', 'Channel'],
+        example: ['Nextcloud', 'FlowHub / Data Layer', 'Channel'],
+        runtime_write_blocked: true,
+        read_only: true,
+      },
     })
     if (url.pathname === '/api/v2/commerce/sources') return json(route, {
       items: [{
@@ -203,7 +345,18 @@ async function installNextcloudSourceMocks(
         write_blocked: true,
         runtime_write_blocked: true,
         settings_schema: settingsSchema,
-      }],
+      }, ...(options.workbookFlow && workbookSourceCreated ? [{
+        id: workbookSourceId,
+        provider: 'nextcloud',
+        name: 'Nextcloud',
+        type: 'Source',
+        implemented: true,
+        placeholder: false,
+        read_only: true,
+        write_blocked: true,
+        runtime_write_blocked: true,
+        settings_schema: settingsSchema,
+      }] : [])],
     })
     if (url.pathname === '/api/v2/commerce/channel-types') return json(route, { items: [] })
     if (
@@ -231,6 +384,28 @@ async function installNextcloudSourceMocks(
         settings_schema: settingsSchema,
         credentials_returned: false,
         currency_profile: { status: 'resolved', currency: 'IRR', unit: 'RIAL' },
+      })
+    }
+    if (options.workbookFlow
+      && decodeURIComponent(url.pathname) === `/api/v2/commerce/sources/${workbookSourceId}/configuration`) {
+      return json(route, {
+        source_id: workbookSourceId,
+        provider: 'nextcloud',
+        display_name: 'Nextcloud',
+        configured: false,
+        connection_configured: true,
+        configuration_state: 'setup_required',
+        last_test: null,
+        enabled: true,
+        access_mode: 'read_only',
+        settings: {
+          url: 'https://workbook.example.test', username: 'workbook-owner',
+          spreadsheet_path: persistedWorkbookPath, worksheet_mode: 'selected', worksheet_name: '',
+        },
+        secrets: { password: { status: 'configured', replaced_at: '2026-08-14T09:00:00Z' } },
+        settings_schema: settingsSchema,
+        credentials_returned: false,
+        currency_profile: { status: 'unresolved', currency: null, unit: null },
       })
     }
     if (decodeURIComponent(url.pathname) === `/api/v2/commerce/sources/${sourceId}/configuration`) {
@@ -371,6 +546,67 @@ test('Add Source creates and tests an independent Nextcloud connector while arch
     'POST /api/v2/commerce/sources/nextcloud:replacement-1/test',
   ])
   expect(audit.writes).not.toContain('PUT /api/v2/commerce/sources/nextcloud:primary/settings')
+  expect(audit.externalRequests).toEqual([])
+  expect(audit.unhandledApiRequests).toEqual([])
+})
+
+test('a new Nextcloud workbook can be saved before worksheet selection and reopened for discovery', async ({ page }) => {
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [], writes: [], savedPayloads: [] }
+  await installNextcloudSourceMocks(page, audit, {
+    enabled: true,
+    allowCreate: true,
+    workbookFlow: true,
+  })
+
+  await page.goto('/commerce?tab=sources')
+  await page.getByRole('button', { name: 'Add source' }).click()
+  await page.getByLabel('Enabled').check()
+  await page.getByLabel('Nextcloud server URL').fill('https://workbook.example.test')
+  await page.getByLabel('Username').fill('workbook-owner')
+  await page.locator('input[type="password"]').fill('workbook-secret')
+  await page.getByRole('button', { name: 'Save connection' }).click()
+
+  await expect(page.getByTestId('nextcloud-connection-state')).toHaveText('Configured — not verified')
+  await expect(page.getByRole('button', { name: 'Browse Nextcloud' })).toBeEnabled()
+  await expect(page.locator('[data-setup-step="monetary-unit"] fieldset')).toBeEnabled()
+  expect(audit.writes).toEqual(['POST /api/v2/commerce/sources'])
+
+  await page.getByRole('button', { name: 'Browse Nextcloud' }).click()
+  await page.getByRole('button', { name: /Price List\.xlsx/ }).click()
+  await expect(page.getByTestId('nextcloud-selected-file')).toContainText('Selected — save to keep')
+  await expect(page.locator('[data-setup-step="worksheet"] fieldset')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Save configuration' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Save configuration' }).click()
+
+  await expect.poll(() => audit.writes).toEqual([
+    'POST /api/v2/commerce/sources',
+    `PUT /api/v2/commerce/sources/${'nextcloud:workbook-flow'}/settings`,
+  ])
+  expect(audit.writes.some(item => item.endsWith('/test'))).toBe(false)
+  expect(audit.savedPayloads[1]).toMatchObject({
+    settings: {
+      spreadsheet_path: '/wooprice/Price List.xlsx',
+      worksheet_mode: 'all',
+      worksheet_name: '',
+    },
+    secrets: {},
+  })
+
+  await page.reload()
+  const sourceCard = page.locator('[data-source-id="nextcloud:workbook-flow"]')
+  await expect(sourceCard).toBeVisible()
+  await sourceCard.getByRole('button', { name: 'Edit connection' }).click()
+  await expect(page.getByTestId('nextcloud-selected-file')).toContainText('/wooprice/Price List.xlsx')
+  await expect(page.getByRole('button', { name: 'Save and open Data Sheet' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Save and open Data Sheet' }).click()
+
+  await expect(page).toHaveURL('/sources/managed-nextcloud-workbook-flow')
+  await expect(page.getByRole('button', { name: 'Detect worksheets' })).toBeEnabled()
+  expect(audit.savedPayloads).toContainEqual(expect.objectContaining({
+    external_source_id: 'nextcloud:workbook-flow',
+    worksheet_mode: 'all',
+    worksheet_name: null,
+  }))
   expect(audit.externalRequests).toEqual([])
   expect(audit.unhandledApiRequests).toEqual([])
 })

@@ -304,7 +304,7 @@ export default function SourceConfiguration() {
   const [detectingWorksheets, setDetectingWorksheets] = useState(false)
   const [worksheetDiscoveryFeedback, setWorksheetDiscoveryFeedback] = useState<WorksheetDiscoveryFeedback | null>(null)
   const [dataStartRow, setDataStartRow] = useState(1)
-  const [worksheetName, setWorksheetName] = useState('Sheet1')
+  const [worksheetName, setWorksheetName] = useState('')
   const [valuePolicy, setValuePolicy] = useState<Record<string, string>>(DEFAULT_VALUE_POLICY)
   const [preview, setPreview] = useState<SourcePreview | null>(null)
   const [previewing, setPreviewing] = useState(false)
@@ -363,7 +363,7 @@ export default function SourceConfiguration() {
       setChannelProfilesUnavailable(!channelResult.ok)
       setDataStartRow(loaded.mapping?.dataStartRow ?? loaded.dataStartRow)
       setWorksheetMode(loaded.mapping?.worksheetMode ?? loaded.worksheetMode)
-      setWorksheetName(loaded.mapping?.worksheetName ?? loaded.worksheetName ?? 'Sheet1')
+      setWorksheetName(loaded.mapping?.worksheetName ?? loaded.worksheetName ?? '')
       setSelectedWorksheetNames(
         loaded.mapping?.selectedWorksheetNames?.length
           ? loaded.mapping.selectedWorksheetNames
