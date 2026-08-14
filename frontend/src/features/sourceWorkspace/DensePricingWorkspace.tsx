@@ -7,7 +7,7 @@ import { ResourceOptionGroups } from '../../components/ResourceOrdering'
 import { translate } from '../../i18n'
 import { formatField, formatStatus } from '../../i18n/display'
 import { localizedApiError } from '../../i18n/errors'
-import { formatNumber } from '../../i18n/format'
+import { formatCurrencyLabel, formatNumber } from '../../i18n/format'
 import { useNotification } from '../../notifications/NotificationProvider'
 import type { UnifiedWorkspaceService } from '../../services/unifiedWorkspace/UnifiedWorkspaceService'
 import type { ApplyResource, ReviewItemResource, ReviewResource, UnifiedWorkspaceResource } from '../../services/unifiedWorkspace/types'
@@ -843,7 +843,7 @@ function BulkEditDialog({ grid, descriptors, channelById, channelFilter, pricing
           <div className="min-w-0">
             <h2 className="fh-section-title">{translate('products:products.bulkEditProducts')}</h2>
             <p className="fh-text-caption fh-bulk-subtitle">
-              <Badge variant="neutral">{translate('products:products.productsSelected', { count: scopedProducts })}</Badge>
+              <Badge variant="neutral">{translate('products:products.productsSelected', { value: formatNumber(scopedProducts) })}</Badge>
               <span>{translate('products:products.channelListingsAffected', { count: scopedListings, value: formatNumber(scopedListings) })}</span>
             </p>
           </div>
@@ -1013,15 +1013,6 @@ function statusTone(value: string): 'success' | 'warning' | 'danger' | 'neutral'
   if (AVAILABLE_STATUS_LITERALS.has(literal)) return 'success'
   if (UNAVAILABLE_STATUS_LITERALS.has(literal)) return 'danger'
   return 'warning'
-}
-
-function formatCurrencyLabel(currency: string): string {
-  try {
-    const parts = new Intl.NumberFormat(undefined, { style: 'currency', currency, currencyDisplay: 'symbol' }).formatToParts(1)
-    return parts.find(part => part.type === 'currency')?.value ?? currency
-  } catch {
-    return currency
-  }
 }
 
 function formatPricingUnitLabel(currency: string, unit: string): string {

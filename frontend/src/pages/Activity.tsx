@@ -9,7 +9,7 @@ import { SkeletonCard } from '../components/loading/Skeleton'
 import PageShell from '../components/PageShell'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { translate } from '../i18n'
-import { formatRelativeTime } from '../i18n/format'
+import { formatNumber, formatRelativeTime } from '../i18n/format'
 import { inputHint } from '../utils/inputHint'
 import { useServices } from '../services/ServiceContext'
 import type { ActivityEvent, ActivityLevel, BusinessEventLifecycleTransition } from '../services/types'
@@ -233,7 +233,7 @@ function EventRow({ event, onLifecycleChange }: {
           {(event.repeatCount ?? 1) > 1 && ` — ${event.repeatCount}`}
         </p>
         <p className="fh-text-caption truncate">{event.actor}</p>
-        {event.repeatCount && event.repeatCount > 1 && <p className="fh-text-caption mt-1">{translate('activity:activity.groupedRoutineSummary', { count: event.repeatCount })}</p>}
+        {event.repeatCount && event.repeatCount > 1 && <p className="fh-text-caption mt-1">{translate('activity:activity.groupedRoutineSummary', { count: event.repeatCount, value: formatNumber(event.repeatCount) })}</p>}
         {isBusinessEvent && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {event.status && (
@@ -480,7 +480,7 @@ export default function Activity() {
       <div className="fh-card">
         <div className="fh-panel-header">
           <span className="fh-section-title">{translate('activity:activity.today')}</span>
-          {loading ? <span className="fh-text-caption">{translate('activity:activity.loading')}</span> : <Badge dot variant="info">{translate('activity:activity.events', { value1: total })}</Badge>}
+          {loading ? <span className="fh-text-caption">{translate('activity:activity.loading')}</span> : <Badge dot variant="info">{translate('activity:activity.events', { value1: formatNumber(total) })}</Badge>}
         </div>
         <div className="fh-panel-body !pt-0">
           {loading ? <div className="flex flex-col gap-3 py-4"><SkeletonCard /><SkeletonCard /></div>
@@ -490,7 +490,7 @@ export default function Activity() {
                 {routineEvents.length > 0 && <details className="mt-3"><summary className="cursor-pointer fh-section-title">{translate('activity:activity.routineSystemActivity')} ({routineEvents.length})</summary>{routineEvents.map(event => <EventRow key={event.id} event={event} onLifecycleChange={handleLifecycleChange} />)}</details>}
               </>}
         </div>
-        {!loading && hasMore && <div className="fh-panel-footer !justify-start"><button onClick={loadMore} disabled={loadingMore} className="fh-button-secondary w-full"><Icon name="download" />{loadingMore ? translate('activity:activity.loading') : translate('activity:activity.loadMoreRemaining', { value1: total - events.length })}</button></div>}
+        {!loading && hasMore && <div className="fh-panel-footer !justify-start"><button onClick={loadMore} disabled={loadingMore} className="fh-button-secondary w-full"><Icon name="download" />{loadingMore ? translate('activity:activity.loading') : translate('activity:activity.loadMoreRemaining', { value1: formatNumber(total - events.length) })}</button></div>}
       </div>
 
       <div className="fh-card fh-card-pad">

@@ -544,6 +544,7 @@
   display: inline-flex;
   min-height: 40px;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 8px 14px;
   color: var(--fh-text-secondary);
@@ -3460,6 +3461,17 @@ select,
     box-shadow: inset 0 0 0 1px var(--fh-ui-border-emphasis);
   }
 
+  /* Shared stacked action group: buttons auto-size the group to the widest
+     label, then stretch to fill it, so mismatched label lengths never
+     produce mismatched button widths (no per-button hard-coded widths). */
+  .fh-action-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    max-width: 24rem;
+  }
+
   .fh-source-options > button {
     display: flex;
     flex-direction: column;
@@ -4414,7 +4426,8 @@ select,
     font-size: 12px;
     line-height: 18px;
     font-weight: 600;
-    text-align: left;
+    text-align: start;
+    white-space: nowrap;
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }

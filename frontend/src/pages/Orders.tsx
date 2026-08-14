@@ -8,12 +8,11 @@ import { SkeletonCard } from '../components/loading/Skeleton'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import { translate } from '../i18n'
 import { formatStatus } from '../i18n/display'
-import { formatDateTime, formatRelativeTime } from '../i18n/format'
+import { formatCurrencyLabel, formatDateTime, formatNumber, formatRelativeTime } from '../i18n/format'
 import { useServices } from '../services/ServiceContext'
 import type { OrderSyncStatus } from '../services/orders/OrderService'
 import type { ChannelOrderDetail, ChannelOrderListItem } from '../services/types'
 import { inputHint } from '../utils/inputHint'
-import { formatMoney } from '../utils/price'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
 type ColumnKey = 'channel' | 'customer' | 'status' | 'payment' | 'fulfillment' | 'total' | 'created' | 'sync'
@@ -26,6 +25,17 @@ function formatTime(value: string | null) {
   if (!value) return '—'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : formatDateTime(date)
+}
+
+/**
+ * Amounts are read-only API totals (already numbers), so precision is not a
+ * concern; the label is resolved truthfully from the persisted currency
+ * rather than the raw code, and never converted or inferred.
+ */
+function formatOrderAmount(amount: number | null, currency: string | null): string {
+  if (amount === null) return '-'
+  const label = currency ? formatCurrencyLabel(currency) : ''
+  return label ? `${formatNumber(amount)} ${label}` : formatNumber(amount)
 }
 
 function statusTone(status: string): Tone {
@@ -97,7 +107,7 @@ function OrderDetail({ order, channelName }: { order: ChannelOrderDetail; channe
         <DetailValue label={translate('orders:orders.customer')} value={order.customerDisplay || '—'} />
         <DetailValue label={translate('orders:orders.paymentStatus')} value={formatStatus(order.paymentStatus)} />
         <DetailValue label={translate('orders:orders.fulfillmentStatus')} value={formatStatus(order.fulfillmentStatus)} />
-        <DetailValue label={translate('orders:orders.total')} value={formatMoney(order.finalAmount, { currency: order.currency })} />
+        <DetailValue label={translate('orders:orders.total')} value={formatOrderAmount(order.finalAmount, order.currency)} />
         <DetailValue label={translate('orders:orders.created')} value={formatTime(order.createdAtProvider)} />
         <DetailValue label={translate('orders:orders.updated')} value={formatTime(order.updatedAtProvider)} />
         <DetailValue label={translate('orders:orders.currency')} value={order.currency || '—'} />
@@ -108,7 +118,7 @@ function OrderDetail({ order, channelName }: { order: ChannelOrderDetail; channe
           {order.items.length === 0 ? <p className="fh-text-caption">{translate('orders:orders.noItemData')}</p> : <div className="overflow-x-auto">
             <table className="fh-table min-w-[720px]">
               <thead><tr><th>SKU</th><th>{translate('orders:orders.name')}</th><th>{translate('orders:orders.providerItem')}</th><th>{translate('orders:orders.qty')}</th><th>{translate('orders:orders.finalPrice')}</th><th>{translate('orders:orders.status')}</th></tr></thead>
-              <tbody>{order.items.map(item => <tr key={item.providerItemId}><td>{item.sku || '—'}</td><td>{item.name || '—'}</td><td>{item.providerItemId}</td><td>{item.quantity}</td><td>{formatMoney(item.finalPrice, { currency: order.currency })}</td><td>{item.itemStatus || '—'}</td></tr>)}</tbody>
+              <tbody>{order.items.map(item => <tr key={item.providerItemId}><td>{item.sku || '—'}</td><td>{item.name || '—'}</td><td>{item.providerItemId}</td><td>{formatNumber(item.quantity)}</td><td>{formatOrderAmount(item.finalPrice, order.currency)}</td><td>{item.itemStatus || '—'}</td></tr>)}</tbody>
             </table>
           </div>}
         </section>
@@ -118,7 +128,7 @@ function OrderDetail({ order, channelName }: { order: ChannelOrderDetail; channe
         </section>
         <section>
           <h3 className="fh-section-title mb-3">{translate('orders:orders.invoices')}</h3>
-          {order.invoices.length === 0 ? <p className="fh-text-caption">{translate('orders:orders.noInvoiceData')}</p> : <div className="space-y-2">{order.invoices.map(item => <div className="rounded-md border border-border bg-bg-card p-3" key={item.invoiceNumber}><div className="font-medium">{item.invoiceNumber}</div><div className="fh-text-caption">{formatMoney(item.amount, { currency: item.currency || order.currency })}</div></div>)}</div>}
+          {order.invoices.length === 0 ? <p className="fh-text-caption">{translate('orders:orders.noInvoiceData')}</p> : <div className="space-y-2">{order.invoices.map(item => <div className="rounded-md border border-border bg-bg-card p-3" key={item.invoiceNumber}><div className="font-medium">{item.invoiceNumber}</div><div className="fh-text-caption">{formatOrderAmount(item.amount, item.currency || order.currency)}</div></div>)}</div>}
         </section>
         <section>
           <h3 className="fh-section-title mb-3">{translate('orders:orders.timeline')}</h3>
@@ -428,7 +438,7 @@ export default function Orders() {
           </div>
           <div className="fh-menu-anchor" data-orders-filters>
             <button type="button" className={`fh-chip ${filterCount ? 'fh-chip-active' : ''}`} aria-expanded={filtersOpen} aria-haspopup="dialog" onClick={() => setFiltersOpen(open => !open)}>
-              <Icon name="filter" size="sm" /> {translate('orders:orders.filters')}{filterCount ? ` (${filterCount})` : ''}
+              <Icon name="filter" size="sm" /> {translate('orders:orders.filters')}{filterCount ? ` (${formatNumber(filterCount)})` : ''}
             </button>
             {filtersOpen && <div className="fh-dropdown fh-orders-filters-panel">
               <label className="fh-field">
@@ -441,7 +451,7 @@ export default function Orders() {
               </label>
               <label className="fh-field">
                 <span className="fh-label">{translate('common:pagination.rowsPerPage')}</span>
-                <select className="fh-select" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1) }}>{[25, 50, 100].map(value => <option key={value}>{value}</option>)}</select>
+                <select className="fh-select" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1) }}>{[25, 50, 100].map(value => <option key={value} value={value}>{formatNumber(value)}</option>)}</select>
               </label>
             </div>}
           </div>
@@ -452,7 +462,7 @@ export default function Orders() {
 
       <div className="fh-card" data-orders-table>
         <div className="fh-panel-header">
-          <span className="fh-section-title">{loading ? translate('orders:orders.loading') : translate('orders:orders.orders2', { value1: total })}</span>
+          <span className="fh-section-title">{loading ? translate('orders:orders.loading') : translate('orders:orders.orders2', { value1: formatNumber(total) })}</span>
           <div className="ms-auto flex items-center gap-2">
             <div className="fh-menu-anchor" data-orders-columns>
               <button type="button" className="fh-button-secondary fh-button-sm" aria-expanded={columnsOpen} aria-haspopup="menu" onClick={() => setColumnsOpen(open => !open)}>{translate('orders:orders.columns')}</button>
@@ -496,7 +506,7 @@ export default function Orders() {
                 {!hiddenColumns.has('status') && <td data-status-cell><InlineStatus tone={statusTone(order.normalizedStatus)}>{formatStatus(order.normalizedStatus)}</InlineStatus></td>}
                 {!hiddenColumns.has('payment') && <td>{formatStatus(order.paymentStatus)}</td>}
                 {!hiddenColumns.has('fulfillment') && <td>{formatStatus(order.fulfillmentStatus)}</td>}
-                {!hiddenColumns.has('total') && <td>{formatMoney(order.finalAmount, { currency: order.currency })}</td>}
+                {!hiddenColumns.has('total') && <td>{formatOrderAmount(order.finalAmount, order.currency)}</td>}
                 {!hiddenColumns.has('created') && <td>{formatTime(order.createdAtProvider)}</td>}
                 {!hiddenColumns.has('sync') && <td data-sync-cell>
                   {syncTone(order) === 'danger' && canRetryRow(order)
@@ -519,12 +529,12 @@ export default function Orders() {
           )}
         </div>
         <div className="fh-panel-footer">
-          <span className="fh-text-caption">{translate('orders:orders.rangeOfTotal', { from: rangeFrom, to: rangeTo, total })}</span>
+          <span className="fh-text-caption">{translate('orders:orders.rangeOfTotal', { from: formatNumber(rangeFrom), to: formatNumber(rangeTo), total: formatNumber(total) })}</span>
           <nav className="fh-pager ms-auto" aria-label={translate('common:pagination.previous') + ' / ' + translate('common:pagination.next')} data-orders-pager>
             <button type="button" className="fh-pager-arrow" aria-label={translate('common:pagination.previous')} disabled={page <= 1} onClick={() => setPage(value => value - 1)}><Icon name="previous" size="sm" /></button>
             {pageNumbers(page, pages).map((entry, index) => entry === 'ellipsis'
               ? <span className="fh-page-ellipsis" key={`ellipsis-${index}`}>…</span>
-              : <button type="button" key={entry} className={`fh-page-btn ${entry === page ? 'fh-page-btn-active' : ''}`} aria-current={entry === page ? 'page' : undefined} onClick={() => setPage(entry)}>{entry}</button>)}
+              : <button type="button" key={entry} className={`fh-page-btn ${entry === page ? 'fh-page-btn-active' : ''}`} aria-current={entry === page ? 'page' : undefined} onClick={() => setPage(entry)}>{formatNumber(entry)}</button>)}
             <button type="button" className="fh-pager-arrow" aria-label={translate('common:pagination.next')} disabled={page >= pages} onClick={() => setPage(value => value + 1)}><Icon name="next" size="sm" /></button>
           </nav>
         </div>

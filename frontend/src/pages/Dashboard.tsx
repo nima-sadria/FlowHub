@@ -473,7 +473,7 @@ export default function Dashboard() {
         id: `channel:${channel.channelId}`,
         entityType: 'Channel',
         name: resource.displayName,
-        detail: formatDiagnosticMessage(channel.summary),
+        detail: `${translate('commerce:type.channel')} · ${formatDiagnosticMessage(channel.summary)}`,
         tone,
         tier: resource.tier,
         onClick: () => navigate('/diagnostics'),
@@ -486,10 +486,10 @@ export default function Dashboard() {
         id: `source:${source.id}`,
         entityType: 'Source',
         name: resource.displayName,
-        detail: translate('dashboard:dashboard.products', {
+        detail: `${translate('commerce:type.source')} · ${translate('dashboard:dashboard.products', {
           value1: compactRelTime(source.lastSynced),
           value2: formatNumber(source.productCount),
-        }),
+        })}`,
         tone,
         tier: resource.tier,
         onClick: () => navigate('/sources'),

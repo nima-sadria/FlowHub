@@ -451,11 +451,11 @@ function ChannelHealthRow({
             <Field label={translate('diagnostics:diagnostics.recommendedNextAction')} value={recommendedAction} />
           </dl>
         </div>
-        <div className="flex max-w-sm flex-col items-start gap-2">
+        <div className="fh-action-stack">
           {channel.enabled && needsProductRefresh && (
             <a
               href={`/commerce?tab=channels&channel=${encodeURIComponent(channel.channelId)}`}
-              className="fh-button-secondary self-start"
+              className="fh-button-secondary"
               data-testid={`diagnostics-channel-recovery-${channel.channelId}`}
             >
               <Icon name="refresh" />
@@ -468,7 +468,7 @@ function ChannelHealthRow({
                 type="button"
                 onClick={() => onRefresh(channel.channelId)}
                 disabled={refreshingChannel !== null || connectionTestReason !== null}
-                className="fh-button-secondary self-start"
+                className="fh-button-secondary"
                 data-testid={`diagnostics-channel-test-${channel.channelId}`}
                 aria-describedby={connectionTestReason ? `diagnostics-channel-test-reason-${channel.channelId}` : undefined}
               >
@@ -538,14 +538,14 @@ function SourceHealthRow({
             />
           </dl>
         </div>
-        <div className="flex max-w-sm flex-col items-start gap-2">
+        <div className="fh-action-stack">
           {canTestConnection && (
             <>
               <button
                 type="button"
                 onClick={() => connector.id && onTest(connector.id)}
                 disabled={!connector.id || testingSource !== null || connectionTestReason !== null}
-                className="fh-button-secondary self-start"
+                className="fh-button-secondary"
                 data-testid={`diagnostics-source-test-${connector.id}`}
                 aria-describedby={connectionTestReason ? `diagnostics-source-test-reason-${connector.id}` : undefined}
               >
@@ -559,7 +559,7 @@ function SourceHealthRow({
               )}
             </>
           )}
-          <a href="/sources" className="fh-button-secondary self-start">
+          <a href="/sources" className="fh-button-secondary">
             {translate('diagnostics:diagnostics.openSources', { defaultValue: 'Open Sources' })}
           </a>
         </div>
@@ -813,13 +813,13 @@ export default function Diagnostics() {
     },
     {
       label: translate('diagnostics:diagnostics.channelChecks'),
-      value: translate('diagnostics:diagnostics.readyCountOfTotal', { ready: channelReadyCount, total: channels.length }),
+      value: translate('diagnostics:diagnostics.readyCountOfTotal', { ready: formatNumber(channelReadyCount), total: formatNumber(channels.length) }),
       status: loading ? 'LOADING' : channelStatus,
       icon: 'channel',
     },
     {
       label: translate('diagnostics:diagnostics.sourceChecks'),
-      value: translate('diagnostics:diagnostics.readyCountOfTotal', { ready: sourceReadyCount, total: sourceConnectors.length }),
+      value: translate('diagnostics:diagnostics.readyCountOfTotal', { ready: formatNumber(sourceReadyCount), total: formatNumber(sourceConnectors.length) }),
       status: loading ? 'LOADING' : sourceStatus,
       icon: 'file',
     },

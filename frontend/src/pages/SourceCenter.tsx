@@ -546,7 +546,7 @@ export default function SourceCenter() {
             <span className="fh-kpi-card-label">{translate('sources:sourceCenter.connectedSources')}</span>
             <span className="fh-kpi-card-icon"><Icon name="products" size="sm" /></span>
           </div>
-          <div className="fh-kpi-card-value">{connectedSourcesCount}</div>
+          <div className="fh-kpi-card-value">{formatNumber(connectedSourcesCount)}</div>
         </div>
         <div className="fh-kpi-card">
           <div className="fh-kpi-card-head">
@@ -554,7 +554,7 @@ export default function SourceCenter() {
             <span className="fh-kpi-card-icon"><Icon name="products" size="sm" /></span>
           </div>
           <div className="fh-kpi-card-value">
-            {needsAttentionCount}
+            {formatNumber(needsAttentionCount)}
             {needsAttentionCount > 0 && <span className="fh-kpi-card-trend fh-kpi-card-trend-danger">{translate('sources:sourceCenter.reviewCaption')}</span>}
           </div>
         </div>
@@ -563,7 +563,7 @@ export default function SourceCenter() {
             <span className="fh-kpi-card-label">{translate('sources:sourceCenter.productsImported')}</span>
             <span className="fh-kpi-card-icon"><Icon name="products" size="sm" /></span>
           </div>
-          <div className="fh-kpi-card-value">{totalProducts !== null ? totalProducts.toLocaleString() : '—'}</div>
+          <div className="fh-kpi-card-value">{totalProducts !== null ? formatNumber(totalProducts) : '—'}</div>
         </div>
       </div>
 
@@ -587,7 +587,7 @@ export default function SourceCenter() {
           </select>
           <Icon name="chevronDown" size="sm" className="fh-chip-caret" />
         </label>
-        <span className="fh-sources-count ms-auto">{translate('sources:sourceCenter.sourcesCount', { count: cards.length })}</span>
+        <span className="fh-sources-count ms-auto">{translate('sources:sourceCenter.sourcesCount', { count: cards.length, value: formatNumber(cards.length) })}</span>
       </div>
 
       {loadError && !loading ? (
@@ -645,8 +645,8 @@ export default function SourceCenter() {
             const lastReadAt = readStatus?.last_read_at ?? null
             const validationStatus = readStatus
               ? translate('sources:sourceCenter.validationSummary', {
-                warnings: readStatus.last_warning_count ?? 0,
-                errors: readStatus.last_error_count ?? 0,
+                warnings: formatNumber(readStatus.last_warning_count ?? 0),
+                errors: formatNumber(readStatus.last_error_count ?? 0),
               })
               : source?.mappingVersion
                 ? translate('sources:sourceCenter.mappingReady')
@@ -673,9 +673,9 @@ export default function SourceCenter() {
                 { label: translate('sources:sourceCenter.validationStatus'), value: validationStatus },
                 { label: translate('sources:sourceCenter.dataFreshness'), value: lastReadAt || updatedAt ? formatRelativeTime((lastReadAt ?? updatedAt) as string) : translate('sources:sourceCenter.notReadYet') },
                 ...(worksheetsEnabled !== null
-                  ? [{ label: translate('sources:sourceConfiguration.worksheet'), value: translate('sources:sourceCenter.worksheetsEnabledCount', { count: worksheetsEnabled }) }]
+                  ? [{ label: translate('sources:sourceConfiguration.worksheet'), value: translate('sources:sourceCenter.worksheetsEnabledCount', { count: worksheetsEnabled, value: formatNumber(worksheetsEnabled) }) }]
                   : []),
-                ...(readStatus ? [{ label: translate('sources:sourceCenter.readsRemaining'), value: readStatus.reads_remaining }] : []),
+                ...(readStatus ? [{ label: translate('sources:sourceCenter.readsRemaining'), value: formatNumber(readStatus.reads_remaining) }] : []),
               ]
             const setupDestination = setupDestinationFor(card)
             const canSetup = Boolean(source ? canEditSources : canManageConnectors)
@@ -808,7 +808,7 @@ export default function SourceCenter() {
                 : pendingImpact?.action === 'blocked'
                   ? translate('sources:sourceCenter.activeWorkspacePreventsRemoval')
                   : translate('sources:sourceCenter.safeRemovalImpact')}</p>
-              {pendingImpact && Object.keys(pendingImpact.protectedHistory).length > 0 && <p className="mt-2 fh-text-caption">{translate('sources:sourceCenter.protectedRecords', { count: Object.values(pendingImpact.protectedHistory).reduce((sum, count) => sum + count, 0) })}</p>}
+              {pendingImpact && Object.keys(pendingImpact.protectedHistory).length > 0 && <p className="mt-2 fh-text-caption">{translate('sources:sourceCenter.protectedRecords', { value: formatNumber(Object.values(pendingImpact.protectedHistory).reduce((sum, count) => sum + count, 0)) })}</p>}
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <button ref={removalCancelRef} className="fh-button-secondary" type="button" disabled={deleting} onClick={() => { impactRequestRef.current += 1; setPendingDelete(null); setPendingImpact(null); setCheckingImpact(false) }}>{translate('common:action.cancel')}</button>

@@ -106,7 +106,7 @@
   "products.productCount_one": "{{count}} محصول",
   "products.productCount_other": "{{count}} محصول",
   "products.products": "محصولات",
-  "products.productsSelected": "{{count}} محصول انتخاب شد",
+  "products.productsSelected": "{{value}} محصول انتخاب شد",
   "products.proposedPrice": "قیمت پیشنهادی {{channel}}",
   "products.readOnly": "فقط‌خواندنی",
   "products.readWrite": "خواندن/نوشتن",

@@ -20,7 +20,7 @@ import type {
 } from '../features/sourceWorkspace/types'
 import { translate } from '../i18n'
 import { formatStatus } from '../i18n/display'
-import { formatDateTime } from '../i18n/format'
+import { formatDateTime, formatNumber } from '../i18n/format'
 import { localizedApiError } from '../i18n/errors'
 import { useNotification } from '../notifications/NotificationProvider'
 import { ResourceOptionGroups, ResourceSectionList, ResourceStateBadge } from '../components/ResourceOrdering'
@@ -1881,7 +1881,7 @@ export default function SourceConfiguration() {
                   : translate('sources:sourceCenter.safeRemovalImpact')}</p>
               {removalImpact && Object.keys(removalImpact.protectedHistory).length > 0 && (
                 <p className="mt-2 fh-text-caption">{translate('sources:sourceCenter.protectedRecords', {
-                  count: Object.values(removalImpact.protectedHistory).reduce((sum, count) => sum + count, 0),
+                  value: formatNumber(Object.values(removalImpact.protectedHistory).reduce((sum, count) => sum + count, 0)),
                 })}</p>
               )}
             </div>

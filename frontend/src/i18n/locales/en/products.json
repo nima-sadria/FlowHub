@@ -106,7 +106,7 @@
   "products.productCount_one": "{{count}} product",
   "products.productCount_other": "{{count}} products",
   "products.products": "Products",
-  "products.productsSelected": "{{count}} products selected",
+  "products.productsSelected": "{{value}} products selected",
   "products.proposedPrice": "{{channel}} proposed price",
   "products.readOnly": "Read-only",
   "products.readWrite": "Read/write",

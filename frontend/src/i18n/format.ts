@@ -42,3 +42,21 @@ export function formatPrice(value: number, currency: string, unit?: string): str
   try { return new Intl.NumberFormat(locale(), { style: 'currency', currency }).format(value) }
   catch { return `${formatNumber(value)} ${currency}` }
 }
+
+/**
+ * Canonical short currency label. `IRT` is a real FlowHub currency choice
+ * (see settings:settings.currencyOption.IRT) but is not ISO 4217, so Intl
+ * cannot resolve a symbol for it — translate it explicitly rather than
+ * leaking the raw code. Every other code goes through Intl so the label
+ * stays truthful to the persisted currency (never inferred/converted).
+ */
+export function formatCurrencyLabel(currency: string): string {
+  const normalized = currency.trim().toUpperCase()
+  if (normalized === 'IRT') return translate('settings:settings.toman')
+  try {
+    const parts = new Intl.NumberFormat(locale(), { style: 'currency', currency: normalized, currencyDisplay: 'symbol' }).formatToParts(1)
+    return parts.find(part => part.type === 'currency')?.value ?? normalized
+  } catch {
+    return normalized
+  }
+}

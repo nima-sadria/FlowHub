@@ -236,7 +236,7 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
     }
     if (name === 'diagnostics') {
       await expect(page.getByRole('heading', { name: 'عیب‌یابی', exact: true })).toBeVisible()
-      await expect(page.getByText('0 از 0 آماده', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('۰ از ۰ آماده', { exact: true }).first()).toBeVisible()
       await expect(page.getByText('هنوز بررسی نشده', { exact: true }).first()).toBeVisible()
     }
     if (name === 'workspace') await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
