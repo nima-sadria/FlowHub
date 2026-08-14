@@ -66,7 +66,10 @@ const mapping: SourceMapping = {
   worksheetName: 'Sheet1',
   dataStartRow: 2,
   valuePolicy: {},
-  sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }],
+  sourceFields: [
+    { field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true },
+    { field: 'source_key', referenceType: 'column_letter', referenceValue: 'Z', required: true },
+  ],
   channels: [
     {
       channelId: 'woocommerce:primary',
@@ -86,8 +89,8 @@ const mapping: SourceMapping = {
       fields: [
         { field: 'external_id', referenceType: 'column_letter', referenceValue: 'O' },
         { field: 'price', referenceType: 'header_name', referenceValue: 'قیمت اسنپ' },
-        { field: 'stock', referenceType: 'disabled', referenceValue: null },
-        { field: 'status', referenceType: 'disabled', referenceValue: null },
+        { field: 'stock', referenceType: 'column_letter', referenceValue: 'P' },
+        { field: 'status', referenceType: 'column_letter', referenceValue: 'Q' },
       ],
     },
   ],
@@ -745,6 +748,13 @@ describe('SourceConfiguration per-Channel mappings', () => {
   })
 
   it('allows an already-enabled incomplete Channel to be disabled but not re-enabled until mapping is complete', async () => {
+    const incompleteSnapp: SourceMapping = {
+      ...mapping,
+      channels: mapping.channels.map(channel => channel.channelId === 'snappshop:main'
+        ? { ...channel, fields: channel.fields.map(field => field.field === 'stock' || field.field === 'status' ? { ...field, referenceType: 'disabled', referenceValue: null } : field) }
+        : channel),
+    }
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: incompleteSnapp })
     await renderPage()
 
     const snapp = container.querySelector('tr[data-channel-id="snappshop:main"]')
@@ -916,9 +926,46 @@ describe('SourceConfiguration per-Channel mappings', () => {
 
   it('preserves technical Channel identities in the API payload and supports explicit enablement', async () => {
     await renderPage()
-    const tapsi = container.querySelector('tr[data-channel-id="tapsishop:main"]')
-    const checkbox = tapsi?.querySelector('input[type="checkbox"]') as HTMLInputElement
+    const tapsi = container.querySelector('tr[data-channel-id="tapsishop:main"]') as HTMLElement
+    const identifier = tapsi.querySelector('[aria-label="Product identifier reference type"]') as HTMLSelectElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(identifier, 'column_letter')
+      identifier.dispatchEvent(new Event('change', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const identifierValue = tapsi.querySelector('[aria-label="Product identifier column reference"]') as HTMLInputElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(identifierValue, 'S')
+      identifierValue.dispatchEvent(new Event('input', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const stock = tapsi.querySelector('[aria-label="Stock reference type"]') as HTMLSelectElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(stock, 'column_letter')
+      stock.dispatchEvent(new Event('change', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const stockValue = tapsi.querySelector('[aria-label="Stock column reference"]') as HTMLInputElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(stockValue, 'T')
+      stockValue.dispatchEvent(new Event('input', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const status = tapsi.querySelector('[aria-label="Status reference type"]') as HTMLSelectElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(status, 'column_letter')
+      status.dispatchEvent(new Event('change', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const statusValue = tapsi.querySelector('[aria-label="Status column reference"]') as HTMLInputElement
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(statusValue, 'U')
+      statusValue.dispatchEvent(new Event('input', { bubbles: true }))
+      await Promise.resolve()
+    })
+    const checkbox = tapsi.querySelector('input[type="checkbox"]') as HTMLInputElement
     await act(async () => checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(checkbox.checked).toBe(true)
     await previewThenSave()
     const payload = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls[0][1] as {
       channel_mappings: Array<{ channel_id: string; enabled: boolean }>
@@ -1037,8 +1084,8 @@ describe('SourceConfiguration per-Channel mappings', () => {
       worksheetRuleMode: 'per_worksheet',
       duplicateProductPolicy: 'block',
       worksheetRules: [
-        { worksheetName: 'فروش تهران', enabled: true, dataStartRow: 3, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'فروش تهران', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'stock', referenceType: 'disabled', referenceValue: null }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
-        { worksheetName: 'Marketplace', enabled: true, dataStartRow: 6, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'D', required: true }], channels: [{ channelId: 'snappshop:main', worksheetName: 'Marketplace', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'E' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'G' }, { field: 'stock', referenceType: 'disabled', referenceValue: null }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+        { worksheetName: 'فروش تهران', enabled: true, dataStartRow: 3, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'Z', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'فروش تهران', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'stock', referenceType: 'disabled', referenceValue: null }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+        { worksheetName: 'Marketplace', enabled: true, dataStartRow: 6, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'D', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'Y', required: true }], channels: [{ channelId: 'snappshop:main', worksheetName: 'Marketplace', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'E' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'G' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'H' }, { field: 'status', referenceType: 'column_letter', referenceValue: 'I' }] }] },
       ],
     }
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
@@ -1061,8 +1108,8 @@ describe('SourceConfiguration per-Channel mappings', () => {
       worksheetRuleMode: 'per_worksheet',
       duplicateProductPolicy: 'block',
       worksheetRules: [
-        { worksheetName: 'Logitech', enabled: true, dataStartRow: 2, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
-        { worksheetName: 'Surface', enabled: true, dataStartRow: 4, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'K', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Surface', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'N' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'L' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'M' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+        { worksheetName: 'Logitech', enabled: true, dataStartRow: 2, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'Z', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+        { worksheetName: 'Surface', enabled: true, dataStartRow: 4, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'K', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'Y', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Surface', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'N' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'L' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'M' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
       ],
     }
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
@@ -1100,13 +1147,15 @@ describe('SourceConfiguration per-Channel mappings', () => {
         valuePolicy: {},
         sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'H', required: true }],
         channels: [
-          { channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] },
-          { channelId: 'snappshop:main', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'G' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'E' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'F' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] },
+          { channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'column_letter', referenceValue: 'J' }] },
+          { channelId: 'snappshop:main', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'G' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'E' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'F' }, { field: 'status', referenceType: 'column_letter', referenceValue: 'I' }] },
         ],
       }, {
         worksheetName: 'Surface', enabled: true, dataStartRow: 2, valuePolicy: {},
         sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'H', required: true }],
-        channels: [],
+        channels: [
+          { channelId: 'woocommerce:primary', worksheetName: 'Surface', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'K' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'L' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'M' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] },
+        ],
       }],
     }
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
@@ -1142,8 +1191,8 @@ describe('SourceConfiguration per-Channel mappings', () => {
       worksheetRuleMode: 'per_worksheet',
       duplicateProductPolicy: 'block',
       worksheetRules: [
-        { worksheetName: 'Logitech', enabled: true, dataStartRow: 2, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
-        { worksheetName: 'Surface', enabled: true, dataStartRow: 4, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'K', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Surface', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'N' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'L' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'M' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+        { worksheetName: 'Logitech', enabled: true, dataStartRow: 2, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'Z', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'B' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+        { worksheetName: 'Surface', enabled: true, dataStartRow: 4, valuePolicy: {}, sourceFields: [{ field: 'name', referenceType: 'column_letter', referenceValue: 'K', required: true }, { field: 'source_key', referenceType: 'column_letter', referenceValue: 'Y', required: true }], channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Surface', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'N' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'L' }, { field: 'stock', referenceType: 'column_letter', referenceValue: 'M' }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
       ],
     }
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
@@ -1227,8 +1276,8 @@ describe('SourceConfiguration per-Channel mappings', () => {
       worksheetRuleMode: 'per_worksheet',
       duplicateProductPolicy: 'block',
       worksheetRules: [
-        { worksheetName: 'Logitech', enabled: true, dataStartRow: 3, valuePolicy: {}, sourceFields: sourceFields('A', 'B'), channels: [] },
-        { worksheetName: 'Surface', enabled: true, dataStartRow: 7, valuePolicy: {}, sourceFields: sourceFields('D', 'E'), channels: [] },
+        { worksheetName: 'Logitech', enabled: true, dataStartRow: 3, valuePolicy: {}, sourceFields: sourceFields('A', 'B'), channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Logitech', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'C' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'D' }, { field: 'stock', referenceType: 'disabled', referenceValue: null }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
+        { worksheetName: 'Surface', enabled: true, dataStartRow: 7, valuePolicy: {}, sourceFields: sourceFields('D', 'E'), channels: [{ channelId: 'woocommerce:primary', worksheetName: 'Surface', enabled: true, fields: [{ field: 'external_id', referenceType: 'column_letter', referenceValue: 'F' }, { field: 'price', referenceType: 'column_letter', referenceValue: 'G' }, { field: 'stock', referenceType: 'disabled', referenceValue: null }, { field: 'status', referenceType: 'disabled', referenceValue: null }] }] },
       ],
     }
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: perWorksheet })
@@ -1337,16 +1386,19 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(selector.getAttribute('aria-invalid')).toBe('true')
     expect(selector.getAttribute('aria-describedby')).toBe(error.id)
     expect(error.textContent).toContain('Choose the product-name column')
+    const saveIssues = container.querySelector('[data-testid="source-configuration-save-issues"]') as HTMLElement
+    expect(saveIssues.textContent).toContain('Choose the Source Product Name column before saving.')
     const saveButtons = Array.from(container.querySelectorAll('button')).filter(item => item.textContent?.includes('Save column setup')) as HTMLButtonElement[]
-    expect(saveButtons[saveButtons.length - 1].disabled).toBe(true)
+    await act(async () => { saveButtons[saveButtons.length - 1].click(); await Promise.resolve() })
+    expect(sourceWorkspaceApi.saveMapping).not.toHaveBeenCalled()
   })
 
-  it('previews the current unsaved payload before enabling Save', async () => {
+  it('lets Preview recognized rows run standalone without requiring it before Save is clickable', async () => {
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: null, mappingVersion: 0 })
     await renderPage()
 
     const saveButton = button('Save column setup')
-    expect(saveButton.disabled).toBe(true)
+    expect(saveButton.disabled).toBe(false)
     expect(sourceWorkspaceApi.saveMapping).not.toHaveBeenCalled()
 
     await act(async () => {
@@ -1361,6 +1413,12 @@ describe('SourceConfiguration per-Channel mappings', () => {
     }
     expect(payload.expected_source_version).toBe(source.version)
     expect(payload.channel_mappings).toEqual([])
-    expect(saveButton.disabled).toBe(false)
+
+    // A bare Source still has no required Source fields or enabled Channel
+    // mapped, so clicking Save reports that instead of reaching the backend
+    // (and does not fire a redundant preview request to do so).
+    await act(async () => { saveButton.click(); await Promise.resolve() })
+    expect(sourceWorkspaceApi.previewUnsavedMapping).toHaveBeenCalledTimes(1)
+    expect(sourceWorkspaceApi.saveMapping).not.toHaveBeenCalled()
   })
 })

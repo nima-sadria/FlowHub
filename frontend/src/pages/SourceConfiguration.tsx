@@ -249,6 +249,11 @@ function channelValidation(fields: FieldMapping[], enabled: boolean, connectorTy
   return issues
 }
 
+function previewHasIdentityConflicts(result: SourcePreview): boolean {
+  return result.items.some(item => item.issues.some(issue =>
+    issue.category === 'missing_source_product_key' || issue.category === 'duplicate_source_product_key'))
+}
+
 function fallbackChannelsForSource(source: SourceProfile & { mapping: SourceMapping | null }): SourceChannel[] {
   const channelIds = new Set<string>()
   source.mapping?.channels.forEach(channel => channelIds.add(channel.channelId))
@@ -1196,10 +1201,35 @@ export default function SourceConfiguration() {
   async function save() {
     if (!canEditSource) return
     if (!source) return
+    if (saveIssues.length > 0) {
+      notify.error({
+        title: translate('sources:sourceConfiguration.mappingWasNotSaved'),
+        description: saveIssues[0],
+      })
+      return
+    }
     const payload = mappingPayload()
-    if (!payload || previewedFingerprint !== configurationFingerprint) return
+    if (!payload) return
     setSaving(true)
     try {
+      // Save requires a fresh, matching identity-preview check (the backend
+      // enforces this independently — see SOURCE_IDENTITY_VALIDATION_REQUIRED).
+      // Run it here automatically instead of requiring a separate manual
+      // "Preview recognized rows" click before Save will do anything.
+      if (previewedFingerprint !== configurationFingerprint) {
+        const previewResult = await sourceWorkspaceApi.previewUnsavedMapping(sourceId, payload)
+        setPreview(previewResult)
+        setPreviewIndex(0)
+        if (previewHasIdentityConflicts(previewResult)) {
+          setPreviewedFingerprint(null)
+          notify.error({
+            title: translate('sources:sourceConfiguration.mappingWasNotSaved'),
+            description: translate('sources:sourceConfiguration.identityConflictsBlockSave'),
+          })
+          return
+        }
+        setPreviewedFingerprint(configurationFingerprint)
+      }
       await sourceWorkspaceApi.saveMapping(source.id, payload)
       await saveReadPolicy()
       notify.success({
@@ -1238,9 +1268,7 @@ export default function SourceConfiguration() {
     try {
       const result = await sourceWorkspaceApi.previewUnsavedMapping(sourceId, payload)
       setPreview(result)
-      const identityBlocked = result.items.some(item => item.issues.some(issue =>
-        issue.category === 'missing_source_product_key' || issue.category === 'duplicate_source_product_key'))
-      setPreviewedFingerprint(identityBlocked ? null : configurationFingerprint)
+      setPreviewedFingerprint(previewHasIdentityConflicts(result) ? null : configurationFingerprint)
       setPreviewIndex(0)
     } catch (error) {
       notify.error({
@@ -1308,12 +1336,65 @@ export default function SourceConfiguration() {
   const previewItems = preview?.items.filter(item => previewFilter === 'all' || (previewFilter === 'ready' ? item.ready : item.hasIssues)) ?? []
   const currentPreviewIndex = Math.min(previewIndex, Math.max(0, previewItems.length - 1))
   const currentPreviewItem = previewItems[currentPreviewIndex] ?? null
-  const worksheetRulesValid = worksheetRules.some(rule => rule.enabled) && worksheetRules.every(rule => {
-    if (!rule.enabled) return true
-    const nameField = rule.sourceFields.find(field => field.field === 'name')
-    return Boolean(nameField && nameField.referenceType !== 'disabled' && nameField.referenceValue?.trim())
-  })
   const channelName = (channelId: string) => channelResources.ordered.find(resource => resource.id === channelId)?.displayName ?? formatChannelDisplayName(channelId, { showInstance: true })
+  const requiredSourceFieldsMissing = (fields: FieldMapping[]) => SOURCE_FIELDS
+    .filter(([, , required]) => required)
+    .map(([field]) => field)
+    .filter(field => {
+      const mapping = fields.find(item => item.field === field)
+      return !mapping || mapping.referenceType === 'disabled' || !mapping.referenceValue?.trim()
+    })
+  /**
+   * Everything here mirrors a real backend rule (WORKSHEET_REQUIRED,
+   * SOURCE_IDENTITY_REQUIRED, CHANNEL_MAPPING_REQUIRED,
+   * CHANNEL_EXTERNAL_ID_REQUIRED, CHANNEL_STOCK_STATUS_REQUIRED in
+   * source_workspace/service.py) so Save never silently fails against a
+   * requirement the UI never mentioned. Disabled Channels and disabled
+   * worksheet rules are intentionally exempt, matching that same contract.
+   */
+  const saveIssues: string[] = (() => {
+    const issues: string[] = []
+    if (effectiveWorksheetRuleMode === 'shared') {
+      if (worksheetMode === 'selected' && selectedWorksheetNames.length === 0) {
+        issues.push(translate('sources:sourceConfiguration.selectAtLeastOneWorksheet'))
+      }
+      for (const field of requiredSourceFieldsMissing(sourceFields)) {
+        issues.push(translate('sources:sourceConfiguration.requiredSourceFieldMissing', { field: fieldDisplayName(field) }))
+      }
+      const enabledChannelIds = configuredChannelIds.filter(channelId => channelEnabled[channelId])
+      if (enabledChannelIds.length === 0) {
+        issues.push(translate('sources:sourceConfiguration.atLeastOneChannelRequired'))
+      }
+      for (const channelId of enabledChannelIds) {
+        const connectorType = channels.find(item => item.channelId === channelId)?.connectorType
+        const fields = channelFields[channelId] ?? emptyChannelFields()
+        for (const issue of channelValidation(fields, true, connectorType)) {
+          issues.push(`${channelName(channelId)}: ${issue}`)
+        }
+      }
+    } else {
+      const enabledRules = worksheetRules.filter(rule => rule.enabled)
+      if (enabledRules.length === 0) {
+        issues.push(translate('sources:sourceConfiguration.addAtLeastOneWorksheet'))
+      }
+      for (const rule of enabledRules) {
+        for (const field of requiredSourceFieldsMissing(rule.sourceFields)) {
+          issues.push(translate('sources:sourceConfiguration.requiredSourceFieldMissingForWorksheet', { field: fieldDisplayName(field), worksheet: rule.worksheetName }))
+        }
+        const enabledChannels = rule.channels.filter(channel => channel.enabled)
+        if (enabledChannels.length === 0) {
+          issues.push(translate('sources:sourceConfiguration.atLeastOneChannelRequiredForWorksheet', { worksheet: rule.worksheetName }))
+        }
+        for (const channel of enabledChannels) {
+          const connectorType = channels.find(item => item.channelId === channel.channelId)?.connectorType
+          for (const issue of channelValidation(channel.fields, true, connectorType)) {
+            issues.push(`${rule.worksheetName} — ${channelName(channel.channelId)}: ${issue}`)
+          }
+        }
+      }
+    }
+    return issues
+  })()
   const displayFieldReference = (mapping: FieldMapping) => mapping.referenceType === 'disabled'
     ? translate('sources:sourceConfiguration.disabled')
     : `${translate(REFERENCE_TYPE_LABELS[mapping.referenceType])}: ${mapping.referenceValue ?? '—'}`
@@ -1848,6 +1929,15 @@ export default function SourceConfiguration() {
         </section>
       )}
 
+      {canMutateSource && saveIssues.length > 0 && (
+        <div className="fh-alert-warning mt-5" role="alert" id="source-configuration-save-issues" data-testid="source-configuration-save-issues">
+          <p className="font-medium">{translate('sources:sourceConfiguration.saveBlockedSummary')}</p>
+          <ul className="mt-1 list-disc ps-5">
+            {saveIssues.map((issue, index) => <li key={index}>{issue}</li>)}
+          </ul>
+        </div>
+      )}
+
       <div className="sticky bottom-2 z-30 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-bg-base/95 p-2 shadow-lg backdrop-blur sm:bottom-3 sm:gap-3 sm:p-3" data-testid="source-configuration-actions">
         <Badge variant={dirty ? 'warning' : 'success'}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</Badge>
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
@@ -1856,7 +1946,14 @@ export default function SourceConfiguration() {
           {canMutateSource && source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && (
             <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={reading || externalSourceDisabled || remoteReadQuotaExhausted} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : remoteReadQuotaExhausted ? quotaLimitDescription() : undefined} onClick={() => void readNow()}><Icon name="refresh" /> {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}</button>
           )}
-          {canMutateSource && <button className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto" type="button" disabled={saving || previewedFingerprint !== configurationFingerprint || (effectiveWorksheetRuleMode === 'shared' ? worksheetMode === 'selected' && selectedWorksheetNames.length === 0 : !worksheetRulesValid)} onClick={() => void save()}><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
+          {canMutateSource && <button
+            className="fh-button-primary fh-button-sm order-first col-span-2 w-full sm:order-none sm:w-auto"
+            type="button"
+            disabled={saving}
+            aria-describedby={saveIssues.length > 0 ? 'source-configuration-save-issues' : undefined}
+            title={saveIssues.length > 0 ? saveIssues[0] : undefined}
+            onClick={() => void save()}
+          ><Icon name="save" /> {saving ? translate('sources:sourceConfiguration.saving') : translate('sources:sourceConfiguration.saveMappingRevision')}</button>}
           <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" onClick={closeConfiguration}><Icon name="previous" /> {translate('sources:sourceConfiguration.backToSources')}</button>
         </div>
       </div>
