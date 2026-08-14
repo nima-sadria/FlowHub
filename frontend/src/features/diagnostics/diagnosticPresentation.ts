@@ -123,6 +123,12 @@ export function diagnosticStatePresentation(
 
 export function diagnosticEvidenceDescription(evidence: DiagnosticEvidenceLike): string {
   const reasonCode = evidence.reason_code?.trim()
+  // Degraded provider evidence may include a sanitized provider lifecycle
+  // status. Keep that concrete evidence visible instead of replacing it with
+  // the generic warning translation.
+  if (normalize(reasonCode) === 'external_api_degraded' && evidence.message) {
+    return formatDiagnosticMessage(evidence.message)
+  }
   const staleContextKey: Record<string, string> = {
     product_sync_stale: 'productSync',
     order_sync_stale: 'orderSync',

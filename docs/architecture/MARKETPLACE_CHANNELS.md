@@ -230,10 +230,14 @@ by Python string truthiness.
 SnappShop's normal setup asks only for the bearer token and agent identifier.
 FlowHub supplies the documented base URL, `User-Agent` header name, and a
 30-second integer timeout; operators may override those values under Advanced
-Settings. `GET /vendors` must succeed before save, and the selected active
-vendor is validated before the atomic configuration transaction begins. A
-token and agent identifier without a selected vendor are not a complete channel
-configuration.
+Settings. `GET /vendors` provides initial vendor discovery. Once a vendor is
+saved, connection verification uses `GET /vendors/{vendor_id}` as the
+authoritative read probe and does not require the broad vendor list. A readable,
+structurally valid selected-vendor response proves connectivity; its normalized
+provider status is retained as safe informational evidence. The current
+provider reference demonstrates `ACTIVE` but does not define other status
+values as authentication or connectivity failures. A token and agent identifier
+without a selected vendor are not a complete operational channel configuration.
 
 ## Errors And Retries
 

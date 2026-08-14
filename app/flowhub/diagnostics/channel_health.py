@@ -175,7 +175,10 @@ class ChannelHealthReporter:
 
         external_status = str(result.get("status") or "")
         error_class = _error_category_from_result(result)
-        if external_status in {"connected", "operational"} or result.get("ok") is True:
+        if external_status in {"degraded", "warning", "needs_attention"}:
+            dl_status = "degraded"
+            error_class = None
+        elif external_status in {"connected", "operational"} or result.get("ok") is True:
             dl_status = "healthy"
             error_class = None
         elif external_status in {"not_configured", "disabled"}:
@@ -188,13 +191,14 @@ class ChannelHealthReporter:
             dl_status = "unknown"
         else:
             dl_status = "unhealthy"
-        self._record_health(
-            channel_id,
-            dl_status,
-            float(result.get("latency_ms") or (monotonic() - started) * 1000),
-            _safe_message(str(result.get("message") or "Channel health probe completed.")),
-            error_class,
-        )
+        if result.get("health_evidence_persisted") is not True:
+            self._record_health(
+                channel_id,
+                dl_status,
+                float(result.get("latency_ms") or (monotonic() - started) * 1000),
+                _safe_message(str(result.get("message") or "Channel health probe completed.")),
+                error_class,
+            )
         return bool(result.get("external_call_performed"))
 
     def _channel_shape(self, channel_id: str) -> dict[str, Any]:
@@ -347,10 +351,16 @@ class ChannelHealthReporter:
             # Historical success remains visible as a timestamp, but a newer
             # failed probe must not be represented as current verification.
             "credentialsVerified": bool(
-                health and health.status == "healthy" and health.last_success_at
+                health
+                and health.status in {"healthy", "degraded"}
+                and health.last_success_at
             ),
             "vendorSelected": vendor_selected,
-            "vendorAccessible": bool(vendor_selected and health and health.status == "healthy") if connector_type == "snappshop" else None,
+            "vendorAccessible": bool(
+                vendor_selected
+                and health
+                and health.status in {"healthy", "degraded"}
+            ) if connector_type == "snappshop" else None,
             "productReadStatus": latest_product_refresh.status if latest_product_refresh else "not_run",
             "cachedProductCount": cached_product_count,
             "lastProductSync": _iso(product_read),
@@ -986,7 +996,7 @@ class ChannelHealthReporter:
                 is_actionable=True,
                 recommended_action="Run the connection test again.",
             )
-        if health.status == "healthy" and health.last_success_at:
+        if health.status in {"healthy", "degraded"} and health.last_success_at:
             return _dimension(
                 DiagnosticState.HEALTHY,
                 "Credentials were verified successfully.",

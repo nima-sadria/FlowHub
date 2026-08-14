@@ -23,6 +23,7 @@ os.environ.setdefault("FLOWHUB_JWT_SECRET", "test-dl-jwt-secret-exactly-32-bytes
 from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
 from app.flowhub.data_layer import models as _dl_models  # noqa: F401
+from app.flowhub.integration_platform import models as _integration_models  # noqa: F401
 
 
 # -- Fixtures ------------------------------------------------------------------
@@ -248,6 +249,57 @@ class TestConnectorHealthService:
         svc.upsert("woocommerce:primary", "destination", "healthy")
         rows = svc.get_all()
         assert rows[0]["consecutive_failures"] == 0
+
+    def test_degraded_is_successful_connection_evidence(self, db):
+        from app.flowhub.data_layer.health_service import ConnectorHealthService
+
+        svc = ConnectorHealthService(db)
+        row = svc.upsert(
+            "snappshop:main",
+            "snappshop",
+            "degraded",
+            detail="Connection verified; provider status needs attention.",
+        )
+
+        assert row.last_success_at == row.checked_at
+        assert row.consecutive_failures == 0
+
+    def test_health_snapshot_whitelists_and_redacts_evidence(self, db):
+        from app.flowhub.data_layer.health_service import ConnectorHealthService
+        from app.flowhub.integration_platform.models import (
+            IntegrationConnectorHealthSnapshot,
+        )
+
+        svc = ConnectorHealthService(db)
+        svc.upsert(
+            "snappshop:main",
+            "snappshop",
+            "healthy",
+            latency_ms=12.345,
+            detail="Connection verified.",
+            evidence={
+                "endpoint_class": "selected_vendor",
+                "endpoint_path_template": "/vendors/{vendor_id}",
+                "http_status": 200,
+                "correlation_id": "corr_safe",
+                "provider_request_attempted": True,
+                "provider_status": "UNKNOWN",
+                "authorization": "Bearer must-never-persist",
+                "response_body": {"token": "must-never-persist"},
+            },
+        )
+
+        snapshot = db.query(IntegrationConnectorHealthSnapshot).one()
+        assert snapshot.details_json == {
+            "endpoint_class": "selected_vendor",
+            "endpoint_path_template": "/vendors/{vendor_id}",
+            "http_status": 200,
+            "latency_ms": 12.35,
+            "correlation_id": "corr_safe",
+            "provider_request_attempted": True,
+            "provider_status": "UNKNOWN",
+        }
+        assert "must-never-persist" not in str(snapshot.details_json)
 
     def test_invalid_status_raises(self, db):
         from app.flowhub.data_layer.health_service import ConnectorHealthService

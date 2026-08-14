@@ -547,6 +547,98 @@ def test_tapsishop_refresh_policy_values_are_isolated_by_channel(db):
     assert _item(payload, "tapsishop:secondary")["dimensions"]["tokenRefresh"]["state"] == "DISABLED"
 
 
+def test_successful_sync_evidence_does_not_fabricate_connection_verification(db):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    activity_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    _seed_channel(
+        db,
+        "snappshop:main",
+        "snappshop",
+        enabled=True,
+        settings={"token": None, "agent_identifier": "agent", "vendor_id": "vendor-1"},
+    )
+    _seed_polling_policy(db, "snappshop:main", enabled=True)
+    _seed_product_read(db, "snappshop:main", activity_at)
+    _seed_order_sync(db, "snappshop:main", "snappshop", activity_at)
+
+    item = _item(ChannelHealthReporter(db).report(), "snappshop:main")
+
+    assert item["lastSuccessfulVerification"] is None
+    assert item["lastSuccessfulSyncOrRead"] == _iso(activity_at)
+    assert item["dimensions"]["credentials"]["state"] == "NOT_CHECKED"
+
+
+def test_failed_connection_evidence_preserves_successful_sync_timestamps(db):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    previous_verification = now - timedelta(hours=3)
+    successful_activity = now - timedelta(hours=1)
+    _seed_channel(
+        db,
+        "snappshop:main",
+        "snappshop",
+        enabled=True,
+        settings={"token": None, "agent_identifier": "agent", "vendor_id": "vendor-1"},
+    )
+    _seed_polling_policy(db, "snappshop:main", enabled=True)
+    _seed_health(
+        db,
+        "snappshop:main",
+        "snappshop",
+        "unhealthy",
+        now,
+        last_success_at=previous_verification,
+        error_class="authentication",
+        detail="SnappShop authentication failed.",
+    )
+    _seed_product_read(db, "snappshop:main", successful_activity)
+    _seed_order_sync(db, "snappshop:main", "snappshop", successful_activity)
+
+    item = _item(ChannelHealthReporter(db).report(), "snappshop:main")
+
+    assert item["lastSuccessfulVerification"] == _iso(previous_verification)
+    assert item["lastSuccessfulSyncOrRead"] == _iso(successful_activity)
+    assert item["dimensions"]["credentials"]["state"] == "ERROR"
+    assert item["dimensions"]["lastProductSync"]["state"] == "HEALTHY"
+    assert item["dimensions"]["lastOrderSync"]["state"] == "HEALTHY"
+
+
+def test_readable_vendor_warning_keeps_credentials_verified_and_surfaces_safe_copy(db):
+    from app.flowhub.diagnostics.channel_health import ChannelHealthReporter
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    detail = "Connection verified. Vendor status reported by SnappShop: REVIEW_REQUIRED."
+    _seed_channel(
+        db,
+        "snappshop:main",
+        "snappshop",
+        enabled=True,
+        settings={"token": None, "agent_identifier": "agent", "vendor_id": "vendor-1"},
+    )
+    _seed_health(
+        db,
+        "snappshop:main",
+        "snappshop",
+        "degraded",
+        now,
+        last_success_at=now,
+        detail=detail,
+    )
+    _seed_product_read(db, "snappshop:main", now)
+
+    item = _item(ChannelHealthReporter(db).report(), "snappshop:main")
+
+    assert item["state"] == "WARNING"
+    assert item["credentialsVerified"] is True
+    assert item["vendorAccessible"] is True
+    assert item["dimensions"]["credentials"]["state"] == "HEALTHY"
+    assert item["dimensions"]["externalApi"]["state"] == "WARNING"
+    assert item["dimensions"]["externalApi"]["message"] == detail
+    assert "API health check failed" not in item["dimensions"]["externalApi"]["message"]
+
+
 def _seed_channel(db, channel_id: str, connector_type: str, *, enabled: bool, settings: dict) -> None:
     from app.flowhub.integration_platform.models import (
         IntegrationConnectorInstance,
@@ -636,6 +728,19 @@ def _seed_order_sync(db, channel_id: str, connector_type: str, at: datetime) -> 
     db.commit()
 
 
+def _seed_polling_policy(db, channel_id: str, *, enabled: bool) -> None:
+    from app.flowhub.integration_platform.models import IntegrationPollingPolicy
+
+    db.add(IntegrationPollingPolicy(
+        connector_id=channel_id,
+        enabled=enabled,
+        interval_seconds=900,
+        jitter_seconds=60,
+        updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
+    ))
+    db.commit()
+
+
 def _seed_webhook(db, channel_id: str, state: str, at: datetime):
     from app.flowhub.webhooks.models import WebhookReceipt
 
@@ -673,3 +778,7 @@ def _seed_dead_letter(db, receipt_id: int) -> None:
 
 def _item(payload: dict, channel_id: str) -> dict:
     return next(item for item in payload["items"] if item["channelId"] == channel_id)
+
+
+def _iso(value: datetime) -> str:
+    return value.isoformat() + "Z"

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import socket
+import ssl
+
 import httpx
 import pytest
 
@@ -76,14 +79,19 @@ def connector(cursor_store: InMemoryOrderEventCursorStore | None = None) -> Snap
 @pytest.mark.asyncio
 async def test_successful_authentication_uses_bearer_and_configured_agent_header():
     FakeAsyncClient.responses = [
-        FakeResponse(200, {"status": True, "data": [{"id": "vendor-1", "title": "Shop"}]}),
-        FakeResponse(200, {"status": True, "data": {"id": "vendor-1", "title": "Shop"}}),
+        FakeResponse(
+            200,
+            {
+                "status": True,
+                "data": {"id": "vendor-1", "title": "Shop", "status": "UNKNOWN"},
+            },
+        ),
     ]
 
     health = await connector().test_connection()
 
     assert health.status == "healthy"
-    assert FakeAsyncClient.requests[0]["url"].endswith("/vendors")
+    assert FakeAsyncClient.requests[0]["url"].endswith("/vendors/vendor-1")
     assert FakeAsyncClient.requests[0]["headers"]["Authorization"] == "Bearer token-secret"
     assert FakeAsyncClient.requests[0]["headers"]["User-Agent"] == "flowhub-agent"
 
@@ -97,6 +105,67 @@ async def test_401_normalizes_to_authentication_error():
     assert health.status == "unhealthy"
     assert health.error is not None
     assert health.error.category == ConnectorErrorCategory.AUTHENTICATION
+    assert "token-secret" not in health.error.message
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("http_status", "category"),
+    [
+        (403, ConnectorErrorCategory.AUTHORIZATION),
+        (404, ConnectorErrorCategory.NOT_FOUND),
+        (503, ConnectorErrorCategory.UPSTREAM_UNAVAILABLE),
+    ],
+)
+async def test_selected_vendor_http_failures_are_categorized(http_status, category):
+    FakeAsyncClient.responses = [
+        FakeResponse(http_status, {"status": False, "message": "provider detail"})
+    ]
+
+    health = await connector().test_connection()
+
+    assert health.status == "unhealthy"
+    assert health.error is not None
+    assert health.error.category == category
+    assert health.error.http_status == http_status
+
+
+@pytest.mark.asyncio
+async def test_selected_vendor_malformed_payload_is_unhealthy():
+    FakeAsyncClient.responses = [
+        FakeResponse(200, {"status": True, "data": {"title": "Missing ID"}})
+    ]
+
+    health = await connector().test_connection()
+
+    assert health.status == "unhealthy"
+    assert health.error is not None
+    assert health.error.category == ConnectorErrorCategory.UNEXPECTED_RESPONSE
+    assert health.error.http_status == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("cause", "provider_code"),
+    [
+        (socket.gaierror("name or service not known"), "dns_failure"),
+        (ssl.SSLError("certificate verify failed"), "tls_failure"),
+    ],
+)
+async def test_selected_vendor_connection_failures_preserve_safe_category(
+    cause, provider_code
+):
+    request = httpx.Request("GET", "https://apix.snappshop.ir")
+    connect_error = httpx.ConnectError("connection failed", request=request)
+    connect_error.__cause__ = cause
+    FakeAsyncClient.responses = [connect_error]
+
+    health = await connector().test_connection()
+
+    assert health.status == "unhealthy"
+    assert health.error is not None
+    assert health.error.category == ConnectorErrorCategory.UPSTREAM_UNAVAILABLE
+    assert health.error.provider_code == provider_code
     assert "token-secret" not in health.error.message
 
 

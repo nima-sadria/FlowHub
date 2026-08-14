@@ -7,6 +7,8 @@ and channel-native identifier handling stays at this adapter boundary.
 
 from __future__ import annotations
 
+import socket
+import ssl
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -172,13 +174,13 @@ class SnappShopConnector(BaseMarketplaceConnector):
     async def test_connection(self) -> ChannelHealth:
         started = _utcnow()
         try:
-            vendors = await self._request("GET", "/vendors")
-            data = _expect_list(vendors, self._error("Malformed vendor list response."))
             if self.config.vendor_id:
-                vendor = await self._request("GET", f"/vendors/{self.config.vendor_id}")
-                _expect_dict(vendor.get("data"), self._error("Malformed selected vendor response."))
-            elif not data:
-                raise SnappShopConnectorError(self._error("No authorized SnappShop vendors were returned."))
+                await self.get_vendor_information()
+            else:
+                vendors = await self._request("GET", "/vendors")
+                data = _expect_list(vendors, self._error("Malformed vendor list response."))
+                if not data:
+                    raise SnappShopConnectorError(self._error("No authorized SnappShop vendors were returned."))
             latency = (_utcnow() - started).total_seconds() * 1000
             return ChannelHealth(status="healthy", checked_at=_iso(_utcnow()), latency_ms=round(latency, 2))
         except SnappShopConnectorError as exc:
@@ -192,8 +194,15 @@ class SnappShopConnector(BaseMarketplaceConnector):
     async def get_vendor_information(self) -> ChannelVendor:
         vendor_id = await self._selected_vendor_id()
         payload = await self._request("GET", f"/vendors/{vendor_id}")
-        data = _expect_dict(payload.get("data"), self._error("Malformed vendor response."))
-        return _vendor_from_payload(self.channel_id, data)
+        data = _expect_dict(
+            payload.get("data"), self._error("Malformed vendor response.", 200)
+        )
+        vendor = _vendor_from_payload(self.channel_id, data)
+        if not vendor.vendor_id:
+            raise SnappShopConnectorError(
+                self._error("SnappShop returned malformed selected-vendor data.", 200)
+            )
+        return vendor
 
     async def list_products(
         self,
@@ -449,6 +458,9 @@ class SnappShopConnector(BaseMarketplaceConnector):
         except httpx.TimeoutException as exc:
             failed = True
             raise SnappShopConnectorError(self._timeout_error()) from exc
+        except httpx.ConnectError as exc:
+            failed = True
+            raise SnappShopConnectorError(self._connection_error(exc)) from exc
         except httpx.HTTPError as exc:
             failed = True
             raise SnappShopConnectorError(self._upstream_error("SnappShop request failed.")) from exc
@@ -522,6 +534,21 @@ class SnappShopConnector(BaseMarketplaceConnector):
     def _upstream_error(self, message: str, http_status: int | None = None) -> ConnectorError:
         return self._categorized_error(ConnectorErrorCategory.UPSTREAM_UNAVAILABLE, message, http_status, retryable=True)
 
+    def _connection_error(self, exc: httpx.ConnectError) -> ConnectorError:
+        provider_code = _connection_error_category(exc)
+        message = {
+            "dns_failure": "SnappShop DNS resolution failed.",
+            "tls_failure": "SnappShop TLS connection failed.",
+        }.get(provider_code, "SnappShop connection failed.")
+        return ConnectorError(
+            category=ConnectorErrorCategory.UPSTREAM_UNAVAILABLE,
+            message=message,
+            connector_type=self.connector_type,
+            channel_id=self.channel_id,
+            provider_code=provider_code,
+            retry=RetryMetadata(retryable=True, safe_to_retry=False),
+        )
+
     def _rate_limit_error(self, http_status: int | None, retry_after: str | None) -> ConnectorError:
         try:
             retry_after_seconds = float(retry_after) if retry_after is not None else None
@@ -583,6 +610,26 @@ def _product_from_payload(channel_id: str, item: dict[str, Any]) -> ChannelProdu
         status="active" if item.get("active") is True else "inactive" if item.get("active") is False else None,
         raw=item,
     )
+
+
+def _connection_error_category(exc: BaseException) -> str:
+    current: BaseException | None = exc
+    messages: list[str] = []
+    visited: set[int] = set()
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        messages.append(str(current).lower())
+        if isinstance(current, ssl.SSLError):
+            return "tls_failure"
+        if isinstance(current, socket.gaierror):
+            return "dns_failure"
+        current = current.__cause__ or current.__context__
+    combined = " ".join(messages)
+    if any(marker in combined for marker in ("ssl", "tls", "certificate", "cert verify")):
+        return "tls_failure"
+    if any(marker in combined for marker in ("name or service not known", "getaddrinfo", "dns")):
+        return "dns_failure"
+    return "connection_failed"
 
 
 def _current_state_record(key: str, product: ChannelProduct) -> CurrentStateRecord:

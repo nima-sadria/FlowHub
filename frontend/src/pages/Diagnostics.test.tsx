@@ -825,6 +825,53 @@ describe('Diagnostics', () => {
     expect(card?.textContent).not.toContain('Needs attention')
   })
 
+  it('renders readable SnappShop vendor warnings without hiding independent sync evidence', async () => {
+    const health = channelHealthPayload()
+    const verifiedAt = '2026-08-14T09:31:13Z'
+    const syncAt = '2026-08-14T12:56:00Z'
+    const providerMessage = 'Connection verified. Vendor status reported by SnappShop: REVIEW_REQUIRED.'
+    const channel = {
+      ...health.items[0],
+      channelId: 'snappshop:main',
+      channelType: 'snappshop',
+      state: 'WARNING',
+      status: 'Warning',
+      reason_code: 'external_api_degraded',
+      checked_at: verifiedAt,
+      summary: providerMessage,
+      lastSuccessfulVerification: verifiedAt,
+      lastSuccessfulSyncOrRead: syncAt,
+      lastSuccessfulOperation: syncAt,
+      is_actionable: true,
+      recommended_action: 'Review the connection details.',
+      dimensions: {
+        configuration: { status: 'Operational', state: 'HEALTHY', reason_code: 'configuration_complete', checked_at: verifiedAt, evidence_source: 'connector_settings', is_actionable: false, recommended_action: '', message: 'Required configuration is present.' },
+        credentials: { status: 'Operational', state: 'HEALTHY', reason_code: 'credentials_verified', checked_at: verifiedAt, evidence_source: 'data_layer_health', is_actionable: false, recommended_action: '', message: 'Credentials were verified successfully.' },
+        externalApi: { status: 'Warning', state: 'WARNING', reason_code: 'external_api_degraded', checked_at: verifiedAt, evidence_source: 'data_layer_health', is_actionable: true, recommended_action: 'Review the connection details.', message: providerMessage },
+      },
+    }
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: 'ok', checkedAt: health.checkedAt, checks: [{ category: 'database', status: 'pass' }], connectors: [],
+          channelHealth: { ...health, summary: { overall: 'Warning', overall_state: 'WARNING', counts: {}, state_counts: { WARNING: 1 } }, items: [channel] },
+          rateLimiter: null,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const card = c.querySelector('[data-testid="diagnostics-channel-snappshop:main"]')
+    expect(card?.querySelector('[data-diagnostic-state="WARNING"]')).not.toBeNull()
+    expect(card?.textContent).toContain(providerMessage)
+    expect(card?.textContent).toContain('Last successful verification')
+    expect(card?.textContent).toContain('Last successful sync or read')
+    expect(card?.textContent).not.toContain('The API health check failed.')
+    expect(card?.textContent).not.toContain('Never verified')
+    expect(card?.textContent).not.toContain('No successful activity recorded')
+  })
+
   it('localizes the seven-state Channel presentation in Persian without changing technical evidence IDs', async () => {
     await changeLocale('fa')
     const health = channelHealthPayload()

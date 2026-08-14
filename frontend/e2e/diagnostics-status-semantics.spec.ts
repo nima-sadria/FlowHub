@@ -40,7 +40,6 @@ interface DiagnosticEvidence {
 
 const checkedAt = '2026-07-16T08:00:00Z'
 const recentSync = '2026-07-16T07:45:00Z'
-const staleSync = '2026-07-12T08:00:00Z'
 
 function evidence(
   state: DiagnosticState,
@@ -229,25 +228,26 @@ function channelHealthPayload() {
 
   const warning = {
     ...baseChannel('snappshop:warning', 'WARNING'),
-    reasonCode: 'product_sync_stale',
-    reason_code: 'product_sync_stale',
-    summary: 'Product data needs attention.',
-    lastSuccessfulOperation: staleSync,
-    lastProductRead: staleSync,
-    lastErrorCategory: 'stale_sync',
-    nextRecommendedAction: 'Refresh products.',
-    recommendedAction: 'Refresh products.',
-    recommended_action: 'Refresh products.',
+    reasonCode: 'external_api_degraded',
+    reason_code: 'external_api_degraded',
+    summary: 'Connection verified. Vendor status reported by SnappShop: REVIEW_REQUIRED.',
+    lastSuccessfulOperation: recentSync,
+    lastSuccessfulSyncOrRead: recentSync,
+    lastProductRead: recentSync,
+    lastErrorCategory: null,
+    nextRecommendedAction: 'Review the connection details.',
+    recommendedAction: 'Review the connection details.',
+    recommended_action: 'Review the connection details.',
     dimensions: {
       configuration: evidence('HEALTHY', 'Required configuration is present.', 'configuration_complete'),
       credentials: evidence('HEALTHY', 'Credential verification succeeded.', 'credentials_verified'),
-      externalApi: evidence('HEALTHY', 'The provider API health check succeeded.', 'external_api_healthy'),
-      lastProductSync: evidence(
+      externalApi: evidence(
         'WARNING',
-        'Last successful product sync was 4 days ago. Expected freshness: within 24 hours.',
-        'product_sync_stale',
-        { checkedAt, actionable: true, action: 'Refresh products.' },
+        'Connection verified. Vendor status reported by SnappShop: REVIEW_REQUIRED.',
+        'external_api_degraded',
+        { checkedAt, actionable: true, action: 'Review the connection details.' },
       ),
+      lastProductSync: evidence('HEALTHY', 'Product data was refreshed recently.', 'product_sync_fresh'),
       polling: evidence('DISABLED', 'Order polling is turned off.', 'polling_disabled', { checkedAt: null }),
       webhookReceipt: notApplicable('This Channel does not use webhooks.', 'webhook_not_applicable'),
       webhookProcessing: notApplicable('This Channel does not use webhooks.', 'webhook_processing_not_applicable'),
@@ -443,7 +443,8 @@ async function expectCollapsedSemantics(page: Page, locale: 'en' | 'fa') {
     await expect(unchecked.getByText(/Unable to check/i)).toHaveCount(0)
     await expect(page.getByTestId('diagnostics-channel-status-snappshop:warning')).toHaveText('Needs attention')
     await expect(page.getByTestId('diagnostics-channel-status-snappshop:warning')).toHaveAttribute('data-diagnostic-state', 'WARNING')
-    await expect(warning.getByText('Refresh products', { exact: true }).first()).toBeVisible()
+    await expect(warning.getByText('Review the connection details', { exact: true }).first()).toBeVisible()
+    await expect(warning.getByText(/Vendor status reported by SnappShop: REVIEW_REQUIRED/).first()).toBeVisible()
     await expect(page.getByTestId('diagnostics-channel-status-tapsishop:error')).toHaveText('Error')
     await expect(page.getByTestId('diagnostics-channel-status-tapsishop:error')).toHaveAttribute('data-diagnostic-state', 'ERROR')
     await expect(error.getByText('Review credentials', { exact: true }).first()).toBeVisible()
@@ -456,7 +457,7 @@ async function expectCollapsedSemantics(page: Page, locale: 'en' | 'fa') {
     await expect(page.getByTestId('diagnostics-channel-status-woocommerce:unchecked')).toHaveText('هنوز بررسی نشده')
     await expect(unchecked.getByText('آزمایش اتصال را اجرا کنید', { exact: true }).first()).toBeVisible()
     await expect(page.getByTestId('diagnostics-channel-status-snappshop:warning')).toHaveText('نیازمند بررسی')
-    await expect(warning.getByText('محصولات را به‌روزرسانی کنید', { exact: true }).first()).toBeVisible()
+    await expect(warning.getByText(/REVIEW_REQUIRED/).first()).toBeVisible()
     await expect(page.getByTestId('diagnostics-channel-status-tapsishop:error')).toHaveText('خطا')
   }
 
@@ -532,7 +533,7 @@ test('diagnostic evidence states are truthful, bilingual, and isolated in real C
   await expandEveryChannel(page)
   await expect(channel(page, 'woocommerce:optional').getByText('Not applicable', { exact: true }).first()).toBeVisible()
   await expect(channel(page, 'woocommerce:optional').getByText('Information', { exact: true }).first()).toBeVisible()
-  await expect(channel(page, 'snappshop:warning').getByText(/older than the expected freshness window/i).first()).toBeVisible()
+  await expect(channel(page, 'snappshop:warning').getByText(/Vendor status reported by SnappShop: REVIEW_REQUIRED/i).first()).toBeVisible()
   await page.screenshot({
     path: path.join(screenshotRoot, 'diagnostics-expanded-en-1440x900.png'),
     fullPage: true,
@@ -540,7 +541,7 @@ test('diagnostic evidence states are truthful, bilingual, and isolated in real C
   })
 
   const warningRefresh = page.getByTestId('diagnostics-channel-recovery-snappshop:warning')
-  await expect(warningRefresh).toHaveAttribute('href', /\/commerce\?tab=channels&channel=snappshop%3Awarning$/)
+  await expect(warningRefresh).toHaveCount(0)
   const connectionTest = page.getByTestId('diagnostics-channel-test-woocommerce:unchecked')
   await connectionTest.click()
   await expect.poll(() => audit.interceptedActions.length).toBe(1)

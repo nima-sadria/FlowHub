@@ -341,7 +341,11 @@ class CommerceHubService:
         # ready/verified or update its health record.
         result["configuration_matches_saved"] = record_health
         if record_health:
-            self._record_channel_test_health(meta, result)
+            result["health_evidence_persisted"] = self._record_channel_test_health(
+                meta, result
+            )
+        else:
+            result["health_evidence_persisted"] = False
         return result
 
     async def refresh_channel_cache(
@@ -483,23 +487,6 @@ class CommerceHubService:
             "warnings": [],
             "errors": list(result.failures),
         }
-        if result.failures:
-            latest = self._latest_product_refresh(channel_id)
-            category = str((latest.meta or {}).get("error_category") or "unexpected_response") if latest else "unexpected_response"
-            ConnectorHealthService(self.db).upsert(
-                channel_id,
-                "snappshop",
-                "unhealthy",
-                detail="SnappShop product synchronization failed.",
-                error_class=category,
-            )
-        else:
-            ConnectorHealthService(self.db).upsert(
-                channel_id,
-                "snappshop",
-                "healthy",
-                detail="SnappShop vendor and product reads completed successfully.",
-            )
         return payload
 
     async def _refresh_marketplace_channel_cache(self, channel_id: str, actor: str) -> dict:
@@ -1340,7 +1327,10 @@ class CommerceHubService:
             ),
             "vendor_selected": self._vendor_selected(instance) if not coming_soon else False,
             "vendor_accessible": bool(
-                configured and not coming_soon and health and health.status == "healthy"
+                configured
+                and not coming_soon
+                and health
+                and health.status in {"healthy", "degraded"}
             ),
             "token_configured": (
                 secret_status.get("token", {}).get("status") == "configured"
@@ -2205,10 +2195,11 @@ class CommerceHubService:
             raise ValueError(message)
         return url
 
-    def _record_channel_test_health(self, meta: dict, result: dict) -> None:
+    def _record_channel_test_health(self, meta: dict, result: dict) -> bool:
         if not result.get("external_call_performed") and result.get("code") != "CHANNEL_INVALID_URL":
-            return
+            return False
         ok = bool(result.get("ok"))
+        result_status = str(result.get("status") or "").strip().lower()
         code = str(result.get("code") or "")
         http_status = result.get("http_status")
         if ok:
@@ -2230,14 +2221,30 @@ class CommerceHubService:
             error_class = "rate_limited"
         else:
             error_class = "connection_failed"
+        health_status = (
+            "degraded"
+            if result_status in {"degraded", "warning", "needs_attention"}
+            else "healthy" if ok else "unhealthy"
+        )
         ConnectorHealthService(self.db).upsert(
             connector_id=str(meta["id"]),
             connector_type=str(meta["provider"]),
-            status="healthy" if ok else "unhealthy",
+            status=health_status,
             latency_ms=result.get("latency_ms"),
             detail=str(result.get("message") or "")[:500],
             error_class=error_class,
+            evidence={
+                "endpoint_class": result.get("endpoint_class"),
+                "endpoint_path_template": result.get("endpoint_path_template"),
+                "http_status": http_status,
+                "error_category": error_class,
+                "latency_ms": result.get("latency_ms"),
+                "correlation_id": result.get("correlation_id"),
+                "provider_request_attempted": result.get("external_call_performed"),
+                "provider_status": result.get("vendor_status"),
+            },
         )
+        return True
 
     @staticmethod
     def _health_error_class(value: str) -> str:
@@ -2253,6 +2260,18 @@ class CommerceHubService:
 
     async def _test_snappshop_channel_connection(self, configured: bool, body: dict | None = None) -> dict:
         connector = self._snappshop_connector(body)
+        resolved_settings, _ = self._connector_values("snappshop", body)
+        configured_vendor_id = str(
+            resolved_settings.get("vendor_id")
+            or getattr(getattr(connector, "config", None), "vendor_id", "")
+            or ""
+        ).strip()
+        endpoint_path_template = (
+            "/vendors/{vendor_id}" if configured_vendor_id else "/vendors"
+        )
+        endpoint_class = (
+            "selected_vendor" if configured_vendor_id else "vendor_discovery"
+        )
         if not configured or connector is None:
             return {
                 **self._connection_base(),
@@ -2265,24 +2284,26 @@ class CommerceHubService:
                 "checked_at": self._checked_at(),
                 "message": "SnappShop is not configured. No external call was performed.",
                 "external_call_performed": False,
+                "endpoint_class": endpoint_class,
+                "endpoint_path_template": endpoint_path_template,
             }
         started = monotonic()
+        vendor_status: str | None = None
         try:
-            vendors = await connector.list_vendors()
-            if not vendors:
-                raise ValueError("No authorized SnappShop vendors were returned.")
-            resolved_settings, _ = self._connector_values("snappshop", body)
-            configured_vendor_id = str(
-                resolved_settings.get("vendor_id")
-                or getattr(getattr(connector, "config", None), "vendor_id", "")
-                or ""
-            ).strip()
             if configured_vendor_id:
-                selected = next((vendor for vendor in vendors if vendor.vendor_id == configured_vendor_id), None)
-                if selected is None:
-                    raise ValueError("Selected SnappShop vendor was not returned.")
-                if not _snappshop_vendor_is_active(selected.metadata.get("status")):
-                    raise ValueError("Selected SnappShop vendor is inactive.")
+                selected = await connector.get_vendor_information()
+                if selected.vendor_id != configured_vendor_id:
+                    raise ValueError(
+                        "SnappShop selected-vendor response did not match the configured vendor."
+                    )
+                vendors = [selected]
+                vendor_status = _normalized_snappshop_vendor_status(
+                    selected.metadata.get("status")
+                )
+            else:
+                vendors = await connector.list_vendors()
+                if not vendors:
+                    raise ValueError("No authorized SnappShop vendors were returned.")
             latency_ms = round((monotonic() - started) * 1000, 2)
         except SnappShopConnectorError as exc:
             error = exc.error
@@ -2292,15 +2313,27 @@ class CommerceHubService:
                 "status": "authentication_failed" if error.category.value == "authentication" else "error",
                 "http_status": error.http_status, "latency_ms": round((monotonic() - started) * 1000, 2),
                 "checked_at": self._checked_at(), "message": error.message,
-                "error_class": error.category.value, "external_call_performed": True,
+                "error_class": error.provider_code or error.category.value,
+                "external_call_performed": True,
+                "endpoint_class": endpoint_class,
+                "endpoint_path_template": endpoint_path_template,
             }
         except ValueError as exc:
             return {
                 **self._connection_base(), "ok": False, "connected": False, "authenticated": True,
-                "status": "error", "http_status": None, "latency_ms": round((monotonic() - started) * 1000, 2),
+                "status": "error", "http_status": 200, "latency_ms": round((monotonic() - started) * 1000, 2),
                 "checked_at": self._checked_at(), "message": str(exc),
-                "error_class": "validation", "external_call_performed": True,
+                "error_class": "unexpected_response", "external_call_performed": True,
+                "endpoint_class": endpoint_class,
+                "endpoint_path_template": endpoint_path_template,
             }
+        message = "SnappShop credentials were verified successfully."
+        if configured_vendor_id:
+            message = "Connection verified for the configured SnappShop vendor."
+            if vendor_status:
+                message = (
+                    f"Connection verified. Vendor status reported by SnappShop: {vendor_status}."
+                )
         return {
             **self._connection_base(),
             "ok": True,
@@ -2310,10 +2343,13 @@ class CommerceHubService:
             "http_status": 200,
             "latency_ms": latency_ms,
             "checked_at": self._checked_at(),
-            "message": "SnappShop credentials were verified successfully.",
+            "message": message,
             "external_call_performed": True,
+            "endpoint_class": endpoint_class,
+            "endpoint_path_template": endpoint_path_template,
+            "vendor_status": vendor_status,
             "vendors": [self._vendor_contract(item) for item in vendors],
-            "suggested_vendor_id": _single_active_vendor_id(vendors),
+            "suggested_vendor_id": configured_vendor_id or _single_active_vendor_id(vendors),
             "selected_vendor_id": configured_vendor_id or None,
         }
 
@@ -3593,7 +3629,11 @@ class CommerceHubService:
     @staticmethod
     def _currently_verified(health: DlConnectorHealth | None) -> bool:
         """Return whether the latest recorded health evidence is successful."""
-        return bool(health and health.status == "healthy" and health.last_success_at)
+        return bool(
+            health
+            and health.status in {"healthy", "degraded"}
+            and health.last_success_at
+        )
 
     def _health(self, channel_id: str) -> DlConnectorHealth | None:
         return (
@@ -3706,14 +3746,30 @@ def _safe_integer_timeout(value: object, default: int = 30) -> int:
     return int(parsed)
 
 
-def _snappshop_vendor_is_active(value: object) -> bool:
+def _snappshop_vendor_is_documented_active(value: object) -> bool:
     if value is None:
         return True
     return str(value).strip().upper() in {"ACTIVE", "ENABLED", "TRUE", "1"}
 
 
+def _normalized_snappshop_vendor_status(value: object) -> str | None:
+    if value is None:
+        return None
+    normalized = "".join(
+        character
+        for character in str(value).strip().upper()
+        if character.isalnum() or character in {"_", "-", "."}
+    )
+    return normalized[:80] or None
+
+
 def _single_active_vendor_id(vendors: list) -> str | None:
-    active = [vendor for vendor in vendors if vendor.vendor_id and _snappshop_vendor_is_active(vendor.metadata.get("status"))]
+    active = [
+        vendor
+        for vendor in vendors
+        if vendor.vendor_id
+        and _snappshop_vendor_is_documented_active(vendor.metadata.get("status"))
+    ]
     return active[0].vendor_id if len(active) == 1 else None
 
 

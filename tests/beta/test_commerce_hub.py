@@ -422,7 +422,13 @@ def test_woocommerce_connection_test_maps_httpx_configuration_error_without_500(
     assert channel_state["last_health_check"]
 
 
-def test_snappshop_connection_test_performs_vendor_probe_without_secret_leakage(client, auth_headers, monkeypatch):
+def test_snappshop_connection_test_uses_selected_vendor_and_persists_safe_evidence(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.integration_platform.models import (
+        IntegrationConnectorHealthSnapshot,
+    )
+
     request_calls: list[dict] = []
 
     class FakeResponse:
@@ -437,8 +443,16 @@ def test_snappshop_connection_test_performs_vendor_probe_without_secret_leakage(
 
     class FakeAsyncClient:
         responses = [
-            FakeResponse({"status": True, "data": [{"id": "vendor-1", "title": "Vendor"}]}),
-            FakeResponse({"status": True, "data": {"id": "vendor-1", "title": "Vendor"}}),
+            FakeResponse(
+                {
+                    "status": True,
+                    "data": {
+                        "id": "vendor-1",
+                        "title": "Vendor",
+                        "status": "unexpected_readable_status",
+                    },
+                }
+            ),
         ]
 
         def __init__(self, *args, **kwargs):
@@ -485,7 +499,14 @@ def test_snappshop_connection_test_performs_vendor_probe_without_secret_leakage(
     assert data["external_call_performed"] is True
     assert data["read_only"] is True
     assert data["runtime_write_blocked"] is True
-    assert request_calls[0]["url"] == "https://apix.snappshop.ir/automation/v1/vendors"
+    assert data["vendor_status"] == "UNEXPECTED_READABLE_STATUS"
+    assert data["message"] == (
+        "Connection verified. Vendor status reported by SnappShop: "
+        "UNEXPECTED_READABLE_STATUS."
+    )
+    assert request_calls[0]["url"] == (
+        "https://apix.snappshop.ir/automation/v1/vendors/vendor-1"
+    )
     assert request_calls[0]["headers"]["Authorization"] == "Bearer snapp-secret-value"
     assert request_calls[0]["headers"]["User-Agent"] == "flowhub-agent"
     assert len(request_calls) == 1
@@ -495,6 +516,120 @@ def test_snappshop_connection_test_performs_vendor_probe_without_secret_leakage(
     assert channel_state["health"]["status"] == "healthy"
     assert channel_state["last_health_check"]
     assert channel_state["credentials_verified"] is True
+    snapshot = (
+        db.query(IntegrationConnectorHealthSnapshot)
+        .filter_by(connector_id="snappshop:main")
+        .order_by(IntegrationConnectorHealthSnapshot.id.desc())
+        .first()
+    )
+    assert snapshot is not None
+    assert snapshot.status == "healthy"
+    assert snapshot.details_json == {
+        "endpoint_class": "selected_vendor",
+        "endpoint_path_template": "/vendors/{vendor_id}",
+        "http_status": 200,
+        "latency_ms": data["latency_ms"],
+        "correlation_id": data["correlation_id"],
+        "provider_request_attempted": True,
+        "provider_status": "UNEXPECTED_READABLE_STATUS",
+    }
+    persisted = f"{snapshot.message} {snapshot.details_json}"
+    assert "snapp-secret-value" not in persisted
+    assert "Authorization" not in persisted
+    assert "Bearer" not in persisted
+
+
+@pytest.mark.parametrize(
+    ("http_status", "expected_class", "expected_status"),
+    [
+        (401, "authentication_failed", "authentication_failed"),
+        (403, "authorization_failed", "error"),
+        (404, "not_found", "error"),
+        (503, "upstream_unavailable", "error"),
+    ],
+)
+def test_snappshop_selected_vendor_failures_keep_provider_classification(
+    client,
+    auth_headers,
+    db,
+    monkeypatch,
+    http_status,
+    expected_class,
+    expected_status,
+):
+    from app.flowhub.integration_platform.models import (
+        IntegrationConnectorHealthSnapshot,
+    )
+
+    saved = client.put(
+        "/api/v2/commerce/channels/snappshop:main/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "agent_identifier": "flowhub-agent",
+                "vendor_id": "vendor-1",
+            },
+            "secrets": {"token": "snapp-failure-secret"},
+        },
+    )
+    assert saved.status_code == 200
+
+    class FakeResponse:
+        headers = {}
+
+        def __init__(self):
+            self.status_code = http_status
+
+        def json(self):
+            return {"status": False, "message": "sensitive provider detail"}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def request(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "app.flowhub.channels.snappshop.httpx.AsyncClient", FakeAsyncClient
+    )
+
+    response = client.post(
+        "/api/v2/commerce/channels/snappshop:main/test",
+        headers=auth_headers,
+        json={},
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["ok"] is False
+    assert result["status"] == expected_status
+    assert result["error_class"] in {
+        expected_class,
+        expected_class.removesuffix("_failed"),
+    }
+    assert result["http_status"] == http_status
+    assert "snapp-failure-secret" not in response.text
+    snapshot = (
+        db.query(IntegrationConnectorHealthSnapshot)
+        .filter_by(connector_id="snappshop:main")
+        .order_by(IntegrationConnectorHealthSnapshot.id.desc())
+        .first()
+    )
+    assert snapshot is not None
+    assert snapshot.status == "unhealthy"
+    assert snapshot.details_json["endpoint_path_template"] == "/vendors/{vendor_id}"
+    assert snapshot.details_json["http_status"] == http_status
+    assert snapshot.details_json["provider_request_attempted"] is True
+    assert "snapp-failure-secret" not in str(snapshot.details_json)
+    assert "sensitive provider detail" not in snapshot.message
 
 
 def test_shopify_placeholder_connection_test_does_not_call_external_system(client, auth_headers, monkeypatch):
@@ -4012,7 +4147,7 @@ def test_technolife_connection_test_persists_verified_health(
                 "request_timeout": "30",
             },
             {"token": "panel-snapp-token"},
-            "app.flowhub.channels.snappshop.SnappShopConnector.list_vendors",
+            "app.flowhub.channels.snappshop.SnappShopConnector.get_vendor_information",
         ),
         (
             "technolife:main",
@@ -4037,15 +4172,13 @@ def test_reopened_configuration_string_timeout_test_updates_saved_health(
         from app.flowhub.channels.contracts import ChannelVendor
 
         async def healthy_connection(_self):
-            return [
-                ChannelVendor(
-                    channel_id=channel_id,
-                    connector_type="snappshop",
-                    name="Panel vendor",
-                    vendor_id="panel-vendor",
-                    metadata={"status": "active"},
-                )
-            ]
+            return ChannelVendor(
+                channel_id=channel_id,
+                connector_type="snappshop",
+                name="Panel vendor",
+                vendor_id="panel-vendor",
+                metadata={"status": "active"},
+            )
     else:
         from app.flowhub.channels.contracts import ChannelHealth
 
@@ -4335,8 +4468,11 @@ def test_snappshop_unsaved_credentials_can_test_and_return_vendor_choices(client
 
 
 def test_snappshop_refresh_cache_fetches_all_pages_and_products_api_filters_local_cache(
-    client, auth_headers, monkeypatch
+    client, auth_headers, db, monkeypatch
 ):
+    from app.flowhub.data_layer.health_service import ConnectorHealthService
+    from app.flowhub.data_layer.models import DlConnectorHealth
+
     save = client.put(
         "/api/v2/commerce/channels/snappshop:main/settings",
         headers=auth_headers,
@@ -4349,6 +4485,18 @@ def test_snappshop_refresh_cache_fetches_all_pages_and_products_api_filters_loca
         },
     )
     assert save.status_code == 200
+    ConnectorHealthService(db).upsert(
+        "snappshop:main",
+        "snappshop",
+        "unhealthy",
+        detail="Independent connection failure evidence.",
+        error_class="authorization_failed",
+    )
+    connection_health = db.query(DlConnectorHealth).filter_by(
+        connector_id="snappshop:main"
+    ).one()
+    health_checked_at = connection_health.checked_at
+    health_last_success_at = connection_health.last_success_at
 
     class FakeResponse:
         status_code = 200
@@ -4412,6 +4560,14 @@ def test_snappshop_refresh_cache_fetches_all_pages_and_products_api_filters_loca
     assert products.json()["total"] == 2
     assert {item["connectorId"] for item in products.json()["items"]} == {"snappshop:main"}
     assert {item["currency"] for item in products.json()["items"]} == {"TMN"}
+    db.expire_all()
+    connection_health = db.query(DlConnectorHealth).filter_by(
+        connector_id="snappshop:main"
+    ).one()
+    assert connection_health.status == "unhealthy"
+    assert connection_health.checked_at == health_checked_at
+    assert connection_health.last_success_at == health_last_success_at
+    assert connection_health.detail == "Independent connection failure evidence."
 
 
 def test_successful_snappshop_configuration_commits_state_and_sanitized_audit(
