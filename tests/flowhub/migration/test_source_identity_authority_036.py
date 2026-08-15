@@ -401,13 +401,20 @@ def test_postgresql_035_to_036_preserves_mapping_and_enforces_identity_policy(
             )
             for table in IDENTITY_TABLES:
                 assert f"{table}_immutable" in trigger_names
+        # Mapping revisions are append-only (immutable on UPDATE/DELETE since
+        # FLOWHUB_018), so the CHECK constraint is exercised through INSERT.
         with pytest.raises(sa.exc.IntegrityError):
             with engine.begin() as connection:
                 connection.execute(
                     sa.text(
-                        "UPDATE sc_source_mapping_revisions "
-                        "SET identity_policy_version=3 WHERE id='mapping'"
-                    )
+                        "INSERT INTO sc_source_mapping_revisions "
+                        "(id,source_id,version,checksum,worksheet_mode,worksheet_name,"
+                        "data_start_row,value_policy_json,identity_policy_version,"
+                        "created_by_user_id,created_at) VALUES "
+                        "('mapping-invalid','source',3,:checksum,'all',NULL,2,"
+                        "'{}',3,1,CURRENT_TIMESTAMP)"
+                    ),
+                    {"checksum": "f" * 64},
                 )
     finally:
         engine.dispose()
