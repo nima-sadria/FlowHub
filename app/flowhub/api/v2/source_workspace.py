@@ -125,6 +125,13 @@ class SourcePreviewBusinessSummary(StrictModel):
     channelsNotConfigured: int = Field(ge=0)
 
 
+class SourceIdentityValidationSummary(StrictModel):
+    status: Literal["pass", "blocked"]
+    validKeyCount: int = Field(ge=0)
+    missingKeyCount: int = Field(ge=0)
+    duplicateKeyCount: int = Field(ge=0)
+
+
 class SourcePreviewResponse(StrictModel):
     items: list[SourcePreviewItem]
     total: int = Field(ge=0)
@@ -132,6 +139,7 @@ class SourcePreviewResponse(StrictModel):
     ignored: int = Field(ge=0)
     issues: list[SourcePreviewIssueSummary]
     businessSummary: SourcePreviewBusinessSummary
+    identityValidation: SourceIdentityValidationSummary | None = None
     sheetRevisionId: str | None = None
     mappingRevisionId: str | None = None
 

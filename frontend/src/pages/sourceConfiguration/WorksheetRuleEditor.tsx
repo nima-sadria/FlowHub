@@ -37,6 +37,28 @@ export const CHANNEL_FIELD_DEFINITIONS = [
   ['status', 'common:field.status'],
 ] as const
 
+type ChannelField = typeof CHANNEL_FIELD_DEFINITIONS[number][0]
+
+/**
+ * Channel mapping requirements come from the Source-channel contract returned
+ * by the API.  The fallback mirrors the pre-capability API contract so older
+ * servers remain safe while newer ones can declare requirements directly.
+ */
+export function requiredChannelMappingFields(
+  connectorType: string | undefined,
+  capabilities: Readonly<Record<string, unknown>> = {},
+): ReadonlySet<ChannelField> {
+  const advertised = capabilities.mappingRequiredFields ?? capabilities.mapping_required_fields
+  if (Array.isArray(advertised)) {
+    const fields = advertised.filter((field): field is ChannelField =>
+      typeof field === 'string' && CHANNEL_FIELD_DEFINITIONS.some(([candidate]) => candidate === field))
+    if (fields.length > 0) return new Set(fields)
+  }
+  return new Set(connectorType === 'woocommerce'
+    ? ['external_id']
+    : ['external_id', 'stock', 'status'])
+}
+
 export const DEFAULT_SOURCE_VALUE_POLICY: Record<string, string> = {
   blank: 'no_change', x: 'unavailable', dash: 'no_change', zero: 'explicit_zero',
   formula: 'calculated_value', invalid: 'blocked',
@@ -79,6 +101,13 @@ export function smartInputDisplayValue(mapping: FieldMapping): string {
   return mapping.referenceValue ?? ''
 }
 
+export function MappingFieldLabel({ label, required = false, help }: { label: string; required?: boolean; help?: string }) {
+  return <>
+    <span className="fh-field-label">{label}{required && <><span className="text-danger" aria-hidden="true"> *</span><span className="sr-only"> {translate('sources:sourceConfiguration.requiredField')}</span></>}</span>
+    {help && <p className="fh-text-caption">{help}</p>}
+  </>
+}
+
 const REFERENCE_TYPE_KEYS: Record<ReferenceType, string> = {
   disabled: 'sources:sourceConfiguration.disabled',
   column_letter: 'sources:sourceConfiguration.columnLetter',
@@ -86,11 +115,12 @@ const REFERENCE_TYPE_KEYS: Record<ReferenceType, string> = {
   column_id: 'sources:sourceConfiguration.internalColumnId',
 }
 
-export function SmartColumnInput({ mapping, columns = [], disabled = false, allowInternalColumnId = true, invalid = false, describedBy, detectedHeader, onChange }: { mapping: FieldMapping; columns?: DiscoveredColumn[]; disabled?: boolean; allowInternalColumnId?: boolean; invalid?: boolean; describedBy?: string; detectedHeader?: string | null; onChange: (mapping: FieldMapping) => void }) {
+export function SmartColumnInput({ mapping, columns = [], disabled = false, allowInternalColumnId = true, invalid = false, required = false, describedBy, detectedHeader, fieldLabel, onChange }: { mapping: FieldMapping; columns?: DiscoveredColumn[]; disabled?: boolean; allowInternalColumnId?: boolean; invalid?: boolean; required?: boolean; describedBy?: string; detectedHeader?: string | null; fieldLabel?: string; onChange: (mapping: FieldMapping) => void }) {
   const [advanced, setAdvanced] = useState(mapping.referenceType === 'header_name' || mapping.referenceType === 'column_id')
   const displayValue = smartInputDisplayValue(mapping)
-  const ariaLabel = translate('sources:sourceConfiguration.columnReference', { field: fieldDisplayName(mapping.field) })
-  const referenceTypeLabel = translate('sources:sourceConfiguration.referenceType', { field: fieldDisplayName(mapping.field) })
+  const displayLabel = fieldLabel ?? fieldDisplayName(mapping.field)
+  const ariaLabel = translate('sources:sourceConfiguration.columnReference', { field: displayLabel })
+  const referenceTypeLabel = translate('sources:sourceConfiguration.referenceType', { field: displayLabel })
   const referenceExample = mapping.referenceType === 'column_letter'
     ? translate('sources:sourceConfiguration.exampleColumn')
     : mapping.referenceType === 'header_name'
@@ -112,6 +142,8 @@ export function SmartColumnInput({ mapping, columns = [], disabled = false, allo
       {columns.length > 0 && !advanced && <select
         className="fh-input"
         disabled={disabled}
+        required={required}
+        aria-required={required || undefined}
         value={mapping.referenceType === 'column_letter' ? mapping.referenceValue ?? '' : ''}
         aria-label={ariaLabel}
         onChange={event => onChange(event.target.value
@@ -128,6 +160,8 @@ export function SmartColumnInput({ mapping, columns = [], disabled = false, allo
       <select
         className="fh-input"
         disabled={disabled}
+        required={required}
+        aria-required={required || undefined}
         value={mapping.referenceType}
         aria-label={referenceTypeLabel}
         onChange={event => changeReferenceType(event.target.value as ReferenceType)}
@@ -139,6 +173,8 @@ export function SmartColumnInput({ mapping, columns = [], disabled = false, allo
         <input
           className="fh-input pe-8"
           disabled={disabled || mapping.referenceType === 'disabled'}
+          required={required}
+          aria-required={required || undefined}
           value={displayValue}
           aria-label={ariaLabel}
           aria-invalid={invalid || undefined}
@@ -158,21 +194,20 @@ export function SmartColumnInput({ mapping, columns = [], disabled = false, allo
   )
 }
 
-const WOOCOMMERCE_CONNECTOR_TYPE = 'woocommerce'
-
 function isFieldFilled(field: FieldMapping | undefined): boolean {
   return Boolean(field && field.referenceType !== 'disabled' && field.referenceValue?.trim())
 }
 
-export function channelValidationIssues(fields: FieldMapping[], enabled: boolean, connectorType?: string): string[] {
+export function channelValidationIssues(fields: FieldMapping[], enabled: boolean, connectorType?: string, capabilities?: Readonly<Record<string, unknown>>): string[] {
   if (!enabled) return []
   const issues: string[] = []
-  const identifier = fields.find(item => item.field === 'external_id')
-  if (!identifier || identifier.referenceType === 'disabled' || !identifier.referenceValue?.trim()) issues.push(translate('sources:sourceConfiguration.productIdentifierRequired'))
-  if (connectorType !== WOOCOMMERCE_CONNECTOR_TYPE) {
-    const stockFilled = isFieldFilled(fields.find(item => item.field === 'stock'))
-    const statusFilled = isFieldFilled(fields.find(item => item.field === 'status'))
-    if (!stockFilled || !statusFilled) issues.push(translate('sources:sourceConfiguration.stockStatusRequired'))
+  const requiredFields = requiredChannelMappingFields(connectorType, capabilities)
+  if (requiredFields.has('external_id') && !isFieldFilled(fields.find(item => item.field === 'external_id'))) {
+    issues.push(translate('sources:sourceConfiguration.productIdentifierRequired'))
+  }
+  if ((requiredFields.has('stock') && !isFieldFilled(fields.find(item => item.field === 'stock')))
+    || (requiredFields.has('status') && !isFieldFilled(fields.find(item => item.field === 'status')))) {
+    issues.push(translate('sources:sourceConfiguration.stockStatusRequired'))
   }
   const refs = new Map<string, string>()
   for (const field of fields) {
@@ -214,7 +249,10 @@ export default function WorksheetRuleEditor({ rule, rowCount, columns = [], chan
   const missingSourceFields = rule.enabled ? rule.sourceFields.filter(sourceFieldMissing) : []
   const configured = (channelId: string) => rule.channels.find(item => item.channelId === channelId) ?? { channelId, worksheetName: rule.worksheetName, enabled: false, fields: emptyChannelFields() }
   const enabledChannels = rule.channels.filter(channel => channel.enabled)
-  const channelIssueCount = enabledChannels.reduce((total, channel) => total + channelValidationIssues(channel.fields, true, channels.find(item => item.channelId === channel.channelId)?.connectorType).length, 0)
+  const channelIssueCount = enabledChannels.reduce((total, channel) => {
+    const channelInfo = channels.find(item => item.channelId === channel.channelId)
+    return total + channelValidationIssues(channel.fields, true, channelInfo?.connectorType, channelInfo?.capabilities).length
+  }, 0)
   const statusKey = !rule.enabled
     ? 'sources:sourceConfiguration.worksheetStatus.ignored'
     : missingSourceFields.length > 0 || channelIssueCount > 0
@@ -257,8 +295,9 @@ export default function WorksheetRuleEditor({ rule, rowCount, columns = [], chan
             <div className="grid gap-3 lg:grid-cols-2">
               {SOURCE_FIELD_DEFINITIONS.filter(([field]) => (group.fields as readonly string[]).includes(field)).map(([field, key]) => {
                 const mapping = rule.sourceFields.find(item => item.field === field) ?? emptyFieldMapping(field, sourceFieldRequired(field))
+                const required = sourceFieldRequired(field)
                 const invalid = sourceFieldMissing(mapping)
-                return <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><SmartColumnInput mapping={mapping} columns={columns} disabled={!rule.enabled} invalid={invalid} describedBy={sourceErrorId} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateSource(field, value)} /></div>
+                return <div className="grid gap-1" key={field}><MappingFieldLabel label={translate(key)} required={required} help={field === 'source_key' ? translate('sources:sourceConfiguration.sourceProductKeyHelp') : undefined} /><SmartColumnInput mapping={mapping} columns={columns} disabled={!rule.enabled} invalid={invalid} required={required} describedBy={sourceErrorId} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateSource(field, value)} /></div>
               })}
             </div>
             </>
@@ -273,7 +312,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, columns = [], chan
                 </fieldset>
           })}
         </div>
-        {missingSourceFields.length > 0 && <p className="fh-alert-warning mt-3" id={sourceErrorId} role="alert">{translate('sources:sourceConfiguration.sourceProductNameRequired')}</p>}
+        {missingSourceFields.length > 0 && <p className="fh-alert-warning mt-3" id={sourceErrorId} role="alert">{translate('sources:sourceConfiguration.sourceProductFieldsRequired', { fields: missingSourceFields.map(field => fieldDisplayName(field.field)).join(', ') })}</p>}
       </section>
       <section data-worksheet-channel-columns={rule.worksheetName}>
         <h3 className="fh-form-section-title" title={translate('sources:sourceConfiguration.channelMappingsAreIndependent')}>{translate('sources:sourceConfiguration.columnsForEachChannel')}</h3>
@@ -282,7 +321,8 @@ export default function WorksheetRuleEditor({ rule, rowCount, columns = [], chan
             const channelInfo = orderedChannel.item
             const channel = configured(channelInfo.channelId)
             const disabled = !rule.enabled || !channelInfo.available
-            const issues = channelValidationIssues(channel.fields, true, channelInfo.connectorType)
+            const requiredFields = requiredChannelMappingFields(channelInfo.connectorType, channelInfo.capabilities)
+            const issues = channelValidationIssues(channel.fields, true, channelInfo.connectorType, channelInfo.capabilities)
             const copyResources = prepareResourceCollection(channels.filter(candidate => candidate.channelId !== channelInfo.channelId && rule.channels.some(item => item.channelId === candidate.channelId)), sourceChannelSignals)
             const channelOpen = expandedChannels.includes(channelInfo.channelId)
             return <details className="rounded-lg border border-border bg-bg-subtle" data-channel-rule={channelInfo.channelId} open={channelOpen} onToggle={event => {
@@ -298,7 +338,11 @@ export default function WorksheetRuleEditor({ rule, rowCount, columns = [], chan
                   <button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled} onClick={() => onRequestCopy({ kind: 'channel_to_worksheets', worksheetName: rule.worksheetName, channelId: channelInfo.channelId })}>{translate('sources:sourceConfiguration.copyToWorksheets')}</button>
                   <button className="fh-button-secondary fh-button-sm" type="button" disabled={disabled} onClick={() => updateChannel(channelInfo.channelId, { ...channel, fields: emptyChannelFields() })}>{translate('sources:sourceConfiguration.clearMapping')}</button>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-2">{CHANNEL_FIELD_DEFINITIONS.map(([field, key]) => <div className="grid gap-1" key={field}><span className="fh-field-label">{translate(key)}</span><SmartColumnInput mapping={channel.fields.find(item => item.field === field) ?? emptyFieldMapping(field)} columns={columns} disabled={disabled} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channelInfo.channelId, field, value)} /></div>)}</div>
+                <div className="grid gap-3 lg:grid-cols-2">{CHANNEL_FIELD_DEFINITIONS.map(([field, key]) => {
+                  const isWooIdentifier = field === 'external_id' && channelInfo.connectorType === 'woocommerce'
+                  const label = translate(isWooIdentifier ? 'sources:sourceConfiguration.woocommerceProductIdentifier' : key)
+                  return <div className="grid gap-1" key={field}><MappingFieldLabel label={label} required={channel.enabled && requiredFields.has(field)} help={isWooIdentifier ? translate('sources:sourceConfiguration.woocommerceProductIdentifierHelp') : undefined} /><SmartColumnInput mapping={channel.fields.find(item => item.field === field) ?? emptyFieldMapping(field)} columns={columns} disabled={disabled} required={channel.enabled && requiredFields.has(field)} fieldLabel={label} allowInternalColumnId={sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channelInfo.channelId, field, value)} /></div>
+                })}</div>
                 {issues.length > 0 && <ul className="fh-alert-warning mt-3 list-disc ps-5">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
               </div>
             </details>

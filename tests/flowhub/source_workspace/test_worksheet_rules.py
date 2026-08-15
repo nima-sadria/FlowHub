@@ -809,6 +809,67 @@ def test_source_product_key_is_authoritative_and_names_may_repeat() -> None:
     assert blank[0]["issues"][0]["category"] == "missing_source_product_key"
 
 
+def test_woocommerce_product_id_can_be_both_source_key_and_listing_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    user = _user_and_channels(db)
+    service = SourceWorkspaceService(db)
+    source = _external_source(service, user)
+    payload = {
+        "source_id": str(source["id"]),
+        "expected_source_version": int(source["version"]),
+        "worksheet_mode": "all",
+        "worksheet_name": None,
+        "data_start_row": 2,
+        # The owner treats the website/WooCommerce ID as FlowHub's stable
+        # identity. Product names deliberately repeat and remain valid.
+        "source_fields": [
+            {"field": "name", "reference_type": "column_letter", "reference_value": "B", "required": True},
+            {"field": "source_key", "reference_type": "column_letter", "reference_value": "A", "required": True},
+        ],
+        "channel_mappings": [{
+            "channel_id": "woocommerce:primary",
+            "fields": [{"field": "external_id", "reference_type": "column_letter", "reference_value": "A"}],
+        }],
+        "value_policy": {},
+        "identity_policy_version": 2,
+        "user": user,
+    }
+
+    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
+        return SimpleNamespace(
+            snapshot=SimpleNamespace(id="woocommerce-identity-preview", version_seq=1),
+            worksheets={
+                "Retail": [
+                    ["Website Product ID", "Product Name"],
+                    ["1001", "USB-C Cable"],
+                    ["1002", "USB-C Cable"],
+                ],
+            },
+        )
+
+    monkeypatch.setattr(service, "_read_external_source", fake_read)
+    preview = asyncio.run(service.preview_unsaved_mapping(**payload))
+    assert preview["identityValidation"] == {
+        "status": "pass",
+        "validKeyCount": 2,
+        "missingKeyCount": 0,
+        "duplicateKeyCount": 0,
+    }
+    assert not [
+        issue
+        for item in preview["items"]
+        for issue in item["issues"]
+        if issue["category"] in {"missing_source_product_key", "duplicate_source_product_key"}
+    ]
+
+    saved = service.save_mapping(**payload)
+    source_key = next(field for field in saved["sourceFields"] if field["field"] == "source_key")
+    woo_id = next(field for field in saved["channels"][0]["fields"] if field["field"] == "external_id")
+    assert source_key["referenceValue"] == woo_id["referenceValue"] == "A"
+
+
 def test_v2_mapping_save_requires_a_matching_authoritative_identity_preview(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -902,6 +963,13 @@ def test_v2_mapping_save_rejects_duplicate_keys_found_by_preview(
     ]
     assert len(conflicts) == 2
     assert conflicts[0]["details"]["conflictingRows"] == ["Retail!2", "Marketplace!2"]
+    assert conflicts[0]["details"]["keyValue"] == "same-key"
+    assert preview["identityValidation"] == {
+        "status": "blocked",
+        "validKeyCount": 0,
+        "missingKeyCount": 0,
+        "duplicateKeyCount": 2,
+    }
 
     with pytest.raises(HTTPException) as error:
         service.save_mapping(**payload)

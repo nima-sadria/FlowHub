@@ -35,6 +35,8 @@ import WorksheetRuleEditor, {
   emptyChannelFields as emptyWorksheetChannelFields,
   SOURCE_FIELD_DEFINITIONS,
   SOURCE_FIELD_GROUPS,
+  MappingFieldLabel,
+  requiredChannelMappingFields,
   SmartColumnInput,
   type WorksheetCopyIntent,
 } from './sourceConfiguration/WorksheetRuleEditor'
@@ -203,34 +205,28 @@ function fieldDisplayName(field: string): string {
   return translationKey ? translate(translationKey) : field
 }
 
-const WOOCOMMERCE_CONNECTOR_TYPE = 'woocommerce'
-
 function isFieldFilled(field: FieldMapping | undefined): boolean {
   return Boolean(field && field.referenceType !== 'disabled' && field.referenceValue?.trim())
 }
 
-function channelMappedStatus(fields: FieldMapping[], connectorType: string | undefined): { mapped: boolean; missingFields: string[] } {
+function channelMappedStatus(fields: FieldMapping[], connectorType: string | undefined, capabilities?: Readonly<Record<string, unknown>>): { mapped: boolean; missingFields: string[] } {
   const missingFields: string[] = []
-  if (!isFieldFilled(fields.find(item => item.field === 'external_id'))) missingFields.push(fieldDisplayName('external_id'))
-  if (connectorType !== WOOCOMMERCE_CONNECTOR_TYPE) {
-    if (!isFieldFilled(fields.find(item => item.field === 'stock'))) missingFields.push(fieldDisplayName('stock'))
-    if (!isFieldFilled(fields.find(item => item.field === 'status'))) missingFields.push(fieldDisplayName('status'))
+  for (const field of requiredChannelMappingFields(connectorType, capabilities)) {
+    if (!isFieldFilled(fields.find(item => item.field === field))) missingFields.push(fieldDisplayName(field))
   }
   return { mapped: missingFields.length === 0, missingFields }
 }
 
-function channelValidation(fields: FieldMapping[], enabled: boolean, connectorType: string | undefined): string[] {
+function channelValidation(fields: FieldMapping[], enabled: boolean, connectorType: string | undefined, capabilities?: Readonly<Record<string, unknown>>): string[] {
   if (!enabled) return []
   const issues: string[] = []
-  if (!isFieldFilled(fields.find(item => item.field === 'external_id'))) {
+  const requiredFields = requiredChannelMappingFields(connectorType, capabilities)
+  if (requiredFields.has('external_id') && !isFieldFilled(fields.find(item => item.field === 'external_id'))) {
     issues.push(translate('sources:sourceConfiguration.productIdentifierRequired'))
   }
-  if (connectorType !== WOOCOMMERCE_CONNECTOR_TYPE) {
-    const stockFilled = isFieldFilled(fields.find(item => item.field === 'stock'))
-    const statusFilled = isFieldFilled(fields.find(item => item.field === 'status'))
-    if (!stockFilled || !statusFilled) {
-      issues.push(translate('sources:sourceConfiguration.stockStatusRequired'))
-    }
+  if ((requiredFields.has('stock') && !isFieldFilled(fields.find(item => item.field === 'stock')))
+    || (requiredFields.has('status') && !isFieldFilled(fields.find(item => item.field === 'status')))) {
+    issues.push(translate('sources:sourceConfiguration.stockStatusRequired'))
   }
   const references = new Map<string, string>()
   for (const field of fields) {
@@ -252,6 +248,44 @@ function channelValidation(fields: FieldMapping[], enabled: boolean, connectorTy
 function previewHasIdentityConflicts(result: SourcePreview): boolean {
   return result.items.some(item => item.issues.some(issue =>
     issue.category === 'missing_source_product_key' || issue.category === 'duplicate_source_product_key'))
+}
+
+type IdentityDuplicate = { key: string; rows: string[] }
+
+function identityPreviewDetails(preview: SourcePreview): {
+  status: 'pass' | 'blocked'
+  validKeyCount: number
+  missingKeyCount: number
+  duplicateKeyCount: number
+  duplicates: IdentityDuplicate[]
+} {
+  const missingKeyCount = preview.identityValidation?.missingKeyCount
+    ?? preview.issues.find(issue => issue.category === 'missing_source_product_key')?.count
+    ?? 0
+  const duplicateKeyCount = preview.identityValidation?.duplicateKeyCount
+    ?? preview.issues.find(issue => issue.category === 'duplicate_source_product_key')?.count
+    ?? 0
+  const duplicateGroups = new Map<string, IdentityDuplicate>()
+  for (const item of preview.items) {
+    for (const issue of item.issues.filter(candidate => candidate.category === 'duplicate_source_product_key')) {
+      const details = issue.details ?? {}
+      const key = typeof details.keyValue === 'string'
+        ? details.keyValue
+        : String(item.sourceProduct.source_key ?? '')
+      const rows = Array.isArray(details.conflictingRows)
+        ? details.conflictingRows.filter((row): row is string => typeof row === 'string')
+        : [`${item.worksheetName}!${item.rowNumber}`]
+      const signature = `${key}\u0000${rows.join('\u0000')}`
+      duplicateGroups.set(signature, { key, rows })
+    }
+  }
+  return {
+    status: preview.identityValidation?.status ?? (missingKeyCount || duplicateKeyCount ? 'blocked' : 'pass'),
+    validKeyCount: preview.identityValidation?.validKeyCount ?? Math.max(0, preview.total - missingKeyCount - duplicateKeyCount),
+    missingKeyCount,
+    duplicateKeyCount,
+    duplicates: [...duplicateGroups.values()],
+  }
 }
 
 function fallbackChannelsForSource(source: SourceProfile & { mapping: SourceMapping | null }): SourceChannel[] {
@@ -1333,6 +1367,7 @@ export default function SourceConfiguration() {
   const canMutateSource = canEditSource && !sourceArchived
 
   const previewSummary = preview?.businessSummary ?? null
+  const identityPreview = preview ? identityPreviewDetails(preview) : null
   const previewItems = preview?.items.filter(item => previewFilter === 'all' || (previewFilter === 'ready' ? item.ready : item.hasIssues)) ?? []
   const currentPreviewIndex = Math.min(previewIndex, Math.max(0, previewItems.length - 1))
   const currentPreviewItem = previewItems[currentPreviewIndex] ?? null
@@ -1368,7 +1403,7 @@ export default function SourceConfiguration() {
       for (const channelId of enabledChannelIds) {
         const connectorType = channels.find(item => item.channelId === channelId)?.connectorType
         const fields = channelFields[channelId] ?? emptyChannelFields()
-        for (const issue of channelValidation(fields, true, connectorType)) {
+        for (const issue of channelValidation(fields, true, connectorType, channels.find(item => item.channelId === channelId)?.capabilities)) {
           issues.push(`${channelName(channelId)}: ${issue}`)
         }
       }
@@ -1387,7 +1422,7 @@ export default function SourceConfiguration() {
         }
         for (const channel of enabledChannels) {
           const connectorType = channels.find(item => item.channelId === channel.channelId)?.connectorType
-          for (const issue of channelValidation(channel.fields, true, connectorType)) {
+          for (const issue of channelValidation(channel.fields, true, connectorType, channels.find(item => item.channelId === channel.channelId)?.capabilities)) {
             issues.push(`${rule.worksheetName} — ${channelName(channel.channelId)}: ${issue}`)
           }
         }
@@ -1398,6 +1433,11 @@ export default function SourceConfiguration() {
   const displayFieldReference = (mapping: FieldMapping) => mapping.referenceType === 'disabled'
     ? translate('sources:sourceConfiguration.disabled')
     : `${translate(REFERENCE_TYPE_LABELS[mapping.referenceType])}: ${mapping.referenceValue ?? '—'}`
+  const identityKeyMappings = effectiveWorksheetRuleMode === 'shared'
+    ? [displayFieldReference(sourceFields.find(field => field.field === 'source_key') ?? emptyMapping('source_key', true))]
+    : worksheetRules
+      .filter(rule => rule.enabled)
+      .map(rule => `${rule.worksheetName}: ${displayFieldReference(rule.sourceFields.find(field => field.field === 'source_key') ?? emptyMapping('source_key', true))}`)
   const pendingWorksheetCopyFields = (() => {
     if (!pendingCopy) return [] as FieldMapping[]
     const sourceRule = worksheetRules.find(rule => rule.worksheetName === pendingCopy.intent.worksheetName)
@@ -1613,12 +1653,13 @@ export default function SourceConfiguration() {
             <p className="fh-text-caption mb-3">{translate(group.helpKey)}</p>
             {group.id === 'primary' && <p className="fh-text-caption mb-3">{translate('sources:sourceConfiguration.sourceProductCommercialHelp')}</p>}
             <div className="grid gap-3 lg:grid-cols-2">
-              {SOURCE_FIELDS.filter(([field]) => (group.fields as readonly string[]).includes(field)).map(([field, labelKey]) => (
+              {SOURCE_FIELDS.filter(([field]) => (group.fields as readonly string[]).includes(field)).map(([field, labelKey, required]) => (
                 <label className="grid gap-1" key={field}>
-                  <span className="fh-field-label">{translate(labelKey)}</span>
+                  <MappingFieldLabel label={translate(labelKey)} required={required} help={field === 'source_key' ? translate('sources:sourceConfiguration.sourceProductKeyHelp') : undefined} />
                   <SmartColumnInput
                     mapping={sourceFields.find(item => item.field === field)!}
                     columns={sharedDiscoveredColumns}
+                    required={required}
                     allowInternalColumnId={source.sourceKind === 'flowhub_sheet'}
                     onChange={value => updateSourceField(field, value)}
                   />
@@ -1724,9 +1765,10 @@ export default function SourceConfiguration() {
                 const channel = orderedChannel.item
                 const enabled = Boolean(channelEnabled[channel.channelId])
                 const fields = channelFields[channel.channelId] ?? emptyChannelFields()
-                const issues = channelValidation(fields, enabled, channel.connectorType)
+                const requiredFields = requiredChannelMappingFields(channel.connectorType, channel.capabilities)
+                const issues = channelValidation(fields, enabled, channel.connectorType, channel.capabilities)
                 const configured = channel.configured !== false
-                const mappedStatus = channelMappedStatus(fields, channel.connectorType)
+                const mappedStatus = channelMappedStatus(fields, channel.connectorType, channel.capabilities)
                 const controlsDisabled = !channel.available || !configured
                 const canToggle = channel.available && configured && (enabled || mappedStatus.mapped)
                 const copyResources = prepareResourceCollection(
@@ -1739,7 +1781,16 @@ export default function SourceConfiguration() {
                     ? <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>
                     : <Badge variant={mappedStatus.mapped ? 'success' : 'warning'}>{mappedStatus.mapped ? translate('sources:sourceConfiguration.mapped') : translate('sources:sourceConfiguration.mappingIncomplete')}</Badge>}</td>
                   <td><input className="fh-input min-w-[170px]" disabled={controlsDisabled} value={channelWorksheets[channel.channelId] ?? ''} onChange={event => setChannelWorksheets(current => ({ ...current, [channel.channelId]: event.target.value }))} placeholder={translate('sources:sourceConfiguration.useSourceWorksheet')} /></td>
-                  {CHANNEL_FIELDS.map(([field]) => <td key={field}><SmartColumnInput mapping={fields.find(item => item.field === field)!} columns={sharedDiscoveredColumns} disabled={controlsDisabled} allowInternalColumnId={source.sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channel.channelId, field, value)} /></td>)}
+                  {CHANNEL_FIELDS.map(([field]) => {
+                    const isWooIdentifier = field === 'external_id' && channel.connectorType === 'woocommerce'
+                    const label = isWooIdentifier ? translate('sources:sourceConfiguration.woocommerceProductIdentifier') : undefined
+                    const required = enabled && requiredFields.has(field)
+                    return <td key={field}><div className="grid gap-1">{isWooIdentifier
+                      ? <MappingFieldLabel label={label!} required={required} help={translate('sources:sourceConfiguration.woocommerceProductIdentifierHelp')} />
+                      : required && <span className="fh-text-caption font-medium text-danger">{translate('sources:sourceConfiguration.requiredField')}</span>}
+                      <SmartColumnInput mapping={fields.find(item => item.field === field)!} columns={sharedDiscoveredColumns} disabled={controlsDisabled} required={required} fieldLabel={label} allowInternalColumnId={source.sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channel.channelId, field, value)} />
+                    </div></td>
+                  })}
                   <td><div className="grid min-w-[220px] gap-2"><select className="fh-input" aria-label={translate('sources:sourceConfiguration.copyMappingFrom')} disabled={controlsDisabled} value={copyFrom[channel.channelId] ?? ''} onChange={event => setCopyFrom(current => ({ ...current, [channel.channelId]: event.target.value }))}><option value="">{translate('sources:sourceConfiguration.copyMappingFrom')}</option><ResourceOptionGroups resources={copyResources} renderLabel={item => item.displayName} /></select><div className="flex gap-2"><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled || !copyFrom[channel.channelId]} onClick={() => copyMapping(channel.channelId)}>{translate('sources:sourceConfiguration.copyMapping')}</button><button className="fh-button-secondary fh-button-sm" type="button" disabled={controlsDisabled} aria-label={translate('sources:sourceConfiguration.clearMapping')} onClick={() => clearMapping(channel.channelId)}><Icon name="close" /></button></div>{issues.length > 0 && <span className="fh-field-error">{issues[0]}</span>}</div></td>
                   <td className="text-end">{!configured
                     ? (canManageCommerce
@@ -1850,6 +1901,26 @@ export default function SourceConfiguration() {
         </div>
         {preview && (
           <>
+            {identityPreview && <section className={`border-t border-border p-4 ${identityPreview.status === 'pass' ? 'fh-alert fh-alert-success' : 'fh-alert-warning'}`} data-testid="source-identity-preview" aria-live="polite">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-medium text-text-base">{translate('sources:sourceConfiguration.identityValidation')}</h3>
+                <Badge variant={identityPreview.status === 'pass' ? 'success' : 'warning'}>{translate(identityPreview.status === 'pass' ? 'sources:sourceConfiguration.identityValidationPass' : 'sources:sourceConfiguration.identityValidationBlocked')}</Badge>
+              </div>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityMappedKeyColumn')}</dt><dd className="font-medium text-text-base">{identityKeyMappings.join(' · ')}</dd></div>
+                <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityValidKeyCount')}</dt><dd className="font-medium text-text-base">{formatNumber(identityPreview.validKeyCount)}</dd></div>
+                <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityMissingKeyCount')}</dt><dd className="font-medium text-text-base">{formatNumber(identityPreview.missingKeyCount)}</dd></div>
+                <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityDuplicateKeyCount')}</dt><dd className="font-medium text-text-base">{formatNumber(identityPreview.duplicateKeyCount)}</dd></div>
+              </dl>
+              {identityPreview.status === 'blocked' && <div className="mt-3 space-y-2">
+                {identityPreview.missingKeyCount > 0 && <p>{translate('sources:sourceConfiguration.identityMissingKeysSummary', { count: identityPreview.missingKeyCount })}</p>}
+                {identityPreview.duplicateKeyCount > 0 && <p>{translate('sources:sourceConfiguration.identityDuplicateKeysSummary', { count: identityPreview.duplicateKeyCount })}</p>}
+                {identityPreview.duplicates.map((duplicate, index) => <div className="rounded-lg border border-warning/30 bg-bg-base p-3" key={`${duplicate.key}-${index}`}>
+                  {duplicate.key && <p className="font-medium text-text-base">{translate('sources:sourceConfiguration.identityDuplicateKey', { key: duplicate.key })}</p>}
+                  <p className="fh-text-caption">{translate('sources:sourceConfiguration.identityAffectedRows', { rows: duplicate.rows.join(', ') })}</p>
+                </div>)}
+              </div>}
+            </section>}
             {previewSummary && <div className="grid grid-cols-2 gap-4 border-t border-border p-4 xl:grid-cols-4">
               <button className="fh-stat-card text-start" type="button" onClick={() => { setPreviewFilter('all'); setPreviewIndex(0) }}><span className="fh-text-caption">{translate('sources:sourceConfiguration.productsFound')}</span><strong className="mt-2 block text-2xl">{previewSummary.productsFound}</strong></button>
               <button className="fh-stat-card text-start" type="button" onClick={() => { setPreviewFilter('ready'); setPreviewIndex(0) }}><span className="fh-text-caption">{translate('sources:sourceConfiguration.productsReady')}</span><strong className="mt-2 block text-2xl">{previewSummary.productsReady}</strong></button>

@@ -15,14 +15,14 @@ const mapping = {
   worksheetRuleMode: 'shared',
   duplicateProductPolicy: 'block',
   sourceFields: [
-    { field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true },
-    { field: 'source_key', referenceType: 'column_letter', referenceValue: 'B', required: true },
+    { field: 'name', referenceType: 'column_letter', referenceValue: 'B', required: true },
+    { field: 'source_key', referenceType: 'column_letter', referenceValue: 'A', required: true },
   ],
   channels: [
     {
       channelId: 'woocommerce:primary', worksheetName: null, enabled: true,
       fields: [
-        { field: 'external_id', referenceType: 'column_letter', referenceValue: 'C' },
+        { field: 'external_id', referenceType: 'column_letter', referenceValue: 'A' },
         { field: 'price', referenceType: 'column_letter', referenceValue: 'D' },
         { field: 'stock', referenceType: 'column_letter', referenceValue: 'E' },
         { field: 'status', referenceType: 'disabled', referenceValue: null },
@@ -74,6 +74,7 @@ const channels = [
 
 const preview = {
   items: [], total: 0, recognized: 0, ignored: 0, issues: [],
+  identityValidation: { status: 'pass', validKeyCount: 1, missingKeyCount: 0, duplicateKeyCount: 0 },
   businessSummary: { productsFound: 0, productsReady: 0, priceChanges: null, stockChanges: null, unchanged: null, needsAttention: 0, channelsReady: 0, channelsNotConfigured: 0 },
   sheetRevisionId: 'nextcloud-ugreen-revision-1', mappingRevisionId: null,
 }
@@ -100,8 +101,8 @@ async function installMocks(page: Page, savedMappings: Array<Record<string, unkn
     if (request.method() === 'GET' && url.pathname === `/api/v2/sources/${sourceId}/worksheets`) return json({
       sourceId, sourceRevisionId: 'nextcloud-ugreen-revision-1',
       items: [{ name: 'UGREEN', rowCount: 12, columns: [
-        { id: 'A', letter: 'A', header: 'Product' }, { id: 'B', letter: 'B', header: 'SKU' },
-        { id: 'C', letter: 'C', header: 'Woo ID' }, { id: 'D', letter: 'D', header: 'Retail price' }, { id: 'E', letter: 'E', header: 'Stock' },
+        { id: 'A', letter: 'A', header: 'Website Product ID' }, { id: 'B', letter: 'B', header: 'Product Name' },
+        { id: 'D', letter: 'D', header: 'Retail price' }, { id: 'E', letter: 'E', header: 'Stock' },
       ] }],
     })
     if (request.method() === 'GET' && url.pathname === `/api/v2/commerce/sources/${nextcloudId}/configuration`) return json({
@@ -118,7 +119,7 @@ async function installMocks(page: Page, savedMappings: Array<Record<string, unkn
   })
 }
 
-test('Save auto-previews a valid UGREEN-only Nextcloud mapping and preserves advanced selections', async ({ page }) => {
+test('keeps visible Listing identity while Save auto-previews a valid UGREEN-only Nextcloud mapping', async ({ page }) => {
   const savedMappings: Array<Record<string, unknown>> = []
   const previews = { count: 0 }
   await installMocks(page, savedMappings, previews)
@@ -128,6 +129,12 @@ test('Save auto-previews a valid UGREEN-only Nextcloud mapping and preserves adv
   await page.getByRole('button', { name: 'Detect worksheets' }).click()
   await page.locator('summary').filter({ hasText: 'Channel columns' }).click()
   const wooRow = page.locator('tr[data-channel-id="woocommerce:primary"]')
+  await expect(page.getByLabel('Source Product Key column reference')).toHaveValue('A')
+  await expect(wooRow.getByLabel('WooCommerce Product Identifier column reference')).toHaveValue('A')
+  await expect(wooRow.getByText('WooCommerce Product Identifier', { exact: false })).toBeVisible()
+  await expect(wooRow.getByText('It may use the same column as Source Product Key.', { exact: false })).toBeVisible()
+  await expect(wooRow.getByLabel('WooCommerce Product Identifier column reference')).toHaveAttribute('aria-required', 'true')
+  await expect(wooRow.getByLabel('Price column reference')).not.toHaveAttribute('aria-required', 'true')
   const priceCell = wooRow.locator('td').nth(4)
   await expect(priceCell.getByLabel('Price column reference')).toHaveValue('D')
 
@@ -155,5 +162,7 @@ test('Save auto-previews a valid UGREEN-only Nextcloud mapping and preserves adv
   expect(payload.selected_worksheet_names).toEqual(['UGREEN'])
   const channelMappings = payload.channel_mappings as Array<{ channel_id: string; enabled: boolean; fields: Array<{ field: string; reference_type: string; reference_value: string | null }> }>
   expect(channelMappings.filter(channel => channel.enabled).map(channel => channel.channel_id)).toEqual(['woocommerce:primary'])
+  expect((payload.source_fields as Array<{ field: string; reference_value: string | null }>).find(field => field.field === 'source_key')).toMatchObject({ reference_value: 'A' })
+  expect(channelMappings.find(channel => channel.channel_id === 'woocommerce:primary')?.fields.find(field => field.field === 'external_id')).toMatchObject({ reference_value: 'A' })
   expect(channelMappings.find(channel => channel.channel_id === 'woocommerce:primary')?.fields.find(field => field.field === 'price')).toMatchObject({ reference_type: 'header_name', reference_value: 'Retail price' })
 })

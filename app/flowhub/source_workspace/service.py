@@ -185,7 +185,12 @@ class SourceWorkspaceService:
                     ),
                     "connectorType": item.connector_type,
                     "capabilityVersion": item.capability_version,
-                    "capabilities": item.capabilities_json,
+                    "capabilities": {
+                        **dict(item.capabilities_json or {}),
+                        "mappingRequiredFields": list(
+                            self._channel_mapping_required_fields(item.connector_type)
+                        ),
+                    },
                     "enabled": item.enabled,
                     "implementationState": item.implementation_state,
                     "available": item.enabled and item.implementation_state == "implemented",
@@ -197,6 +202,15 @@ class SourceWorkspaceService:
                 for item in channels
             ]
         }
+
+    @staticmethod
+    def _channel_mapping_required_fields(connector_type: str) -> tuple[str, ...]:
+        """Expose the same mapping contract used when a Channel is saved."""
+        return ("external_id",) if connector_type == "woocommerce" else (
+            "external_id",
+            "stock",
+            "status",
+        )
 
     def create_source(
         self,
@@ -955,8 +969,40 @@ class SourceWorkspaceService:
             "ignored": sum(1 for item in records if not item["recognized"]),
             "issues": self._preview_issue_summary(records),
             "businessSummary": self._preview_business_summary(records, mapping),
+            "identityValidation": self._identity_preview_summary(records),
             "sheetRevisionId": sheet_revision_id,
             "mappingRevisionId": mapping_revision_id,
+        }
+
+    @staticmethod
+    def _identity_preview_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
+        """Summarize the authoritative Source-key check without product names."""
+        identity_categories = {
+            "missing_source_product_key",
+            "duplicate_source_product_key",
+        }
+        identity_records = [record for record in records if record.get("sourceKeyRequired")]
+        missing = sum(
+            1
+            for record in identity_records
+            if any(issue.get("category") == "missing_source_product_key" for issue in record["issues"])
+        )
+        duplicate = sum(
+            1
+            for record in identity_records
+            if any(issue.get("category") == "duplicate_source_product_key" for issue in record["issues"])
+        )
+        valid = sum(
+            1
+            for record in identity_records
+            if str(record.get("sourceProduct", {}).get("source_key") or "").strip()
+            and not any(issue.get("category") in identity_categories for issue in record["issues"])
+        )
+        return {
+            "status": "blocked" if missing or duplicate else "pass",
+            "validKeyCount": valid,
+            "missingKeyCount": missing,
+            "duplicateKeyCount": duplicate,
         }
 
     async def snapshot_candidates(self, source_id: str, user: FlowHubUser) -> dict[str, Any]:
@@ -2592,24 +2638,24 @@ class SourceWorkspaceService:
                     "CHANNEL_UNAVAILABLE", "Only enabled Channels with official connectors may be mapped."
                 )
             fields = self._normalize_field_mappings(list(raw.get("fields") or []), CHANNEL_FIELDS)
-            external = next((item for item in fields if item["field"] == "external_id"), None)
-            if enabled and (external is None or external["referenceType"] == "disabled"):
+            fields_by_name = {item["field"]: item for item in fields}
+            required_fields = self._channel_mapping_required_fields(channel.connector_type)
+            external = fields_by_name.get("external_id")
+            if enabled and "external_id" in required_fields and (
+                external is None or external["referenceType"] == "disabled"
+            ):
                 raise _unprocessable(
                     "CHANNEL_EXTERNAL_ID_REQUIRED", "Every enabled Channel requires an External Listing ID mapping."
                 )
-            if enabled and channel.connector_type != "woocommerce":
-                stock = next((item for item in fields if item["field"] == "stock"), None)
-                status = next((item for item in fields if item["field"] == "status"), None)
-                if (
-                    stock is None
-                    or stock["referenceType"] == "disabled"
-                    or status is None
-                    or status["referenceType"] == "disabled"
-                ):
-                    raise _unprocessable(
-                        "CHANNEL_STOCK_STATUS_REQUIRED",
-                        "Every enabled Channel other than WooCommerce also requires Stock and Status mappings.",
-                    )
+            if enabled and any(
+                fields_by_name.get(field) is None
+                or fields_by_name[field]["referenceType"] == "disabled"
+                for field in set(required_fields) - {"external_id"}
+            ):
+                raise _unprocessable(
+                    "CHANNEL_STOCK_STATUS_REQUIRED",
+                    "Every enabled Channel other than WooCommerce also requires Stock and Status mappings.",
+                )
             result.append(
                 {
                     "channelId": channel_id,
@@ -2980,6 +3026,7 @@ class SourceWorkspaceService:
                     })
                 continue
             references = [f"{item.get('worksheetName')}!{item.get('rowNumber')}" for item in matches]
+            key_value = str(matches[0].get("sourceProduct", {}).get("source_key") or "").strip()
             for record in matches:
                 record["recognized"] = False
                 record["channels"] = []
@@ -2989,7 +3036,15 @@ class SourceWorkspaceService:
                         "severity": "blocked",
                         "channelId": None,
                         "message": "Source Product Key must be unique within this Source.",
-                        "details": {"conflictingRows": references},
+                        "details": {
+                            "conflictingRows": references,
+                            # Source keys are intentionally chosen by the owner as
+                            # the canonical identity and are already visible in
+                            # this authenticated preview. Showing it here makes
+                            # the duplicate repair actionable without exposing
+                            # unrelated Source fields.
+                            "keyValue": key_value[:240],
+                        },
                     }
                 )
 

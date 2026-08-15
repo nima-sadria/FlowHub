@@ -101,6 +101,12 @@ export interface SourcePreview {
     channelsReady: number
     channelsNotConfigured: number
   }
+  identityValidation?: {
+    status: 'pass' | 'blocked'
+    validKeyCount: number
+    missingKeyCount: number
+    duplicateKeyCount: number
+  } | null
   sheetRevisionId: string | null
   mappingRevisionId: string | null
 }

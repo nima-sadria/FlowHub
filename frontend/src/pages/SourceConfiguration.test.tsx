@@ -767,6 +767,97 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(checkbox.checked).toBe(false)
     expect(checkbox.disabled).toBe(true)
     expect(snapp?.textContent).toContain('Incomplete')
+
+    await previewThenSave()
+    expect(sourceWorkspaceApi.saveMapping).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks only backend-required mapping fields and explains the two identity roles', async () => {
+    await renderPage()
+
+    const sourceKey = container.querySelector('[aria-label="Source Product Key column reference"]') as HTMLInputElement
+    const cost = container.querySelector('[aria-label="Cost column reference"]') as HTMLInputElement
+    const woo = container.querySelector('tr[data-channel-id="woocommerce:primary"]') as HTMLElement
+    const wooIdentifier = woo.querySelector('[aria-label="WooCommerce Product Identifier column reference"]') as HTMLInputElement
+    const price = woo.querySelector('[aria-label="Price column reference"]') as HTMLInputElement
+
+    expect(sourceKey.getAttribute('aria-required')).toBe('true')
+    expect(cost.getAttribute('aria-required')).toBeNull()
+    expect(wooIdentifier.getAttribute('aria-required')).toBe('true')
+    expect(price.getAttribute('aria-required')).toBeNull()
+    expect(container.textContent).toContain('Unique identifier used by FlowHub to recognize the same product across snapshots.')
+    expect(woo.textContent).toContain('Identifier used to match this Source product to its WooCommerce listing.')
+  })
+
+  it('accepts and persists one source column as both Source Product Key and WooCommerce Product Identifier', async () => {
+    await renderPage()
+    const sourceKey = container.querySelector('[aria-label="Source Product Key column reference"]') as HTMLInputElement
+    const woo = container.querySelector('tr[data-channel-id="woocommerce:primary"]') as HTMLElement
+    const wooIdentifier = woo.querySelector('[aria-label="WooCommerce Product Identifier column reference"]') as HTMLInputElement
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(sourceKey, 'B')
+      sourceKey.dispatchEvent(new Event('input', { bubbles: true }))
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(wooIdentifier, 'B')
+      wooIdentifier.dispatchEvent(new Event('input', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    await previewThenSave()
+    const payload = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls[0]?.[1] as {
+      source_fields: Array<{ field: string; reference_value: string | null }>
+      channel_mappings: Array<{ channel_id: string; fields: Array<{ field: string; reference_value: string | null }> }>
+    }
+    expect(payload.source_fields.find(field => field.field === 'source_key')).toMatchObject({ reference_value: 'B' })
+    expect(payload.channel_mappings.find(channel => channel.channel_id === 'woocommerce:primary')?.fields.find(field => field.field === 'external_id')).toMatchObject({ reference_value: 'B' })
+  })
+
+  it('blocks Save and identifies missing and duplicate Source Product Key rows', async () => {
+    vi.mocked(sourceWorkspaceApi.previewUnsavedMapping).mockResolvedValue({
+      ...emptyPreview,
+      total: 6,
+      recognized: 3,
+      ignored: 3,
+      identityValidation: { status: 'blocked', validKeyCount: 1, missingKeyCount: 3, duplicateKeyCount: 2 },
+      issues: [
+        { category: 'missing_source_product_key', severity: 'blocked', channelId: null, count: 3 },
+        { category: 'duplicate_source_product_key', severity: 'blocked', channelId: null, count: 2 },
+      ],
+      items: [
+        {
+          rowKey: 'Retail:18', rowNumber: 18, worksheetName: 'Retail', recognized: false, hasIssues: true, ready: false,
+          sourceProduct: { source_key: '12345' }, channels: [], valuePolicy: {},
+          issues: [{ category: 'duplicate_source_product_key', severity: 'blocked', channelId: null, message: 'Source Product Key must be unique.', details: { keyValue: '12345', conflictingRows: ['Retail!18', 'Retail!27'] } }],
+        },
+        {
+          rowKey: 'Retail:27', rowNumber: 27, worksheetName: 'Retail', recognized: false, hasIssues: true, ready: false,
+          sourceProduct: { source_key: '12345' }, channels: [], valuePolicy: {},
+          issues: [{ category: 'duplicate_source_product_key', severity: 'blocked', channelId: null, message: 'Source Product Key must be unique.', details: { keyValue: '12345', conflictingRows: ['Retail!18', 'Retail!27'] } }],
+        },
+        {
+          rowKey: 'Retail:34', rowNumber: 34, worksheetName: 'Retail', recognized: false, hasIssues: true, ready: false,
+          sourceProduct: { source_key: '' }, channels: [], valuePolicy: {},
+          issues: [{ category: 'missing_source_product_key', severity: 'blocked', channelId: null, message: 'Source Product Key is required.' }],
+        },
+      ],
+    })
+    await renderPage()
+
+    await act(async () => {
+      button('Save column setup').click()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(sourceWorkspaceApi.previewUnsavedMapping).toHaveBeenCalledTimes(1)
+    expect(sourceWorkspaceApi.saveMapping).not.toHaveBeenCalled()
+    const validation = container.querySelector('[data-testid="source-identity-preview"]') as HTMLElement
+    expect(validation.textContent).toContain('Identity validation: BLOCKED')
+    expect(validation.textContent).toContain('3 rows are missing a key.')
+    expect(validation.textContent).toContain('2 rows use duplicate keys.')
+    expect(validation.textContent).toContain('Duplicate: 12345')
+    expect(validation.textContent).toContain('Rows Retail!18, Retail!27')
   })
 
   it('renders Source configuration read-only without edit permission', async () => {
@@ -1385,9 +1476,10 @@ describe('SourceConfiguration per-Channel mappings', () => {
     const error = worksheetEditor.querySelector('[role="alert"]') as HTMLElement
     expect(selector.getAttribute('aria-invalid')).toBe('true')
     expect(selector.getAttribute('aria-describedby')).toBe(error.id)
-    expect(error.textContent).toContain('Choose the product-name column')
+    expect(error.textContent).toContain('Choose the required Source Product columns: Source Product Name, Source Product Key.')
     const saveIssues = container.querySelector('[data-testid="source-configuration-save-issues"]') as HTMLElement
     expect(saveIssues.textContent).toContain('Choose the Source Product Name column before saving.')
+    expect(saveIssues.textContent).toContain('Choose the Source Product Key column before saving.')
     const saveButtons = Array.from(container.querySelectorAll('button')).filter(item => item.textContent?.includes('Save column setup')) as HTMLButtonElement[]
     await act(async () => { saveButtons[saveButtons.length - 1].click(); await Promise.resolve() })
     expect(sourceWorkspaceApi.saveMapping).not.toHaveBeenCalled()
