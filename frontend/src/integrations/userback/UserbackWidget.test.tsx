@@ -5,12 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import type { AuthUser } from '../../auth'
 import UserbackWidget from './UserbackWidget'
 
-const initUserback = vi.fn()
-const destroy = vi.fn()
-
-vi.mock('@userback/widget', () => ({
-  default: (...args: unknown[]) => initUserback(...args) as unknown,
-}))
+const identify = vi.fn()
 
 const user: AuthUser = {
   id: 42,
@@ -34,97 +29,109 @@ describe('UserbackWidget', () => {
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
-    initUserback.mockReset()
-    destroy.mockReset()
-    initUserback.mockResolvedValue({ destroy })
+    identify.mockReset()
+    delete (window as { Userback?: unknown }).Userback
   })
 
   afterEach(() => {
     act(() => root.unmount())
     container.remove()
+    delete (window as { Userback?: unknown }).Userback
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
-  it('initializes for an authenticated user once an access token is configured', async () => {
+  it('identifies the signed-in user once the widget is already loaded', async () => {
+    window.Userback = { identify } as never
     await act(async () => {
-      root.render(<UserbackWidget user={user} accessToken="ub-token-123" />)
+      root.render(<UserbackWidget user={user} />)
       await flush()
     })
-    expect(initUserback).toHaveBeenCalledTimes(1)
-    expect(initUserback.mock.calls[0]?.[0]).toBe('ub-token-123')
+    expect(identify).toHaveBeenCalledTimes(1)
+    expect(identify.mock.calls[0]?.[0]).toBe('42')
   })
 
   it('sends only safe identity metadata - internal id, username, and email', async () => {
+    window.Userback = { identify } as never
     await act(async () => {
-      root.render(<UserbackWidget user={user} accessToken="ub-token-123" />)
+      root.render(<UserbackWidget user={user} />)
       await flush()
     })
-    const options = initUserback.mock.calls[0]?.[1] as Record<string, unknown>
-    expect(options).toEqual({
-      user_data: {
-        id: '42',
-        info: {
-          name: 'jane.doe',
-          email: 'jane.doe@example.com',
-        },
-      },
-    })
+    expect(identify.mock.calls[0]?.[1]).toEqual({ name: 'jane.doe', email: 'jane.doe@example.com' })
   })
 
-  it('never includes tokens, secrets, or other credential data in the payload', async () => {
+  it('never includes tokens, secrets, or other credential data in the identify payload', async () => {
+    window.Userback = { identify } as never
     await act(async () => {
-      root.render(<UserbackWidget user={user} accessToken="ub-token-123" />)
+      root.render(<UserbackWidget user={user} />)
       await flush()
     })
-    const payload = JSON.stringify(initUserback.mock.calls[0]?.[1]).toLowerCase()
+    const payload = JSON.stringify(identify.mock.calls[0]).toLowerCase()
     for (const forbidden of ['token', 'password', 'cookie', 'secret', 'authorization', 'credential']) {
       expect(payload).not.toContain(forbidden)
     }
   })
 
-  it('does not initialize when no access token is configured (e.g. unauthenticated/login surface)', async () => {
+  it('waits for the widget to finish loading before identifying', async () => {
+    vi.useFakeTimers()
     await act(async () => {
-      root.render(<UserbackWidget user={user} accessToken="" />)
-      await flush()
+      root.render(<UserbackWidget user={user} />)
     })
-    expect(initUserback).not.toHaveBeenCalled()
+    expect(identify).not.toHaveBeenCalled()
+
+    window.Userback = { identify } as never
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250)
+    })
+    expect(identify).toHaveBeenCalledTimes(1)
   })
 
-  it('does not initialize when the access token is undefined', async () => {
+  it('gives up quietly if the widget never loads (missing/blocked configuration)', async () => {
+    vi.useFakeTimers()
     await act(async () => {
-      root.render(<UserbackWidget user={user} accessToken={undefined} />)
-      await flush()
+      root.render(<UserbackWidget user={user} />)
     })
-    expect(initUserback).not.toHaveBeenCalled()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000)
+    })
+    expect(identify).not.toHaveBeenCalled()
+    expect(container.innerHTML).toBe('')
   })
 
-  it('destroys the widget on unmount', async () => {
-    await act(async () => {
-      root.render(<UserbackWidget user={user} accessToken="ub-token-123" />)
-      await flush()
-    })
-    expect(initUserback).toHaveBeenCalledTimes(1)
-    await act(async () => {
-      root.unmount()
-      await flush()
-    })
-    expect(destroy).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not throw FlowHub when the Userback SDK fails to load', async () => {
-    initUserback.mockRejectedValueOnce(new Error('network blocked'))
+  it('does not throw when the loaded widget rejects the identify call', async () => {
+    window.Userback = {
+      identify: () => { throw new Error('boom') },
+    } as never
     await expect(act(async () => {
-      root.render(<UserbackWidget user={user} accessToken="ub-token-123" />)
+      root.render(<UserbackWidget user={user} />)
       await flush()
     })).resolves.not.toThrow()
   })
 
-  it('missing Userback configuration renders nothing and never touches the SDK', async () => {
+  it('does not re-identify on re-render when identity has not changed', async () => {
+    window.Userback = { identify } as never
     await act(async () => {
       root.render(<UserbackWidget user={user} />)
       await flush()
     })
-    expect(container.innerHTML).toBe('')
-    expect(initUserback).not.toHaveBeenCalled()
+    await act(async () => {
+      root.render(<UserbackWidget user={{ ...user }} />)
+      await flush()
+    })
+    expect(identify).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-identifies when the user identity actually changes', async () => {
+    window.Userback = { identify } as never
+    await act(async () => {
+      root.render(<UserbackWidget user={user} />)
+      await flush()
+    })
+    await act(async () => {
+      root.render(<UserbackWidget user={{ ...user, email: 'new-email@example.com' }} />)
+      await flush()
+    })
+    expect(identify).toHaveBeenCalledTimes(2)
+    expect(identify.mock.calls[1]?.[1]).toEqual({ name: 'jane.doe', email: 'new-email@example.com' })
   })
 })

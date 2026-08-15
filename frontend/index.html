@@ -9,5 +9,26 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Userback feedback/debug widget. Loads on every page, including
+      // /login, so Userback's own site verification can detect it without
+      // an authenticated session - it is anonymous by default. FlowHub
+      // never sends tokens, passwords, or other credentials here.
+      // frontend/src/integrations/userback/UserbackWidget.tsx identifies
+      // the signed-in FlowHub user (internal id, username, email) once a
+      // session exists by calling window.Userback.identify(); it does not
+      // load or re-initialize the widget. Empty VITE_USERBACK_ACCESS_TOKEN
+      // disables the widget entirely.
+      (function () {
+        var token = "%VITE_USERBACK_ACCESS_TOKEN%";
+        if (!token) return;
+        window.Userback = window.Userback || {};
+        window.Userback.access_token = token;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://static.userback.io/widget/v1.js';
+        (document.head || document.body).appendChild(s);
+      })();
+    </script>
   </body>
 </html>

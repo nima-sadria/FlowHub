@@ -1,5 +1,6 @@
 .env
 .env
+.ssh-deploy.env
 *.db
 data/
 __pycache__/
