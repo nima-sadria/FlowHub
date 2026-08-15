@@ -13,7 +13,9 @@ import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 
 function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
+    id: 1,
     username: 'testuser',
+    email: 'testuser@example.com',
     role: 'user',
     is_admin: false,
     is_super_admin: false,

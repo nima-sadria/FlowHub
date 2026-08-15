@@ -167,6 +167,12 @@ output. Production Handsontable grids require a valid
 built. Docker Compose passes it only to the frontend build stage. No license
 key is committed.
 
+The optional Userback feedback/debug widget is enabled the same way: set
+`VITE_USERBACK_ACCESS_TOKEN` in `.env` before building the frontend image, or
+leave it empty to disable the widget. It only ever loads for an authenticated
+session and only ever identifies the user by internal id, username, and
+email - never by access token, session token, password, or other credential.
+
 ## Local development
 
 Use Python 3.12 or newer and Node.js 20. For source-level tests and frontend

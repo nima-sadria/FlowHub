@@ -123,7 +123,7 @@ const source: SourceProfile & { mapping: SourceMapping | null } = {
 }
 
 const editorAuth: AuthContextValue = {
-  user: { username: 'operator', role: 'operator', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true, 'workspace.create': true, 'workspace.edit': true } },
+  user: { id: 1, username: 'operator', email: 'operator@example.com', role: 'operator', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true, 'workspace.create': true, 'workspace.edit': true } },
   status: 'authenticated',
   refreshUser: async () => {},
   clearAuth: () => {},
@@ -133,7 +133,7 @@ const editorAuth: AuthContextValue = {
 
 const viewerAuth: AuthContextValue = {
   ...editorAuth,
-  user: { username: 'viewer', role: 'viewer', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true } },
+  user: { id: 2, username: 'viewer', email: 'viewer@example.com', role: 'viewer', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true } },
 }
 
 const adminAuth: AuthContextValue = {

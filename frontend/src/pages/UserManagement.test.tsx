@@ -11,7 +11,9 @@ let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 
 const user: AuthUser = {
+  id: 1,
   username: 'owner',
+  email: 'owner@example.com',
   role: 'owner',
   is_admin: true,
   is_super_admin: true,

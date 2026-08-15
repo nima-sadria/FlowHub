@@ -11,6 +11,7 @@ RUN npm ci --silent
 COPY docs/api/channel/*.md /docs/api/channel/
 COPY frontend/ ./
 ARG VITE_HANDSONTABLE_LICENSE_KEY
+ARG VITE_USERBACK_ACCESS_TOKEN
 RUN npm run build
 
 # -- Stage 2: Python application -----------------------------------------------

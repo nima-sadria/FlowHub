@@ -76,12 +76,12 @@ afterEach(async () => {
 })
 
 const adminUser: AuthUser = {
-  username: 'admin', role: 'admin', is_admin: true, is_super_admin: false,
+  id: 1, username: 'admin', email: 'admin@example.com', role: 'admin', is_admin: true, is_super_admin: false,
   permissions: { can_access_site: true, can_view_settings: true, 'workspace.read': true, 'workspace.admin': true },
 }
 
 const viewerUser: AuthUser = {
-  username: 'viewer', role: 'user', is_admin: false, is_super_admin: false,
+  id: 2, username: 'viewer', email: 'viewer@example.com', role: 'user', is_admin: false, is_super_admin: false,
   permissions: { can_access_site: true, can_view_settings: true, 'workspace.read': true },
 }
 

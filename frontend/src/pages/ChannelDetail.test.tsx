@@ -11,7 +11,7 @@ import type { CommerceChannel } from '../services/types'
 import ChannelDetail from './ChannelDetail'
 
 const admin: AuthContextValue = {
-  user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} },
+  user: { id: 1, username: 'admin', email: 'admin@example.com', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} },
   status: 'authenticated',
   refreshUser: async () => {},
   clearAuth: () => {},

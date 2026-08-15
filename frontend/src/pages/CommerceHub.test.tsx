@@ -426,7 +426,9 @@ const services: Services = {
 }
 
 const adminUser: AuthUser = {
+  id: 1,
   username: 'admin',
+  email: 'admin@example.com',
   role: 'admin',
   is_admin: true,
   is_super_admin: false,
@@ -434,7 +436,9 @@ const adminUser: AuthUser = {
 }
 
 const viewerUser: AuthUser = {
+  id: 2,
   username: 'viewer',
+  email: 'viewer@example.com',
   role: 'viewer',
   is_admin: false,
   is_super_admin: false,

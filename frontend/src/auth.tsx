@@ -17,7 +17,9 @@ export interface MaintenanceState {
 }
 
 export interface AuthUser {
+  id: number
   username: string
+  email: string | null
   role: string
   is_admin: boolean
   is_super_admin: boolean

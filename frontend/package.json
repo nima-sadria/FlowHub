@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@handsontable/react-wrapper": "^18.0.0",
+    "@userback/widget": "^0.3.12",
     "handsontable": "^18.0.0",
     "i18next": "^26.3.6",
     "lucide-react": "^1.28.0",

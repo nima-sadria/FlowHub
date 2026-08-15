@@ -27,6 +27,7 @@ services:
       target: frontend-build
       args:
         VITE_HANDSONTABLE_LICENSE_KEY: "${VITE_HANDSONTABLE_LICENSE_KEY:-}"
+        VITE_USERBACK_ACCESS_TOKEN: "${VITE_USERBACK_ACCESS_TOKEN:-}"
     image: flowhub-frontend-build:latest
 
   flowhub-migrate:
@@ -50,6 +51,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_HANDSONTABLE_LICENSE_KEY: "${VITE_HANDSONTABLE_LICENSE_KEY:-}"
+        VITE_USERBACK_ACCESS_TOKEN: "${VITE_USERBACK_ACCESS_TOKEN:-}"
     image: flowhub:latest
     restart: unless-stopped
     ports:

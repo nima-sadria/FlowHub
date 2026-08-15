@@ -87,7 +87,9 @@ class TestMe:
         r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200
         data = r.json()
+        assert data["id"] == admin_user.id
         assert data["username"] == "testadmin"
+        assert data["email"] == "testadmin@example.com"
         assert data["role"] == "admin"
         assert data["is_admin"] is True
         assert data["is_super_admin"] is False
@@ -122,6 +124,17 @@ class TestMe:
         body = r.text
         assert "hashed_password" not in body
         assert "password" not in body
+
+    def test_me_returns_null_email_when_none_is_set(self, client, db):
+        from app.flowhub.auth.password import hash_password
+        from app.flowhub.auth.repository import create_user
+
+        create_user(db, username="no-email-user", hashed_password=hash_password("password123"), role="viewer")
+        r = client.post("/api/auth/login", json={"username": "no-email-user", "password": "password123"})
+        token = r.json()["token"]
+        r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200
+        assert r.json()["email"] is None
 
 
 # -- Refresh -------------------------------------------------------------------

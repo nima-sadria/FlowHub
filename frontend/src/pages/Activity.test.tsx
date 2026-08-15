@@ -11,7 +11,7 @@ import Activity from './Activity'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-const admin: AuthContextValue = { user: { username: 'owner', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: vi.fn().mockRejectedValue(new Error('not mocked in this test')) }
+const admin: AuthContextValue = { user: { id: 1, username: 'owner', email: 'owner@example.com', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: vi.fn().mockRejectedValue(new Error('not mocked in this test')) }
 
 describe('Activity business history', () => {
   let container: HTMLDivElement

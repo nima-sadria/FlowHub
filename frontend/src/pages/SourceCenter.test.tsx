@@ -14,9 +14,9 @@ import type { CommerceSource } from '../services/types'
 import SourceCenter from './SourceCenter'
 
 const source: SourceProfile = { id: 'source-1', name: 'Synthetic prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 3, mappingVersion: 2, mappingReadiness: 'ready', sheetId: 'sheet-1', createdAt: null, updatedAt: null }
-const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
-const viewer: AuthContextValue = { ...admin, user: { username: 'viewer', role: 'user', is_admin: false, is_super_admin: false, permissions: { can_access_site: true, 'workspace.read': true } } }
-const operator: AuthContextValue = { ...admin, user: { username: 'operator', role: 'operator', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true, 'workspace.create': true } } }
+const admin: AuthContextValue = { user: { id: 1, username: 'admin', email: 'admin@example.com', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
+const viewer: AuthContextValue = { ...admin, user: { id: 2, username: 'viewer', email: 'viewer@example.com', role: 'user', is_admin: false, is_super_admin: false, permissions: { can_access_site: true, 'workspace.read': true } } }
+const operator: AuthContextValue = { ...admin, user: { id: 3, username: 'operator', email: 'operator@example.com', role: 'operator', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true, 'workspace.create': true } } }
 const commerce = {
   getSources: vi.fn(),
 } as unknown as CommerceService

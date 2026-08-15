@@ -14,7 +14,9 @@ let root: ReturnType<typeof createRoot>
 
 const authValue: AuthContextValue = {
   user: {
+    id: 1,
     username: 'admin',
+    email: 'admin@example.com',
     role: 'admin',
     is_admin: true,
     is_super_admin: false,

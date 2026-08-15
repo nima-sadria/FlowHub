@@ -132,7 +132,9 @@ class RefreshRequest(BaseModel):
 
 
 class MeResponse(BaseModel):
+    id: int
     username: str
+    email: str | None
     role: str
     is_admin: bool
     is_super_admin: bool
@@ -258,7 +260,9 @@ async def me(current_user: FlowHubUser = Depends(get_current_user)) -> MeRespons
         **workspace_permissions_for_role(current_user.role),
     }
     return MeResponse(
+        id=current_user.id,
         username=current_user.username,
+        email=current_user.email,
         role=current_user.role,
         is_admin=current_user.role in {"owner", "super_admin", "admin"},
         is_super_admin=current_user.role in {"owner", "super_admin"},

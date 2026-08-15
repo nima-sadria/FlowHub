@@ -14,8 +14,8 @@ import { changeLocale } from '../i18n'
 import { channelConnectionEvidence } from './ChannelDetail'
 import Channels from './Channels'
 
-const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
-const viewer: AuthContextValue = { ...admin, user: { username: 'viewer', role: 'viewer', is_admin: false, is_super_admin: false, permissions: { can_access_site: true } } }
+const admin: AuthContextValue = { user: { id: 1, username: 'admin', email: 'admin@example.com', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
+const viewer: AuthContextValue = { ...admin, user: { id: 2, username: 'viewer', email: 'viewer@example.com', role: 'viewer', is_admin: false, is_super_admin: false, permissions: { can_access_site: true } } }
 
 function LocationProbe() {
   const location = useLocation()

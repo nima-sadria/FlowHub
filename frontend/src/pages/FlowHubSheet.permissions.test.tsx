@@ -28,7 +28,7 @@ const sheet: FlowHubSheetPage = {
 
 function auth(permissions: Record<string, boolean>): AuthContextValue {
   return {
-    user: { username: 'user', role: 'viewer', is_admin: false, is_super_admin: false, permissions },
+    user: { id: 1, username: 'user', email: 'user@example.com', role: 'viewer', is_admin: false, is_super_admin: false, permissions },
     status: 'authenticated',
     refreshUser: async () => {},
     clearAuth: () => {},

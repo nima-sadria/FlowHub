@@ -5,6 +5,7 @@ import Sidebar from './Sidebar'
 import SiteFooter from './SiteFooter'
 import Topbar from './Topbar'
 import { useOptionalServices } from '../services/ServiceContext'
+import UserbackWidget from '../integrations/userback/UserbackWidget'
 
 type HealthStatus = 'ok' | 'error' | 'loading'
 
@@ -101,6 +102,7 @@ export default function AppShell() {
 
   return (
     <div className="flex h-screen h-[100dvh] min-h-screen min-h-[100dvh] bg-bg-base overflow-hidden">
+      {user && <UserbackWidget user={user} accessToken={import.meta.env.VITE_USERBACK_ACCESS_TOKEN} />}
       <Sidebar
         open={sidebarOpen}
         collapsed={sidebarCollapsed}

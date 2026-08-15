@@ -135,7 +135,9 @@ async function renderPage(user: AuthUser) {
 describe('ExchangeRates', () => {
   it('shows three ordered choices to a normal user without administrative controls', async () => {
     const bundle = await renderPage({
+      id: 1,
       username: 'viewer',
+      email: 'viewer@example.com',
       role: 'viewer',
       is_admin: false,
       is_super_admin: false,
@@ -151,7 +153,9 @@ describe('ExchangeRates', () => {
 
   it('shows masked, budget-aware controls only to the owner', async () => {
     await renderPage({
+      id: 1,
       username: 'owner',
+      email: 'owner@example.com',
       role: 'owner',
       is_admin: true,
       is_super_admin: true,
@@ -167,7 +171,9 @@ describe('ExchangeRates', () => {
 
   it('asks for confirmation near the safe limit before manual refresh', async () => {
     const bundle = await renderPage({
+      id: 1,
       username: 'owner',
+      email: 'owner@example.com',
       role: 'owner',
       is_admin: true,
       is_super_admin: true,
