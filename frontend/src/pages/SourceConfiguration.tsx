@@ -10,12 +10,17 @@ import { sourceWorkspaceApi } from '../features/sourceWorkspace/api'
 import type {
   FieldMapping,
   DiscoveredWorksheet,
+  IdentityAuthority,
+  IdentityValidation,
+  IdentityValidationRow,
+  MappingReadiness,
   ReferenceType,
   SourceChannel,
   SourceMapping,
   SourceLifecycleImpact,
   SourcePreview,
   SourceProfile,
+  SourceMappingSaveRequest,
   SourceWorksheetRule,
 } from '../features/sourceWorkspace/types'
 import { translate } from '../i18n'
@@ -95,6 +100,36 @@ type WorksheetDiscoveryFeedback = {
   variant: 'success' | 'warning' | 'danger'
   title: string
   message: string
+}
+
+const UNSPECIFIED_IDENTITY_AUTHORITY: IdentityAuthority = {
+  type: 'unspecified',
+  systemIdentifier: null,
+  displayLabel: null,
+}
+
+const IDENTITY_AUTHORITY_PRESETS = [
+  { value: 'external_system:woocommerce', type: 'external_system', systemIdentifier: 'woocommerce', labelKey: 'sources:sourceConfiguration.identityAuthorityOption.woocommerce' },
+  { value: 'external_system:snappshop', type: 'external_system', systemIdentifier: 'snappshop', labelKey: 'sources:sourceConfiguration.identityAuthorityOption.snappshop' },
+  { value: 'external_system:tapsishop', type: 'external_system', systemIdentifier: 'tapsishop', labelKey: 'sources:sourceConfiguration.identityAuthorityOption.tapsishop' },
+  { value: 'external_system:technolife', type: 'external_system', systemIdentifier: 'technolife', labelKey: 'sources:sourceConfiguration.identityAuthorityOption.technolife' },
+  { value: 'external_system:erp', type: 'external_system', systemIdentifier: 'erp', labelKey: 'sources:sourceConfiguration.identityAuthorityOption.erp' },
+  { value: 'external_system:accounting', type: 'external_system', systemIdentifier: 'accounting', labelKey: 'sources:sourceConfiguration.identityAuthorityOption.accounting' },
+  { value: 'internal:sku', type: 'internal', systemIdentifier: 'sku', labelKey: 'sources:sourceConfiguration.identityAuthorityOption.internalSku' },
+] as const
+
+function identityAuthorityValue(authority: IdentityAuthority): string {
+  if (authority.type === 'unspecified') return ''
+  if (authority.type === 'custom') return 'custom'
+  return `${authority.type}:${authority.systemIdentifier ?? ''}`
+}
+
+function identityAuthorityComplete(authority: IdentityAuthority): boolean {
+  return authority.type !== 'unspecified' && Boolean(authority.systemIdentifier?.trim())
+}
+
+function identityRowLabel(row: IdentityValidationRow): string {
+  return typeof row === 'string' ? row : `${row.worksheetName}!${row.rowNumber}`
 }
 
 function sourceReadQuota(source: SourceProfile | null): RemoteReadQuota | null {
@@ -245,46 +280,76 @@ function channelValidation(fields: FieldMapping[], enabled: boolean, connectorTy
   return issues
 }
 
-function previewHasIdentityConflicts(result: SourcePreview): boolean {
-  return result.items.some(item => item.issues.some(issue =>
-    issue.category === 'missing_source_product_key' || issue.category === 'duplicate_source_product_key'))
+type IdentityDuplicate = { key: string; rows: string[] }
+type IdentityBindingConflict = {
+  key: string
+  rows: string[]
+  boundCanonicalProductId: string | null
+  conflictingCanonicalProductIds: string[]
 }
 
-type IdentityDuplicate = { key: string; rows: string[] }
-
-function identityPreviewDetails(preview: SourcePreview): {
-  status: 'pass' | 'blocked'
-  validKeyCount: number
-  missingKeyCount: number
-  duplicateKeyCount: number
+function identityPreviewDetails(preview: SourcePreview | null, persisted: IdentityValidation | null): {
+  status: 'pass' | 'blocked' | 'pending'
+  participatingRowCount: number | null
+  validKeyCount: number | null
+  missingKeyCount: number | null
+  duplicateKeyCount: number | null
+  duplicateRowCount: number | null
+  bindingConflictCount: number | null
+  missingRows: string[]
   duplicates: IdentityDuplicate[]
+  bindingConflicts: IdentityBindingConflict[]
+  mappingReferences: string[]
+  evidence: IdentityValidation['evidence']
 } {
-  const missingKeyCount = preview.identityValidation?.missingKeyCount
-    ?? preview.issues.find(issue => issue.category === 'missing_source_product_key')?.count
-    ?? 0
-  const duplicateKeyCount = preview.identityValidation?.duplicateKeyCount
-    ?? preview.issues.find(issue => issue.category === 'duplicate_source_product_key')?.count
-    ?? 0
+  const validation = preview?.identityValidation ?? persisted
+  const missingKeyCount = validation?.missingKeyCount
+    ?? preview?.issues.find(issue => issue.category === 'missing_source_product_key')?.count
+    ?? null
+  const duplicateKeyCount = validation?.duplicateKeyCount
+    ?? preview?.issues.find(issue => issue.category === 'duplicate_source_product_key')?.count
+    ?? null
   const duplicateGroups = new Map<string, IdentityDuplicate>()
-  for (const item of preview.items) {
-    for (const issue of item.issues.filter(candidate => candidate.category === 'duplicate_source_product_key')) {
-      const details = issue.details ?? {}
-      const key = typeof details.keyValue === 'string'
-        ? details.keyValue
-        : String(item.sourceProduct.source_key ?? '')
-      const rows = Array.isArray(details.conflictingRows)
-        ? details.conflictingRows.filter((row): row is string => typeof row === 'string')
-        : [`${item.worksheetName}!${item.rowNumber}`]
-      const signature = `${key}\u0000${rows.join('\u0000')}`
-      duplicateGroups.set(signature, { key, rows })
+  for (const group of validation?.duplicateGroups ?? []) {
+    const rows = group.rows.map(identityRowLabel)
+    duplicateGroups.set(`${group.keyValue}\u0000${rows.join('\u0000')}`, { key: group.keyValue, rows })
+  }
+  if (duplicateGroups.size === 0 && preview) {
+    for (const item of preview.items) {
+      for (const issue of item.issues.filter(candidate => candidate.category === 'duplicate_source_product_key')) {
+        const details = issue.details ?? {}
+        const key = typeof details.keyValue === 'string'
+          ? details.keyValue
+          : String(item.sourceProduct.source_key ?? '')
+        const rows = Array.isArray(details.conflictingRows)
+          ? details.conflictingRows.filter((row): row is string => typeof row === 'string')
+          : [`${item.worksheetName}!${item.rowNumber}`]
+        const signature = `${key}\u0000${rows.join('\u0000')}`
+        duplicateGroups.set(signature, { key, rows })
+      }
     }
   }
+  const legacyStatus = missingKeyCount || duplicateKeyCount ? 'blocked' : 'pending'
   return {
-    status: preview.identityValidation?.status ?? (missingKeyCount || duplicateKeyCount ? 'blocked' : 'pass'),
-    validKeyCount: preview.identityValidation?.validKeyCount ?? Math.max(0, preview.total - missingKeyCount - duplicateKeyCount),
+    status: validation?.status ?? legacyStatus,
+    participatingRowCount: validation?.participatingRowCount ?? preview?.total ?? null,
+    validKeyCount: validation?.validKeyCount ?? null,
     missingKeyCount,
     duplicateKeyCount,
+    duplicateRowCount: validation?.duplicateRowCount ?? duplicateKeyCount,
+    bindingConflictCount: validation?.bindingConflictCount ?? null,
+    missingRows: (validation?.missingRows ?? []).map(identityRowLabel),
     duplicates: [...duplicateGroups.values()],
+    bindingConflicts: (validation?.bindingConflicts ?? []).map(conflict => ({
+      key: conflict.keyValue,
+      rows: conflict.rows.map(identityRowLabel),
+      boundCanonicalProductId: conflict.boundCanonicalProductId,
+      conflictingCanonicalProductIds: conflict.conflictingCanonicalProductIds,
+    })),
+    mappingReferences: (validation?.mappingReferences ?? []).map(reference => reference.worksheetName
+      ? `${reference.worksheetName}: ${reference.referenceValue ?? '—'}`
+      : reference.referenceValue ?? '—'),
+    evidence: validation?.evidence ?? null,
   }
 }
 
@@ -328,6 +393,7 @@ export default function SourceConfiguration() {
   const [channels, setChannels] = useState<SourceChannel[]>([])
   const [channelProfilesUnavailable, setChannelProfilesUnavailable] = useState(false)
   const [sourceFields, setSourceFields] = useState<FieldMapping[]>(SOURCE_FIELDS.map(([field, _label, required]) => emptyMapping(field, required)))
+  const [identityAuthority, setIdentityAuthority] = useState<IdentityAuthority>(UNSPECIFIED_IDENTITY_AUTHORITY)
   const [channelFields, setChannelFields] = useState<Record<string, FieldMapping[]>>({})
   const [channelWorksheets, setChannelWorksheets] = useState<Record<string, string>>({})
   const [channelEnabled, setChannelEnabled] = useState<Record<string, boolean>>({})
@@ -416,6 +482,7 @@ export default function SourceConfiguration() {
       )
       setWorksheetRuleMode(loaded.mapping?.worksheetRuleMode ?? 'shared')
       setDuplicateProductPolicy(loaded.mapping?.duplicateProductPolicy ?? 'block')
+      setIdentityAuthority(loaded.mapping?.identityAuthority ?? UNSPECIFIED_IDENTITY_AUTHORITY)
       const loadedWorksheetRules = (loaded.mapping?.worksheetRules ?? []).map(rule => ({
         ...rule,
         valuePolicy: { ...DEFAULT_VALUE_POLICY, ...rule.valuePolicy },
@@ -510,6 +577,7 @@ export default function SourceConfiguration() {
       : translate('sources:sourceConfiguration.worksheetDetectionMayUseRead')
 
   const configurationFingerprint = useMemo(() => JSON.stringify({
+    identityAuthority,
     sourceFields,
     channelFields,
     channelWorksheets,
@@ -523,7 +591,7 @@ export default function SourceConfiguration() {
     dataStartRow,
     worksheetName,
     valuePolicy,
-  }), [channelEnabled, channelFields, channelWorksheets, configuredChannelIds, dataStartRow, duplicateProductPolicy, selectedWorksheetNames, sourceFields, valuePolicy, worksheetMode, worksheetName, worksheetRuleMode, worksheetRules])
+  }), [channelEnabled, channelFields, channelWorksheets, configuredChannelIds, dataStartRow, duplicateProductPolicy, identityAuthority, selectedWorksheetNames, sourceFields, valuePolicy, worksheetMode, worksheetName, worksheetRuleMode, worksheetRules])
   const dirty = baselineFingerprint !== null && baselineFingerprint !== configurationFingerprint
   const readPolicyDirty = JSON.stringify(readPolicy) !== JSON.stringify(readPolicyBaseline)
   const savedParticipatingWorksheetNames = worksheetRules.filter(rule => rule.enabled).map(rule => rule.worksheetName)
@@ -536,6 +604,18 @@ export default function SourceConfiguration() {
     ? 'per_worksheet'
     : effectiveWorksheetRuleMode
   const sharedDiscoveredColumns = detectedWorksheets.find(item => participatingWorksheetNames.includes(item.name))?.columns ?? []
+  const presetAuthoritySystems = new Set<string>(IDENTITY_AUTHORITY_PRESETS.map(option => option.systemIdentifier))
+  const dynamicAuthoritySystems = [...new Set(channels.map(channel => channel.connectorType).filter(system => !presetAuthoritySystems.has(system)))]
+  if (identityAuthority.type === 'external_system' && identityAuthority.systemIdentifier && !presetAuthoritySystems.has(identityAuthority.systemIdentifier) && !dynamicAuthoritySystems.includes(identityAuthority.systemIdentifier)) {
+    dynamicAuthoritySystems.push(identityAuthority.systemIdentifier)
+  }
+  const identityAuthorityOptions = [
+    ...IDENTITY_AUTHORITY_PRESETS.map(option => ({ value: option.value, label: translate(option.labelKey) })),
+    ...dynamicAuthoritySystems.map(systemIdentifier => ({
+      value: `external_system:${systemIdentifier}`,
+      label: formatChannelDisplayName(systemIdentifier, { showInstance: false }),
+    })),
+  ]
 
   useEffect(() => {
     if (worksheetRuleMode !== 'per_worksheet') return
@@ -571,6 +651,7 @@ export default function SourceConfiguration() {
     { id: 'worksheet-discovery', labelKey: 'sources:sourceConfiguration.section.worksheetDiscovery', unsaved: false },
     { id: 'worksheet-participation', labelKey: 'sources:sourceConfiguration.chooseParticipatingWorksheets', unsaved: dirty },
     ...(participatingWorksheetCount > 1 ? [{ id: 'worksheet-rules', labelKey: 'sources:sourceConfiguration.worksheetRules', unsaved: dirty }] : []),
+    { id: 'source-identity', labelKey: 'sources:sourceConfiguration.sourceIdentity', unsaved: dirty },
     ...(renderedWorksheetRuleMode === 'shared'
       ? [
           { id: 'workbook', labelKey: 'sources:sourceConfiguration.section.workbook', unsaved: dirty },
@@ -729,6 +810,25 @@ export default function SourceConfiguration() {
 
   function updateSourceField(field: string, value: FieldMapping) {
     setSourceFields(current => current.map(item => item.field === field ? value : item))
+  }
+
+  function changeIdentityAuthority(value: string) {
+    if (!value) {
+      setIdentityAuthority(UNSPECIFIED_IDENTITY_AUTHORITY)
+      return
+    }
+    if (value === 'custom') {
+      setIdentityAuthority(current => current.type === 'custom'
+        ? current
+        : { type: 'custom', systemIdentifier: '', displayLabel: null })
+      return
+    }
+    const [type, ...identifierParts] = value.split(':')
+    setIdentityAuthority({
+      type: type === 'internal' ? 'internal' : 'external_system',
+      systemIdentifier: identifierParts.join(':') || null,
+      displayLabel: null,
+    })
   }
 
   function updateChannelField(channelId: string, field: string, value: FieldMapping) {
@@ -1164,7 +1264,7 @@ export default function SourceConfiguration() {
     }
   }
 
-  function mappingPayload() {
+  function mappingPayload(): SourceMappingSaveRequest | null {
     if (!source) return null
     return {
       expected_source_version: source.version,
@@ -1206,6 +1306,11 @@ export default function SourceConfiguration() {
         })),
       })) : [],
       identity_policy_version: 2,
+      identity_authority: {
+        type: identityAuthority.type,
+        system_identifier: identityAuthority.systemIdentifier?.trim() || null,
+        display_label: identityAuthority.displayLabel?.trim() || null,
+      },
     }
   }
 
@@ -1246,33 +1351,23 @@ export default function SourceConfiguration() {
     if (!payload) return
     setSaving(true)
     try {
-      // Save requires a fresh, matching identity-preview check (the backend
-      // enforces this independently — see SOURCE_IDENTITY_VALIDATION_REQUIRED).
-      // Run it here automatically instead of requiring a separate manual
-      // "Preview recognized rows" click before Save will do anything.
-      if (previewedFingerprint !== configurationFingerprint) {
-        const previewResult = await sourceWorkspaceApi.previewUnsavedMapping(sourceId, payload)
-        setPreview(previewResult)
-        setPreviewIndex(0)
-        if (previewHasIdentityConflicts(previewResult)) {
-          setPreviewedFingerprint(null)
-          notify.error({
-            title: translate('sources:sourceConfiguration.mappingWasNotSaved'),
-            description: translate('sources:sourceConfiguration.identityConflictsBlockSave'),
-          })
-          return
-        }
-        setPreviewedFingerprint(configurationFingerprint)
-      }
-      await sourceWorkspaceApi.saveMapping(source.id, payload)
+      // Configuration persistence must never acquire the remote workbook.
+      // The backend derives identity readiness only from existing FlowHub
+      // evidence and returns PASS, BLOCKED, or PENDING with this revision.
+      const savedMapping = await sourceWorkspaceApi.saveMapping(source.id, payload)
       await saveReadPolicy()
       notify.success({
         title: translate('sources:sourceConfiguration.sourceMappingSaved'),
-        description: translate('sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated'),
+        description: translate(savedMapping.mappingReadiness === 'identity_validation_pending'
+          ? 'sources:sourceConfiguration.mappingSavedValidationPending'
+          : savedMapping.mappingReadiness === 'identity_validation_blocked'
+            ? 'sources:sourceConfiguration.mappingSavedValidationBlocked'
+            : 'sources:sourceConfiguration.aNewImmutableMappingRevisionWasCreated'),
       })
       setBaselineFingerprint(configurationFingerprint)
       setPreviewedFingerprint(null)
-      setSource(await sourceWorkspaceApi.source(source.id))
+      const refreshed = await sourceWorkspaceApi.source(source.id)
+      setSource({ ...refreshed, mapping: savedMapping, mappingReadiness: savedMapping.mappingReadiness })
       setPreview(null)
     } catch (error) {
       notify.error({
@@ -1302,7 +1397,7 @@ export default function SourceConfiguration() {
     try {
       const result = await sourceWorkspaceApi.previewUnsavedMapping(sourceId, payload)
       setPreview(result)
-      setPreviewedFingerprint(previewHasIdentityConflicts(result) ? null : configurationFingerprint)
+      setPreviewedFingerprint(configurationFingerprint)
       setPreviewIndex(0)
     } catch (error) {
       notify.error({
@@ -1366,9 +1461,17 @@ export default function SourceConfiguration() {
   const sourceArchived = source.status === 'archived'
   const canMutateSource = canEditSource && !sourceArchived
 
-  const previewSummary = preview?.businessSummary ?? null
-  const identityPreview = preview ? identityPreviewDetails(preview) : null
-  const previewItems = preview?.items.filter(item => previewFilter === 'all' || (previewFilter === 'ready' ? item.ready : item.hasIssues)) ?? []
+  const currentPreview = previewedFingerprint === configurationFingerprint ? preview : null
+  const effectiveMappingReadiness: MappingReadiness | null = dirty
+    ? 'identity_validation_pending'
+    : source.mapping?.mappingReadiness
+      ?? source.mappingReadiness
+      ?? (source.mapping ? 'identity_validation_pending' : null)
+  const mappingReady = effectiveMappingReadiness === 'ready'
+  const persistedIdentityValidation = dirty ? null : source.mapping?.identityValidation ?? null
+  const previewSummary = currentPreview?.businessSummary ?? null
+  const identityPreview = identityPreviewDetails(currentPreview, persistedIdentityValidation)
+  const previewItems = currentPreview?.items.filter(item => previewFilter === 'all' || (previewFilter === 'ready' ? item.ready : item.hasIssues)) ?? []
   const currentPreviewIndex = Math.min(previewIndex, Math.max(0, previewItems.length - 1))
   const currentPreviewItem = previewItems[currentPreviewIndex] ?? null
   const channelName = (channelId: string) => channelResources.ordered.find(resource => resource.id === channelId)?.displayName ?? formatChannelDisplayName(channelId, { showInstance: true })
@@ -1389,6 +1492,9 @@ export default function SourceConfiguration() {
    */
   const saveIssues: string[] = (() => {
     const issues: string[] = []
+    if (!identityAuthorityComplete(identityAuthority)) {
+      issues.push(translate('sources:sourceConfiguration.identityAuthorityRequired'))
+    }
     if (effectiveWorksheetRuleMode === 'shared') {
       if (worksheetMode === 'selected' && selectedWorksheetNames.length === 0) {
         issues.push(translate('sources:sourceConfiguration.selectAtLeastOneWorksheet'))
@@ -1438,6 +1544,23 @@ export default function SourceConfiguration() {
     : worksheetRules
       .filter(rule => rule.enabled)
       .map(rule => `${rule.worksheetName}: ${displayFieldReference(rule.sourceFields.find(field => field.field === 'source_key') ?? emptyMapping('source_key', true))}`)
+  const identityAuthorityLabel = identityAuthority.type === 'unspecified'
+    ? translate('sources:sourceConfiguration.identityAuthorityUnspecified')
+    : identityAuthority.displayLabel?.trim()
+      || identityAuthorityOptions.find(option => option.value === identityAuthorityValue(identityAuthority))?.label
+      || identityAuthority.systemIdentifier
+      || translate('sources:sourceConfiguration.identityAuthorityOption.custom')
+  const identityEvidenceLabel = identityPreview.evidence?.label?.trim()
+    || (identityPreview.evidence?.kind === 'source_observation' && identityPreview.evidence.snapshotId != null
+      ? translate('sources:sourceConfiguration.identityValidationSourceSnapshot', { id: identityPreview.evidence.snapshotId })
+      : identityPreview.evidence?.kind === 'source_observation'
+        ? translate('sources:sourceConfiguration.identityValidationSourceObservation')
+        : identityPreview.evidence?.kind === 'flowhub_sheet_revision'
+          ? translate('sources:sourceConfiguration.identityValidationSourceSheetRevision')
+          : translate('sources:sourceConfiguration.identityValidationSourceNone'))
+  const identityMappingLabels = identityPreview.mappingReferences.length > 0
+    ? identityPreview.mappingReferences
+    : identityKeyMappings
   const pendingWorksheetCopyFields = (() => {
     if (!pendingCopy) return [] as FieldMapping[]
     const sourceRule = worksheetRules.find(rule => rule.worksheetName === pendingCopy.intent.worksheetName)
@@ -1454,7 +1577,7 @@ export default function SourceConfiguration() {
           <h1 className="fh-page-title">{source.name}</h1>
         </div>
         {canCreateWorkspace && !sourceArchived && (
-          <button className="fh-button-primary" type="button" disabled={!source.mapping} onClick={() => void createWorkspace()}>
+          <button className="fh-button-primary" type="button" disabled={!mappingReady} title={!mappingReady ? translate('sources:sourceConfiguration.identityValidationRequiredBeforeWorkspace') : undefined} onClick={() => void createWorkspace()}>
             <Icon name="workspace" /> {translate('sources:sourceConfiguration.openWorkspace')}
           </button>
         )}
@@ -1508,7 +1631,13 @@ export default function SourceConfiguration() {
           <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.sourceType')}</dt><dd className="font-medium text-text-base">{source.sourceKind === 'flowhub_sheet' ? translate('sources:sourceCenter.flowhubSheet') : source.sourceKind === 'imported_sheet' ? translate('sources:sourceCenter.importedSpreadsheet') : translate('sources:sourceCenter.linkedExternalSource')}</dd></div>
           <div><dt className="fh-text-caption">{translate('sources:sourceCenter.lifecycleStatus')}</dt><dd><Badge variant={sourceArchived ? 'neutral' : source.status === 'active' ? 'success' : 'disabled'}>{formatStatus(source.status)}</Badge></dd></div>
           {source.archivedAt && <div><dt className="fh-text-caption">{translate('sources:sourceCenter.archivedAt')}</dt><dd className="font-medium text-text-base">{formatDateTime(source.archivedAt)}</dd></div>}
-          <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><Badge variant={source.mapping ? 'success' : 'warning'}>{source.mapping ? translate('common:status.ready') : translate('sources:sourceConfiguration.notConfigured')}</Badge></dd></div>
+          <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.columnSetupStatus')}</dt><dd><Badge variant={mappingReady ? 'success' : effectiveMappingReadiness ? 'warning' : 'warning'}>{mappingReady
+            ? translate('common:status.ready')
+            : effectiveMappingReadiness === 'identity_validation_blocked'
+              ? translate('sources:sourceConfiguration.identityValidationBlockedShort')
+              : effectiveMappingReadiness === 'identity_validation_pending'
+                ? translate('sources:sourceConfiguration.identityValidationPendingShort')
+                : translate('sources:sourceConfiguration.notConfigured')}</Badge></dd></div>
           {source.sourceKind === 'external' && <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.connectionStatus')}</dt><dd>{sourceArchived
             ? <Badge variant="neutral">{translate('common:status.archived')}</Badge>
             : <Badge variant={externalConnectionPresentation(externalConfig, externalSourceDisabled).variant}>{externalConnectionPresentation(externalConfig, externalSourceDisabled).label}</Badge>}</dd></div>}
@@ -1633,6 +1762,46 @@ export default function SourceConfiguration() {
         </div>
       </ConfigurationSection>
       </div>}
+
+      <div className="mt-3">
+        <ConfigurationSection id="source-identity" openSignal={sectionSignal} defaultOpen unsaved={dirty} title={translate('sources:sourceConfiguration.sourceIdentity')} description={translate('sources:sourceConfiguration.identityAuthorityHelp')}>
+          <div className="grid gap-3 lg:max-w-2xl">
+            <label className="grid gap-1">
+              <MappingFieldLabel label={translate('sources:sourceConfiguration.identityAuthority')} required help={translate('sources:sourceConfiguration.identityAuthorityHelp')} />
+              <select
+                className="fh-input"
+                value={identityAuthorityValue(identityAuthority)}
+                required
+                aria-required="true"
+                aria-invalid={!identityAuthorityComplete(identityAuthority) || undefined}
+                aria-describedby="identity-authority-help"
+                onChange={event => changeIdentityAuthority(event.target.value)}
+              >
+                <option value="">{translate('sources:sourceConfiguration.chooseIdentityAuthority')}</option>
+                {identityAuthorityOptions.map(option => <option value={option.value} key={option.value}>{option.label}</option>)}
+                <option value="custom">{translate('sources:sourceConfiguration.identityAuthorityOption.custom')}</option>
+              </select>
+            </label>
+            {identityAuthority.type === 'custom' && <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1">
+                <MappingFieldLabel label={translate('sources:sourceConfiguration.identityAuthoritySystemIdentifier')} required />
+                <input
+                  className="fh-input"
+                  value={identityAuthority.systemIdentifier ?? ''}
+                  required
+                  aria-required="true"
+                  onChange={event => setIdentityAuthority(current => ({ ...current, systemIdentifier: event.target.value }))}
+                />
+              </label>
+              <label className="grid gap-1">
+                <MappingFieldLabel label={translate('sources:sourceConfiguration.identityAuthorityDisplayLabel')} />
+                <input className="fh-input" value={identityAuthority.displayLabel ?? ''} onChange={event => setIdentityAuthority(current => ({ ...current, displayLabel: event.target.value || null }))} />
+              </label>
+            </div>}
+            <p className="fh-text-caption" id="identity-authority-help">{translate('sources:sourceConfiguration.identityAuthorityDoesNotEnableChannel')}</p>
+          </div>
+        </ConfigurationSection>
+      </div>
 
       <div className={`mt-3 ${renderedWorksheetRuleMode === 'per_worksheet' ? 'hidden' : ''}`}>
         <ConfigurationSection id="workbook" openSignal={sectionSignal} unsaved={dirty} title={translate('sources:sourceConfiguration.section.workbook')} description={translate('sources:sourceConfiguration.section.workbookHelp')}>
@@ -1781,13 +1950,13 @@ export default function SourceConfiguration() {
                     ? <span className="fh-text-caption">{translate('common:status.setupRequired')}</span>
                     : <Badge variant={mappedStatus.mapped ? 'success' : 'warning'}>{mappedStatus.mapped ? translate('sources:sourceConfiguration.mapped') : translate('sources:sourceConfiguration.mappingIncomplete')}</Badge>}</td>
                   <td><input className="fh-input min-w-[170px]" disabled={controlsDisabled} value={channelWorksheets[channel.channelId] ?? ''} onChange={event => setChannelWorksheets(current => ({ ...current, [channel.channelId]: event.target.value }))} placeholder={translate('sources:sourceConfiguration.useSourceWorksheet')} /></td>
-                  {CHANNEL_FIELDS.map(([field]) => {
-                    const isWooIdentifier = field === 'external_id' && channel.connectorType === 'woocommerce'
-                    const label = isWooIdentifier ? translate('sources:sourceConfiguration.woocommerceProductIdentifier') : undefined
+                  {CHANNEL_FIELDS.map(([field, labelKey]) => {
+                    const label = field === 'external_id'
+                      ? translate('sources:sourceConfiguration.channelProductIdentifier', { channel: orderedChannel.displayName })
+                      : translate(labelKey)
                     const required = enabled && requiredFields.has(field)
-                    return <td key={field}><div className="grid gap-1">{isWooIdentifier
-                      ? <MappingFieldLabel label={label!} required={required} help={translate('sources:sourceConfiguration.woocommerceProductIdentifierHelp')} />
-                      : required && <span className="fh-text-caption font-medium text-danger">{translate('sources:sourceConfiguration.requiredField')}</span>}
+                    return <td key={field}><div className="grid gap-1">
+                      <MappingFieldLabel label={label} required={required} help={field === 'external_id' ? translate('sources:sourceConfiguration.channelProductIdentifierHelp') : undefined} />
                       <SmartColumnInput mapping={fields.find(item => item.field === field)!} columns={sharedDiscoveredColumns} disabled={controlsDisabled} required={required} fieldLabel={label} allowInternalColumnId={source.sourceKind === 'flowhub_sheet'} onChange={value => updateChannelField(channel.channelId, field, value)} />
                     </div></td>
                   })}
@@ -1892,35 +2061,56 @@ export default function SourceConfiguration() {
       <section className="fh-card mt-5 scroll-mt-4" id="validation" aria-label={translate('sources:sourceConfiguration.sourcePreview')}>
         <div className="fh-panel-header">
           <div>
-            <h2 className="fh-section-title">{translate('sources:sourceConfiguration.sourcePreview')}</h2>
-            <p className="fh-text-caption">{translate('sources:sourceConfiguration.previewShowsIndependentChannelValues')}</p>
+            <h2 className="fh-section-title">{translate('sources:sourceConfiguration.identityValidation')}</h2>
+            <p className="fh-text-caption">{translate('sources:sourceConfiguration.localIdentityValidationHelp')}</p>
           </div>
           <button className="fh-button-secondary" type="button" disabled={previewing} onClick={() => void loadPreview()}>
-            {previewing ? translate('sources:sourceConfiguration.loading') : translate('sources:sourceConfiguration.previewRecognizedRows')}
+            {previewing ? translate('sources:sourceConfiguration.loading') : translate('sources:sourceConfiguration.validateIdentityFromLocalData')}
           </button>
         </div>
-        {preview && (
+        <section className={`border-t border-border p-4 ${identityPreview.status === 'pass' ? 'fh-alert fh-alert-success' : identityPreview.status === 'blocked' ? 'fh-alert-warning' : 'fh-alert fh-alert-info'}`} data-testid="source-identity-preview" aria-live="polite">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-medium text-text-base">{translate('sources:sourceConfiguration.identityValidation')}</h3>
+            <Badge variant={identityPreview.status === 'pass' ? 'success' : identityPreview.status === 'blocked' ? 'warning' : 'pending'}>{translate(identityPreview.status === 'pass'
+              ? 'sources:sourceConfiguration.identityValidationPass'
+              : identityPreview.status === 'blocked'
+                ? 'sources:sourceConfiguration.identityValidationBlocked'
+                : 'sources:sourceConfiguration.identityValidationPending')}</Badge>
+          </div>
+          <dl className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityAuthority')}</dt><dd className="font-medium text-text-base">{identityAuthorityLabel}</dd></div>
+            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityMappedKeyColumn')}</dt><dd className="font-medium text-text-base">{identityMappingLabels.join(' · ')}</dd></div>
+            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityValidationSource')}</dt><dd className="font-medium text-text-base">{identityEvidenceLabel}</dd></div>
+            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityParticipatingRowCount')}</dt><dd className="font-medium text-text-base">{identityPreview.participatingRowCount == null ? '—' : formatNumber(identityPreview.participatingRowCount)}</dd></div>
+            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityValidKeyCount')}</dt><dd className="font-medium text-text-base">{identityPreview.validKeyCount == null ? '—' : formatNumber(identityPreview.validKeyCount)}</dd></div>
+            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityMissingKeyCount')}</dt><dd className="font-medium text-text-base">{identityPreview.missingKeyCount == null ? '—' : formatNumber(identityPreview.missingKeyCount)}</dd></div>
+            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityDuplicateKeyCount')}</dt><dd className="font-medium text-text-base">{identityPreview.duplicateKeyCount == null ? '—' : formatNumber(identityPreview.duplicateKeyCount)}</dd></div>
+            <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityBindingConflictCount')}</dt><dd className="font-medium text-text-base">{identityPreview.bindingConflictCount == null ? '—' : formatNumber(identityPreview.bindingConflictCount)}</dd></div>
+          </dl>
+          {identityPreview.status === 'pending' && <div className="mt-3 space-y-2">
+            <p>{translate('sources:sourceConfiguration.noLocalIdentityData')}</p>
+            {source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && <button className="fh-button-secondary fh-button-sm" type="button" disabled={reading || externalSourceDisabled || remoteReadQuotaExhausted} title={remoteReadQuotaExhausted ? quotaLimitDescription() : translate('sources:sourceConfiguration.readSourceConsumesAllowance')} onClick={() => void readNow()}><Icon name="refresh" /> {translate('sources:sourceConfiguration.readSource')}</button>}
+            {remoteReadQuotaExhausted && <p className="fh-text-caption text-danger">{translate('sources:sourceConfiguration.readSourceQuotaExhausted')}</p>}
+          </div>}
+          {identityPreview.status === 'blocked' && <div className="mt-3 space-y-2">
+            {identityPreview.missingKeyCount != null && identityPreview.missingKeyCount > 0 && <p>{translate('sources:sourceConfiguration.identityMissingKeysSummary', { count: identityPreview.missingKeyCount })}</p>}
+            {identityPreview.missingRows.length > 0 && <p className="fh-text-caption">{translate('sources:sourceConfiguration.identityAffectedRows', { rows: identityPreview.missingRows.join(', ') })}</p>}
+            {identityPreview.duplicateRowCount != null && identityPreview.duplicateRowCount > 0 && <p>{translate('sources:sourceConfiguration.identityDuplicateKeysSummary', { count: identityPreview.duplicateRowCount })}</p>}
+            {identityPreview.bindingConflictCount != null && identityPreview.bindingConflictCount > 0 && <p>{translate('sources:sourceConfiguration.identityBindingConflictsSummary', { count: identityPreview.bindingConflictCount })}</p>}
+            {identityPreview.duplicates.map((duplicate, index) => <div className="rounded-lg border border-warning/30 bg-bg-base p-3" key={`${duplicate.key}-${index}`}>
+              {duplicate.key && <p className="font-medium text-text-base">{translate('sources:sourceConfiguration.identityDuplicateKey', { key: duplicate.key })}</p>}
+              <p className="fh-text-caption">{translate('sources:sourceConfiguration.identityAffectedRows', { rows: duplicate.rows.join(', ') })}</p>
+            </div>)}
+            {identityPreview.bindingConflicts.map((conflict, index) => <div className="rounded-lg border border-warning/30 bg-bg-base p-3" key={`${conflict.key}-${index}`}>
+              <p className="font-medium text-text-base">{translate('sources:sourceConfiguration.identityBindingConflictKey', { key: conflict.key })}</p>
+              <p className="fh-text-caption">{translate('sources:sourceConfiguration.identityAffectedRows', { rows: conflict.rows.join(', ') })}</p>
+              {conflict.boundCanonicalProductId && <p className="fh-text-caption">{translate('sources:sourceConfiguration.identityBoundCanonicalProduct', { id: conflict.boundCanonicalProductId })}</p>}
+              {conflict.conflictingCanonicalProductIds.length > 0 && <p className="fh-text-caption">{translate('sources:sourceConfiguration.identityConflictingCanonicalProducts', { ids: conflict.conflictingCanonicalProductIds.join(', ') })}</p>}
+            </div>)}
+          </div>}
+        </section>
+        {currentPreview && (
           <>
-            {identityPreview && <section className={`border-t border-border p-4 ${identityPreview.status === 'pass' ? 'fh-alert fh-alert-success' : 'fh-alert-warning'}`} data-testid="source-identity-preview" aria-live="polite">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-medium text-text-base">{translate('sources:sourceConfiguration.identityValidation')}</h3>
-                <Badge variant={identityPreview.status === 'pass' ? 'success' : 'warning'}>{translate(identityPreview.status === 'pass' ? 'sources:sourceConfiguration.identityValidationPass' : 'sources:sourceConfiguration.identityValidationBlocked')}</Badge>
-              </div>
-              <dl className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityMappedKeyColumn')}</dt><dd className="font-medium text-text-base">{identityKeyMappings.join(' · ')}</dd></div>
-                <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityValidKeyCount')}</dt><dd className="font-medium text-text-base">{formatNumber(identityPreview.validKeyCount)}</dd></div>
-                <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityMissingKeyCount')}</dt><dd className="font-medium text-text-base">{formatNumber(identityPreview.missingKeyCount)}</dd></div>
-                <div><dt className="fh-text-caption">{translate('sources:sourceConfiguration.identityDuplicateKeyCount')}</dt><dd className="font-medium text-text-base">{formatNumber(identityPreview.duplicateKeyCount)}</dd></div>
-              </dl>
-              {identityPreview.status === 'blocked' && <div className="mt-3 space-y-2">
-                {identityPreview.missingKeyCount > 0 && <p>{translate('sources:sourceConfiguration.identityMissingKeysSummary', { count: identityPreview.missingKeyCount })}</p>}
-                {identityPreview.duplicateKeyCount > 0 && <p>{translate('sources:sourceConfiguration.identityDuplicateKeysSummary', { count: identityPreview.duplicateKeyCount })}</p>}
-                {identityPreview.duplicates.map((duplicate, index) => <div className="rounded-lg border border-warning/30 bg-bg-base p-3" key={`${duplicate.key}-${index}`}>
-                  {duplicate.key && <p className="font-medium text-text-base">{translate('sources:sourceConfiguration.identityDuplicateKey', { key: duplicate.key })}</p>}
-                  <p className="fh-text-caption">{translate('sources:sourceConfiguration.identityAffectedRows', { rows: duplicate.rows.join(', ') })}</p>
-                </div>)}
-              </div>}
-            </section>}
             {previewSummary && <div className="grid grid-cols-2 gap-4 border-t border-border p-4 xl:grid-cols-4">
               <button className="fh-stat-card text-start" type="button" onClick={() => { setPreviewFilter('all'); setPreviewIndex(0) }}><span className="fh-text-caption">{translate('sources:sourceConfiguration.productsFound')}</span><strong className="mt-2 block text-2xl">{previewSummary.productsFound}</strong></button>
               <button className="fh-stat-card text-start" type="button" onClick={() => { setPreviewFilter('ready'); setPreviewIndex(0) }}><span className="fh-text-caption">{translate('sources:sourceConfiguration.productsReady')}</span><strong className="mt-2 block text-2xl">{previewSummary.productsReady}</strong></button>
@@ -1969,7 +2159,7 @@ export default function SourceConfiguration() {
                 </article>
               })()}
             </div>
-            <details className="border-t border-border p-4"><summary className="cursor-pointer fh-text-caption">{translate('sources:sourceConfiguration.technicalDetails')}</summary><p className="fh-text-caption mt-2">{translate('sources:sourceConfiguration.recognized')}: {preview.recognized} · {translate('sources:sourceConfiguration.ignored')}: {preview.ignored}</p></details>
+            <details className="border-t border-border p-4"><summary className="cursor-pointer fh-text-caption">{translate('sources:sourceConfiguration.technicalDetails')}</summary><p className="fh-text-caption mt-2">{translate('sources:sourceConfiguration.recognized')}: {currentPreview.recognized} · {translate('sources:sourceConfiguration.ignored')}: {currentPreview.ignored}</p></details>
           </>
         )}
       </section>

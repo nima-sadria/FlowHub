@@ -14,6 +14,14 @@ const mapping = {
   valuePolicy: {},
   worksheetRuleMode: 'shared',
   duplicateProductPolicy: 'block',
+  identityAuthority: { type: 'external_system', systemIdentifier: 'woocommerce', displayLabel: null },
+  identityPolicyVersion: 2,
+  mappingReadiness: 'ready',
+  identityValidation: {
+    status: 'pass', participatingRowCount: 1, validKeyCount: 1, missingKeyCount: 0, duplicateKeyCount: 0, duplicateRowCount: 0,
+    missingRows: [], duplicateGroups: [], mappingReferences: [{ worksheetName: 'UGREEN', referenceType: 'column_letter', referenceValue: 'A' }],
+    evidence: { kind: 'source_observation', sourceRevisionId: 'nextcloud-ugreen-revision-1', datasetId: 'dataset-1', snapshotId: 123, snapshotVersion: 1, label: 'Snapshot #123', validatedAt: '2026-08-15T00:00:00Z' },
+  },
   sourceFields: [
     { field: 'name', referenceType: 'column_letter', referenceValue: 'B', required: true },
     { field: 'source_key', referenceType: 'column_letter', referenceValue: 'A', required: true },
@@ -61,15 +69,18 @@ const sourceConfiguration = {
   status: 'active',
   version: 3,
   mappingVersion: 1,
+  mappingReadiness: 'ready',
+  readQuota: { enabled: true, limit: 10, usage: 10, remaining: 0, reset_at: '2026-08-16T00:00:00Z', exhausted: true },
+  worksheetDiscovery: { requires_remote_read: false, metadata_source: 'snapshot', reason: null, snapshot_id: 123, snapshot_version: 1, snapshot_at: '2026-08-15T00:00:00Z', worksheet_names: ['UGREEN'] },
   sheetId: null,
   mapping,
   legacyMapping: null,
 }
 
 const channels = [
-  { channelId: 'woocommerce:primary', name: 'WooCommerce', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
-  { channelId: 'snappshop:main', name: 'SnappShop', connectorType: 'snappshop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
-  { channelId: 'tapsishop:main', name: 'TapsiShop', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
+  { channelId: 'woocommerce:primary', name: 'WooCommerce', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: { mappingRequiredFields: ['external_id'] }, enabled: true, implementationState: 'implemented', available: true },
+  { channelId: 'snappshop:main', name: 'SnappShop', connectorType: 'snappshop', capabilityVersion: '1', capabilities: { mappingRequiredFields: ['external_id', 'stock', 'status'] }, enabled: true, implementationState: 'implemented', available: true },
+  { channelId: 'tapsishop:main', name: 'TapsiShop', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: { mappingRequiredFields: ['external_id', 'stock', 'status'] }, enabled: true, implementationState: 'implemented', available: true },
 ]
 
 const preview = {
@@ -79,7 +90,10 @@ const preview = {
   sheetRevisionId: 'nextcloud-ugreen-revision-1', mappingRevisionId: null,
 }
 
-async function installMocks(page: Page, savedMappings: Array<Record<string, unknown>>, previews: { count: number }) {
+type RequestAudit = { previews: number; acquisitions: number }
+
+async function installMocks(page: Page, savedMappings: Array<Record<string, unknown>>, audit: RequestAudit) {
+  let persistedMapping: Record<string, unknown> = mapping
   await page.addInitScript(() => localStorage.setItem('wp_token', 'source-configuration-save-regression-token'))
   await page.route('**/*', async (route: Route) => {
     const request = route.request()
@@ -89,19 +103,42 @@ async function installMocks(page: Page, savedMappings: Array<Record<string, unkn
     const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
     if (request.method() === 'PUT' && url.pathname === `/api/v2/sources/${sourceId}/mappings`) {
-      savedMappings.push(request.postDataJSON() as Record<string, unknown>)
-      return json(mapping)
+      const payload = request.postDataJSON() as {
+        source_fields: Array<{ field: string; reference_type: string; reference_value: string | null; required: boolean }>
+        channel_mappings: Array<{ channel_id: string; worksheet_name: string | null; enabled: boolean; fields: Array<{ field: string; reference_type: string; reference_value: string | null }> }>
+        identity_authority: { type: string; system_identifier: string | null; display_label: string | null }
+        identity_policy_version: number
+      }
+      savedMappings.push(payload as unknown as Record<string, unknown>)
+      persistedMapping = {
+        ...mapping,
+        version: savedMappings.length + 1,
+        sourceFields: payload.source_fields.map(field => ({ field: field.field, referenceType: field.reference_type, referenceValue: field.reference_value, required: field.required })),
+        channels: payload.channel_mappings.map(channel => ({
+          channelId: channel.channel_id,
+          worksheetName: channel.worksheet_name,
+          enabled: channel.enabled,
+          fields: channel.fields.map(field => ({ field: field.field, referenceType: field.reference_type, referenceValue: field.reference_value })),
+        })),
+        identityAuthority: { type: payload.identity_authority.type, systemIdentifier: payload.identity_authority.system_identifier, displayLabel: payload.identity_authority.display_label },
+        identityPolicyVersion: payload.identity_policy_version,
+      }
+      return json(persistedMapping)
     }
     if (request.method() === 'POST' && url.pathname === `/api/v2/sources/${sourceId}/preview`) {
-      previews.count += 1
+      audit.previews += 1
       return json(preview)
     }
-    if (request.method() === 'GET' && url.pathname === `/api/v2/sources/${sourceId}/configuration`) return json(sourceConfiguration)
+    if (request.method() === 'POST' && url.pathname === `/api/v2/commerce/sources/${nextcloudId}/read`) {
+      audit.acquisitions += 1
+      return json({ code: 'SOURCE_READ_LIMIT_REACHED', message: 'The Source read limit was reached.' }, 429)
+    }
+    if (request.method() === 'GET' && url.pathname === `/api/v2/sources/${sourceId}/configuration`) return json({ ...sourceConfiguration, mapping: persistedMapping })
     if (request.method() === 'GET' && url.pathname === '/api/v2/source-profiles/channels') return json({ items: channels })
     if (request.method() === 'GET' && url.pathname === `/api/v2/sources/${sourceId}/worksheets`) return json({
       sourceId, sourceRevisionId: 'nextcloud-ugreen-revision-1',
       items: [{ name: 'UGREEN', rowCount: 12, columns: [
-        { id: 'A', letter: 'A', header: 'Website Product ID' }, { id: 'B', letter: 'B', header: 'Product Name' },
+        { id: 'A', letter: 'A', header: 'Website Product ID' }, { id: 'B', letter: 'B', header: 'Product Name' }, { id: 'C', letter: 'C', header: 'SnappShop ID' },
         { id: 'D', letter: 'D', header: 'Retail price' }, { id: 'E', letter: 'E', header: 'Stock' },
       ] }],
     })
@@ -119,20 +156,25 @@ async function installMocks(page: Page, savedMappings: Array<Record<string, unkn
   })
 }
 
-test('keeps visible Listing identity while Save auto-previews a valid UGREEN-only Nextcloud mapping', async ({ page }) => {
+test('saves a valid UGREEN-only Nextcloud mapping without preview or acquisition I/O', async ({ page }) => {
   const savedMappings: Array<Record<string, unknown>> = []
-  const previews = { count: 0 }
-  await installMocks(page, savedMappings, previews)
+  const audit: RequestAudit = { previews: 0, acquisitions: 0 }
+  await installMocks(page, savedMappings, audit)
   await page.goto(`/sources/${sourceId}`)
 
   await expect(page.getByRole('heading', { name: 'UGREEN Nextcloud catalog' })).toBeVisible()
+  const authority = page.locator('#source-identity select').first()
+  await expect(authority).toHaveValue('external_system:woocommerce')
+  await expect(authority).toHaveAttribute('aria-required', 'true')
+  await expect(page.getByTestId('source-identity-preview')).toContainText('Identity validation: PASS')
+  await expect(page.getByTestId('source-identity-preview')).toContainText('Snapshot #123')
   await page.getByRole('button', { name: 'Detect worksheets' }).click()
   await page.locator('summary').filter({ hasText: 'Channel columns' }).click()
   const wooRow = page.locator('tr[data-channel-id="woocommerce:primary"]')
   await expect(page.getByLabel('Source Product Key column reference')).toHaveValue('A')
   await expect(wooRow.getByLabel('WooCommerce Product Identifier column reference')).toHaveValue('A')
   await expect(wooRow.getByText('WooCommerce Product Identifier', { exact: false })).toBeVisible()
-  await expect(wooRow.getByText('It may use the same column as Source Product Key.', { exact: false })).toBeVisible()
+  await expect(wooRow.getByText('It may use the same column as Source Product Key or a different column.', { exact: false })).toBeVisible()
   await expect(wooRow.getByLabel('WooCommerce Product Identifier column reference')).toHaveAttribute('aria-required', 'true')
   await expect(wooRow.getByLabel('Price column reference')).not.toHaveAttribute('aria-required', 'true')
   const priceCell = wooRow.locator('td').nth(4)
@@ -152,17 +194,55 @@ test('keeps visible Listing identity while Save auto-previews a valid UGREEN-onl
   await expect(actions).toContainText('Unsaved changes')
   await actions.getByRole('button', { name: 'Save column setup', exact: true }).click()
 
-  await expect.poll(() => previews.count).toBe(1)
+  await expect.poll(() => audit.previews).toBe(0)
+  await expect.poll(() => audit.acquisitions).toBe(0)
   await expect.poll(() => savedMappings).toHaveLength(1)
   await expect(page.getByText('Column setup saved', { exact: true })).toBeVisible()
+  await expect(page.getByText('The Source read limit was reached.', { exact: false })).toHaveCount(0)
   await expect(actions).toContainText('All changes saved')
   await expect(actions).not.toContainText('Unsaved changes')
 
   const payload = savedMappings[0]
   expect(payload.selected_worksheet_names).toEqual(['UGREEN'])
+  expect(payload.identity_authority).toEqual({ type: 'external_system', system_identifier: 'woocommerce', display_label: null })
   const channelMappings = payload.channel_mappings as Array<{ channel_id: string; enabled: boolean; fields: Array<{ field: string; reference_type: string; reference_value: string | null }> }>
   expect(channelMappings.filter(channel => channel.enabled).map(channel => channel.channel_id)).toEqual(['woocommerce:primary'])
   expect((payload.source_fields as Array<{ field: string; reference_value: string | null }>).find(field => field.field === 'source_key')).toMatchObject({ reference_value: 'A' })
   expect(channelMappings.find(channel => channel.channel_id === 'woocommerce:primary')?.fields.find(field => field.field === 'external_id')).toMatchObject({ reference_value: 'A' })
   expect(channelMappings.find(channel => channel.channel_id === 'woocommerce:primary')?.fields.find(field => field.field === 'price')).toMatchObject({ reference_type: 'header_name', reference_value: 'Retail price' })
+
+  await page.reload()
+  await expect(page.locator('#source-identity select').first()).toHaveValue('external_system:woocommerce')
+  await page.locator('summary').filter({ hasText: 'Channel columns' }).click()
+  const reloadedPriceCell = page.locator('tr[data-channel-id="woocommerce:primary"] td').nth(4)
+  await expect(reloadedPriceCell.getByLabel('Price reference type')).toHaveValue('header_name')
+  await expect(reloadedPriceCell.getByLabel('Price column reference')).toHaveValue('Retail price')
+  expect(audit.previews).toBe(0)
+  expect(audit.acquisitions).toBe(0)
+})
+
+test('keeps SnappShop identity authority independent from Channel enablement and identifiers', async ({ page }) => {
+  const savedMappings: Array<Record<string, unknown>> = []
+  const audit: RequestAudit = { previews: 0, acquisitions: 0 }
+  await installMocks(page, savedMappings, audit)
+  await page.goto(`/sources/${sourceId}`)
+
+  await page.getByRole('button', { name: 'Detect worksheets' }).click()
+  await page.locator('#source-identity select').first().selectOption('external_system:snappshop')
+  await page.locator('summary').filter({ hasText: 'Data Sheet worksheet scope' }).click()
+  await page.getByLabel('Source Product Key column reference').selectOption('C')
+
+  const actions = page.getByTestId('source-configuration-actions')
+  await actions.getByRole('button', { name: 'Save column setup', exact: true }).click()
+  await expect.poll(() => savedMappings).toHaveLength(1)
+
+  const payload = savedMappings[0]
+  expect(payload.identity_authority).toEqual({ type: 'external_system', system_identifier: 'snappshop', display_label: null })
+  expect((payload.source_fields as Array<{ field: string; reference_value: string | null }>).find(field => field.field === 'source_key')).toMatchObject({ reference_value: 'C' })
+  const channelMappings = payload.channel_mappings as Array<{ channel_id: string; enabled: boolean; fields: Array<{ field: string; reference_value: string | null }> }>
+  expect(channelMappings.find(channel => channel.channel_id === 'woocommerce:primary')?.fields.find(field => field.field === 'external_id')).toMatchObject({ reference_value: 'A' })
+  expect(channelMappings.find(channel => channel.channel_id === 'snappshop:main')?.enabled).toBe(false)
+  expect(channelMappings.filter(channel => channel.enabled).map(channel => channel.channel_id)).toEqual(['woocommerce:primary'])
+  expect(audit.previews).toBe(0)
+  expect(audit.acquisitions).toBe(0)
 })

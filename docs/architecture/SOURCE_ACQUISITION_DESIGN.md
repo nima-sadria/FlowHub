@@ -2,9 +2,9 @@
 
 **Status:** Accepted baseline, implementation pending
 **Decision:** `ADR-SOURCE-001`
-**Last updated:** 2026-08-05
+**Last updated:** 2026-08-15
 **Related:** `ADR_SOURCE_UI_OBSERVABILITY_ADDENDUM.md`,
-`PRICING_UI_CONTRACT.md`
+`ADR_SOURCE_PRODUCT_IDENTITY_AUTHORITY_ADDENDUM.md`, `PRICING_UI_CONTRACT.md`
 
 ## Purpose
 
@@ -12,8 +12,10 @@ This specification defines the implementation-facing design for Source
 configuration, provider capture, immutable Observations, schema safety,
 Diagnostics, Workspace provenance, retention, and Source UI.
 
-The stable decision is recorded in `ADR_SOURCE_ARCHITECTURE_V2.md`. This document
-may evolve during implementation while every ADR Core Invariant remains true.
+The stable decision is recorded in `ADR_SOURCE_ARCHITECTURE_V2.md` and its
+product-identity decision in
+`ADR_SOURCE_PRODUCT_IDENTITY_AUTHORITY_ADDENDUM.md`. This document may evolve
+during implementation while every ADR Core Invariant remains true.
 
 ## Scope
 
@@ -44,6 +46,7 @@ Out of scope:
 ```mermaid
 flowchart LR
     UI["Source UI and API"] --> APP["Source Application Service"]
+    APP --> MAP["Immutable Mapping Revision"]
     APP --> PLAN["Stage Registry and Plan Builder"]
     PLAN --> ADAPTER["Source Provider Adapter"]
     ADAPTER --> EXTERNAL["External or Managed Source"]
@@ -51,10 +54,13 @@ flowchart LR
     RUN --> CAPTURE["Complete Provider Capture"]
     CAPTURE --> OBS["Immutable Source Observation"]
     OBS --> ASSESS["Source Schema Assessment"]
-    ASSESS --> MAP["Mapping Engine"]
-    MAP --> NORM["Normalization Engine"]
-    NORM --> VALIDATE["Validation Engine"]
-    VALIDATE --> WORKSPACE["Immutable Workspace Snapshot"]
+    MAP --> ASSESS
+    OBS --> NORM["Local Normalization Engine"]
+    MAP --> NORM
+    ASSESS --> VALIDATE["Local Identity Validation"]
+    NORM --> VALIDATE
+    VALIDATE --> READY["Source Readiness Projection"]
+    READY --> WORKSPACE["Immutable Workspace Snapshot"]
     WORKSPACE --> PIPELINE["Review, Dry Run, Approval, Apply"]
 ```
 
@@ -65,6 +71,8 @@ and never converts a successful provider capture into an acquisition failure.
 Business engines request Observations and normalized state. They never issue
 provider calls and never know whether an adapter used one request, batches,
 conditional retrieval, a native grid, an uploaded file, or a cached artifact.
+Mapping persistence is another local input to this graph; it never traverses
+the Provider Plan merely because identity evidence is absent or stale.
 
 ## Provider Model
 
@@ -263,6 +271,64 @@ The algorithm ID is read from the Mapping revision when comparing. The current
 system default is never substituted. Persisted algorithm versions remain
 available while referenced; retiring one requires an explicit migration and
 operator-safe review plan.
+
+### Product Identity Authority and readiness evidence
+
+The Mapping revision owns a provider-neutral Identity Authority value object and
+the Source Product Key reference. These are not Channel configuration:
+
+```text
+Source Product Key        = Source-scoped canonical join key
+Identity Authority        = metadata describing who owns that key's meaning
+Channel Product Identifier = per-Channel Listing resolution value
+```
+
+Identity Authority has an extensible type, system identifier, and optional
+display label. It has no foreign key to a Channel and cannot enable a Channel,
+create a Listing, or require credentials. Historical Mapping revisions project
+Authority `unspecified`; migration never infers a provider. An unspecified
+Mapping remains PENDING until the Owner explicitly saves its authority.
+
+New Mapping writes use identity policy v2. Historical policy-v1 revisions stay
+readable but cannot create a new Workspace until the Owner explicitly saves a
+v2 Mapping with Identity Authority and Source Product Key.
+
+A Mapping revision can be persisted without a current Observation. Readiness is
+derived separately from append-safe identity-validation evidence for an exact
+Mapping identity fingerprint and immutable Observation or committed Sheet
+Revision. The projection is `PENDING`, `PASS`, or `BLOCKED`. Only PASS is
+sufficient for new Workspace decision creation.
+
+Validation uses the complete retained normalized dataset, including
+participating rows that do not resolve to a Channel Listing. It performs no
+provider request and reserves no acquisition or worksheet-discovery allowance.
+Validation confirms Source-key/Canonical-Product consistency. Successful
+Workspace product resolution then creates or confirms the durable Source-scoped
+binding atomically from its exact Listing evidence cohort; a conflicting
+binding blocks readiness rather than silently remapping history.
+
+Saving unrelated Channel values, Value Handling, Monetary Policy, or a
+display-only Authority label does not invalidate identity evidence. The
+identity fingerprint changes only when an input that can change the key result
+or participating row population changes, including Source key references,
+worksheet scope/start rows, Resource Binding, duplicate policy, or algorithm
+version. A new Mapping revision with the same identity fingerprint may derive
+revision-bound evidence from the same immutable local dataset without provider
+I/O.
+
+The retained dataset carries a non-secret logical Resource Binding fingerprint.
+For Nextcloud it covers normalized endpoint, account, workbook path, and
+connector identity, but never credentials. A binding change makes older local
+evidence incompatible. Workspace creation pins one exact compatible dataset for
+row resolution, validation, provenance, and binding proposals; it neither
+reselects a later cohort nor issues a provider request.
+
+Resource-binding settings changes and Workspace creation serialize on the same
+locked Source version. Provider-generic connector APIs do not bypass this
+owner: they reject Nextcloud Source setting writes, while the canonical Source
+settings command performs the lock, non-secret binding comparison, persistence,
+and version increment atomically. Rotating only a credential does not change
+the Resource Binding fingerprint.
 
 ### Header Canonicalization v1
 
@@ -740,6 +806,7 @@ mandatory:
 ```text
 GET  /sources/{id}                         read persisted state only
 PUT  /sources/{id}/connection              save Config revision
+PUT  /sources/{id}/mappings                save Mapping revision; local only
 POST /sources/{id}/connection/test         test saved or unsaved values
 POST /sources/{id}/resources/inspect       inspect external resources
 POST /sources/{id}/runs                    start capture
@@ -748,12 +815,22 @@ GET  /sources/{id}/observations            list authorized Observations
 GET  /sources/{id}/observations/{id}       read authorized Observation
 GET  /sources/{id}/observations/{id}/worksheets
 POST /sources/{id}/schema-assessments      assess Observation and Mapping
+POST /sources/{id}/identity-validation     validate explicit Observation/Mapping locally
 POST /sources/{id}/previews                preview explicit Observation/Mapping
 POST /sources/{id}/diagnostics             start deep Diagnostics
 ```
 
-Commands accept idempotency keys and return Run identity. Contracts permit a
-durable runner even if short commands initially execute in-process.
+Provider-executing commands accept idempotency keys and return Run identity.
+Their contracts permit a durable runner even if short commands initially
+execute in-process.
+
+Mapping Save, Source Mapping identity validation, and Source identity Preview
+are local contracts and never create a Source Run. If no compatible Observation
+exists, Save succeeds for a structurally valid Mapping and readiness projects
+PENDING. The response offers an explicit acquisition action; it does not
+execute that action implicitly. The separate legacy Workspace Preview remains
+an explicitly named acquisition workflow until its compatibility path is
+retired; it is not reused by managed Source configuration.
 
 ## Legacy Endpoint Exception
 
@@ -777,7 +854,11 @@ Workspace Preview receives explicit `source_observation_id` and
 Workspace Snapshot records:
 
 - Source, Observation, Config, Binding, and Execution Policy identities
-- Mapping Revision and schema-assessment identity
+- Mapping Revision, Identity Authority, schema-assessment identity, and
+  identity-validation evidence identity
+- resolved Source Product Key and Source-key/CanonicalProduct binding identities
+- the exact Listing Mapping versions and states fenced for each newly confirmed
+  Source-key binding
 - parser, formula, normalization, and validation versions
 - currency profile revision
 - Channel and Channel Mapping identities
@@ -786,6 +867,9 @@ Workspace Snapshot records:
 
 Dry Run and Apply validate recorded Source and destination identities before
 field comparison. A newer relevant Observation makes the decision outdated.
+Managed Source Workspace creation requires a persisted `source_id`, replays one
+exact local dataset/Listing cohort, and performs no provider request or
+acquisition reservation.
 
 ## Source Configuration Information Architecture
 
@@ -812,7 +896,12 @@ UI rules:
 - Connection Test appears once where connection is configured.
 - Drift or canonical collision shows raw-header diff and required action.
 - Preview is the primary trust-building action after Mapping.
-- Open Workspace requires a compatible Mapping and current Observation.
+- Save Mapping persists configuration with zero provider I/O and reports
+  identity readiness separately as PENDING, PASS, or BLOCKED.
+- PENDING shows an explicit Read Source/Create Snapshot action and whether that
+  action consumes acquisition allowance.
+- Open Workspace requires a compatible Mapping and current local Observation,
+  and resolves it without provider I/O.
 - Runs and Snapshots distinguish attempts from immutable results.
 - Source Mapping may launch canonical quick Channel setup but never owns Channel
   credentials.
@@ -931,7 +1020,11 @@ Domain and migration:
 
 - independent settings, health, and quotas for two Nextcloud Sources
 - additive migration and legacy provenance
+- historical Identity Authority remains `unspecified` without provider
+  inference or provider-specific columns
 - immutable Observation, Mapping, and Assessment enforcement
+- append-safe identity-validation evidence and Source-key/CanonicalProduct
+  binding enforcement
 - current projection scoped to logical Binding
 - Replace content versus explicit repoint behavior
 - retention holds from Workspaces, Runs, and audit records
@@ -975,6 +1068,11 @@ Security:
 Architecture and contracts:
 
 - new Source `GET` routes perform zero outbound requests and zero writes
+- saving Source, worksheet, Source Product, Channel, Value Handling, and
+  Monetary Policy configuration performs zero provider requests and reserves
+  neither acquisition nor worksheet-discovery allowance
+- identity validation over an Observation or committed Sheet Revision performs
+  zero provider requests
 - Source query services cannot import provider clients or command services
 - shared plans use the same registered Stage implementation
 - identical Stage Context, Execution Policy, and provider response produce the
@@ -997,6 +1095,14 @@ Operational and UI:
 
 - Independent Sources do not share mutable settings, health, or quotas by
   accident.
+- Source Product Key, Identity Authority, and Channel Product Identifier remain
+  distinct, and compatible mappings may reuse one Source column.
+- Identity Authority never implies Channel enablement, credentials, or Listing
+  creation.
+- Structurally valid Mapping persistence succeeds without provider I/O and may
+  project PENDING until compatible local identity evidence exists.
+- Only revision-bound PASS evidence permits a new Source Workspace decision;
+  BLOCKED or PENDING evidence fails closed without erasing the saved Mapping.
 - One acquisition creates at most one complete capture for its parse contract.
 - Every new external-Source Workspace has immutable Source provenance.
 - Drift and canonical collisions preserve Observation but block decisions.

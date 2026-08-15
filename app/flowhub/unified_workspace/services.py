@@ -88,7 +88,6 @@ from app.flowhub.unified_workspace.repositories import (
     ReviewRepository,
     WorkspaceRepository,
 )
-from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
 from app.flowhub.write_pipeline.models import (
     ProviderWriteAttempt,
     ProviderWriteAttemptEvent,
@@ -516,213 +515,16 @@ class UnifiedWorkspaceService:
         self,
         *,
         name: str,
-        source_currency: str | None,
-        source_unit: str | None,
         user: FlowHubUser,
         correlation_id: str,
-        source_id: str | None = None,
+        source_id: str,
     ) -> dict[str, Any]:
-        if source_id:
-            return await self._create_managed_source_workspace(
-                name=name,
-                source_id=source_id,
-                user=user,
-                correlation_id=correlation_id,
-            )
-        self._seed_channels()
-        preview = await WorkspacePriceWorkflowService(self.db).preview_from_nextcloud(user)
-        if (source_currency is None) != (source_unit is None):
-            raise self._unprocessable(
-                "SOURCE_CURRENCY_INCOMPLETE", "Both Source currency and currency unit are required."
-            )
-        if source_currency and source_unit:
-            currency_profile = self._source_currency_profile(
-                "nextcloud:primary", source_currency, source_unit
-            )
-        else:
-            declaration = self.pricing_matrix.unit_declaration("source", "nextcloud:primary")
-            if declaration["status"] != "resolved":
-                raise self._unprocessable(
-                    "SOURCE_UNIT_UNRESOLVED",
-                    "Pricing Workspace requires an explicit Source currency and unit declaration.",
-                )
-            currency_profile = self.db.get(CurrencyProfile, declaration["currencyProfileId"])
-            if currency_profile is None:
-                raise self._conflict("SOURCE_CURRENCY_PROFILE_MISSING", "Source currency profile is unavailable.")
-        workspace_id = _id()
-        snapshot_id = _id()
-        workspace = UnifiedWorkspace(
-            id=workspace_id,
-            name=canonical_text(name) or "Source Workspace",
-            entry_point=EntryPoint.SOURCE,
-            source_type="nextcloud_excel",
-            owner_user_id=user.id,
-            status="active",
-            version=1,
+        return await self._create_managed_source_workspace(
+            name=name,
+            source_id=source_id,
+            user=user,
+            correlation_id=correlation_id,
         )
-        self.db.add(workspace)
-        self.db.flush()
-        staged_rows: list[SnapshotRow] = []
-        immutable_rows: list[dict[str, Any]] = []
-        preview_rows_data = [
-            item.model_dump(mode="json") if hasattr(item, "model_dump") else dict(item)
-            for item in preview.rows
-        ]
-        matched_identities = {
-            ("woocommerce:primary", str(matched.get("productId")))
-            for row_data in preview_rows_data
-            if isinstance(
-                (matched := row_data.get("matchedProduct") or row_data.get("matched_product")), dict
-            )
-            and matched.get("productId")
-        }
-        source_listing_map = (
-            {
-                (item.channel_id, item.external_primary_id): item
-                for item in self.db.query(Listing)
-                .filter(
-                    tuple_(Listing.channel_id, Listing.external_primary_id).in_(matched_identities)
-                )
-                .all()
-            }
-            if matched_identities
-            else {}
-        )
-        source_canonical_ids = {item.canonical_product_id for item in source_listing_map.values()}
-        source_canonical_map = (
-            {
-                item.id: item
-                for item in self.db.query(CanonicalProduct)
-                .filter(CanonicalProduct.id.in_(source_canonical_ids))
-                .all()
-            }
-            if source_canonical_ids
-            else {}
-        )
-        source_listing_ids = {item.id for item in source_listing_map.values()}
-        source_cache_map = (
-            {
-                item.listing_id: item
-                for item in self.db.query(ChannelCache)
-                .filter(ChannelCache.listing_id.in_(source_listing_ids))
-                .all()
-            }
-            if source_listing_ids
-            else {}
-        )
-        source_channel_map = {
-            item.id: item
-            for item in self.db.query(WorkspaceChannel)
-            .filter(WorkspaceChannel.id == "woocommerce:primary")
-            .all()
-        }
-        source_products: dict[str, DlProductCache] = (
-            {
-                str(item.product_id): item
-                for item in self.db.query(DlProductCache)
-                .filter(
-                    DlProductCache.connector_id == "woocommerce:primary",
-                    DlProductCache.product_id.in_({identity[1] for identity in matched_identities}),
-                )
-                .all()
-            }
-            if matched_identities
-            else {}
-        )
-        for number, row_data in enumerate(preview_rows_data, start=1):
-            matched = row_data.get("matchedProduct") or row_data.get("matched_product")
-            canonical_id = None
-            listing_id = None
-            mapping_version = None
-            if isinstance(matched, dict) and matched.get("productId"):
-                cache_row = source_products.get(str(matched["productId"]))
-                if cache_row is not None:
-                    canonical, listing, _ = self._materialize_cache_identity(
-                        cache_row,
-                        listing_map=source_listing_map,
-                        canonical_map=source_canonical_map,
-                        cache_map=source_cache_map,
-                        channel_map=source_channel_map,
-                    )
-                    canonical_id, listing_id, mapping_version = (
-                        canonical.id,
-                        listing.id,
-                        listing.mapping_version,
-                    )
-            normalized = {
-                "source": row_data.get("source") or {},
-                "canonical_product_id": canonical_id,
-                "listing_id": listing_id,
-                "proposed_price": row_data.get("proposedPrice"),
-                "source_stock": row_data.get("sourceStock"),
-                "errors": row_data.get("errors") or [],
-                "warnings": row_data.get("warnings") or [],
-            }
-            immutable_rows.append(normalized)
-            staged_rows.append(
-                SnapshotRow(
-                    id=_id(),
-                    snapshot_id=snapshot_id,
-                    row_number=number,
-                    canonical_product_id=canonical_id,
-                    listing_id=listing_id,
-                    mapping_version=mapping_version,
-                    raw_data_json=row_data.get("source") or {},
-                    normalized_data_json=normalized,
-                    row_checksum=checksum(normalized),
-                )
-            )
-        snapshot_checksum = checksum({"legacy_preview_id": preview.id, "rows": immutable_rows})
-        snapshot = WorkspaceSnapshot(
-            id=snapshot_id,
-            workspace_id=workspace_id,
-            entry_point=EntryPoint.SOURCE,
-            source_type="nextcloud_excel",
-            creator_user_id=user.id,
-            schema_version=SCHEMA_VERSION,
-            content_checksum=snapshot_checksum,
-            normalization_version=NORMALIZATION_VERSION,
-            validation_ruleset_version=VALIDATION_VERSION,
-            mapping_version=max((row.mapping_version or 1 for row in staged_rows), default=1),
-            currency_profile_id=currency_profile.id,
-            source_metadata_json={
-                "source_id": preview.sourceId,
-                "source_name": preview.sourceName,
-                "legacy_preview_id": preview.id,
-            },
-            acquisition_metadata_json={
-                "read_once": True,
-                "acquired_at": str(preview.startedAt),
-            },
-        )
-        draft = Draft(
-            id=_id(),
-            workspace_id=workspace_id,
-            snapshot_id=snapshot_id,
-            owner_user_id=user.id,
-            version=0,
-            status="draft",
-        )
-        self._persist_snapshot_foundation(snapshot=snapshot, rows=staged_rows, draft=draft)
-        self._audit(
-            "workspace_created",
-            user,
-            correlation_id,
-            workspace_id=workspace_id,
-            snapshot_id=snapshot_id,
-            draft_id=draft.id,
-            metadata={"entry_point": "source", "legacy_preview_id": preview.id},
-        )
-        self._audit(
-            "snapshot_created",
-            user,
-            correlation_id,
-            workspace_id=workspace_id,
-            snapshot_id=snapshot_id,
-            metadata={"checksum": snapshot_checksum, "read_once": True},
-        )
-        self.db.commit()
-        return self.workspace_shape(workspace_id, user)
 
     async def _create_managed_source_workspace(
         self,
@@ -752,6 +554,29 @@ class UnifiedWorkspaceService:
             source_id,
             user,
             expected_source_version=int(analysis["source"]["version"]),
+        )
+        identity_evidence = dict(
+            analysis["mapping"]["identityValidation"].get("evidence") or {}
+        )
+        source_revision_kind = str(identity_evidence.get("kind") or "")
+        source_revision_id = str(identity_evidence.get("sourceRevisionId") or "")
+        identity_bindings = source_service.stage_source_product_identity_bindings(
+            source_id=source_id,
+            mapping_revision_id=str(analysis["mapping"]["id"]),
+            source_revision_kind=source_revision_kind,
+            source_revision_id=source_revision_id,
+            dataset_id=(
+                str(identity_evidence["datasetId"])
+                if identity_evidence.get("datasetId")
+                else None
+            ),
+            sheet_revision_id=(
+                source_revision_id
+                if source_revision_kind == "flowhub_sheet_revision"
+                else None
+            ),
+            proposals=list(analysis.get("identityBindingProposals") or []),
+            user=user,
         )
         workspace_id = _id()
         snapshot_id = _id()
@@ -873,14 +698,28 @@ class UnifiedWorkspaceService:
                 "source_version": analysis["source"]["version"],
                 "mapping_revision_id": analysis["mapping"]["id"],
                 "mapping_checksum": analysis["mapping"]["checksum"],
+                "identity_authority": analysis["mapping"].get("identityAuthority"),
+                "identity_policy_version": analysis["mapping"].get(
+                    "identityPolicyVersion"
+                ),
+                "identity_validation": analysis["mapping"].get(
+                    "identityValidation"
+                ),
+                "source_product_identity_bindings": identity_bindings,
                 "sheet_revision_id": analysis["sheetRevision"]["id"],
                 "sheet_revision_checksum": analysis["sheetRevision"]["checksum"],
                 "formula_engine_version": analysis["sheetRevision"]["formulaEngineVersion"],
             },
             acquisition_metadata_json={
-                "read_once": True,
+                "read_once": False,
                 "internal_revision": analysis["source"]["sourceKind"] != "external",
-                "acquired_at": utcnow().isoformat(),
+                "provider_io_performed": False,
+                "validation_source": (
+                    "local_dataset"
+                    if source_revision_kind == "source_observation"
+                    else "sheet_revision"
+                ),
+                "replayed_at": utcnow().isoformat(),
             },
         )
         draft = Draft(
@@ -926,7 +765,12 @@ class UnifiedWorkspaceService:
             metadata={
                 "entry_point": "source",
                 "source_id": source_id,
-                "read_once": True,
+                "provider_io_performed": False,
+                "validation_source": (
+                    "local_dataset"
+                    if source_revision_kind == "source_observation"
+                    else "sheet_revision"
+                ),
                 "candidate_count": len(staged_rows),
                 "blocked_count": len(issue_payloads),
             },
@@ -937,7 +781,15 @@ class UnifiedWorkspaceService:
             correlation_id,
             workspace_id=workspace_id,
             snapshot_id=snapshot_id,
-            metadata={"checksum": snapshot_checksum, "read_once": True},
+            metadata={
+                "checksum": snapshot_checksum,
+                "provider_io_performed": False,
+                "validation_source": (
+                    "local_dataset"
+                    if source_revision_kind == "source_observation"
+                    else "sheet_revision"
+                ),
+            },
         )
         self.db.commit()
         result = self.workspace_shape(workspace_id, user)
@@ -3364,9 +3216,10 @@ class UnifiedWorkspaceService:
                 canonical_product_id=canonical.id,
                 channel_id=connector_id,
                 external_primary_id=product_id,
-                external_id_type="product_or_variation_id"
-                if connector_id == "woocommerce:primary"
-                else "product_number",
+                external_id_type=str(
+                    (channel.capabilities_json or {}).get("primaryIdentifierType")
+                    or "channel_product_identifier"
+                ),
                 secondary_identifiers_json=self._secondary_identifiers(row),
                 sku=canonical_text(row.sku) or None,
                 label=canonical_text(row.name or product_id),
@@ -4337,6 +4190,7 @@ class UnifiedWorkspaceService:
             "unit": capabilities.unit,
             "writeAvailable": capabilities.write_available,
             "version": capabilities.version,
+            "mappingRequiredFields": list(capabilities.mapping_required_fields),
         }
         if commerce_channel is not None:
             shape["displayName"] = commerce_channel.get("name")

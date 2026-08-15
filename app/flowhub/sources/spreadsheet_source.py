@@ -8,7 +8,8 @@ import math
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from decimal import Decimal
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -33,6 +34,10 @@ from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_sour
 from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_acquisition.execution import SourceAcquisitionExecutor
+from app.flowhub.source_acquisition.models import (
+    SourceObservationDataset,
+    SourceObservationWorksheetDataset,
+)
 from app.flowhub.source_acquisition.nextcloud_provider import NextcloudWebDavAcquisitionProvider
 from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.sources.xlsx_discovery import RangedXlsxDiscovery, XlsxDiscoveryError
@@ -40,6 +45,8 @@ from app.flowhub.unified_workspace.domain import checksum
 
 SOURCE_ID = "nextcloud:primary"
 SOURCE_TYPE = "nextcloud_spreadsheet"
+SOURCE_DATASET_PARSER_VERSION = "openpyxl-v1"
+SOURCE_DATASET_FORMULA_EVALUATION_VERSION = "openpyxl-data-only-v1"
 
 DEFAULT_SOURCE_MAPPING: dict[str, dict[str, object]] = {
     "id": {"enabled": True, "column": "B"},
@@ -80,6 +87,8 @@ class SourceImportResult:
     read_policy: dict
     stats: dict
     worksheets: dict[str, list[list[Any]]] | None = None
+    dataset_id: str | None = None
+    observation_id: str | None = None
 
 
 class SpreadsheetSourceReadService:
@@ -95,6 +104,46 @@ class SpreadsheetSourceReadService:
         self.config = AppConfigService(db)
         self.integration = IntegrationPlatformService(db)
         self.source_http_client = source_http_client or SourceHttpClient()
+
+    def configured_resource_scope(self) -> str | None:
+        """Return the local connector binding used to scope Observation evidence."""
+
+        spreadsheet_path = self._connector_setting("spreadsheet_path")
+        return f"webdav:{spreadsheet_path}" if spreadsheet_path else None
+
+    def configured_binding_fingerprint(self) -> str | None:
+        """Return a stable, non-secret identity for the configured workbook."""
+
+        spreadsheet_path = self._connector_setting("spreadsheet_path")
+        username = self._connector_setting("username").strip()
+        if not spreadsheet_path or not username:
+            return None
+        try:
+            normalized = normalize_nextcloud_url(
+                self._connector_setting("url"), username
+            )
+        except NextcloudUrlValidationError:
+            return None
+        return self._resource_binding_fingerprint(
+            spreadsheet_path=spreadsheet_path,
+            normalized=normalized,
+        )
+
+    def _resource_binding_fingerprint(
+        self,
+        *,
+        spreadsheet_path: str,
+        normalized: dict[str, str],
+    ) -> str:
+        return checksum(
+            {
+                "contract": "nextcloud-resource-binding-v1",
+                "connectorId": self.connector_id,
+                "serverRootUrl": normalized["server_root_url"],
+                "username": normalized["username"],
+                "spreadsheetPath": spreadsheet_path,
+            }
+        )
 
     async def read_nextcloud_spreadsheet(
         self,
@@ -227,14 +276,14 @@ class SpreadsheetSourceReadService:
                 ),
                 "content_length": str(len(content)),
             }
-            raw_worksheets = (
-                {
-                    sheet.title: [list(row) for row in sheet.iter_rows(values_only=True)]
-                    for sheet in workbook.worksheets
-                }
-                if capture_raw_worksheets
-                else None
-            )
+            # Every explicit acquisition retains one provider-neutral local
+            # dataset. Returning raw worksheets remains opt-in for existing
+            # callers, but persistence never depends on that presentation flag.
+            acquired_worksheets = {
+                sheet.title: [list(row) for row in sheet.iter_rows(values_only=True)]
+                for sheet in workbook.worksheets
+            }
+            raw_worksheets = acquired_worksheets if capture_raw_worksheets else None
             if capture_raw_worksheets:
                 rows = []
                 duplicate_info: dict[str, Any] = {
@@ -250,7 +299,7 @@ class SpreadsheetSourceReadService:
                     worksheet_mode=worksheet["mode"],
                     worksheet_name=worksheet["name"],
                 )
-            if not rows and not capture_raw_worksheets:
+            if not rows and not capture_raw_worksheets and source_profile_id is None:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Spreadsheet contains no importable source rows.")
             persisted_row_count = (
                 sum(len(sheet_rows) for sheet_rows in raw_worksheets.values())
@@ -269,6 +318,21 @@ class SpreadsheetSourceReadService:
                 row_count=persisted_row_count,
                 duplicate_count=len(duplicate_info["duplicate_product_ids"]) + len(duplicate_info["duplicate_skus"]),
                 invalid_row_count=stats["error_rows"],
+            )
+            observation = execution.observation
+            if observation is None:
+                raise RuntimeError("Successful Source acquisition is missing its Observation.")
+            dataset = self._persist_observation_dataset(
+                observation_id=str(observation["id"]),
+                source_id=quota_source_id,
+                resource_scope=str(observation["resourceScope"]),
+                binding_fingerprint=self._resource_binding_fingerprint(
+                    spreadsheet_path=spreadsheet_path,
+                    normalized=normalized,
+                ),
+                source_snapshot=snapshot,
+                workbook_checksum=hashlib.sha256(content).hexdigest(),
+                worksheets=acquired_worksheets,
             )
             self._record_event(
                 "source_read_completed",
@@ -303,6 +367,8 @@ class SpreadsheetSourceReadService:
                 read_policy=policy_state,
                 stats=stats,
                 worksheets=raw_worksheets,
+                dataset_id=dataset.id,
+                observation_id=str(observation["id"]),
             )
         except IntegrationError as exc:
             safe_error = normalize_upstream_error(exc, source="nextcloud")
@@ -971,6 +1037,172 @@ class SpreadsheetSourceReadService:
             )
         return value
 
+    def _persist_observation_dataset(
+        self,
+        *,
+        observation_id: str,
+        source_id: str,
+        resource_scope: str,
+        binding_fingerprint: str,
+        source_snapshot: DlSourceSnapshot,
+        workbook_checksum: str,
+        worksheets: dict[str, list[list[Any]]],
+    ) -> SourceObservationDataset:
+        """Retain one immutable, JSON-safe worksheet dataset per Observation."""
+
+        normalized = [
+            {
+                "name": worksheet_name,
+                "order": worksheet_order,
+                "rows": [
+                    [_json_safe_source_cell(value) for value in row]
+                    for row in worksheet_rows
+                ],
+            }
+            for worksheet_order, (worksheet_name, worksheet_rows) in enumerate(
+                worksheets.items(), start=1
+            )
+        ]
+        expected_rows = [
+            {
+                **item,
+                "checksum": checksum(
+                    {
+                        "worksheetName": item["name"],
+                        "worksheetOrder": item["order"],
+                        "rows": item["rows"],
+                    }
+                ),
+            }
+            for item in normalized
+        ]
+        existing = (
+            self.db.query(SourceObservationDataset)
+            .filter(SourceObservationDataset.observation_id == observation_id)
+            .one_or_none()
+        )
+        if existing is not None:
+            self._assert_observation_dataset_replay(
+                existing,
+                source_id=source_id,
+                resource_scope=resource_scope,
+                binding_fingerprint=binding_fingerprint,
+                source_snapshot=source_snapshot,
+                workbook_checksum=workbook_checksum,
+                expected_rows=expected_rows,
+            )
+            return existing
+
+        dataset = SourceObservationDataset(
+            id=str(uuid.uuid4()),
+            observation_id=observation_id,
+            source_id=source_id,
+            resource_scope=resource_scope,
+            binding_fingerprint=binding_fingerprint,
+            parser_version=SOURCE_DATASET_PARSER_VERSION,
+            formula_evaluation_version=SOURCE_DATASET_FORMULA_EVALUATION_VERSION,
+            source_snapshot_id=int(source_snapshot.id),
+            source_snapshot_version=int(source_snapshot.version_seq or 1),
+            workbook_checksum=workbook_checksum,
+            row_count=sum(len(item["rows"]) for item in expected_rows),
+            worksheet_count=len(expected_rows),
+        )
+        try:
+            self.db.add(dataset)
+            self.db.flush()
+            for item in expected_rows:
+                self.db.add(
+                    SourceObservationWorksheetDataset(
+                        id=str(uuid.uuid4()),
+                        dataset_id=dataset.id,
+                        worksheet_name=str(item["name"]),
+                        worksheet_order=int(item["order"]),
+                        rows_json=item["rows"],
+                        row_count=len(item["rows"]),
+                        checksum=str(item["checksum"]),
+                    )
+                )
+            self.db.commit()
+        except IntegrityError:
+            # An idempotent/concurrent replay may have inserted the immutable
+            # Observation dataset after the initial lookup.
+            self.db.rollback()
+            existing = (
+                self.db.query(SourceObservationDataset)
+                .filter(SourceObservationDataset.observation_id == observation_id)
+                .one_or_none()
+            )
+            if existing is None:
+                raise
+            self._assert_observation_dataset_replay(
+                existing,
+                source_id=source_id,
+                resource_scope=resource_scope,
+                binding_fingerprint=binding_fingerprint,
+                source_snapshot=source_snapshot,
+                workbook_checksum=workbook_checksum,
+                expected_rows=expected_rows,
+            )
+            return existing
+        except Exception:
+            self.db.rollback()
+            raise
+        self.db.refresh(dataset)
+        return dataset
+
+    def _assert_observation_dataset_replay(
+        self,
+        dataset: SourceObservationDataset,
+        *,
+        source_id: str,
+        resource_scope: str,
+        binding_fingerprint: str,
+        source_snapshot: DlSourceSnapshot,
+        workbook_checksum: str,
+        expected_rows: list[dict[str, Any]],
+    ) -> None:
+        stored_rows = (
+            self.db.query(SourceObservationWorksheetDataset)
+            .filter(SourceObservationWorksheetDataset.dataset_id == dataset.id)
+            .order_by(SourceObservationWorksheetDataset.worksheet_order)
+            .all()
+        )
+        expected_identity = [
+            (
+                str(item["name"]),
+                int(item["order"]),
+                len(item["rows"]),
+                str(item["checksum"]),
+                item["rows"],
+            )
+            for item in expected_rows
+        ]
+        stored_identity = [
+            (
+                item.worksheet_name,
+                item.worksheet_order,
+                item.row_count,
+                item.checksum,
+                item.rows_json,
+            )
+            for item in stored_rows
+        ]
+        if (
+            dataset.source_id != source_id
+            or dataset.resource_scope != resource_scope
+            or dataset.binding_fingerprint != binding_fingerprint
+            or dataset.parser_version != SOURCE_DATASET_PARSER_VERSION
+            or dataset.formula_evaluation_version
+            != SOURCE_DATASET_FORMULA_EVALUATION_VERSION
+            or dataset.source_snapshot_id != int(source_snapshot.id)
+            or dataset.source_snapshot_version > int(source_snapshot.version_seq or 1)
+            or dataset.workbook_checksum != workbook_checksum
+            or dataset.row_count != sum(len(item["rows"]) for item in expected_rows)
+            or dataset.worksheet_count != len(expected_rows)
+            or stored_identity != expected_identity
+        ):
+            raise RuntimeError("Source Observation dataset replay conflict.")
+
     def _upsert_source_snapshot(
         self,
         *,
@@ -1131,6 +1363,28 @@ def serialize_source_mapping(mapping: dict[str, dict[str, object]]) -> str:
 
 def serialize_read_policy(policy: dict[str, object]) -> str:
     return json.dumps(policy, sort_keys=True)
+
+
+def _json_safe_source_cell(value: Any) -> str | int | float | bool | None:
+    """Normalize spreadsheet scalars without collapsing physical null cells."""
+
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if math.isfinite(value):
+            return value
+        if math.isnan(value):
+            return "NaN"
+        return "Infinity" if value > 0 else "-Infinity"
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, time):
+        return value.isoformat()
+    return str(value)
 
 
 def _json_config(value: str | None) -> object | None:

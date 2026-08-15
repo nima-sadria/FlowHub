@@ -671,18 +671,39 @@ class CommerceHubService:
         if instance is None or not instance.enabled:
             raise HTTPException(status.HTTP_409_CONFLICT, "Source must be enabled before Read now.")
         reader = SpreadsheetSourceReadService(self.db, connector_id=source_id)
+        source_profile_id = (
+            self.db.query(SourceProfile)
+            .filter(SourceProfile.external_source_id == source_id)
+            .with_entities(SourceProfile.id)
+            .scalar()
+        )
         result = await reader.read_nextcloud_spreadsheet(
             triggered_by=actor,
             triggered_by_id=actor_id,
             manual=True,
-            source_profile_id=(
-                self.db.query(SourceProfile)
-                .filter(SourceProfile.external_source_id == source_id)
-                .with_entities(SourceProfile.id)
-                .scalar()
-            ),
+            source_profile_id=source_profile_id,
         )
-        return reader.manual_read_response(result)
+        response = reader.manual_read_response(result)
+        if source_profile_id is not None and (
+            self.db.query(SourceMappingRevision.id)
+            .filter(SourceMappingRevision.source_id == source_profile_id)
+            .first()
+            is not None
+        ):
+            # The explicit acquisition owns provider I/O. Identity validation
+            # then replays only the just-persisted local Observation dataset.
+            from app.flowhub.source_workspace.service import SourceWorkspaceService
+
+            profile = self.db.get(SourceProfile, source_profile_id)
+            if profile is not None:
+                owner = self.db.get(FlowHubUser, profile.owner_user_id)
+                if owner is not None:
+                    response["identityValidation"] = (
+                        SourceWorkspaceService(self.db).validate_saved_mapping_identity(
+                            source_profile_id, owner
+                        )
+                    )
+        return response
 
     def update_source_settings(
         self, source_id: str, body: dict, *, user: FlowHubUser | None = None
@@ -692,6 +713,14 @@ class CommerceHubService:
         provider = str(meta["provider"])
         if registry.get_definition(provider) is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source settings are not available.")
+        bound_source = (
+            self.db.query(SourceProfile)
+            .filter(SourceProfile.external_source_id == source_id)
+            .with_for_update()
+            .one_or_none()
+            if provider == "nextcloud"
+            else None
+        )
         previous_nextcloud_identity = (
             self._nextcloud_configuration_identity(
                 source_id, {}, allow_stored=True
@@ -701,6 +730,24 @@ class CommerceHubService:
         )
         if provider == "nextcloud":
             self._validate_nextcloud_source_body(body, source_id=source_id)
+        previous_resource_binding = (
+            self._nextcloud_resource_binding_identity(
+                source_id,
+                {},
+                allow_stored=True,
+            )
+            if provider == "nextcloud"
+            else None
+        )
+        candidate_resource_binding = (
+            self._nextcloud_resource_binding_identity(
+                source_id,
+                body,
+                allow_stored=True,
+            )
+            if provider == "nextcloud"
+            else None
+        )
         # Source connection, write-only connector settings, AppConfig values,
         # and the monetary declaration are one saved configuration.  Do not
         # commit an app password or enabled-state change before validating the
@@ -728,6 +775,14 @@ class CommerceHubService:
                 )
             ):
                 self._clear_source_health(source_id, commit=False)
+            if (
+                bound_source is not None
+                and previous_resource_binding != candidate_resource_binding
+            ):
+                bound_source.version += 1
+                bound_source.updated_at = datetime.now(timezone.utc).replace(
+                    tzinfo=None
+                )
             self.db.flush()
             self.db.commit()
         except Exception:
@@ -2327,6 +2382,23 @@ class CommerceHubService:
                 "endpoint_class": endpoint_class,
                 "endpoint_path_template": endpoint_path_template,
             }
+        if (
+            configured_vendor_id
+            and vendor_status
+            and _snappshop_vendor_is_reported_inactive(vendor_status)
+        ):
+            return {
+                **self._connection_base(), "ok": False, "connected": True, "authenticated": True,
+                "status": "error", "http_status": 200, "latency_ms": latency_ms,
+                "checked_at": self._checked_at(),
+                "message": (
+                    f"The configured SnappShop vendor is reported inactive (status: {vendor_status})."
+                ),
+                "error_class": "validation", "external_call_performed": True,
+                "endpoint_class": endpoint_class,
+                "endpoint_path_template": endpoint_path_template,
+                "vendor_status": vendor_status,
+            }
         message = "SnappShop credentials were verified successfully."
         if configured_vendor_id:
             message = "Connection verified for the configured SnappShop vendor."
@@ -3152,6 +3224,45 @@ class CommerceHubService:
             values["spreadsheet_path"],
         )
 
+    def _nextcloud_resource_binding_identity(
+        self,
+        source_id: str | None,
+        body: dict,
+        *,
+        allow_stored: bool,
+    ) -> tuple[str, str, str, str] | None:
+        """Return non-secret identity inputs for retained local Source evidence."""
+
+        values = self._nextcloud_values(
+            source_id,
+            body,
+            allow_stored=allow_stored,
+        )
+        if (
+            not values["url"]
+            or not values["username"]
+            or not values["spreadsheet_path"]
+        ):
+            return None
+        try:
+            normalized = self._normalize_nextcloud_url(
+                values["url"],
+                values["username"],
+            )
+        except HTTPException:
+            return (
+                str(source_id or "nextcloud:primary"),
+                values["url"],
+                values["username"],
+                values["spreadsheet_path"],
+            )
+        return (
+            str(source_id or "nextcloud:primary"),
+            normalized["server_root_url"],
+            normalized["username"],
+            values["spreadsheet_path"],
+        )
+
     def _nextcloud_test_matches_stored_configuration(
         self, source_id: str, body: dict
     ) -> bool:
@@ -3750,6 +3861,17 @@ def _snappshop_vendor_is_documented_active(value: object) -> bool:
     if value is None:
         return True
     return str(value).strip().upper() in {"ACTIVE", "ENABLED", "TRUE", "1"}
+
+
+def _snappshop_vendor_is_reported_inactive(value: object) -> bool:
+    """A readable but explicitly non-usable vendor status.
+
+    Any other readable status is trusted, matching the connector's policy of
+    not second-guessing statuses it does not recognize.
+    """
+    if value is None:
+        return False
+    return str(value).strip().upper() == "INACTIVE"
 
 
 def _normalized_snappshop_vendor_status(value: object) -> str | None:

@@ -52,9 +52,9 @@ function fireIntersection(id: string, isIntersecting: boolean, top = 0) {
 }
 
 const channels: SourceChannel[] = [
-  { channelId: 'woocommerce:primary', name: 'WooCommerce Primary', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
-  { channelId: 'snappshop:main', name: 'SnappShop Main', connectorType: 'snappshop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
-  { channelId: 'tapsishop:main', name: 'TapsiShop Main', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
+  { channelId: 'woocommerce:primary', name: 'WooCommerce Primary', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: { mappingRequiredFields: ['external_id'] }, enabled: true, implementationState: 'implemented', available: true },
+  { channelId: 'snappshop:main', name: 'SnappShop Main', connectorType: 'snappshop', capabilityVersion: '1', capabilities: { mappingRequiredFields: ['external_id', 'stock', 'status'] }, enabled: true, implementationState: 'implemented', available: true },
+  { channelId: 'tapsishop:main', name: 'TapsiShop Main', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: { mappingRequiredFields: ['external_id', 'stock', 'status'] }, enabled: true, implementationState: 'implemented', available: true },
   { channelId: 'digikala:main', name: 'Digikala', connectorType: 'digikala', capabilityVersion: 'none', capabilities: {}, enabled: false, implementationState: 'coming_soon', available: false },
 ]
 
@@ -66,6 +66,14 @@ const mapping: SourceMapping = {
   worksheetName: 'Sheet1',
   dataStartRow: 2,
   valuePolicy: {},
+  identityAuthority: { type: 'external_system', systemIdentifier: 'woocommerce', displayLabel: null },
+  identityPolicyVersion: 2,
+  mappingReadiness: 'ready',
+  identityValidation: {
+    status: 'pass', participatingRowCount: 1, validKeyCount: 1, missingKeyCount: 0, duplicateKeyCount: 0, duplicateRowCount: 0,
+    missingRows: [], duplicateGroups: [], mappingReferences: [],
+    evidence: { kind: 'flowhub_sheet_revision', sourceRevisionId: 'revision-1', datasetId: 'sheet-1', snapshotId: null, snapshotVersion: null, label: null, validatedAt: '2026-08-15T00:00:00Z' },
+  },
   sourceFields: [
     { field: 'name', referenceType: 'column_letter', referenceValue: 'A', required: true },
     { field: 'source_key', referenceType: 'column_letter', referenceValue: 'Z', required: true },
@@ -107,6 +115,7 @@ const source: SourceProfile & { mapping: SourceMapping | null } = {
   status: 'active',
   version: 2,
   mappingVersion: 1,
+  mappingReadiness: 'ready',
   sheetId: 'sheet-1',
   createdAt: null,
   updatedAt: null,
@@ -175,11 +184,7 @@ function button(text: string): HTMLButtonElement {
   return item as HTMLButtonElement
 }
 
-async function previewThenSave() {
-  await act(async () => {
-    button('Preview recognized rows').click()
-    await Promise.resolve()
-  })
+async function saveColumnSetup() {
   await act(async () => {
     button('Save column setup').click()
     await Promise.resolve()
@@ -738,7 +743,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
 
     expect(type.value).toBe('header_name')
     expect(reference.value).toBe('H')
-    await previewThenSave()
+    await saveColumnSetup()
     const saveCalls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
     const payload = saveCalls[saveCalls.length - 1]?.[1] as {
       channel_mappings: Array<{ channel_id: string; fields: Array<{ field: string; reference_type: string; reference_value: string | null }> }>
@@ -768,7 +773,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(checkbox.disabled).toBe(true)
     expect(snapp?.textContent).toContain('Incomplete')
 
-    await previewThenSave()
+    await saveColumnSetup()
     expect(sourceWorkspaceApi.saveMapping).toHaveBeenCalledTimes(1)
   })
 
@@ -778,22 +783,25 @@ describe('SourceConfiguration per-Channel mappings', () => {
     const sourceKey = container.querySelector('[aria-label="Source Product Key column reference"]') as HTMLInputElement
     const cost = container.querySelector('[aria-label="Cost column reference"]') as HTMLInputElement
     const woo = container.querySelector('tr[data-channel-id="woocommerce:primary"]') as HTMLElement
-    const wooIdentifier = woo.querySelector('[aria-label="WooCommerce Product Identifier column reference"]') as HTMLInputElement
+    const wooIdentifier = woo.querySelector('[aria-label$="Product Identifier column reference"]') as HTMLInputElement
     const price = woo.querySelector('[aria-label="Price column reference"]') as HTMLInputElement
+    const authority = container.querySelector('select[aria-required="true"]') as HTMLSelectElement
 
+    expect(authority).not.toBeNull()
     expect(sourceKey.getAttribute('aria-required')).toBe('true')
     expect(cost.getAttribute('aria-required')).toBeNull()
     expect(wooIdentifier.getAttribute('aria-required')).toBe('true')
     expect(price.getAttribute('aria-required')).toBeNull()
-    expect(container.textContent).toContain('Unique identifier used by FlowHub to recognize the same product across snapshots.')
-    expect(woo.textContent).toContain('Identifier used to match this Source product to its WooCommerce listing.')
+    expect(container.textContent).toContain('Unique identifier FlowHub uses to recognize the same Source product across snapshots.')
+    expect(woo.textContent).toContain('Identifier used to match this Source product to its listing in this Channel.')
+    expect(container.textContent).toContain('It does not enable a Channel')
   })
 
   it('accepts and persists one source column as both Source Product Key and WooCommerce Product Identifier', async () => {
     await renderPage()
     const sourceKey = container.querySelector('[aria-label="Source Product Key column reference"]') as HTMLInputElement
     const woo = container.querySelector('tr[data-channel-id="woocommerce:primary"]') as HTMLElement
-    const wooIdentifier = woo.querySelector('[aria-label="WooCommerce Product Identifier column reference"]') as HTMLInputElement
+    const wooIdentifier = woo.querySelector('[aria-label$="Product Identifier column reference"]') as HTMLInputElement
 
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(sourceKey, 'B')
@@ -803,7 +811,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
       await Promise.resolve()
     })
 
-    await previewThenSave()
+    await saveColumnSetup()
     const payload = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls[0]?.[1] as {
       source_fields: Array<{ field: string; reference_value: string | null }>
       channel_mappings: Array<{ channel_id: string; fields: Array<{ field: string; reference_value: string | null }> }>
@@ -812,34 +820,30 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(payload.channel_mappings.find(channel => channel.channel_id === 'woocommerce:primary')?.fields.find(field => field.field === 'external_id')).toMatchObject({ reference_value: 'B' })
   })
 
-  it('blocks Save and identifies missing and duplicate Source Product Key rows', async () => {
-    vi.mocked(sourceWorkspaceApi.previewUnsavedMapping).mockResolvedValue({
-      ...emptyPreview,
-      total: 6,
-      recognized: 3,
-      ignored: 3,
-      identityValidation: { status: 'blocked', validKeyCount: 1, missingKeyCount: 3, duplicateKeyCount: 2 },
-      issues: [
-        { category: 'missing_source_product_key', severity: 'blocked', channelId: null, count: 3 },
-        { category: 'duplicate_source_product_key', severity: 'blocked', channelId: null, count: 2 },
-      ],
-      items: [
-        {
-          rowKey: 'Retail:18', rowNumber: 18, worksheetName: 'Retail', recognized: false, hasIssues: true, ready: false,
-          sourceProduct: { source_key: '12345' }, channels: [], valuePolicy: {},
-          issues: [{ category: 'duplicate_source_product_key', severity: 'blocked', channelId: null, message: 'Source Product Key must be unique.', details: { keyValue: '12345', conflictingRows: ['Retail!18', 'Retail!27'] } }],
-        },
-        {
-          rowKey: 'Retail:27', rowNumber: 27, worksheetName: 'Retail', recognized: false, hasIssues: true, ready: false,
-          sourceProduct: { source_key: '12345' }, channels: [], valuePolicy: {},
-          issues: [{ category: 'duplicate_source_product_key', severity: 'blocked', channelId: null, message: 'Source Product Key must be unique.', details: { keyValue: '12345', conflictingRows: ['Retail!18', 'Retail!27'] } }],
-        },
-        {
-          rowKey: 'Retail:34', rowNumber: 34, worksheetName: 'Retail', recognized: false, hasIssues: true, ready: false,
-          sourceProduct: { source_key: '' }, channels: [], valuePolicy: {},
-          issues: [{ category: 'missing_source_product_key', severity: 'blocked', channelId: null, message: 'Source Product Key is required.' }],
-        },
-      ],
+  it('persists configuration once and renders authoritative missing and duplicate Source Product Key rows', async () => {
+    vi.mocked(sourceWorkspaceApi.saveMapping).mockResolvedValue({
+      ...mapping,
+      version: 2,
+      mappingReadiness: 'identity_validation_blocked',
+      identityValidation: {
+        status: 'blocked',
+        participatingRowCount: 6,
+        validKeyCount: 1,
+        missingKeyCount: 3,
+        duplicateKeyCount: 1,
+        duplicateRowCount: 2,
+        bindingConflictCount: 1,
+        missingRows: [{ worksheetName: 'Retail', rowNumber: 34 }, { worksheetName: 'Retail', rowNumber: 35 }, { worksheetName: 'Retail', rowNumber: 36 }],
+        duplicateGroups: [{ keyValue: '12345', rows: [{ worksheetName: 'Retail', rowNumber: 18 }, { worksheetName: 'Retail', rowNumber: 27 }] }],
+        bindingConflicts: [{
+          keyValue: 'WC-9001',
+          rows: [{ worksheetName: 'Retail', rowNumber: 42 }],
+          boundCanonicalProductId: 'product-existing',
+          conflictingCanonicalProductIds: ['product-different'],
+        }],
+        mappingReferences: [{ worksheetName: 'Retail', referenceType: 'column_letter', referenceValue: 'Z' }],
+        evidence: { kind: 'source_observation', sourceRevisionId: 'observation-1', datasetId: 'dataset-1', snapshotId: 123, snapshotVersion: 1, label: 'Snapshot #123', validatedAt: '2026-08-15T00:00:00Z' },
+      },
     })
     await renderPage()
 
@@ -850,14 +854,60 @@ describe('SourceConfiguration per-Channel mappings', () => {
       await Promise.resolve()
     })
 
-    expect(sourceWorkspaceApi.previewUnsavedMapping).toHaveBeenCalledTimes(1)
-    expect(sourceWorkspaceApi.saveMapping).not.toHaveBeenCalled()
+    expect(sourceWorkspaceApi.previewUnsavedMapping).not.toHaveBeenCalled()
+    expect(sourceWorkspaceApi.saveMapping).toHaveBeenCalledTimes(1)
     const validation = container.querySelector('[data-testid="source-identity-preview"]') as HTMLElement
     expect(validation.textContent).toContain('Identity validation: BLOCKED')
     expect(validation.textContent).toContain('3 rows are missing a key.')
     expect(validation.textContent).toContain('2 rows use duplicate keys.')
     expect(validation.textContent).toContain('Duplicate: 12345')
     expect(validation.textContent).toContain('Rows Retail!18, Retail!27')
+    expect(validation.textContent).toContain('Product binding conflicts')
+    expect(validation.textContent).toContain('1 Source Product Keys conflict with established product identity bindings.')
+    expect(validation.textContent).toContain('Source Product Key binding conflict: WC-9001')
+    expect(validation.textContent).toContain('Rows Retail!42')
+    expect(validation.textContent).toContain('Existing canonical product: product-existing')
+    expect(validation.textContent).toContain('Conflicting canonical products: product-different')
+  })
+
+  it('saves while acquisition quota is exhausted and exposes pending local validation without provider I/O', async () => {
+    const pendingMapping: SourceMapping = {
+      ...mapping,
+      version: 2,
+      mappingReadiness: 'identity_validation_pending',
+      identityValidation: {
+        status: 'pending',
+        participatingRowCount: null,
+        validKeyCount: null,
+        missingKeyCount: null,
+        duplicateKeyCount: null,
+        duplicateRowCount: null,
+        missingRows: [],
+        duplicateGroups: [],
+        mappingReferences: [{ worksheetName: 'Sheet1', referenceType: 'column_letter', referenceValue: 'Z' }],
+        evidence: { kind: 'none', sourceRevisionId: null, datasetId: null, snapshotId: null, snapshotVersion: null, label: null, validatedAt: null },
+      },
+    }
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      sheetId: null,
+      readQuota: { enabled: true, limit: 10, usage: 10, remaining: 0, reset_at: '2026-08-16T00:00:00Z', exhausted: true },
+    })
+    vi.mocked(sourceWorkspaceApi.saveMapping).mockResolvedValue(pendingMapping)
+    await renderPage()
+
+    await saveColumnSetup()
+
+    expect(sourceWorkspaceApi.saveMapping).toHaveBeenCalledTimes(1)
+    expect(sourceWorkspaceApi.previewUnsavedMapping).not.toHaveBeenCalled()
+    const validation = container.querySelector('[data-testid="source-identity-preview"]') as HTMLElement
+    expect(validation.textContent).toContain('Identity validation: PENDING')
+    expect(validation.textContent).toContain('No compatible local Source data is available for this mapping')
+    expect(validation.textContent).toContain('Column setup can still be saved')
+    expect(button('Read Source').disabled).toBe(true)
+    expect(button('Open Workspace').disabled).toBe(true)
   })
 
   it('renders Source configuration read-only without edit permission', async () => {
@@ -1018,13 +1068,13 @@ describe('SourceConfiguration per-Channel mappings', () => {
   it('preserves technical Channel identities in the API payload and supports explicit enablement', async () => {
     await renderPage()
     const tapsi = container.querySelector('tr[data-channel-id="tapsishop:main"]') as HTMLElement
-    const identifier = tapsi.querySelector('[aria-label="Product identifier reference type"]') as HTMLSelectElement
+    const identifier = tapsi.querySelector('[aria-label$="Product Identifier reference type"]') as HTMLSelectElement
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(identifier, 'column_letter')
       identifier.dispatchEvent(new Event('change', { bubbles: true }))
       await Promise.resolve()
     })
-    const identifierValue = tapsi.querySelector('[aria-label="Product identifier column reference"]') as HTMLInputElement
+    const identifierValue = tapsi.querySelector('[aria-label$="Product Identifier column reference"]') as HTMLInputElement
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(identifierValue, 'S')
       identifierValue.dispatchEvent(new Event('input', { bubbles: true }))
@@ -1057,7 +1107,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     const checkbox = tapsi.querySelector('input[type="checkbox"]') as HTMLInputElement
     await act(async () => checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true })))
     expect(checkbox.checked).toBe(true)
-    await previewThenSave()
+    await saveColumnSetup()
     const payload = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls[0][1] as {
       channel_mappings: Array<{ channel_id: string; enabled: boolean }>
     }
@@ -1121,7 +1171,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     })
     await renderPage()
     await act(async () => {
-      button('Preview recognized rows').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      button('Validate identity from local data').dispatchEvent(new MouseEvent('click', { bubbles: true }))
       await Promise.resolve()
     })
     expect(container.textContent).toContain('51550')
@@ -1155,7 +1205,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
       ],
     })
     await renderPage()
-    await act(async () => { button('Preview recognized rows').click(); await Promise.resolve() })
+    await act(async () => { button('Validate identity from local data').click(); await Promise.resolve() })
     expect(container.textContent).toContain('Retail')
     await act(async () => button('Next sample row').click())
     expect(container.textContent).toContain('Wholesale')
@@ -1184,7 +1234,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('فروش تهران')
     expect(container.textContent).toContain('Marketplace')
     expect(container.textContent).toContain('Configure each worksheet separately')
-    await previewThenSave()
+    await saveColumnSetup()
     const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
     const payload = calls[calls.length - 1]?.[1] as { worksheet_rule_mode: string; worksheet_rules: Array<{ worksheet_name: string; data_start_row: number; channel_mappings: Array<{ channel_id: string; fields: Array<{ field: string; reference_value: string | null }> }> }> }
     expect(payload.worksheet_rule_mode).toBe('per_worksheet')
@@ -1269,7 +1319,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await act(async () => (Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Confirm copy')) as HTMLButtonElement).click())
     expect(priceInput.value).toBe('B')
 
-    await previewThenSave()
+    await saveColumnSetup()
     const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
     const payload = calls[calls.length - 1]?.[1] as { worksheet_rules: Array<{ channel_mappings: Array<{ channel_id: string; fields: Array<{ field: string; reference_value: string | null }> }> }> }
     const savedSnapp = payload.worksheet_rules[0].channel_mappings.find(item => item.channel_id === 'snappshop:main')
@@ -1387,7 +1437,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     await act(async () => surfaceScope.click())
 
     expect(container.querySelector('input[name="worksheet-rule-mode"]')).toBeNull()
-    await previewThenSave()
+    await saveColumnSetup()
     const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
     const payload = calls[calls.length - 1]?.[1] as {
       worksheet_rule_mode: string
@@ -1446,7 +1496,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(worksheetGrid.querySelectorAll('.fh-worksheet-picker-item')).toHaveLength(3)
     expect(worksheetGrid.querySelectorAll('[data-selected="true"]')).toHaveLength(2)
 
-    await previewThenSave()
+    await saveColumnSetup()
     const calls = vi.mocked(sourceWorkspaceApi.saveMapping).mock.calls
     const payload = calls[calls.length - 1]?.[1] as { selected_worksheet_names: string[]; worksheet_name: string | null }
     expect(payload.selected_worksheet_names).toEqual(['تهران', 'شیراز'])
@@ -1485,7 +1535,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(sourceWorkspaceApi.saveMapping).not.toHaveBeenCalled()
   })
 
-  it('lets Preview recognized rows run standalone without requiring it before Save is clickable', async () => {
+  it('lets local identity validation run standalone without requiring it before Save is clickable', async () => {
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({ ...source, mapping: null, mappingVersion: 0 })
     await renderPage()
 
@@ -1494,7 +1544,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(sourceWorkspaceApi.saveMapping).not.toHaveBeenCalled()
 
     await act(async () => {
-      button('Preview recognized rows').click()
+      button('Validate identity from local data').click()
       await Promise.resolve()
     })
 

@@ -2031,7 +2031,13 @@ def test_nextcloud_source_settings_allow_credentials_before_spreadsheet_selectio
                 "reference_type": "column_letter",
                 "reference_value": "A",
                 "required": True,
-            }
+            },
+            {
+                "field": "source_key",
+                "reference_type": "column_letter",
+                "reference_value": "B",
+                "required": True,
+            },
         ],
         channel_mappings=[
             {
@@ -2046,6 +2052,11 @@ def test_nextcloud_source_settings_allow_credentials_before_spreadsheet_selectio
             }
         ],
         value_policy={},
+        identity_authority={
+            "type": "external_system",
+            "system_identifier": "woocommerce",
+            "display_label": "WooCommerce",
+        },
         user=user,
     )
 
@@ -2540,9 +2551,15 @@ def test_nextcloud_workbook_can_be_saved_before_worksheet_selection(
     assert body["configuration_state"] == "setup_required"
 
 
-def test_nextcloud_manual_read_now_uses_mapping_and_never_writes(client, auth_headers, monkeypatch):
+def test_nextcloud_manual_read_now_uses_mapping_and_never_writes(
+    client, auth_headers, db, monkeypatch
+):
     from app.connectors.destinations.woocommerce.write_adapter import WooCommercePriceWriteAdapter
     from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.source_acquisition.models import (
+        SourceObservationDataset,
+        SourceObservationWorksheetDataset,
+    )
 
     async def fake_download(self, path):
         assert path == "/Reports/prices.xlsx"
@@ -2588,6 +2605,89 @@ def test_nextcloud_manual_read_now_uses_mapping_and_never_writes(client, auth_he
     assert data["source_write"] is False
     assert data["write_blocked"] is True
     assert data["reads_remaining"] == 9
+    dataset = db.query(SourceObservationDataset).one()
+    assert dataset.row_count == 3
+    assert dataset.worksheet_count == 1
+    worksheet = db.query(SourceObservationWorksheetDataset).one()
+    assert worksheet.dataset_id == dataset.id
+    assert worksheet.worksheet_name == "Sheet1"
+    assert worksheet.worksheet_order == 1
+    assert worksheet.rows_json == [
+        ["Name", "Stock", "SKU", "Price", "Product ID"],
+        [None, None, None, None, None],
+        ["Mapped Product", "12", "SKU-101", "125.00", "101"],
+    ]
+
+
+def test_explicit_source_profile_read_retains_dataset_when_legacy_parser_finds_no_rows(
+    client, auth_headers, db, monkeypatch
+):
+    import asyncio
+
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.source_acquisition.models import (
+        SourceObservationDataset,
+        SourceObservationWorksheetDataset,
+    )
+    from app.flowhub.source_workspace.service import SourceWorkspaceService
+    from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+
+    async def fake_download(self, path):
+        assert path == "/Reports/identity.xlsx"
+        return _xlsx_custom(
+            headers=["Website Product ID"],
+            rows=[],
+        ), {"etag": "etag-identity"}
+
+    install_nextcloud_download(monkeypatch, fake_download)
+    reader = SpreadsheetSourceReadService(db)
+    assert reader.configured_resource_scope() is None
+    saved = client.put(
+        "/api/v2/commerce/sources/nextcloud:primary/settings",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "settings": {
+                "url": "https://softpple.business",
+                "username": "woo",
+                "spreadsheet_path": "/Reports/identity.xlsx",
+            },
+            "secrets": {"password": "app-password-secret"},
+        },
+    )
+    assert saved.status_code == 200
+    assert reader.configured_resource_scope() == "webdav:/Reports/identity.xlsx"
+    user = db.query(FlowHubUser).one()
+    source = SourceWorkspaceService(db).create_source(
+        name="Identity workbook",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=2,
+        user=user,
+    )
+
+    result = asyncio.run(
+        reader.read_nextcloud_spreadsheet(
+            triggered_by="test",
+            triggered_by_id=user.id,
+            manual=True,
+            capture_raw_worksheets=False,
+            source_profile_id=source["id"],
+        )
+    )
+
+    assert result.rows == []
+    assert result.worksheets is None
+    assert result.stats["total_rows"] == 0
+    dataset = db.query(SourceObservationDataset).one()
+    assert result.dataset_id == dataset.id
+    worksheet = db.query(SourceObservationWorksheetDataset).one()
+    assert worksheet.rows_json == [
+        ["Website Product ID"],
+        [None],
+    ]
 
 
 def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, monkeypatch):
@@ -2680,6 +2780,7 @@ def test_detect_worksheets_reuses_the_new_snapshot_without_double_counting(
 
     from app.flowhub.auth.models import FlowHubUser
     from app.flowhub.data_layer.models import DlSourceReadReservation
+    from app.flowhub.source_acquisition.models import SourceObservationDataset
     from app.flowhub.source_workspace.service import SourceWorkspaceService
     from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
 
@@ -2726,7 +2827,7 @@ def test_detect_worksheets_reuses_the_new_snapshot_without_double_counting(
         user=user,
     )
 
-    asyncio.run(
+    imported = asyncio.run(
         SpreadsheetSourceReadService(db).read_nextcloud_spreadsheet(
             triggered_by="test",
             triggered_by_id=user.id,
@@ -2739,6 +2840,9 @@ def test_detect_worksheets_reuses_the_new_snapshot_without_double_counting(
 
     assert downloads == 1
     assert db.query(DlSourceReadReservation).count() == 1
+    dataset = db.query(SourceObservationDataset).one()
+    assert imported.dataset_id == dataset.id
+    assert imported.observation_id == dataset.observation_id
     assert detected["items"] == [{"name": "Sheet1", "rowCount": None}]
     assert detected["worksheetDiscovery"]["metadataSource"] == "snapshot"
     assert detected["worksheetDiscovery"]["remoteReadUsed"] is False

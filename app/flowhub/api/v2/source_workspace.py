@@ -126,10 +126,19 @@ class SourcePreviewBusinessSummary(StrictModel):
 
 
 class SourceIdentityValidationSummary(StrictModel):
-    status: Literal["pass", "blocked"]
-    validKeyCount: int = Field(ge=0)
-    missingKeyCount: int = Field(ge=0)
-    duplicateKeyCount: int = Field(ge=0)
+    status: Literal["pass", "blocked", "pending"]
+    participatingRowCount: int | None = Field(default=None, ge=0)
+    validKeyCount: int | None = Field(default=None, ge=0)
+    missingKeyCount: int | None = Field(default=None, ge=0)
+    duplicateKeyCount: int | None = Field(default=None, ge=0)
+    duplicateRowCount: int | None = Field(default=None, ge=0)
+    bindingConflictCount: int | None = Field(default=None, ge=0)
+    bindingContextFingerprint: str | None = Field(default=None, min_length=64, max_length=64)
+    missingRows: list[dict[str, Any]] = Field(default_factory=list)
+    duplicateGroups: list[dict[str, Any]] = Field(default_factory=list)
+    bindingConflicts: list[dict[str, Any]] = Field(default_factory=list)
+    mappingReferences: list[dict[str, Any]] = Field(default_factory=list)
+    evidence: dict[str, Any]
 
 
 class SourcePreviewResponse(StrictModel):
@@ -161,6 +170,26 @@ class SourceCreateRequest(StrictModel):
         return self
 
 
+class IdentityAuthorityInput(StrictModel):
+    type: Literal["external_system", "internal", "custom", "unspecified"] = "unspecified"
+    system_identifier: str | None = Field(default=None, min_length=1, max_length=120)
+    display_label: str | None = Field(default=None, min_length=1, max_length=160)
+
+    @model_validator(mode="after")
+    def coherent_authority(self) -> IdentityAuthorityInput:
+        identifier = str(self.system_identifier or "").strip()
+        label = str(self.display_label or "").strip()
+        if self.type == "unspecified":
+            if identifier or label:
+                raise ValueError("Unspecified authority cannot carry an identifier or label.")
+            return self
+        if not identifier:
+            raise ValueError("Identity authority requires a system identifier.")
+        self.system_identifier = identifier
+        self.display_label = label or None
+        return self
+
+
 class SourceLifecycleRequest(StrictModel):
     expected_source_version: int = Field(ge=1)
     confirmation_name: str = Field(min_length=1, max_length=240)
@@ -178,7 +207,8 @@ class MappingSaveRequest(StrictModel):
     selected_worksheet_names: list[str] = Field(default_factory=list, max_length=100)
     duplicate_product_policy: Literal["block", "last_sheet_wins"] = "block"
     worksheet_rules: list[WorksheetRuleInput] = Field(default_factory=list, max_length=100)
-    identity_policy_version: Literal[1, 2] = 1
+    identity_policy_version: Literal[2] = 2
+    identity_authority: IdentityAuthorityInput = Field(default_factory=IdentityAuthorityInput)
 
 
 class SheetColumnInput(StrictModel):
@@ -454,6 +484,21 @@ async def preview_unsaved_source_mapping(
             page_size=page_size,
             **payload,
         )
+    )
+
+
+@router.post(
+    "/sources/{source_id}/identity-validation",
+    response_model=SourceIdentityValidationSummary,
+)
+def validate_saved_source_identity(
+    source_id: str,
+    user: FlowHubUser = Depends(require_workspace_permission("workspace.edit")),
+    service: SourceWorkspaceService = Depends(_service),
+) -> SourceIdentityValidationSummary:
+    """Validate the saved Mapping from local evidence without provider I/O."""
+    return SourceIdentityValidationSummary.model_validate(
+        service.validate_saved_mapping_identity(source_id, user)
     )
 
 

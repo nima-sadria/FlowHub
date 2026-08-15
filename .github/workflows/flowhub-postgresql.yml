@@ -223,6 +223,23 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL FLOWHUB_036 Source identity authority migration test
+        id: postgres-036-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-036-junit.xml \
+            tests/flowhub/migration/test_source_identity_authority_036.py::test_postgresql_035_to_036_preserves_mapping_and_enforces_identity_policy \
+            2>&1 | tee postgres-036-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-036-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-036-junit.xml 036 | tee postgres-036-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-036-junit.xml' | tee postgres-036-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL Workspace snapshot persistence tests
         id: postgres-workspace-persistence-tests
         run: |
@@ -314,6 +331,9 @@ jobs:
             postgres-035-junit.xml
             postgres-035-output.log
             postgres-035-manifest.log
+            postgres-036-junit.xml
+            postgres-036-output.log
+            postgres-036-manifest.log
             postgres-workspace-persistence-junit.xml
             postgres-workspace-persistence-output.log
             postgres-workspace-persistence-manifest.log

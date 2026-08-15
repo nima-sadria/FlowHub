@@ -52,14 +52,14 @@ const integrations = [
 
 const worksheetRules = [
   worksheetRule('Logitech', 2, 'A', [
-    channelRule('woocommerce:primary', 'D', 'B', 'C'),
-    channelRule('snappshop:main', 'G', 'E', 'F'),
-    channelRule('tapsishop:main', 'J', 'H', 'I'),
+    channelRule('woocommerce:primary', 'D', 'B', 'C', null),
+    channelRule('snappshop:main', 'G', 'E', 'F', 'K'),
+    channelRule('tapsishop:main', 'J', 'H', 'I', 'L'),
   ]),
   worksheetRule('Surface', 3, 'B', [
-    channelRule('woocommerce:primary', 'F', 'C', 'D'),
-    channelRule('snappshop:main', 'J', 'G', 'H'),
-    channelRule('tapsishop:main', 'N', 'K', 'L'),
+    channelRule('woocommerce:primary', 'F', 'C', 'D', null),
+    channelRule('snappshop:main', 'J', 'G', 'H', 'I'),
+    channelRule('tapsishop:main', 'N', 'K', 'L', 'M'),
   ]),
   { ...worksheetRule('Notes', 1, 'A', []), enabled: false },
 ]
@@ -70,13 +70,24 @@ const sourceConfiguration = {
     id: 'mapping-logitech-7',
     version: 7,
     checksum: 'a'.repeat(64),
-    worksheetMode: 'all',
+    worksheetMode: 'selected',
     worksheetName: null,
     dataStartRow: 1,
     valuePolicy: valuePolicy(),
     worksheetRuleMode: 'per_worksheet',
     selectedWorksheetNames: ['Logitech', 'Surface'],
     duplicateProductPolicy: 'block',
+    identityAuthority: { type: 'internal', systemIdentifier: 'sku', displayLabel: 'Internal SKU' },
+    identityPolicyVersion: 2,
+    mappingReadiness: 'ready',
+    identityValidation: {
+      status: 'pass', participatingRowCount: 2, validKeyCount: 2, missingKeyCount: 0, duplicateKeyCount: 0, duplicateRowCount: 0,
+      missingRows: [], duplicateGroups: [], mappingReferences: [
+        { worksheetName: 'Logitech', referenceType: 'column_letter', referenceValue: 'A' },
+        { worksheetName: 'Surface', referenceType: 'column_letter', referenceValue: 'B' },
+      ],
+      evidence: { kind: 'source_observation', sourceRevisionId: 'source-revision-logitech-9', datasetId: 'dataset-logitech-9', snapshotId: 9, snapshotVersion: 1, label: 'Snapshot #9', validatedAt: '2026-07-16T06:45:00Z' },
+    },
     worksheetRules,
     sourceFields: [],
     channels: [],
@@ -103,6 +114,7 @@ function sourceProfile(
     status,
     version: 4,
     mappingVersion,
+    mappingReadiness: mappingVersion > 0 ? 'ready' : null,
     sheetId,
   }
 }
@@ -119,7 +131,12 @@ function sourceChannel(
     name,
     connectorType: channelId.split(':')[0],
     capabilityVersion: 'source-redesign-v1',
-    capabilities: { products_read: available, price_write: available, stock_write: available },
+    capabilities: {
+      products_read: available,
+      price_write: available,
+      stock_write: available,
+      mappingRequiredFields: channelId.startsWith('woocommerce:') ? ['external_id'] : ['external_id', 'stock', 'status'],
+    },
     enabled,
     implementationState,
     available,
@@ -202,7 +219,7 @@ function field(fieldName: string, referenceValue: string | null, required = fals
   }
 }
 
-function channelRule(channelId: string, externalId: string, price: string, stock: string) {
+function channelRule(channelId: string, externalId: string, price: string, stock: string, status: string | null) {
   return {
     channelId,
     worksheetName: 'Logitech',
@@ -211,7 +228,7 @@ function channelRule(channelId: string, externalId: string, price: string, stock
       field('external_id', externalId),
       field('price', price),
       field('stock', stock),
-      field('status', null),
+      field('status', status),
     ],
   }
 }
@@ -229,7 +246,7 @@ function worksheetRule(
     valuePolicy: valuePolicy(),
     sourceFields: [
       field('name', productNameColumn, true),
-      field('source_key', null),
+      field('source_key', productNameColumn, true),
       field('category', null),
       field('brand', null),
       field('cost', null),
@@ -248,7 +265,7 @@ function sourcePreview() {
         recognized: true,
         hasIssues: false,
         ready: true,
-        sourceProduct: { name: 'LOGITECH-MX-MASTER4-GRY', source_key: null },
+        sourceProduct: { name: 'LOGITECH-MX-MASTER4-GRY', source_key: 'LOGITECH-MX-MASTER4-GRY' },
         channels: [
           { channelId: 'woocommerce:primary', fields: { external_id: '51550', price: '32200000', stock: '29', status: null } },
           { channelId: 'snappshop:main', fields: { external_id: '1826345203', price: '36550000', stock: '41', status: null } },
@@ -264,7 +281,7 @@ function sourcePreview() {
         recognized: true,
         hasIssues: true,
         ready: false,
-        sourceProduct: { name: 'SURFACE-PRO-KEYBOARD', source_key: null },
+        sourceProduct: { name: 'SURFACE-PRO-KEYBOARD', source_key: 'SURFACE-PRO-KEYBOARD' },
         channels: [
           { channelId: 'woocommerce:primary', fields: { external_id: '9001', price: '21000000', stock: '8', status: null } },
           { channelId: 'snappshop:main', fields: { external_id: null, price: '21800000', stock: '7', status: null } },
@@ -287,6 +304,14 @@ function sourcePreview() {
       needsAttention: 1,
       channelsReady: 2,
       channelsNotConfigured: 1,
+    },
+    identityValidation: {
+      status: 'pass', participatingRowCount: 2, validKeyCount: 2, missingKeyCount: 0, duplicateKeyCount: 0, duplicateRowCount: 0,
+      missingRows: [], duplicateGroups: [], mappingReferences: [
+        { worksheetName: 'Logitech', referenceType: 'column_letter', referenceValue: 'A' },
+        { worksheetName: 'Surface', referenceType: 'column_letter', referenceValue: 'B' },
+      ],
+      evidence: { kind: 'source_observation', sourceRevisionId: 'source-revision-logitech-9', datasetId: 'dataset-logitech-9', snapshotId: 9, snapshotVersion: 1, label: 'Snapshot #9', validatedAt: '2026-07-16T06:45:00Z' },
     },
     sheetRevisionId: 'sheet-revision-logitech-9',
     mappingRevisionId: 'mapping-logitech-7',
@@ -555,7 +580,7 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
     expect(audit.interceptedWrites).toEqual(['DELETE /api/v2/sources/source-logitech'])
   })
 
-  test('Logitech A-J columns remain independent, explicit copies are confirmed, and preview reads once', async ({ page }) => {
+  test('Logitech Channel columns remain independent, explicit copies are confirmed, and local validation runs once', async ({ page }) => {
     test.setTimeout(90_000)
     const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [], interceptedWrites: [], previewRequests: 0, savedMappings: [] }
     await installStrictMockApi(page, audit, 'en')
@@ -583,23 +608,24 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
     await expect(logitechRule.getByText('Digikala', { exact: true })).toHaveCount(0)
     await expect(logitechRule.locator('[data-worksheet-channel-columns] input[type="checkbox"]')).toHaveCount(0)
     await page.screenshot({ path: path.join(screenshotRoot, 'source-configuration-en.png'), fullPage: true })
-    await expect(logitechRule.getByText('Source Product Name', { exact: true })).toHaveCount(1)
+    await expect(logitechRule.locator('.fh-field-label').filter({ hasText: 'Source Product Name' })).toHaveCount(1)
     await expect(logitechRule.getByLabel('Source Product Name column reference')).toHaveValue('A')
 
-    const expectedColumns: Record<string, { external: string; price: string; stock: string }> = {
-      WooCommerce: { external: 'D', price: 'B', stock: 'C' },
-      SnappShop: { external: 'G', price: 'E', stock: 'F' },
-      TapsiShop: { external: 'J', price: 'H', stock: 'I' },
+    const expectedColumns: Record<string, { external: string; price: string; stock: string; status: string | null }> = {
+      WooCommerce: { external: 'D', price: 'B', stock: 'C', status: null },
+      SnappShop: { external: 'G', price: 'E', stock: 'F', status: 'K' },
+      TapsiShop: { external: 'J', price: 'H', stock: 'I', status: 'L' },
     }
     for (const [channelName, values] of Object.entries(expectedColumns)) {
       const channelSummary = logitechRule.locator('summary').filter({ hasText: channelName }).first()
       const channelDetails = channelSummary.locator('..')
       if (!await channelDetails.evaluate(element => (element as HTMLDetailsElement).open)) await channelSummary.click()
       await expect(channelDetails).toHaveAttribute('open', '')
-      await expect(channelDetails.getByLabel('Product identifier column reference')).toHaveValue(values.external)
+      await expect(channelDetails.getByLabel(/Product Identifier column reference$/)).toHaveValue(values.external)
       await expect(channelDetails.getByLabel('Price column reference')).toHaveValue(values.price)
       await expect(channelDetails.getByLabel('Stock column reference')).toHaveValue(values.stock)
-      await expect(channelDetails.getByLabel('Status column reference')).toBeDisabled()
+      if (values.status === null) await expect(channelDetails.getByLabel('Status column reference')).toBeDisabled()
+      else await expect(channelDetails.getByLabel('Status column reference')).toHaveValue(values.status)
       await channelDetails.scrollIntoViewIfNeeded()
       await page.waitForTimeout(100)
       await page.screenshot({ path: path.join(screenshotRoot, `worksheet-logitech-${channelName.toLowerCase()}.png`), animations: 'disabled' })
@@ -622,17 +648,17 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
     const wooSummary = logitechRule.locator('summary').filter({ hasText: 'WooCommerce' }).first()
     const wooDetails = wooSummary.locator('..')
     await expect(wooDetails).toHaveAttribute('open', '')
-    const wooIdentifierMethod = wooDetails.getByLabel('Product identifier reference type')
+    const wooIdentifierMethod = wooDetails.getByLabel(/Product Identifier reference type$/)
     await wooIdentifierMethod.selectOption('disabled')
     await expect(wooDetails.getByText('Choose the Product identifier column for each enabled Channel.')).toBeVisible()
     await wooDetails.scrollIntoViewIfNeeded()
     await page.waitForTimeout(100)
     await page.screenshot({ path: path.join(screenshotRoot, 'worksheet-validation-error.png'), animations: 'disabled' })
     await wooIdentifierMethod.selectOption('column_letter')
-    await wooDetails.getByLabel('Product identifier column reference').fill('D')
+    await wooDetails.getByLabel(/Product Identifier column reference$/).fill('D')
     await wooSummary.click()
 
-    await page.getByRole('button', { name: 'Preview recognized rows' }).click()
+    await page.getByRole('button', { name: 'Validate identity from local data' }).click()
     await expect(page.getByText('LOGITECH-MX-MASTER4-GRY', { exact: true })).toBeVisible()
     const previewArticle = page.locator('article').filter({ hasText: 'LOGITECH-MX-MASTER4-GRY' })
     await expect(previewArticle).toContainText('51550')
@@ -666,8 +692,8 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
     ]))
     expect(savedChannelFields).toEqual({
       'woocommerce:primary': { external_id: 'D', price: 'B', stock: 'C', status: null },
-      'snappshop:main': { external_id: 'G', price: 'E', stock: 'F', status: null },
-      'tapsishop:main': { external_id: 'J', price: 'H', stock: 'I', status: null },
+      'snappshop:main': { external_id: 'G', price: 'E', stock: 'F', status: 'K' },
+      'tapsishop:main': { external_id: 'J', price: 'H', stock: 'I', status: 'L' },
     })
 
     expect(audit.previewRequests).toBe(1)

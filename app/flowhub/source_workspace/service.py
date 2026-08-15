@@ -9,18 +9,18 @@ import json
 import re
 import uuid
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import openpyxl
 from fastapi import HTTPException, status
 from sqlalchemy import tuple_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.business_observability.models import BusinessEvent
-from app.flowhub.data_layer.models import DlSourceIdentityValidation
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.setup.service import AppConfigService
@@ -29,6 +29,8 @@ from app.flowhub.source_acquisition.models import (
     AcquisitionRun,
     SourceMappingSchemaExpectation,
     SourceObservation,
+    SourceObservationDataset,
+    SourceObservationWorksheetDataset,
     SourceObservationVersionHead,
     SourceSchemaAssessment,
 )
@@ -52,6 +54,8 @@ from app.flowhub.source_workspace.models import (
     SourceDataQualityScanSource,
     SourceFieldMapping,
     SourceMappingRevision,
+    SourceMappingIdentityAssessment,
+    SourceProductIdentity,
     SourceProfile,
     SourceWorksheetChannelFieldMapping,
     SourceWorksheetChannelMapping,
@@ -66,7 +70,6 @@ from app.flowhub.source_workspace.repositories import (
 )
 from app.flowhub.sources.spreadsheet_source import (
     SOURCE_ID as LEGACY_EXTERNAL_SOURCE_ID,
-    SourceImportResult,
     SpreadsheetSourceReadService,
     normalize_source_mapping,
 )
@@ -102,6 +105,28 @@ DEFAULT_VALUE_POLICY = {
     "formula": "calculated_value",
     "invalid": "blocked",
 }
+IDENTITY_ASSESSMENT_ALGORITHM_VERSION = "source-product-key-v1"
+SOURCE_KEY_NORMALIZATION_VERSION = "trim-casefold-v1"
+IDENTITY_CONFLICT_GROUP_LIMIT = 100
+IDENTITY_CONFLICT_ROWS_PER_GROUP_LIMIT = 100
+UNSPECIFIED_IDENTITY_AUTHORITY = {
+    "type": "unspecified",
+    "systemIdentifier": None,
+    "displayLabel": None,
+}
+
+
+def _normalize_source_product_key(value: Any) -> str:
+    return str(value or "").strip().casefold()
+
+
+def _source_product_key_hash(value: Any) -> str:
+    return checksum(
+        {
+            "normalizationVersion": SOURCE_KEY_NORMALIZATION_VERSION,
+            "normalizedSourceProductKey": _normalize_source_product_key(value),
+        }
+    )
 
 
 def _utc_timestamp(value: datetime | None) -> datetime | None:
@@ -110,6 +135,11 @@ def _utc_timestamp(value: datetime | None) -> datetime | None:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _iso_utc_timestamp(value: datetime | None) -> str | None:
+    normalized = _utc_timestamp(value)
+    return normalized.isoformat() if normalized is not None else None
 
 
 def _id() -> str:
@@ -188,7 +218,7 @@ class SourceWorkspaceService:
                     "capabilities": {
                         **dict(item.capabilities_json or {}),
                         "mappingRequiredFields": list(
-                            self._channel_mapping_required_fields(item.connector_type)
+                            self._channel_mapping_required_fields(item)
                         ),
                     },
                     "enabled": item.enabled,
@@ -204,13 +234,24 @@ class SourceWorkspaceService:
         }
 
     @staticmethod
-    def _channel_mapping_required_fields(connector_type: str) -> tuple[str, ...]:
-        """Expose the same mapping contract used when a Channel is saved."""
-        return ("external_id",) if connector_type == "woocommerce" else (
-            "external_id",
-            "stock",
-            "status",
-        )
+    def _channel_mapping_required_fields(channel: WorkspaceChannel) -> tuple[str, ...]:
+        """Read mapping requirements from the connector capability contract."""
+        capabilities = dict(channel.capabilities_json or {})
+        advertised = capabilities.get("mappingRequiredFields")
+        if advertised is None:
+            advertised = capabilities.get("mapping_required_fields")
+        if isinstance(advertised, list):
+            values = tuple(
+                str(field)
+                for field in advertised
+                if str(field) in CHANNEL_FIELDS
+            )
+            if len(values) == len(advertised):
+                return values
+        # Legacy rows receive the provider-neutral identifier minimum. The
+        # channel registry refreshes implemented connectors with their exact
+        # capability contract before Mapping validation.
+        return ("external_id",)
 
     def create_source(
         self,
@@ -460,6 +501,237 @@ class SourceWorkspaceService:
             )
         return source
 
+    def stage_source_product_identity_bindings(
+        self,
+        *,
+        source_id: str,
+        mapping_revision_id: str,
+        source_revision_kind: str,
+        source_revision_id: str,
+        dataset_id: str | None,
+        sheet_revision_id: str | None,
+        proposals: list[dict[str, Any]],
+        user: FlowHubUser,
+    ) -> list[dict[str, Any]]:
+        """Stage conflict-free bindings inside the Workspace commit transaction."""
+
+        self._owned_source(source_id, user, require_active=True, lock=True)
+        mapping = self.db.get(SourceMappingRevision, mapping_revision_id)
+        if mapping is None or mapping.source_id != source_id:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_MAPPING_CHANGED",
+                    "message": "Source Mapping changed before identity binding.",
+                },
+            )
+        if source_revision_kind == "source_observation":
+            dataset = (
+                self.db.get(SourceObservationDataset, dataset_id)
+                if dataset_id
+                else None
+            )
+            if (
+                dataset is None
+                or dataset.source_id != source_id
+                or dataset.observation_id != source_revision_id
+                or sheet_revision_id is not None
+            ):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "SOURCE_IDENTITY_EVIDENCE_CHANGED",
+                        "message": "Source identity evidence changed before binding.",
+                    },
+                )
+        elif source_revision_kind == "flowhub_sheet_revision":
+            revision = (
+                self.db.get(SheetRevision, sheet_revision_id)
+                if sheet_revision_id
+                else None
+            )
+            sheet = self.db.get(FlowHubSheet, revision.sheet_id) if revision else None
+            if (
+                revision is None
+                or sheet is None
+                or sheet.source_id != source_id
+                or revision.id != source_revision_id
+                or dataset_id is not None
+            ):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "SOURCE_IDENTITY_EVIDENCE_CHANGED",
+                        "message": "Source identity evidence changed before binding.",
+                    },
+                )
+        else:
+            raise RuntimeError("Unsupported Source identity evidence kind.")
+        by_hash: dict[str, dict[str, Any]] = {}
+        for proposal in proposals:
+            normalized_key = _normalize_source_product_key(
+                proposal.get("normalizedSourceKey")
+            )
+            source_key_hash = str(proposal.get("sourceKeyHash") or "")
+            if (
+                not normalized_key
+                or proposal.get("normalizationVersion")
+                != SOURCE_KEY_NORMALIZATION_VERSION
+                or source_key_hash != _source_product_key_hash(normalized_key)
+            ):
+                raise RuntimeError("Invalid Source Product identity binding proposal.")
+            canonical_product_id = str(proposal.get("canonicalProductId") or "")
+            listing_evidence: list[dict[str, Any]] = []
+            for raw_listing in list(proposal.get("listingEvidence") or []):
+                listing_id = str(raw_listing.get("listingId") or "")
+                listing_canonical_id = str(
+                    raw_listing.get("canonicalProductId") or ""
+                )
+                mapping_version = int(raw_listing.get("mappingVersion") or 0)
+                if (
+                    not listing_id
+                    or not canonical_product_id
+                    or listing_canonical_id != canonical_product_id
+                    or mapping_version < 1
+                ):
+                    raise RuntimeError(
+                        "Invalid Listing evidence in Source identity proposal."
+                    )
+                listing_evidence.append(
+                    {
+                        "listingId": listing_id,
+                        "canonicalProductId": listing_canonical_id,
+                        "mappingVersion": mapping_version,
+                    }
+                )
+            if not listing_evidence:
+                raise RuntimeError(
+                    "Source identity binding proposal requires Listing evidence."
+                )
+            listing_evidence = sorted(
+                {item["listingId"]: item for item in listing_evidence}.values(),
+                key=lambda item: item["listingId"],
+            )
+            prior = by_hash.get(source_key_hash)
+            if prior is not None and prior["canonicalProductId"] != canonical_product_id:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "SOURCE_PRODUCT_IDENTITY_CONFLICT",
+                        "message": "Source Product Key resolves to different Canonical Products.",
+                    },
+                )
+            by_hash[source_key_hash] = {
+                "normalizedSourceKey": normalized_key,
+                "canonicalProductId": canonical_product_id,
+                "listingEvidence": listing_evidence,
+            }
+        expected_listings: dict[str, dict[str, Any]] = {}
+        for proposal in by_hash.values():
+            for listing_evidence in proposal["listingEvidence"]:
+                listing_id = listing_evidence["listingId"]
+                prior = expected_listings.get(listing_id)
+                if prior is not None and prior != listing_evidence:
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        {
+                            "code": "SOURCE_LISTING_IDENTITY_CHANGED",
+                            "message": "A Listing changed during Source identity resolution.",
+                        },
+                    )
+                expected_listings[listing_id] = listing_evidence
+        current_listings = {
+            item.id: item
+            for item in (
+                self.db.query(Listing)
+                .filter(Listing.id.in_(set(expected_listings)))
+                .order_by(Listing.id)
+                .populate_existing()
+                .with_for_update()
+                .all()
+                if expected_listings
+                else []
+            )
+        }
+        if any(
+            listing_id not in current_listings
+            or current_listings[listing_id].canonical_product_id
+            != evidence["canonicalProductId"]
+            or current_listings[listing_id].mapping_version
+            != evidence["mappingVersion"]
+            or not current_listings[listing_id].enabled
+            or current_listings[listing_id].mapping_state != "resolved"
+            for listing_id, evidence in expected_listings.items()
+        ):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_LISTING_IDENTITY_CHANGED",
+                    "message": "A Listing changed during Source identity resolution. Try again.",
+                },
+            )
+        existing = {
+            item.source_key_hash: item
+            for item in (
+                self.db.query(SourceProductIdentity)
+                .filter(
+                    SourceProductIdentity.source_id == source_id,
+                    SourceProductIdentity.normalization_version
+                    == SOURCE_KEY_NORMALIZATION_VERSION,
+                    SourceProductIdentity.source_key_hash.in_(set(by_hash)),
+                )
+                .all()
+                if by_hash
+                else []
+            )
+        }
+        accepted_bindings: list[SourceProductIdentity] = []
+        for source_key_hash, proposal in by_hash.items():
+            binding = existing.get(source_key_hash)
+            if binding is not None:
+                if binding.canonical_product_id != proposal["canonicalProductId"]:
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        {
+                            "code": "SOURCE_PRODUCT_IDENTITY_CONFLICT",
+                            "message": "Source Product Key is already bound to another Canonical Product.",
+                        },
+                    )
+                accepted_bindings.append(binding)
+                continue
+            binding = SourceProductIdentity(
+                id=_id(),
+                source_id=source_id,
+                source_key_hash=source_key_hash,
+                normalized_source_key=proposal["normalizedSourceKey"],
+                normalization_version=SOURCE_KEY_NORMALIZATION_VERSION,
+                canonical_product_id=proposal["canonicalProductId"],
+                first_mapping_revision_id=mapping.id,
+                first_source_revision_kind=source_revision_kind,
+                first_source_revision_id=source_revision_id,
+                first_dataset_id=dataset_id,
+                first_sheet_revision_id=sheet_revision_id,
+                identity_authority_json=self._identity_authority_shape(mapping),
+            )
+            self.db.add(binding)
+            accepted_bindings.append(binding)
+        self.db.flush()
+        return [
+            {
+                "id": binding.id,
+                "sourceKeyHash": binding.source_key_hash,
+                "normalizationVersion": binding.normalization_version,
+                "canonicalProductId": binding.canonical_product_id,
+                "firstSourceRevisionKind": binding.first_source_revision_kind,
+                "firstSourceRevisionId": binding.first_source_revision_id,
+                "datasetId": binding.first_dataset_id,
+                "sheetRevisionId": binding.first_sheet_revision_id,
+            }
+            for binding in sorted(
+                accepted_bindings, key=lambda item: item.source_key_hash
+            )
+        ]
+
     async def list_source_worksheets(
         self, source_id: str, user: FlowHubUser, *, refresh: bool = False
     ) -> dict[str, Any]:
@@ -575,7 +847,8 @@ class SourceWorkspaceService:
         selected_worksheet_names: list[str] | None = None,
         duplicate_product_policy: str = "block",
         worksheet_rules: list[dict[str, Any]] | None = None,
-        identity_policy_version: int = 1,
+        identity_policy_version: int = 2,
+        identity_authority: dict[str, Any] | None = None,
         user: FlowHubUser,
         _commit: bool = True,
     ) -> dict[str, Any]:
@@ -591,6 +864,15 @@ class SourceWorkspaceService:
                 "WORKSHEET_RULE_MODE_INVALID",
                 "Use shared or per-worksheet Source rules.",
             )
+        if identity_policy_version != 2:
+            raise _unprocessable(
+                "SOURCE_IDENTITY_POLICY_UPGRADE_REQUIRED",
+                "New Mapping revisions require Source Product Key identity policy v2.",
+            )
+        normalized_identity_authority = self._normalize_identity_authority(
+            identity_authority,
+            required=identity_policy_version >= 2,
+        )
         normalized_selected_worksheets = self._normalize_selected_worksheet_names(
             selected_worksheet_names or []
         )
@@ -620,30 +902,6 @@ class SourceWorkspaceService:
                 "WORKSHEET_STRATEGY_INVALID",
                 "Separate worksheet mappings require more than one participating worksheet.",
             )
-        candidate_checksum = self._mapping_candidate_checksum(
-            worksheet_mode=worksheet_mode, worksheet_name=worksheet_name,
-            data_start_row=data_start_row, source_fields=source_fields,
-            channel_mappings=channel_mappings, value_policy=value_policy,
-            worksheet_rule_mode=worksheet_rule_mode,
-            selected_worksheet_names=selected_worksheet_names or [],
-            duplicate_product_policy=duplicate_product_policy,
-            worksheet_rules=worksheet_rules or [], identity_policy_version=identity_policy_version,
-        )
-        if _commit and identity_policy_version >= 2:
-            validation = self.db.get(DlSourceIdentityValidation, source.id)
-            if (
-                validation is None
-                or validation.source_version != expected_source_version
-                or validation.candidate_checksum != candidate_checksum
-                or not validation.valid
-                or validation.validated_at < utcnow() - timedelta(hours=1)
-            ):
-                details = {"conflicts": list(validation.conflicts)} if validation is not None and not validation.valid else {}
-                raise _unprocessable(
-                    "SOURCE_IDENTITY_VALIDATION_REQUIRED",
-                    "Preview must confirm unique, non-blank Source Product Keys before this Mapping can be saved.",
-                    details,
-                )
         if duplicate_product_policy not in {"block", "last_sheet_wins"}:
             raise _unprocessable(
                 "DUPLICATE_PRODUCT_POLICY_INVALID",
@@ -726,6 +984,7 @@ class SourceWorkspaceService:
             "duplicateProductPolicy": duplicate_product_policy,
             "worksheetRules": normalized_worksheet_rules,
             "identityPolicyVersion": identity_policy_version,
+            "identityAuthority": normalized_identity_authority,
         }
         revision = SourceMappingRevision(
             id=_id(),
@@ -736,6 +995,8 @@ class SourceWorkspaceService:
             worksheet_name=effective_worksheet_name,
             data_start_row=data_start_row,
             value_policy_json=normalized_policy,
+            identity_authority_json=normalized_identity_authority,
+            identity_policy_version=identity_policy_version,
             created_by_user_id=user.id,
         )
         self.db.add(revision)
@@ -783,6 +1044,7 @@ class SourceWorkspaceService:
         source.data_start_row = data_start_row
         source.updated_at = utcnow()
         if _commit:
+            self._assess_mapping_from_latest_local_data(revision, persist=True)
             self._invalidate_source_reviews(source.id)
             self.db.commit()
         else:
@@ -807,39 +1069,22 @@ class SourceWorkspaceService:
         selected_worksheet_names: list[str] | None = None,
         duplicate_product_policy: str = "block",
         worksheet_rules: list[dict[str, Any]] | None = None,
-        identity_policy_version: int = 1,
+        identity_policy_version: int = 2,
+        identity_authority: dict[str, Any] | None = None,
         user: FlowHubUser,
         page: int = 1,
         page_size: int = 200,
     ) -> dict[str, Any]:
-        """Preview a draft mapping without creating a durable mapping revision.
+        """Preview a draft Mapping from local evidence only.
 
-        External acquisition happens before the savepoint so the normal read-once
-        snapshot behavior remains durable. The candidate mapping aggregate exists
-        only inside the savepoint and is always rolled back after resolution.
+        The candidate aggregate exists only inside the savepoint. This method
+        never calls a provider and never reserves Source acquisition quota.
         """
 
-        source = self._owned_source(source_id, user, require_active=True)
-        candidate_checksum = self._mapping_candidate_checksum(
-            worksheet_mode=worksheet_mode, worksheet_name=worksheet_name,
-            data_start_row=data_start_row, source_fields=source_fields,
-            channel_mappings=channel_mappings, value_policy=value_policy,
-            worksheet_rule_mode=worksheet_rule_mode,
-            selected_worksheet_names=selected_worksheet_names or [],
-            duplicate_product_policy=duplicate_product_policy,
-            worksheet_rules=worksheet_rules or [], identity_policy_version=identity_policy_version,
+        source = self._owned_source(
+            source_id, user, require_active=True, lock=True
         )
-        sheet = self.sheets.for_source(source.id)
-        imported_worksheets: dict[str, list[list[Any]]] | None = None
-        sheet_revision: SheetRevision | None = None
-        revision_id: str | None = None
-        if sheet is None:
-            imported = await self._read_external_source(source, user, manual=True)
-            imported_worksheets = imported.worksheets or {}
-            revision_id = f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}"
-        else:
-            sheet_revision = self.sheets.latest_revision(sheet.id)
-            revision_id = sheet_revision.id if sheet_revision else None
+        local_data = self._latest_local_validation_data(source)
 
         savepoint = self.db.begin_nested()
         try:
@@ -857,56 +1102,33 @@ class SourceWorkspaceService:
                 duplicate_product_policy=duplicate_product_policy,
                 worksheet_rules=worksheet_rules,
                 identity_policy_version=identity_policy_version,
+                identity_authority=identity_authority,
                 user=user,
                 _commit=False,
             )
             mapping = self.sources.latest_mapping(source.id)
             if mapping is None:
                 raise RuntimeError("Draft mapping preview persistence failed")
-            if imported_worksheets is not None:
-                records = self._mapped_external_records(imported_worksheets, mapping)
-            elif sheet_revision is not None:
-                records = self._mapped_sheet_records(sheet_revision, mapping)
-            else:
+            if local_data is None:
                 records = []
+            elif local_data["kind"] == "source_observation":
+                records = self._mapped_external_records(local_data["worksheets"], mapping)
+            else:
+                records = self._mapped_sheet_records(local_data["sheetRevision"], mapping)
             result = self._shape_source_preview(
                 records,
                 mapping,
                 page=page,
                 page_size=page_size,
-                sheet_revision_id=revision_id,
+                sheet_revision_id=(
+                    str(local_data["sourceRevisionId"]) if local_data is not None else None
+                ),
                 mapping_revision_id=None,
+                validation_source=(local_data["evidence"] if local_data is not None else None),
             )
         finally:
             savepoint.rollback()
             self.db.expire_all()
-        if identity_policy_version >= 2:
-            identity_categories = {"missing_source_product_key", "duplicate_source_product_key"}
-            conflicts = [
-                {
-                    "row": str(record.get("rowKey") or "")[:255],
-                    "worksheet": str(record.get("worksheetName") or "")[:240],
-                    "rowNumber": record.get("rowNumber"),
-                    "categories": sorted({
-                        str(issue.get("category"))
-                        for issue in record.get("issues", [])
-                        if issue.get("category") in identity_categories
-                    }),
-                }
-                for record in records
-                if any(issue.get("category") in identity_categories for issue in record.get("issues", []))
-            ]
-            validation = self.db.get(DlSourceIdentityValidation, source_id)
-            if validation is None:
-                validation = DlSourceIdentityValidation(source_id=source_id)
-                self.db.add(validation)
-            validation.source_version = expected_source_version
-            validation.candidate_checksum = candidate_checksum
-            validation.source_revision_id = revision_id
-            validation.valid = not conflicts
-            validation.conflicts = conflicts
-            validation.validated_at = utcnow()
-            self.db.commit()
         return result
 
     async def source_preview(
@@ -916,25 +1138,16 @@ class SourceWorkspaceService:
         mapping = self.sources.latest_mapping(source.id)
         if mapping is None:
             raise _unprocessable("SOURCE_MAPPING_REQUIRED", "Configure Source mappings first.")
-        sheet = self.sheets.for_source(source.id)
-        revision_id: str
-        if sheet is None:
-            imported = await self._read_external_source(source, user, manual=True)
-            records = self._mapped_external_records(imported.worksheets or {}, mapping)
-            revision_id = f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}"
+        local_data = self._latest_local_validation_data(source)
+        if local_data is None:
+            records = []
+            revision_id = None
+        elif local_data["kind"] == "source_observation":
+            records = self._mapped_external_records(local_data["worksheets"], mapping)
+            revision_id = str(local_data["sourceRevisionId"])
         else:
-            revision = self.sheets.latest_revision(sheet.id)
-            if revision is None:
-                return {
-                    "items": [],
-                    "total": 0,
-                    "recognized": 0,
-                    "ignored": 0,
-                    "issues": [],
-                    "businessSummary": self._preview_business_summary([], mapping),
-                }
-            records = self._mapped_sheet_records(revision, mapping)
-            revision_id = revision.id
+            records = self._mapped_sheet_records(local_data["sheetRevision"], mapping)
+            revision_id = str(local_data["sourceRevisionId"])
         return self._shape_source_preview(
             records,
             mapping,
@@ -942,6 +1155,7 @@ class SourceWorkspaceService:
             page_size=page_size,
             sheet_revision_id=revision_id,
             mapping_revision_id=mapping.id,
+            validation_source=(local_data["evidence"] if local_data is not None else None),
         )
 
     def _shape_source_preview(
@@ -953,6 +1167,7 @@ class SourceWorkspaceService:
         page_size: int,
         sheet_revision_id: str | None,
         mapping_revision_id: str | None,
+        validation_source: dict[str, Any] | None,
     ) -> dict[str, Any]:
         start = (max(page, 1) - 1) * page_size
         page_records: list[dict[str, Any]] = []
@@ -969,60 +1184,757 @@ class SourceWorkspaceService:
             "ignored": sum(1 for item in records if not item["recognized"]),
             "issues": self._preview_issue_summary(records),
             "businessSummary": self._preview_business_summary(records, mapping),
-            "identityValidation": self._identity_preview_summary(records),
+            "identityValidation": self._identity_preview_summary(
+                records,
+                mapping=mapping,
+                validation_source=validation_source,
+            ),
             "sheetRevisionId": sheet_revision_id,
             "mappingRevisionId": mapping_revision_id,
         }
 
-    @staticmethod
-    def _identity_preview_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
-        """Summarize the authoritative Source-key check without product names."""
+    def _identity_preview_summary(
+        self,
+        records: list[dict[str, Any]],
+        *,
+        mapping: SourceMappingRevision,
+        validation_source: dict[str, Any] | None,
+        listing_context: dict[tuple[str, str], Listing] | None = None,
+    ) -> dict[str, Any]:
+        """Summarize Source-key evidence without exposing unrelated row data."""
+        mapping_references = self._identity_mapping_references(mapping)
+        if (
+            int(mapping.identity_policy_version or 1) < 2
+            or self._identity_authority_shape(mapping)["type"] == "unspecified"
+        ):
+            return self._pending_identity_validation(
+                mapping_references,
+                validation_source,
+            )
+        if validation_source is None:
+            return self._pending_identity_validation(mapping_references)
         identity_categories = {
             "missing_source_product_key",
             "duplicate_source_product_key",
         }
-        identity_records = [record for record in records if record.get("sourceKeyRequired")]
+        identity_records = [
+            record
+            for record in records
+            if record.get("sourceKeyRequired")
+            and (
+                any(
+                    value not in {None, ""}
+                    for value in dict(record.get("sourceProduct") or {}).values()
+                )
+                or bool(record.get("channels"))
+                or bool(record.get("issues"))
+            )
+        ]
         missing = sum(
             1
             for record in identity_records
             if any(issue.get("category") == "missing_source_product_key" for issue in record["issues"])
         )
-        duplicate = sum(
-            1
+        duplicate_records = [
+            record
             for record in identity_records
-            if any(issue.get("category") == "duplicate_source_product_key" for issue in record["issues"])
+            if any(
+                issue.get("category") == "duplicate_source_product_key"
+                for issue in record["issues"]
+            )
+        ]
+        (
+            binding_conflicts,
+            binding_conflict_keys,
+            binding_context_fingerprint,
+        ) = self._identity_binding_conflicts(
+            identity_records,
+            source_id=mapping.source_id,
+            listing_context=listing_context,
         )
         valid = sum(
             1
             for record in identity_records
-            if str(record.get("sourceProduct", {}).get("source_key") or "").strip()
-            and not any(issue.get("category") in identity_categories for issue in record["issues"])
+            if _normalize_source_product_key(
+                record.get("sourceProduct", {}).get("source_key")
+            )
+            and _normalize_source_product_key(
+                record.get("sourceProduct", {}).get("source_key")
+            )
+            not in binding_conflict_keys
+            and not any(
+                issue.get("category") in identity_categories
+                for issue in record["issues"]
+            )
         )
+        missing_rows = [
+            {
+                "worksheetName": str(record.get("worksheetName") or ""),
+                "rowNumber": int(record.get("rowNumber") or 0),
+            }
+            for record in identity_records
+            if any(
+                issue.get("category") == "missing_source_product_key"
+                for issue in record["issues"]
+            )
+        ][:IDENTITY_CONFLICT_GROUP_LIMIT]
+        duplicate_groups_by_key: dict[str, dict[str, Any]] = {}
+        for record in duplicate_records:
+            display_value = str(
+                record.get("sourceProduct", {}).get("source_key") or ""
+            ).strip()
+            normalized_key = _normalize_source_product_key(display_value)
+            group = duplicate_groups_by_key.setdefault(
+                normalized_key,
+                {"keyValue": display_value[:240], "rows": []},
+            )
+            group["rows"].append(
+                {
+                    "worksheetName": str(record.get("worksheetName") or ""),
+                    "rowNumber": int(record.get("rowNumber") or 0),
+                }
+            )
+        duplicate_groups = [
+            {
+                "keyValue": group["keyValue"],
+                "rows": group["rows"][:IDENTITY_CONFLICT_ROWS_PER_GROUP_LIMIT],
+            }
+            for _, group in sorted(duplicate_groups_by_key.items())
+        ][:IDENTITY_CONFLICT_GROUP_LIMIT]
+        duplicate_rows = len(duplicate_records)
         return {
-            "status": "blocked" if missing or duplicate else "pass",
+            "status": (
+                "blocked"
+                if missing or duplicate_rows or binding_conflicts
+                else "pass"
+            ),
+            "participatingRowCount": len(identity_records),
             "validKeyCount": valid,
             "missingKeyCount": missing,
-            "duplicateKeyCount": duplicate,
+            "duplicateKeyCount": len(duplicate_groups_by_key),
+            "duplicateRowCount": duplicate_rows,
+            "bindingConflictCount": len(binding_conflict_keys),
+            "bindingContextFingerprint": binding_context_fingerprint,
+            "missingRows": missing_rows,
+            "duplicateGroups": duplicate_groups,
+            "bindingConflicts": binding_conflicts,
+            "mappingReferences": mapping_references,
+            "evidence": validation_source,
         }
 
+    def _identity_binding_conflicts(
+        self,
+        records: list[dict[str, Any]],
+        *,
+        source_id: str,
+        listing_context: dict[tuple[str, str], Listing] | None = None,
+    ) -> tuple[list[dict[str, Any]], set[str], str]:
+        """Return conflicts plus the exact local Listing/binding evidence context."""
+
+        listing_identities = {
+            (
+                str(channel.get("channelId") or ""),
+                str(channel.get("fields", {}).get("external_id") or "").strip(),
+            )
+            for record in records
+            for channel in record.get("channels") or []
+            if str(channel.get("fields", {}).get("external_id") or "").strip()
+        }
+        listings = listing_context
+        if listings is None:
+            listings = {
+                (item.channel_id, item.external_primary_id): item
+                for item in (
+                    self.db.query(Listing)
+                    .filter(
+                        tuple_(Listing.channel_id, Listing.external_primary_id).in_(
+                            sorted(listing_identities)
+                        )
+                    )
+                    .all()
+                    if listing_identities
+                    else []
+                )
+            }
+        records_by_key: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in records:
+            normalized_key = _normalize_source_product_key(
+                record.get("sourceProduct", {}).get("source_key")
+            )
+            if normalized_key:
+                records_by_key[normalized_key].append(record)
+        key_hashes = {
+            _source_product_key_hash(normalized_key)
+            for normalized_key in records_by_key
+        }
+        bindings = {
+            item.source_key_hash: item
+            for item in (
+                self.db.query(SourceProductIdentity)
+                .filter(
+                    SourceProductIdentity.source_id == source_id,
+                    SourceProductIdentity.normalization_version
+                    == SOURCE_KEY_NORMALIZATION_VERSION,
+                    SourceProductIdentity.source_key_hash.in_(key_hashes),
+                )
+                .all()
+                if key_hashes
+                else []
+            )
+        }
+        conflicts: list[dict[str, Any]] = []
+        conflict_keys: set[str] = set()
+        binding_context: list[dict[str, Any]] = []
+        for normalized_key, key_records in sorted(records_by_key.items()):
+            canonical_ids: set[str] = set()
+            channel_identities = {
+                (
+                    str(channel.get("channelId") or ""),
+                    str(
+                        channel.get("fields", {}).get("external_id") or ""
+                    ).strip(),
+                )
+                for record in key_records
+                for channel in record.get("channels") or []
+                if str(
+                    channel.get("fields", {}).get("external_id") or ""
+                ).strip()
+            }
+            for record in key_records:
+                for channel in record.get("channels") or []:
+                    listing = listings.get(
+                        (
+                            str(channel.get("channelId") or ""),
+                            str(
+                                channel.get("fields", {}).get("external_id") or ""
+                            ).strip(),
+                        )
+                    )
+                    if (
+                        listing is not None
+                        and listing.enabled
+                        and listing.mapping_state == "resolved"
+                    ):
+                        canonical_ids.add(listing.canonical_product_id)
+            binding = bindings.get(_source_product_key_hash(normalized_key))
+            effective_canonical_product_id = (
+                binding.canonical_product_id
+                if binding is not None
+                else next(iter(canonical_ids))
+                if len(canonical_ids) == 1
+                else None
+            )
+            binding_context.append(
+                {
+                    "sourceKeyHash": _source_product_key_hash(normalized_key),
+                    "effectiveBinding": (
+                        {
+                            "canonicalProductId": effective_canonical_product_id,
+                            "normalizationVersion": SOURCE_KEY_NORMALIZATION_VERSION,
+                        }
+                        if effective_canonical_product_id is not None
+                        else None
+                    ),
+                    "listings": [
+                        {
+                            "channelId": channel_id,
+                            "externalIdentifierHash": checksum(
+                                {
+                                    "channelId": channel_id,
+                                    "externalPrimaryId": external_id,
+                                }
+                            ),
+                            "listingId": (
+                                listings[(channel_id, external_id)].id
+                                if (channel_id, external_id) in listings
+                                else None
+                            ),
+                            "mappingVersion": (
+                                listings[(channel_id, external_id)].mapping_version
+                                if (channel_id, external_id) in listings
+                                else None
+                            ),
+                            "canonicalProductId": (
+                                listings[(channel_id, external_id)].canonical_product_id
+                                if (channel_id, external_id) in listings
+                                else None
+                            ),
+                            "mappingState": (
+                                listings[(channel_id, external_id)].mapping_state
+                                if (channel_id, external_id) in listings
+                                else None
+                            ),
+                            "enabled": (
+                                listings[(channel_id, external_id)].enabled
+                                if (channel_id, external_id) in listings
+                                else None
+                            ),
+                        }
+                        for channel_id, external_id in sorted(channel_identities)
+                    ],
+                }
+            )
+            if binding is None:
+                conflicting_ids = set(canonical_ids) if len(canonical_ids) > 1 else set()
+            else:
+                conflicting_ids = canonical_ids - {binding.canonical_product_id}
+            if not conflicting_ids:
+                continue
+            conflict_keys.add(normalized_key)
+            if len(conflicts) >= IDENTITY_CONFLICT_GROUP_LIMIT:
+                continue
+            conflicts.append(
+                {
+                    "keyValue": normalized_key[:240],
+                    "rows": [
+                        {
+                            "worksheetName": str(record.get("worksheetName") or ""),
+                            "rowNumber": int(record.get("rowNumber") or 0),
+                        }
+                        for record in key_records
+                    ][:IDENTITY_CONFLICT_ROWS_PER_GROUP_LIMIT],
+                    "boundCanonicalProductId": (
+                        binding.canonical_product_id if binding is not None else None
+                    ),
+                    "conflictingCanonicalProductIds": sorted(conflicting_ids),
+                }
+            )
+        return (
+            conflicts,
+            conflict_keys,
+            checksum(
+                {
+                    "contract": "source-product-binding-context-v1",
+                    "normalizationVersion": SOURCE_KEY_NORMALIZATION_VERSION,
+                    "keys": binding_context,
+                }
+            ),
+        )
+
+    @staticmethod
+    def _pending_identity_validation(
+        mapping_references: list[dict[str, Any]],
+        evidence: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "status": "pending",
+            "participatingRowCount": None,
+            "validKeyCount": None,
+            "missingKeyCount": None,
+            "duplicateKeyCount": None,
+            "duplicateRowCount": None,
+            "bindingConflictCount": None,
+            "bindingContextFingerprint": None,
+            "missingRows": [],
+            "duplicateGroups": [],
+            "bindingConflicts": [],
+            "mappingReferences": mapping_references,
+            "evidence": evidence
+            or {
+                "kind": "none",
+                "sourceRevisionId": None,
+                "datasetId": None,
+                "snapshotId": None,
+                "snapshotVersion": None,
+                "label": None,
+                "validatedAt": None,
+            },
+        }
+
+    def _latest_local_validation_data(
+        self, source: SourceProfile
+    ) -> dict[str, Any] | None:
+        """Return replayable local rows and immutable evidence identity only."""
+        sheet = self.sheets.for_source(source.id)
+        if sheet is not None:
+            revision = self.sheets.latest_revision(sheet.id)
+            if revision is None:
+                return None
+            return {
+                "kind": "flowhub_sheet_revision",
+                "sourceRevisionId": revision.id,
+                "sheetRevision": revision,
+                "dataset": None,
+                "evidence": {
+                    "kind": "flowhub_sheet_revision",
+                    "sourceRevisionId": revision.id,
+                    "datasetId": None,
+                    "snapshotId": None,
+                    "snapshotVersion": revision.version,
+                    "label": f"FlowHub Sheet revision {revision.version}",
+                    "validatedAt": None,
+                },
+            }
+
+        expected_resource_scope: str | None = None
+        expected_binding_fingerprint: str | None = None
+        if self._is_nextcloud_connector(source.external_source_id):
+            reader = SpreadsheetSourceReadService(
+                self.db,
+                connector_id=source.external_source_id or LEGACY_EXTERNAL_SOURCE_ID,
+            )
+            expected_resource_scope = reader.configured_resource_scope()
+            expected_binding_fingerprint = reader.configured_binding_fingerprint()
+            if (
+                expected_resource_scope is None
+                or expected_binding_fingerprint is None
+            ):
+                # A dataset captured for a previous workbook binding must never
+                # validate the mapping for an unbound or reconfigured Source.
+                return None
+
+        dataset_query = (
+            self.db.query(SourceObservationDataset)
+            .join(
+                SourceObservation,
+                SourceObservation.id == SourceObservationDataset.observation_id,
+            )
+            .filter(SourceObservationDataset.source_id == source.id)
+        )
+        if expected_resource_scope is not None:
+            dataset_query = dataset_query.filter(
+                SourceObservationDataset.resource_scope == expected_resource_scope,
+                SourceObservationDataset.binding_fingerprint
+                == expected_binding_fingerprint,
+            )
+        dataset = (
+            dataset_query
+            .order_by(
+                SourceObservation.observation_version.desc(),
+                SourceObservationDataset.created_at.desc(),
+            )
+            .first()
+        )
+        if dataset is None:
+            return None
+        worksheet_rows = (
+            self.db.query(SourceObservationWorksheetDataset)
+            .filter(SourceObservationWorksheetDataset.dataset_id == dataset.id)
+            .order_by(SourceObservationWorksheetDataset.worksheet_order)
+            .all()
+        )
+        worksheets = {
+            item.worksheet_name: list(item.rows_json or []) for item in worksheet_rows
+        }
+        return {
+            "kind": "source_observation",
+            "sourceRevisionId": dataset.observation_id,
+            "sheetRevision": None,
+            "dataset": dataset,
+            "worksheets": worksheets,
+            "evidence": {
+                "kind": "source_observation",
+                "sourceRevisionId": dataset.observation_id,
+                "datasetId": dataset.id,
+                "snapshotId": dataset.source_snapshot_id,
+                "snapshotVersion": dataset.source_snapshot_version,
+                "label": (
+                    f"Snapshot #{dataset.source_snapshot_id}"
+                    if dataset.source_snapshot_id is not None
+                    else "Local Source observation"
+                ),
+                "validatedAt": None,
+            },
+        }
+
+    def _identity_mapping_references(
+        self, mapping: SourceMappingRevision
+    ) -> list[dict[str, Any]]:
+        _, _, rules = self._worksheet_rule_configs(mapping)
+        references: list[dict[str, Any]] = []
+        for rule in rules:
+            if not bool(rule.get("enabled", True)):
+                continue
+            for raw_field in rule.get("sourceFields") or []:
+                field = (
+                    raw_field.get("field")
+                    if isinstance(raw_field, dict)
+                    else raw_field.field
+                )
+                if field != "source_key":
+                    continue
+                reference_type = (
+                    raw_field.get("referenceType")
+                    or raw_field.get("reference_type")
+                    if isinstance(raw_field, dict)
+                    else raw_field.reference_type
+                )
+                reference_value = (
+                    raw_field.get("referenceValue")
+                    or raw_field.get("reference_value")
+                    if isinstance(raw_field, dict)
+                    else raw_field.reference_value
+                )
+                if reference_type == "disabled":
+                    continue
+                references.append(
+                    {
+                        "field": "source_key",
+                        "worksheetName": str(rule.get("worksheetName") or "*"),
+                        "referenceType": str(reference_type),
+                        "referenceValue": reference_value,
+                    }
+                )
+        return references
+
+    def _identity_fingerprint(self, mapping: SourceMappingRevision) -> str:
+        rule_mode, duplicate_policy, rules = self._worksheet_rule_configs(mapping)
+        authority = self._identity_authority_shape(mapping)
+        return checksum(
+            {
+                "algorithm": IDENTITY_ASSESSMENT_ALGORITHM_VERSION,
+                "identityPolicyVersion": mapping.identity_policy_version,
+                "identityAuthority": {
+                    "type": authority["type"],
+                    "systemIdentifier": authority["systemIdentifier"],
+                },
+                "worksheetMode": mapping.worksheet_mode,
+                "worksheetRuleMode": rule_mode,
+                "duplicateProductPolicy": duplicate_policy,
+                "rules": [
+                    {
+                        "worksheetName": rule.get("worksheetName"),
+                        "enabled": bool(rule.get("enabled", True)),
+                        "dataStartRow": int(rule.get("dataStartRow") or 1),
+                        "sourceKey": [
+                            reference
+                            for reference in self._identity_mapping_references(mapping)
+                            if reference["worksheetName"]
+                            == str(rule.get("worksheetName") or "*")
+                        ],
+                    }
+                    for rule in rules
+                ],
+            }
+        )
+
+    def _assess_mapping_from_latest_local_data(
+        self,
+        mapping: SourceMappingRevision,
+        *,
+        persist: bool,
+    ) -> dict[str, Any]:
+        source = self.db.get(SourceProfile, mapping.source_id)
+        if source is None:
+            raise RuntimeError("Mapping Source is missing.")
+        mapping_references = self._identity_mapping_references(mapping)
+        if (
+            int(mapping.identity_policy_version or 1) < 2
+            or self._identity_authority_shape(mapping)["type"] == "unspecified"
+        ):
+            return self._pending_identity_validation(mapping_references)
+        local_data = self._latest_local_validation_data(source)
+        if local_data is None:
+            return self._pending_identity_validation(mapping_references)
+        try:
+            if local_data["kind"] == "source_observation":
+                records = self._mapped_external_records(
+                    local_data["worksheets"], mapping
+                )
+            else:
+                records = self._mapped_sheet_records(
+                    local_data["sheetRevision"], mapping
+                )
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, dict) else {}
+            if detail.get("code") != "WORKSHEET_NOT_FOUND":
+                raise
+            return self._pending_identity_validation(
+                mapping_references,
+                dict(local_data["evidence"]),
+            )
+        evidence = dict(local_data["evidence"])
+        evidence["validatedAt"] = _iso_utc_timestamp(utcnow())
+        summary = self._identity_preview_summary(
+            records,
+            mapping=mapping,
+            validation_source=evidence,
+        )
+        if persist and summary["status"] != "pending":
+            assessment = self._persist_identity_assessment(
+                mapping=mapping,
+                local_data=local_data,
+                summary=summary,
+            )
+            summary["evidence"] = {
+                **evidence,
+                "validatedAt": _iso_utc_timestamp(assessment.validated_at),
+            }
+        return summary
+
+    def _persist_identity_assessment(
+        self,
+        *,
+        mapping: SourceMappingRevision,
+        local_data: dict[str, Any],
+        summary: dict[str, Any],
+    ) -> SourceMappingIdentityAssessment:
+        source_revision_id = str(local_data["sourceRevisionId"])
+        identity_fingerprint = self._identity_fingerprint(mapping)
+        binding_context_fingerprint = str(
+            summary.get("bindingContextFingerprint") or ""
+        )
+        if len(binding_context_fingerprint) != 64:
+            raise RuntimeError("Identity assessment is missing its binding context.")
+        existing = (
+            self.db.query(SourceMappingIdentityAssessment)
+            .filter(
+                SourceMappingIdentityAssessment.mapping_revision_id == mapping.id,
+                SourceMappingIdentityAssessment.source_revision_kind
+                == local_data["kind"],
+                SourceMappingIdentityAssessment.source_revision_id
+                == source_revision_id,
+                SourceMappingIdentityAssessment.identity_fingerprint
+                == identity_fingerprint,
+                SourceMappingIdentityAssessment.binding_context_fingerprint
+                == binding_context_fingerprint,
+                SourceMappingIdentityAssessment.algorithm_version
+                == IDENTITY_ASSESSMENT_ALGORITHM_VERSION,
+            )
+            .one_or_none()
+        )
+        if existing is not None:
+            return existing
+        validated_at = utcnow()
+        document = {
+            "mappingRevisionId": mapping.id,
+            "sourceRevisionKind": local_data["kind"],
+            "sourceRevisionId": source_revision_id,
+            "identityFingerprint": identity_fingerprint,
+            "bindingContextFingerprint": binding_context_fingerprint,
+            "status": summary["status"],
+            "participatingRowCount": summary["participatingRowCount"],
+            "validKeyCount": summary["validKeyCount"],
+            "missingKeyCount": summary["missingKeyCount"],
+            "duplicateKeyCount": summary["duplicateKeyCount"],
+            "duplicateRowCount": summary["duplicateRowCount"],
+            "bindingConflictCount": summary["bindingConflictCount"],
+            "missingRows": summary["missingRows"],
+            "duplicateGroups": summary["duplicateGroups"],
+            "bindingConflicts": summary["bindingConflicts"],
+            "mappingReferences": summary["mappingReferences"],
+            "algorithmVersion": IDENTITY_ASSESSMENT_ALGORITHM_VERSION,
+        }
+        assessment = SourceMappingIdentityAssessment(
+            id=_id(),
+            source_id=mapping.source_id,
+            mapping_revision_id=mapping.id,
+            dataset_id=(
+                local_data["dataset"].id
+                if local_data["kind"] == "source_observation"
+                else None
+            ),
+            sheet_revision_id=(
+                local_data["sheetRevision"].id
+                if local_data["kind"] == "flowhub_sheet_revision"
+                else None
+            ),
+            source_revision_kind=local_data["kind"],
+            source_revision_id=source_revision_id,
+            identity_fingerprint=identity_fingerprint,
+            binding_context_fingerprint=binding_context_fingerprint,
+            status=str(summary["status"]),
+            participating_row_count=int(summary["participatingRowCount"] or 0),
+            valid_key_count=int(summary["validKeyCount"] or 0),
+            missing_key_count=int(summary["missingKeyCount"] or 0),
+            duplicate_key_count=int(summary["duplicateKeyCount"] or 0),
+            duplicate_row_count=int(summary["duplicateRowCount"] or 0),
+            binding_conflict_count=int(summary["bindingConflictCount"] or 0),
+            missing_rows_json=list(summary["missingRows"]),
+            duplicate_groups_json=list(summary["duplicateGroups"]),
+            binding_conflicts_json=list(summary["bindingConflicts"]),
+            mapping_references_json=list(summary["mappingReferences"]),
+            algorithm_version=IDENTITY_ASSESSMENT_ALGORITHM_VERSION,
+            checksum=checksum(document),
+            validated_at=validated_at,
+        )
+        savepoint = self.db.begin_nested()
+        try:
+            self.db.add(assessment)
+            self.db.flush()
+            savepoint.commit()
+            return assessment
+        except IntegrityError:
+            savepoint.rollback()
+            concurrent = (
+                self.db.query(SourceMappingIdentityAssessment)
+                .filter(
+                    SourceMappingIdentityAssessment.mapping_revision_id
+                    == mapping.id,
+                    SourceMappingIdentityAssessment.source_revision_kind
+                    == local_data["kind"],
+                    SourceMappingIdentityAssessment.source_revision_id
+                    == source_revision_id,
+                    SourceMappingIdentityAssessment.identity_fingerprint
+                    == identity_fingerprint,
+                    SourceMappingIdentityAssessment.binding_context_fingerprint
+                    == binding_context_fingerprint,
+                    SourceMappingIdentityAssessment.algorithm_version
+                    == IDENTITY_ASSESSMENT_ALGORITHM_VERSION,
+                )
+                .one_or_none()
+            )
+            if concurrent is None:
+                raise
+            return concurrent
+
+    def validate_saved_mapping_identity(
+        self, source_id: str, user: FlowHubUser
+    ) -> dict[str, Any]:
+        """Persist local evidence for the latest Mapping without provider I/O."""
+        source = self._owned_source(
+            source_id, user, require_active=True, lock=True
+        )
+        mapping = self.sources.latest_mapping(source.id)
+        if mapping is None:
+            raise _unprocessable(
+                "SOURCE_MAPPING_REQUIRED", "Configure Source mappings first."
+            )
+        summary = self._assess_mapping_from_latest_local_data(mapping, persist=True)
+        if summary["status"] != "pending":
+            self.db.commit()
+        return summary
+
     async def snapshot_candidates(self, source_id: str, user: FlowHubUser) -> dict[str, Any]:
-        """Read a Source once and resolve independent Listing-scoped Channel targets."""
-        source = self._owned_source(source_id, user, require_active=True)
+        """Resolve candidates from one pinned local evidence cohort only."""
+        source = self._owned_source(source_id, user, require_active=True, lock=True)
         mapping = self.sources.latest_mapping(source.id)
         sheet = self.sheets.for_source(source.id)
         if mapping is None:
             raise _unprocessable("SOURCE_MAPPING_REQUIRED", "Configure Source mappings first.")
+        if int(mapping.identity_policy_version or 1) < 2:
+            raise _unprocessable(
+                "SOURCE_IDENTITY_POLICY_UPGRADE_REQUIRED",
+                "Save this Mapping with Identity Authority and Source Product Key before opening a Workspace.",
+            )
+        if self._identity_authority_shape(mapping)["type"] == "unspecified":
+            raise _unprocessable(
+                "SOURCE_IDENTITY_AUTHORITY_REQUIRED",
+                "Choose the system that owns the Source Product Key before opening a Workspace.",
+            )
+        local_data = self._latest_local_validation_data(source)
+        if local_data is None:
+            raise _unprocessable(
+                "SOURCE_IDENTITY_VALIDATION_PENDING",
+                "Source data must be read explicitly before identity validation can be completed.",
+            )
         if sheet is None:
-            imported = await self._read_external_source(source, user, manual=False)
-            records = self._mapped_external_records(imported.worksheets or {}, mapping)
+            if local_data["kind"] != "source_observation":
+                raise RuntimeError("External Source local evidence kind is invalid.")
+            dataset = local_data["dataset"]
+            records = self._mapped_external_records(local_data["worksheets"], mapping)
             revision_shape = {
-                "id": f"external:{imported.snapshot.id}:{imported.snapshot.version_seq}",
-                "version": int(imported.snapshot.version_seq or 1),
-                "checksum": str(imported.snapshot.integrity_hash or ""),
-                "formulaEngineVersion": "provider-evaluated-v1",
+                "id": f"external:{dataset.source_snapshot_id}:{dataset.source_snapshot_version}",
+                "version": int(dataset.source_snapshot_version),
+                "checksum": str(dataset.workbook_checksum),
+                "formulaEngineVersion": dataset.formula_evaluation_version,
+                "observationId": dataset.observation_id,
+                "datasetId": dataset.id,
             }
         else:
-            revision = self.sheets.latest_revision(sheet.id)
+            if local_data["kind"] != "flowhub_sheet_revision":
+                raise RuntimeError("Managed Sheet local evidence kind is invalid.")
+            revision = local_data["sheetRevision"]
             if revision is None:
                 raise _unprocessable("SHEET_REVISION_REQUIRED", "Save the FlowHub Sheet first.")
             records = self._mapped_sheet_records(revision, mapping)
@@ -1035,17 +1947,47 @@ class SourceWorkspaceService:
         identities = {
             (channel["channelId"], str(channel["fields"]["external_id"]).strip())
             for record in records
-            if record["recognized"]
             for channel in record["channels"]
+            if str(channel["fields"].get("external_id") or "").strip()
         }
+        # One pinned in-memory Listing cohort feeds identity assessment,
+        # candidate resolution, binding proposals, and final lock verification.
         listings = {
             (item.channel_id, item.external_primary_id): item
             for item in self.db.query(Listing)
             .filter(
-                tuple_(Listing.channel_id, Listing.external_primary_id).in_(sorted(identities))
+                tuple_(Listing.channel_id, Listing.external_primary_id).in_(
+                    sorted(identities)
+                )
             )
             .all()
         } if identities else {}
+        identity_evidence = dict(local_data["evidence"])
+        identity_evidence["validatedAt"] = _iso_utc_timestamp(utcnow())
+        identity_validation = self._identity_preview_summary(
+            records,
+            mapping=mapping,
+            validation_source=identity_evidence,
+            listing_context=listings,
+        )
+        assessment = self._persist_identity_assessment(
+            mapping=mapping,
+            local_data=local_data,
+            summary=identity_validation,
+        )
+        identity_validation["evidence"] = {
+            **identity_evidence,
+            "validatedAt": _iso_utc_timestamp(assessment.validated_at),
+        }
+        if identity_validation["status"] != "pass":
+            # BLOCKED evidence is useful after the failed activation and does
+            # not include any provider side effect.
+            self.db.commit()
+            raise _unprocessable(
+                "SOURCE_IDENTITY_VALIDATION_BLOCKED",
+                "Source Product identity must pass before this Mapping can be activated.",
+                {"identityValidation": identity_validation},
+            )
         listing_ids = [item.id for item in listings.values()]
         caches = {
             item.listing_id: item
@@ -1060,14 +2002,101 @@ class SourceWorkspaceService:
             .filter(CanonicalProduct.id.in_(product_ids))
             .all()
         } if product_ids else {}
+        source_key_hashes = {
+            _source_product_key_hash(
+                record.get("sourceProduct", {}).get("source_key")
+            )
+            for record in records
+            if str(record.get("sourceProduct", {}).get("source_key") or "").strip()
+        }
+        source_identity_bindings = {
+            item.source_key_hash: item
+            for item in self.db.query(SourceProductIdentity)
+            .filter(
+                SourceProductIdentity.source_id == source.id,
+                SourceProductIdentity.normalization_version
+                == SOURCE_KEY_NORMALIZATION_VERSION,
+                SourceProductIdentity.source_key_hash.in_(source_key_hashes),
+            )
+            .all()
+        } if source_key_hashes else {}
+        # A durable Source-key binding may only be proposed from the complete
+        # resolved Listing cohort for that key. Candidate-specific failures
+        # (for example a missing cache or invalid target value) must not omit
+        # a Listing from the evidence that is locked and rechecked at commit.
+        binding_evidence_candidates: dict[str, dict[str, Any]] = {}
+        for record in records:
+            normalized_key = _normalize_source_product_key(
+                record.get("sourceProduct", {}).get("source_key")
+            )
+            if not normalized_key:
+                continue
+            source_key_hash = _source_product_key_hash(normalized_key)
+            candidate_evidence = binding_evidence_candidates.setdefault(
+                source_key_hash,
+                {
+                    "normalizedSourceKey": normalized_key,
+                    "complete": True,
+                    "canonicalProductIds": set(),
+                    "listingEvidence": {},
+                },
+            )
+            record_channels = list(record.get("channels") or [])
+            if not record_channels:
+                candidate_evidence["complete"] = False
+            for channel in record_channels:
+                channel_id = str(channel.get("channelId") or "")
+                external_id = str(
+                    channel.get("fields", {}).get("external_id") or ""
+                ).strip()
+                listing = listings.get((channel_id, external_id))
+                if (
+                    not external_id
+                    or listing is None
+                    or not listing.enabled
+                    or listing.mapping_state != "resolved"
+                ):
+                    candidate_evidence["complete"] = False
+                    continue
+                candidate_evidence["canonicalProductIds"].add(
+                    listing.canonical_product_id
+                )
+                candidate_evidence["listingEvidence"][listing.id] = {
+                    "listingId": listing.id,
+                    "canonicalProductId": listing.canonical_product_id,
+                    "mappingVersion": listing.mapping_version,
+                }
+        complete_binding_evidence = {
+            source_key_hash: {
+                "normalizedSourceKey": evidence["normalizedSourceKey"],
+                "canonicalProductId": next(iter(evidence["canonicalProductIds"])),
+                "listingEvidence": sorted(
+                    evidence["listingEvidence"].values(),
+                    key=lambda item: item["listingId"],
+                ),
+            }
+            for source_key_hash, evidence in binding_evidence_candidates.items()
+            if evidence["complete"]
+            and len(evidence["canonicalProductIds"]) == 1
+            and evidence["listingEvidence"]
+        }
+        channel_contracts = {
+            item.id: item
+            for item in self.db.query(WorkspaceChannel)
+            .filter(WorkspaceChannel.id.in_({channel_id for channel_id, _ in identities}))
+            .all()
+        } if identities else {}
         candidates: list[dict[str, Any]] = []
         issues: list[dict[str, Any]] = []
+        identity_binding_proposals: dict[str, dict[str, Any]] = {}
         product_identity: dict[str, str] = {}
         source_channel_listings: dict[tuple[str, str], set[str]] = defaultdict(set)
         seen_listing_ids: set[str] = set()
         for record in records:
             source_product = record["sourceProduct"]
-            group_key = str(source_product.get("source_key") or source_product.get("name") or "").strip().casefold()
+            group_key = _normalize_source_product_key(
+                source_product.get("source_key") or source_product.get("name")
+            )
             blocked_channels: set[str] = set()
             global_block = False
             for row_issue in record.get("issues", []):
@@ -1114,6 +2143,23 @@ class SourceWorkspaceService:
                         )
                     )
                     continue
+                if not listing.enabled or listing.mapping_state != "resolved":
+                    issues.append(
+                        self._candidate_issue(
+                            record,
+                            channel_id,
+                            "mapping_not_ready",
+                            "LISTING_IDENTITY_NOT_RESOLVED",
+                            "The Channel Listing identity is disabled or unresolved.",
+                            "Resolve and enable the Listing mapping before opening a Workspace.",
+                            {
+                                "listing_id": listing.id,
+                                "mapping_state": listing.mapping_state,
+                                "enabled": listing.enabled,
+                            },
+                        )
+                    )
+                    continue
                 if listing.id in seen_listing_ids:
                     issues.append(
                         self._candidate_issue(
@@ -1128,6 +2174,37 @@ class SourceWorkspaceService:
                     )
                     continue
                 previous_product = product_identity.get(group_key)
+                source_key_value = str(source_product.get("source_key") or "").strip()
+                source_key_hash = (
+                    _source_product_key_hash(source_key_value)
+                    if source_key_value
+                    else None
+                )
+                existing_source_identity = (
+                    source_identity_bindings.get(source_key_hash)
+                    if source_key_hash is not None
+                    else None
+                )
+                if (
+                    existing_source_identity is not None
+                    and existing_source_identity.canonical_product_id
+                    != listing.canonical_product_id
+                ):
+                    issues.append(
+                        self._candidate_issue(
+                            record,
+                            channel_id,
+                            "mapping_conflict",
+                            "SOURCE_PRODUCT_IDENTITY_CONFLICT",
+                            "This Source Product Key is already bound to a different Canonical Product.",
+                            "Correct the Source key or Listing mapping before continuing.",
+                            {
+                                "bound_product_id": existing_source_identity.canonical_product_id,
+                                "conflicting_product_id": listing.canonical_product_id,
+                            },
+                        )
+                    )
+                    continue
                 if previous_product and previous_product != listing.canonical_product_id:
                     issues.append(
                         self._candidate_issue(
@@ -1136,7 +2213,7 @@ class SourceWorkspaceService:
                             "mapping_conflict",
                             "SOURCE_PRODUCT_MAPPING_CONFLICT",
                             "Channel Listings under this Source Product resolve to different products.",
-                            "Approve the intended Mapping before continuing.",
+                            "Correct the Source key or Listing mappings before continuing.",
                             {
                                 "previous_product_id": previous_product,
                                 "conflicting_product_id": listing.canonical_product_id,
@@ -1145,8 +2222,14 @@ class SourceWorkspaceService:
                     )
                     continue
                 channel_group = (group_key, channel_id)
+                channel_contract = channel_contracts.get(channel_id)
                 if (
-                    channel_id.startswith("woocommerce:")
+                    channel_contract is not None
+                    and not bool(
+                        (channel_contract.capabilities_json or {}).get(
+                            "supportsMultipleListings", False
+                        )
+                    )
                     and source_channel_listings[channel_group]
                     and listing.id not in source_channel_listings[channel_group]
                 ):
@@ -1155,9 +2238,9 @@ class SourceWorkspaceService:
                             record,
                             channel_id,
                             "mapping_conflict",
-                            "WOOCOMMERCE_LISTING_CARDINALITY",
-                            "A Source Product can map to at most one WooCommerce Listing.",
-                            "Keep one WooCommerce Listing or separate the Source Products.",
+                            "CHANNEL_LISTING_CARDINALITY",
+                            "This Channel supports at most one Listing for a Source Product.",
+                            "Keep one Listing for this Channel or separate the Source Products.",
                             {"listing_id": listing.id},
                         )
                     )
@@ -1214,10 +2297,57 @@ class SourceWorkspaceService:
                         "targets": targets,
                     }
                 )
+                complete_evidence = (
+                    complete_binding_evidence.get(source_key_hash)
+                    if source_key_hash is not None
+                    else None
+                )
+                if complete_evidence is not None:
+                    if (
+                        complete_evidence["canonicalProductId"]
+                        != listing.canonical_product_id
+                    ):
+                        raise RuntimeError(
+                            "Conflicting Canonical Products escaped candidate validation."
+                        )
+                    identity_binding_proposals.setdefault(
+                        source_key_hash,
+                        {
+                            "sourceKeyHash": source_key_hash,
+                            "normalizedSourceKey": complete_evidence[
+                                "normalizedSourceKey"
+                            ],
+                            "normalizationVersion": SOURCE_KEY_NORMALIZATION_VERSION,
+                            "canonicalProductId": complete_evidence[
+                                "canonicalProductId"
+                            ],
+                            "listingEvidence": complete_evidence[
+                                "listingEvidence"
+                            ],
+                        },
+                    )
+        source_shape = self._source_shape(source)
+        mapping_shape = self._mapping_shape(mapping)
+        if mapping_shape is None:
+            raise RuntimeError("Source Mapping disappeared during candidate analysis.")
+        exact_readiness = self._mapping_readiness(identity_validation)
+        source_shape["mappingReadiness"] = exact_readiness
+        mapping_shape["identityValidation"] = identity_validation
+        mapping_shape["mappingReadiness"] = exact_readiness
         return {
-            "source": self._source_shape(source),
-            "mapping": self._mapping_shape(mapping),
+            "source": source_shape,
+            "mapping": mapping_shape,
             "sheetRevision": revision_shape,
+            "identityBindingProposals": [
+                {
+                    **proposal,
+                    "listingEvidence": sorted(
+                        proposal["listingEvidence"],
+                        key=lambda item: item["listingId"],
+                    ),
+                }
+                for _, proposal in sorted(identity_binding_proposals.items())
+            ],
             "candidates": candidates,
             "issues": issues,
             "summary": {
@@ -1711,8 +2841,8 @@ class SourceWorkspaceService:
             warning_count = 0
 
             for source in sources:
-                # snapshot_candidates owns the single acquisition and the shared
-                # normalization/validation path.  No scan-specific Source read exists.
+                # Candidate analysis replays one pinned local evidence cohort.
+                # Data Quality never performs a scan-specific Source read.
                 try:
                     analysis = await self.snapshot_candidates(source.id, user)
                 except HTTPException as exc:
@@ -1730,6 +2860,26 @@ class SourceWorkspaceService:
                             "source_not_saved",
                             "The FlowHub Sheet has not been saved yet.",
                             "Save the Sheet, then run the Data Quality check again.",
+                        ),
+                        "SOURCE_IDENTITY_POLICY_UPGRADE_REQUIRED": (
+                            "identity_mapping_not_ready",
+                            "The saved Mapping uses a historical identity policy.",
+                            "Save Identity Authority and Source Product Key before running the check.",
+                        ),
+                        "SOURCE_IDENTITY_AUTHORITY_REQUIRED": (
+                            "identity_authority_required",
+                            "The Source Product Key has no explicit Identity Authority.",
+                            "Choose the system that owns the Source Product Key, then save the Mapping.",
+                        ),
+                        "SOURCE_IDENTITY_VALIDATION_PENDING": (
+                            "identity_validation_pending",
+                            "No compatible local Source data is available for identity validation.",
+                            "Use Read Source explicitly, then run the Data Quality check again.",
+                        ),
+                        "SOURCE_IDENTITY_VALIDATION_BLOCKED": (
+                            "identity_validation_blocked",
+                            "Source Product identity validation is blocked.",
+                            "Correct the missing, duplicate, or conflicting Source Product Keys.",
                         ),
                     }
                     if code not in configuration_issues:
@@ -1750,7 +2900,11 @@ class SourceWorkspaceService:
                                 "code": code,
                                 "summary": summary,
                                 "recommendedAction": action,
-                                "technicalDetails": {},
+                                "technicalDetails": (
+                                    dict(detail.get("details") or {})
+                                    if code == "SOURCE_IDENTITY_VALIDATION_BLOCKED"
+                                    else {}
+                                ),
                             }
                         ],
                     }
@@ -2186,6 +3340,15 @@ class SourceWorkspaceService:
             "sourceObservations": self.db.query(SourceObservation)
             .filter(SourceObservation.source_id == source.id)
             .count(),
+            "sourceObservationDatasets": self.db.query(SourceObservationDataset)
+            .filter(SourceObservationDataset.source_id == source.id)
+            .count(),
+            "identityAssessments": self.db.query(SourceMappingIdentityAssessment)
+            .filter(SourceMappingIdentityAssessment.source_id == source.id)
+            .count(),
+            "sourceProductIdentities": self.db.query(SourceProductIdentity)
+            .filter(SourceProductIdentity.source_id == source.id)
+            .count(),
             "mappingSchemaExpectations": self.db.query(SourceMappingSchemaExpectation)
             .filter(SourceMappingSchemaExpectation.source_id == source.id)
             .count(),
@@ -2303,10 +3466,96 @@ class SourceWorkspaceService:
             "archivedAt": _utc_timestamp(source.archived_at),
             "version": source.version,
             "mappingVersion": mapping.version if mapping else 0,
+            "mappingReadiness": (
+                self._mapping_readiness(
+                    self._mapping_identity_validation_shape(mapping)
+                )
+                if mapping is not None
+                else "not_configured"
+            ),
             "sheetId": sheet.id if sheet else None,
             "createdAt": _utc_timestamp(source.created_at),
             "updatedAt": _utc_timestamp(source.updated_at),
             "currencyProfile": currency_profile,
+        }
+
+    @staticmethod
+    def _mapping_readiness(identity_validation: dict[str, Any]) -> str:
+        return {
+            "pass": "ready",
+            "blocked": "identity_validation_blocked",
+            "pending": "identity_validation_pending",
+        }[str(identity_validation["status"])]
+
+    def _mapping_identity_validation_shape(
+        self, mapping: SourceMappingRevision
+    ) -> dict[str, Any]:
+        references = self._identity_mapping_references(mapping)
+        source = self.db.get(SourceProfile, mapping.source_id)
+        if source is None:
+            return self._pending_identity_validation(references)
+        local_data = self._latest_local_validation_data(source)
+        if local_data is None:
+            return self._pending_identity_validation(references)
+        evidence = dict(local_data["evidence"])
+        if (
+            int(mapping.identity_policy_version or 1) < 2
+            or self._identity_authority_shape(mapping)["type"] == "unspecified"
+        ):
+            return self._pending_identity_validation(references, evidence)
+        try:
+            records = (
+                self._mapped_external_records(local_data["worksheets"], mapping)
+                if local_data["kind"] == "source_observation"
+                else self._mapped_sheet_records(local_data["sheetRevision"], mapping)
+            )
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, dict) else {}
+            if detail.get("code") != "WORKSHEET_NOT_FOUND":
+                raise
+            return self._pending_identity_validation(references, evidence)
+        current_summary = self._identity_preview_summary(
+            records,
+            mapping=mapping,
+            validation_source=evidence,
+        )
+        binding_context_fingerprint = str(
+            current_summary.get("bindingContextFingerprint") or ""
+        )
+        assessment = (
+            self.db.query(SourceMappingIdentityAssessment)
+            .filter(
+                SourceMappingIdentityAssessment.mapping_revision_id == mapping.id,
+                SourceMappingIdentityAssessment.source_revision_kind
+                == local_data["kind"],
+                SourceMappingIdentityAssessment.source_revision_id
+                == str(local_data["sourceRevisionId"]),
+                SourceMappingIdentityAssessment.identity_fingerprint
+                == self._identity_fingerprint(mapping),
+                SourceMappingIdentityAssessment.binding_context_fingerprint
+                == binding_context_fingerprint,
+                SourceMappingIdentityAssessment.algorithm_version
+                == IDENTITY_ASSESSMENT_ALGORITHM_VERSION,
+            )
+            .one_or_none()
+        )
+        if assessment is None:
+            return self._pending_identity_validation(references, evidence)
+        evidence["validatedAt"] = _iso_utc_timestamp(assessment.validated_at)
+        return {
+            "status": assessment.status,
+            "participatingRowCount": assessment.participating_row_count,
+            "validKeyCount": assessment.valid_key_count,
+            "missingKeyCount": assessment.missing_key_count,
+            "duplicateKeyCount": assessment.duplicate_key_count,
+            "duplicateRowCount": assessment.duplicate_row_count,
+            "bindingConflictCount": assessment.binding_conflict_count,
+            "bindingContextFingerprint": assessment.binding_context_fingerprint,
+            "missingRows": list(assessment.missing_rows_json or []),
+            "duplicateGroups": list(assessment.duplicate_groups_json or []),
+            "bindingConflicts": list(assessment.binding_conflicts_json or []),
+            "mappingReferences": list(assessment.mapping_references_json or []),
+            "evidence": evidence,
         }
 
     def _mapping_shape(self, revision: SourceMappingRevision | None) -> dict[str, Any] | None:
@@ -2374,6 +3623,7 @@ class SourceWorkspaceService:
                 }
                 for stored_rule in stored_rules
             ]
+        identity_validation = self._mapping_identity_validation_shape(revision)
         return {
             "id": revision.id,
             "sourceId": revision.source_id,
@@ -2383,6 +3633,10 @@ class SourceWorkspaceService:
             "worksheetName": revision.worksheet_name,
             "dataStartRow": revision.data_start_row,
             "valuePolicy": revision.value_policy_json,
+            "identityAuthority": self._identity_authority_shape(revision),
+            "identityPolicyVersion": int(revision.identity_policy_version or 1),
+            "identityValidation": identity_validation,
+            "mappingReadiness": self._mapping_readiness(identity_validation),
             "worksheetRuleMode": rule_set.mode if rule_set else "shared",
             "selectedWorksheetNames": (
                 sorted(
@@ -2513,37 +3767,6 @@ class SourceWorkspaceService:
                 job.status = ApplyState.STALE
                 job.completed_at = now
 
-    async def _read_external_source(
-        self, source: SourceProfile, user: FlowHubUser, *, manual: bool
-    ) -> SourceImportResult:
-        if not self._is_nextcloud_connector(source.external_source_id):
-            raise _unprocessable(
-                "EXTERNAL_SOURCE_UNSUPPORTED",
-                "This external Source connector does not support read-once Workspace acquisition.",
-            )
-        connector = self.db.get(IntegrationConnectorInstance, source.external_source_id)
-        if connector is not None and not connector.enabled:
-            # Worksheet discovery, previews, and snapshots all pass through
-            # this acquisition boundary.  A disabled connector must never
-            # reach WebDAV merely because a caller bypassed the CommerceHub
-            # configuration UI.
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                {
-                    "code": "SOURCE_DISABLED",
-                    "message": "Nextcloud Source is disabled. Enable it before reading source data.",
-                },
-            )
-        return await SpreadsheetSourceReadService(
-            self.db, connector_id=str(source.external_source_id)
-        ).read_nextcloud_spreadsheet(
-            triggered_by="source_workspace",
-            triggered_by_id=user.id,
-            manual=manual,
-            capture_raw_worksheets=True,
-            source_profile_id=source.id,
-        )
-
     def _is_nextcloud_connector(self, connector_id: str | None) -> bool:
         if not connector_id:
             return False
@@ -2553,8 +3776,70 @@ class SourceWorkspaceService:
         return bool(connector and connector.connector_type == "nextcloud")
 
     @staticmethod
-    def _mapping_candidate_checksum(**values: Any) -> str:
-        return checksum(values)
+    def _normalize_identity_authority(
+        raw: dict[str, Any] | None,
+        *,
+        required: bool,
+    ) -> dict[str, Any]:
+        values = dict(raw or {})
+        authority_type = str(values.get("type") or "unspecified").strip()
+        system_identifier = str(
+            values.get("system_identifier")
+            or values.get("systemIdentifier")
+            or ""
+        ).strip()
+        display_label = str(
+            values.get("display_label") or values.get("displayLabel") or ""
+        ).strip()
+        if authority_type not in {
+            "external_system",
+            "internal",
+            "custom",
+            "unspecified",
+        }:
+            raise _unprocessable(
+                "SOURCE_IDENTITY_AUTHORITY_INVALID",
+                "Choose a supported identity authority type.",
+            )
+        if authority_type == "unspecified":
+            if required:
+                raise _unprocessable(
+                    "SOURCE_IDENTITY_AUTHORITY_REQUIRED",
+                    "Choose the system that owns the Source Product Key.",
+                )
+            return dict(UNSPECIFIED_IDENTITY_AUTHORITY)
+        if not system_identifier or not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9._:-]{0,119}", system_identifier
+        ):
+            raise _unprocessable(
+                "SOURCE_IDENTITY_AUTHORITY_INVALID",
+                "Identity authority requires a stable system identifier.",
+            )
+        if len(display_label) > 160:
+            raise _unprocessable(
+                "SOURCE_IDENTITY_AUTHORITY_INVALID",
+                "Identity authority display label is too long.",
+            )
+        return {
+            "type": authority_type,
+            "systemIdentifier": system_identifier.casefold(),
+            "displayLabel": display_label or None,
+        }
+
+    @staticmethod
+    def _identity_authority_shape(
+        mapping: SourceMappingRevision,
+    ) -> dict[str, Any]:
+        raw = dict(mapping.identity_authority_json or {})
+        authority_type = str(raw.get("type") or "unspecified")
+        if authority_type == "unspecified":
+            return dict(UNSPECIFIED_IDENTITY_AUTHORITY)
+        return {
+            "type": authority_type,
+            "systemIdentifier": raw.get("systemIdentifier")
+            or raw.get("system_identifier"),
+            "displayLabel": raw.get("displayLabel") or raw.get("display_label"),
+        }
 
     @staticmethod
     def _validate_worksheet(mode: str, name: str | None, data_start_row: int) -> None:
@@ -2639,13 +3924,13 @@ class SourceWorkspaceService:
                 )
             fields = self._normalize_field_mappings(list(raw.get("fields") or []), CHANNEL_FIELDS)
             fields_by_name = {item["field"]: item for item in fields}
-            required_fields = self._channel_mapping_required_fields(channel.connector_type)
+            required_fields = self._channel_mapping_required_fields(channel)
             external = fields_by_name.get("external_id")
             if enabled and "external_id" in required_fields and (
                 external is None or external["referenceType"] == "disabled"
             ):
                 raise _unprocessable(
-                    "CHANNEL_EXTERNAL_ID_REQUIRED", "Every enabled Channel requires an External Listing ID mapping."
+                    "CHANNEL_EXTERNAL_ID_REQUIRED", "This enabled Channel requires a Product Identifier mapping."
                 )
             if enabled and any(
                 fields_by_name.get(field) is None
@@ -2653,8 +3938,9 @@ class SourceWorkspaceService:
                 for field in set(required_fields) - {"external_id"}
             ):
                 raise _unprocessable(
-                    "CHANNEL_STOCK_STATUS_REQUIRED",
-                    "Every enabled Channel other than WooCommerce also requires Stock and Status mappings.",
+                    "CHANNEL_REQUIRED_FIELD_MISSING",
+                    "This enabled Channel is missing a field required by its connector capability contract.",
+                    {"requiredFields": sorted(required_fields)},
                 )
             result.append(
                 {
@@ -3003,11 +4289,10 @@ class SourceWorkspaceService:
         grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for record in records:
             source = record.get("sourceProduct") or {}
-            identity = str(
+            identity = _normalize_source_product_key(
                 source.get("source_key")
                 or ("" if record.get("sourceKeyRequired") else source.get("name"))
-                or ""
-            ).strip().casefold()
+            )
             if identity:
                 grouped[identity].append(record)
         for matches in grouped.values():
@@ -3199,6 +4484,7 @@ class SourceWorkspaceService:
                     for field in rule["sourceFields"]
                 )
                 channel_data: list[dict[str, Any]] = []
+                channel_value_present = False
                 for channel in rule["channels"]:
                     channel_id = str(channel["channelId"])
                     current = current_channels.get(channel_id)
@@ -3231,6 +4517,8 @@ class SourceWorkspaceService:
                         for item in channel["fields"]
                         if item.reference_type != "disabled"
                     }
+                    if any(value not in {None, ""} for value in fields.values()):
+                        channel_value_present = True
                     external_id = str(fields.get("external_id") or "").strip()
                     marker = external_id.casefold()
                     if marker == "x" and policy["x"] in {"unavailable", "no_change"}:
@@ -3251,8 +4539,12 @@ class SourceWorkspaceService:
                                 "message": "Channel values exist but External Listing ID is missing.",
                             }
                         )
+                row_has_product_data = (
+                    any(value not in {None, ""} for value in source_data.values())
+                    or channel_value_present
+                )
                 recognized = bool(name and (source_key or not require_source_key) and channel_data)
-                if not name and channel_data:
+                if not name and row_has_product_data:
                     row_issues.append(
                         {
                             "category": "missing_source_identity",
@@ -3261,7 +4553,7 @@ class SourceWorkspaceService:
                             "message": "Source Product Name is required.",
                         }
                     )
-                if require_source_key and not source_key and (name or channel_data):
+                if require_source_key and not source_key and row_has_product_data:
                     row_issues.append(
                         {
                             "category": "missing_source_product_key",
@@ -3390,6 +4682,7 @@ class SourceWorkspaceService:
                 field.field == "source_key" and field.required for field in source_fields
             )
             channel_data = []
+            channel_value_present = False
             for channel in channels:
                 channel_id = str(channel["channelId"])
                 current = current_channels.get(channel_id)
@@ -3405,6 +4698,8 @@ class SourceWorkspaceService:
                     for item in channel["fields"]
                     if item.reference_type != "disabled"
                 }
+                if any(value not in {None, ""} for value in fields.values()):
+                    channel_value_present = True
                 external_id = str(fields.get("external_id") or "").strip()
                 marker = external_id.casefold()
                 if marker == "x" and policy["x"] in {"unavailable", "no_change"}:
@@ -3425,8 +4720,12 @@ class SourceWorkspaceService:
                             "message": "Channel values exist but External Listing ID is missing.",
                         }
                     )
+            row_has_product_data = (
+                any(value not in {None, ""} for value in source_data.values())
+                or channel_value_present
+            )
             recognized = bool(name and (source_key or not require_source_key) and channel_data)
-            if not name and channel_data:
+            if not name and row_has_product_data:
                 row_issues.append(
                     {
                         "category": "missing_source_identity",
@@ -3434,7 +4733,7 @@ class SourceWorkspaceService:
                         "message": "Source Product Name is required.",
                     }
                 )
-            if require_source_key and not source_key and (name or channel_data):
+            if require_source_key and not source_key and row_has_product_data:
                 row_issues.append(
                     {
                         "category": "missing_source_product_key",

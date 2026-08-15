@@ -52,6 +52,9 @@ jobs:
       - name: Browser E2E identity interactions
         working-directory: frontend
         run: npm run test:e2e -- --grep "keeps visible Listing identity" --reporter=line --trace on
+      - name: Browser E2E Source identity mapping
+        working-directory: frontend
+        run: npm run test:e2e -- source-configuration-save.spec.ts --reporter=line --trace on
       - name: Frontend dependency audit
         working-directory: frontend
         run: npm audit --audit-level=low

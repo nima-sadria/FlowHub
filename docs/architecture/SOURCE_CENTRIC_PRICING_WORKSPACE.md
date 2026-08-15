@@ -9,7 +9,9 @@ independent children with stable Listing identities.
 
 ```text
 Saved Source Mapping
-    -> immutable Source/Sheet revision
+    -> immutable Mapping revision (identity may be PENDING)
+    -> local identity validation against an immutable Observation/Sheet revision
+    -> durable Source Product Key bindings
     -> immutable Workspace Snapshot
     -> Source Product and Listing resolution
     -> independent per-Channel analysis
@@ -26,6 +28,9 @@ The Source, Sheet, import, formula, and UI layers cannot call provider mutation
 methods. Existing Workspace authentication, permissions, maintenance mode,
 cache freshness, Mapping versions, currency profiles, Listing guards, durable
 attempts, crash recovery, verification, and Audit behavior remain authoritative.
+Saving Source configuration also performs no provider read. Acquisition and
+worksheet discovery are explicit operations with separate allowances; local
+Preview and validation consume neither allowance.
 
 ## Source and Channel mappings
 
@@ -36,10 +41,47 @@ Header detection may help an operator, but it never overrides the saved
 Mapping. Every Channel also has an explicit participation flag; disabling a
 Channel preserves its saved fields and excludes it from new analysis.
 
-Source fields are name, optional Source key, category, brand, and cost. Each
-enabled, implemented Channel may independently map an external Listing ID,
-price, stock, and status. Coming Soon and disabled Channels are excluded.
-Technical Channel IDs remain internal; the UI renders friendly instance names.
+Source fields are required name and Source Product Key plus optional category,
+brand, and cost. The Source Product Key is the provider-neutral, nonblank,
+unique, stable identity within one Source namespace. Every Mapping revision
+also records an Identity Authority: metadata naming the external system,
+internal scheme, or custom source of truth that owns the key's meaning.
+
+Identity Authority is not a Channel, does not enable a Channel, and does not
+require Channel credentials. Historical mappings whose authority was never
+recorded remain `unspecified`; FlowHub does not infer WooCommerce or another
+provider from a column name or value. They remain identity-PENDING until the
+Owner explicitly selects and saves an authority.
+
+Each enabled, implemented Channel independently maps its connector-defined
+Product Identifier, price, stock, and status fields. Only fields required by
+that connector's capability contract block readiness. Coming Soon and disabled
+Channels are excluded. Technical Channel IDs remain internal; the UI renders
+friendly instance names.
+
+Source Product Key and Channel Product Identifier are separate roles. They may
+use the same Source column or different columns, and different Channels may use
+different Product Identifier columns. The saved Mapping never imposes a
+one-column-one-role restriction across these compatible roles.
+
+Identity readiness is derived from revision-bound local evidence. `PASS` means
+the complete participating dataset has valid keys and consistent Canonical
+Product bindings; `BLOCKED` identifies key or binding conflicts; `PENDING`
+means the Mapping is saved but no compatible local dataset exists. Only PASS
+may make the Source Ready for a new Workspace decision.
+
+New Mapping writes use identity policy v2. Historical v1 revisions remain
+readable but project PENDING and require an explicit Owner upgrade before a new
+Workspace can be opened. External readiness is scoped by a non-secret binding
+fingerprint (normalized endpoint, account, workbook path, and connector), so a
+connection change cannot reuse evidence from a different logical workbook.
+Open Workspace pins the exact compatible retained dataset and performs no
+provider read. It also pins one exact Listing evidence cohort: durable Source
+key bindings are proposed only from complete enabled/resolved Listings, all
+such Listings are locked and rechecked at commit, and the confirmed bindings
+are persisted in Snapshot provenance. Managed Source Workspace creation
+requires the persisted Source identity; it has no source-less acquisition
+fallback.
 
 The default value policy is conservative:
 
@@ -125,10 +167,17 @@ the source filename, type, worksheet, timestamp, row count, Mapping version, and
 checksum.
 
 Existing external Sources are retained as the advanced workflow. The connector
-downloads and parses the workbook once for a Workspace Snapshot, then resolves
-all enabled Channel mappings from that single acquired workbook. Each Channel's
-external identifier, price, stock, and status are read only from that Channel's
-saved mapping and compared only with its own Listing cache.
+downloads and parses the workbook only through an explicit acquisition action.
+That action creates an immutable Source Observation with a retained normalized
+dataset. Mapping Save, local Preview, and identity validation reuse that local
+evidence without provider I/O. Workspace creation then resolves all enabled
+Channel mappings from the validated Observation. Each Channel's Product
+Identifier, price, stock, and status are read only from that Channel's saved
+mapping and compared only with its own Listing cache.
+
+If no compatible local dataset exists, the Mapping remains saved with identity
+status PENDING and the operator is offered an explicit Read Source/Create
+Snapshot action. Acquisition quota errors belong to that action, never to Save.
 
 The legacy Nextcloud `Product ID / Price / Stock` configuration is exposed as a
 WooCommerce-primary compatibility prefill only. It is not copied to other
@@ -142,6 +191,11 @@ Source, Mapping revision, Sheet revision, column, row, cell, import, and Data
 Quality tables with foreign keys, indexes, uniqueness constraints, optimistic
 version fields, and immutable revision triggers. It does not alter v1.2
 Snapshot or historical Workspace data and does not rewrite older migrations.
+
+The provider-neutral identity and local-validation decision is defined by
+`ADR_SOURCE_PRODUCT_IDENTITY_AUTHORITY_ADDENDUM.md`. Its implementation is also
+additive and preserves existing keys with Authority `unspecified`; it adds no
+provider-specific Source identity columns.
 
 ## Third-party licenses
 

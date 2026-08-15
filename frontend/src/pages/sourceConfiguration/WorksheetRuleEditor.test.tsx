@@ -4,16 +4,16 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SourceChannel, SourceWorksheetRule } from '../../features/sourceWorkspace/types'
 import { changeLocale } from '../../i18n'
-import WorksheetRuleEditor, { smartInputDisplayValue } from './WorksheetRuleEditor'
+import WorksheetRuleEditor, { requiredChannelMappingFields, smartInputDisplayValue } from './WorksheetRuleEditor'
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const CHANNELS: SourceChannel[] = [
   { channelId: 'digikala:main', name: 'Digikala', connectorType: 'digikala', capabilityVersion: 'none', capabilities: {}, enabled: false, implementationState: 'coming_soon', available: false },
-  { channelId: 'woocommerce:primary', name: 'WooCommerce Primary', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
-  { channelId: 'shopify:secondary', name: 'Shopify Secondary', connectorType: 'shopify', capabilityVersion: '1', capabilities: {}, enabled: false, implementationState: 'implemented', available: true },
-  { channelId: 'tapsishop:main', name: 'TapsiShop Main', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
-  { channelId: 'snappshop:main', name: 'SnappShop Main', connectorType: 'snappshop', capabilityVersion: '1', capabilities: {}, enabled: true, implementationState: 'implemented', available: true },
+  { channelId: 'woocommerce:primary', name: 'WooCommerce Primary', connectorType: 'woocommerce', capabilityVersion: '1', capabilities: { mappingRequiredFields: ['external_id'] }, enabled: true, implementationState: 'implemented', available: true },
+  { channelId: 'shopify:secondary', name: 'Shopify Secondary', connectorType: 'shopify', capabilityVersion: '1', capabilities: { mappingRequiredFields: [] }, enabled: false, implementationState: 'implemented', available: true },
+  { channelId: 'tapsishop:main', name: 'TapsiShop Main', connectorType: 'tapsishop', capabilityVersion: '1', capabilities: { mappingRequiredFields: ['external_id', 'stock', 'status'] }, enabled: true, implementationState: 'implemented', available: true },
+  { channelId: 'snappshop:main', name: 'SnappShop Main', connectorType: 'snappshop', capabilityVersion: '1', capabilities: { mappingRequiredFields: ['external_id', 'stock', 'status'] }, enabled: true, implementationState: 'implemented', available: true },
 ]
 
 const RULE: SourceWorksheetRule = {
@@ -41,6 +41,11 @@ describe('smart column mapping', () => {
     expect(smartInputDisplayValue({ field: 'price', referenceType: 'header_name', referenceValue: 'H' })).toBe('H')
     expect(smartInputDisplayValue({ field: 'price', referenceType: 'column_id', referenceValue: 'wc-price' })).toBe('wc-price')
     expect(smartInputDisplayValue({ field: 'price', referenceType: 'disabled', referenceValue: null })).toBe('')
+  })
+
+  it('honors an explicitly empty capability requirement list', () => {
+    expect([...requiredChannelMappingFields('shopify', { mappingRequiredFields: [] })]).toEqual([])
+    expect([...requiredChannelMappingFields('future-provider', {})]).toEqual(['external_id'])
   })
 })
 

@@ -48,6 +48,9 @@ REQUIRED_034_TESTS = (
 REQUIRED_035_TESTS = (
     "test_postgresql_034_to_035_retires_only_archived_connector",
 )
+REQUIRED_036_TESTS = (
+    "test_postgresql_035_to_036_preserves_mapping_and_enforces_identity_policy",
+)
 REQUIRED_WORKSPACE_PERSISTENCE_TESTS = (
     "test_postgresql_manual_workspace_persists_snapshot_before_draft",
     "test_postgresql_catalog_workspace_persists_snapshot_before_draft",
@@ -75,6 +78,7 @@ def main() -> int:
         "033": REQUIRED_033_TESTS,
         "034": REQUIRED_034_TESTS,
         "035": REQUIRED_035_TESTS,
+        "036": REQUIRED_036_TESTS,
         "workspace-persistence": REQUIRED_WORKSPACE_PERSISTENCE_TESTS,
         "source-lifecycle": REQUIRED_SOURCE_LIFECYCLE_TESTS,
         "orders": REQUIRED_ORDER_TESTS,

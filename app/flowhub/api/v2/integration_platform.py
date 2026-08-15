@@ -61,6 +61,15 @@ async def create_connector(
     return service.create_instance_contract(body)
 
 
+@router.get("/connectors/{connector_id}")
+async def get_connector(
+    connector_id: str,
+    _: FlowHubUser = Depends(get_current_user),
+    service: IntegrationPlatformService = Depends(_service),
+) -> dict:
+    return service.get_instance_contract(connector_id)
+
+
 @router.put("/connectors/{connector_id}")
 async def update_connector(
     connector_id: str,

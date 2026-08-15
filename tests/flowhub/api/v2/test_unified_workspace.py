@@ -1142,7 +1142,7 @@ def test_listing_schema_supports_multiple_marketplace_listings_without_collapse(
     assert workspace["entryPoint"] == "manual"
 
 
-def test_source_workspace_reads_source_once_and_materializes_immutable_rows(
+def test_source_workspace_requires_persisted_source_and_never_reads_provider(
     client, auth_headers, db, monkeypatch
 ):
     _seed(db)
@@ -1183,31 +1183,14 @@ def test_source_workspace_reads_source_once_and_materializes_immutable_rows(
     response = client.post(
         "/api/v2/unified-workspaces/source",
         headers={**auth_headers, "X-Correlation-ID": "source-read-once"},
-        json={"name": "Source Test", "currency": "EUR", "unit": "EUR"},
+        json={"name": "Source Test"},
     )
-    assert response.status_code == 201, response.text
-    workspace = response.json()
-    assert workspace["entryPoint"] == "source"
-    assert calls == 1
-
-    from app.flowhub.unified_workspace.models import SnapshotRow, WorkspaceSnapshot
-
-    snapshot = db.get(WorkspaceSnapshot, workspace["snapshot"]["id"])
-    rows = (
-        db.query(SnapshotRow)
-        .filter_by(snapshot_id=snapshot.id)
-        .order_by(SnapshotRow.row_number)
-        .all()
+    assert response.status_code == 422, response.text
+    assert any(
+        detail["loc"][-1] == "source_id" and detail["type"] == "missing"
+        for detail in response.json()["detail"]
     )
-    assert snapshot.acquisition_metadata_json["read_once"] is True
-    assert snapshot.source_metadata_json["legacy_preview_id"] == "legacy-preview-1"
-    assert len(rows) == 2
-    assert rows[0].listing_id is not None
-    assert rows[1].listing_id is None
-
-    grid = client.get(f"/api/v2/unified-workspaces/{workspace['id']}/grid", headers=auth_headers)
-    assert grid.status_code == 200
-    assert calls == 1
+    assert calls == 0
 
 
 def test_preferences_grid_filters_audit_and_mapping_decisions(client, auth_headers, db):

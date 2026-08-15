@@ -13,7 +13,7 @@ import type { CommerceService } from '../services/commerce/CommerceService'
 import type { CommerceSource } from '../services/types'
 import SourceCenter from './SourceCenter'
 
-const source: SourceProfile = { id: 'source-1', name: 'Synthetic prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 3, mappingVersion: 2, sheetId: 'sheet-1', createdAt: null, updatedAt: null }
+const source: SourceProfile = { id: 'source-1', name: 'Synthetic prices', sourceKind: 'flowhub_sheet', externalSourceId: null, worksheetMode: 'selected', worksheetName: 'Sheet1', dataStartRow: 2, status: 'active', version: 3, mappingVersion: 2, mappingReadiness: 'ready', sheetId: 'sheet-1', createdAt: null, updatedAt: null }
 const admin: AuthContextValue = { user: { username: 'admin', role: 'admin', is_admin: true, is_super_admin: false, permissions: {} }, status: 'authenticated', refreshUser: async () => {}, clearAuth: () => {}, logout: async () => {}, authFetch: fetch }
 const viewer: AuthContextValue = { ...admin, user: { username: 'viewer', role: 'user', is_admin: false, is_super_admin: false, permissions: { can_access_site: true, 'workspace.read': true } } }
 const operator: AuthContextValue = { ...admin, user: { username: 'operator', role: 'operator', is_admin: false, is_super_admin: false, permissions: { 'workspace.read': true, 'workspace.create': true } } }
@@ -358,6 +358,27 @@ describe('SourceCenter safe lifecycle', () => {
     expect(partial.querySelector('.fh-badge-info')?.textContent).toBe('Connected • Setup required')
     expect(ready.querySelector('.fh-badge-success')?.textContent).toBe('Configured')
     expect(readyWarning.querySelector('.fh-badge-warning')?.textContent).toBe('Needs Attention')
+  })
+
+  it('does not present pending or blocked identity validation as a configured Source', async () => {
+    const pending: SourceProfile = { ...source, id: 'source-pending', name: 'Pending identity', mappingReadiness: 'identity_validation_pending' }
+    const blocked: SourceProfile = { ...source, id: 'source-blocked', name: 'Blocked identity', mappingReadiness: 'identity_validation_blocked' }
+    const omitted: SourceProfile = { ...source, id: 'source-omitted', name: 'Readiness omitted', mappingReadiness: undefined }
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [pending, blocked, omitted] })
+
+    await render()
+
+    const pendingCard = container.querySelector('[data-source-card="source-pending"]') as HTMLElement
+    const blockedCard = container.querySelector('[data-source-card="source-blocked"]') as HTMLElement
+    const omittedCard = container.querySelector('[data-source-card="source-omitted"]') as HTMLElement
+    expect(pendingCard.getAttribute('data-resource-state')).toBe('setupRequired')
+    expect(blockedCard.getAttribute('data-resource-state')).toBe('setupRequired')
+    expect(omittedCard.getAttribute('data-resource-state')).toBe('setupRequired')
+    expect(pendingCard.textContent).toContain('Identity validation pending')
+    expect(blockedCard.textContent).toContain('Identity validation blocked')
+    expect(omittedCard.textContent).toContain('Identity validation pending')
+    expect(pendingCard.textContent).not.toContain('Configured')
+    expect(blockedCard.textContent).not.toContain('Configured')
   })
 
   it('groups actual Source failures under Needs Attention and excludes disabled historical failures from that KPI', async () => {

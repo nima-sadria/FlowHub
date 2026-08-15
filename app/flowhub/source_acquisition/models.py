@@ -230,6 +230,82 @@ class SourceObservationSnapshotReference(FlowHubBase):
     linked_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
 
 
+class SourceObservationDataset(FlowHubBase):
+    """Immutable, provider-neutral worksheet data retained for local replay."""
+
+    __tablename__ = "saq_observation_datasets"
+    __table_args__ = (
+        UniqueConstraint("observation_id", name="uq_saq_observation_dataset_observation"),
+        CheckConstraint("source_snapshot_version > 0", name="ck_saq_dataset_snapshot_version"),
+        CheckConstraint("row_count >= 0", name="ck_saq_dataset_row_count"),
+        CheckConstraint("worksheet_count >= 0", name="ck_saq_dataset_worksheet_count"),
+        Index(
+            "ix_saq_observation_dataset_source_scope_created",
+            "source_id",
+            "resource_scope",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    observation_id: Mapped[str] = mapped_column(
+        ForeignKey("saq_observations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    resource_scope: Mapped[str] = mapped_column(String(240), nullable=False)
+    binding_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    parser_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    formula_evaluation_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_snapshot_id: Mapped[int] = mapped_column(
+        ForeignKey("dl_source_snapshots.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    source_snapshot_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    workbook_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    worksheet_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class SourceObservationWorksheetDataset(FlowHubBase):
+    """One ordered worksheet within an immutable local Observation dataset."""
+
+    __tablename__ = "saq_observation_worksheet_datasets"
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_id",
+            "worksheet_name",
+            name="uq_saq_observation_dataset_worksheet_name",
+        ),
+        UniqueConstraint(
+            "dataset_id",
+            "worksheet_order",
+            name="uq_saq_observation_dataset_worksheet_order",
+        ),
+        CheckConstraint("worksheet_order > 0", name="ck_saq_dataset_worksheet_order"),
+        CheckConstraint("row_count >= 0", name="ck_saq_dataset_worksheet_row_count"),
+        Index(
+            "ix_saq_observation_worksheet_dataset_order",
+            "dataset_id",
+            "worksheet_order",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("saq_observation_datasets.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    worksheet_name: Mapped[str] = mapped_column(String(240), nullable=False)
+    worksheet_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    rows_json: Mapped[list[list[Any]]] = mapped_column(JSON, nullable=False)
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
 class SourceMappingSchemaExpectation(FlowHubBase):
     """Immutable expected header contract for one Source Mapping revision."""
 
@@ -379,6 +455,8 @@ _APPEND_ONLY_OBSERVATION_MODELS = (
     SourceObservation,
     SourceObservationEvidence,
     SourceObservationSnapshotReference,
+    SourceObservationDataset,
+    SourceObservationWorksheetDataset,
     SourceMappingSchemaExpectation,
     SourceSchemaAssessment,
     SourceSchemaDriftRecord,

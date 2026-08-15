@@ -13,7 +13,11 @@ os.environ.setdefault("FLOWHUB_JWT_SECRET", "test-ip-wiring-jwt-secret-32bytes!"
 from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _dl_models  # noqa: F401
 from app.flowhub.integration_platform import models as _ip_models  # noqa: F401
+from app.flowhub.pricing_matrix import models as _pricing_matrix_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.source_acquisition import models as _source_acquisition_models  # noqa: F401
+from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
+from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 
 
 @pytest.fixture()
@@ -183,23 +187,68 @@ def test_legacy_connector_mutations_require_admin(client, auth_headers, db):
     assert response.status_code == 403
 
 
-def test_legacy_nextcloud_settings_reject_credential_url(client, auth_headers):
+def test_legacy_nextcloud_settings_route_requires_commerce_source_api(
+    client,
+    auth_headers,
+    db,
+):
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.source_workspace.models import SourceProfile
+    from app.flowhub.source_workspace.service import SourceWorkspaceService
+
+    connector_id = "nextcloud:legacy-fenced"
     assert client.post(
         "/api/v2/integrations/connectors",
         headers=auth_headers,
-        json={"connector_type": "nextcloud", "id": "nextcloud:credential-url", "name": "Nextcloud"},
+        json={
+            "connector_type": "nextcloud",
+            "id": connector_id,
+            "name": "Nextcloud",
+        },
     ).status_code == 201
-    unsafe_url = "https://user:embedded-secret@cloud.example.test"
+    owner = db.query(FlowHubUser).filter_by(username="ipadmin").one()
+    source = SourceWorkspaceService(db).create_source(
+        name="Legacy linked Source",
+        source_kind="external",
+        external_source_id=connector_id,
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=2,
+        user=owner,
+    )
+    before = client.get(
+        f"/api/v2/integrations/connectors/{connector_id}/settings",
+        headers=auth_headers,
+    ).json()
 
     response = client.patch(
-        "/api/v2/integrations/connectors/nextcloud:credential-url/settings",
+        f"/api/v2/integrations/connectors/{connector_id}/settings",
         headers=auth_headers,
-        json={"settings": [{"key": "url", "value": unsafe_url}, {"key": "username", "value": "user"}]},
+        json={
+            "settings": [
+                {
+                    "key": "url",
+                    "value": "https://replacement.example.test",
+                },
+                {"key": "username", "value": "replacement-owner"},
+            ]
+        },
     )
 
-    assert response.status_code == 422
-    assert response.json()["detail"]["code"] == "CREDENTIALS_IN_URL_NOT_ALLOWED"
-    assert unsafe_url not in response.text
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "SOURCE_SETTINGS_WRITE_REQUIRES_SOURCE_API"
+    assert detail["sourceId"] == connector_id
+    assert "Commerce Source settings API" in detail["message"]
+    after = client.get(
+        f"/api/v2/integrations/connectors/{connector_id}/settings",
+        headers=auth_headers,
+    ).json()
+    assert after == before
+    db.expire_all()
+    profile = db.get(SourceProfile, source["id"])
+    assert profile is not None
+    assert profile.version == source["version"]
 
 
 def test_products_route_reads_data_layer_records(client, auth_headers, db):

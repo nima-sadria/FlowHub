@@ -246,6 +246,8 @@ class IntegrationPlatformService:
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
         self._require_public_operation_available(row.connector_type)
+        if "settings" in body:
+            self._reject_generic_source_settings_write(row)
         if "name" in body:
             row.name = str(body["name"])
         if "enabled" in body:
@@ -303,6 +305,18 @@ class IntegrationPlatformService:
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
         self._require_public_operation_available(row.connector_type)
+        if row.connector_type == "nextcloud":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "SOURCE_LIFECYCLE_REQUIRES_SOURCE_API",
+                    "message": (
+                        "Nextcloud Source connectors must be removed through "
+                        "the Source lifecycle API."
+                    ),
+                    "sourceId": row.id,
+                },
+            )
         self.db.delete(row)
         self.record_event(
             connector_id=connector_id,
@@ -320,6 +334,13 @@ class IntegrationPlatformService:
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
         return self._instance_to_shape(row)
+
+    def get_instance_contract(self, connector_id: str) -> dict:
+        self.bootstrap_from_app_config()
+        row = self.db.get(IntegrationConnectorInstance, connector_id)
+        if row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Connector instance not found.")
+        return self._instance_to_contract(row)
 
     def latest_health(self, connector_id: str) -> DlConnectorHealth | None:
         self.bootstrap_from_app_config()
@@ -352,6 +373,8 @@ class IntegrationPlatformService:
         }
 
     def update_settings_contract(self, connector_id: str, body: dict) -> dict:
+        row = self._get_instance_for_public_operation(connector_id)
+        self._reject_generic_source_settings_write(row)
         try:
             self.stage_settings_contract(connector_id, body)
             self.db.commit()
@@ -400,25 +423,7 @@ class IntegrationPlatformService:
 
     def update_settings(self, connector_id: str, settings: list[ConnectorSettingValue]) -> ConnectorInstanceShape:
         row = self._get_instance_for_public_operation(connector_id)
-        if row.connector_type == "nextcloud":
-            normalized = self._normalize_connector_settings(
-                row.connector_type,
-                {item.key: item.value for item in settings},
-            ) or {}
-            settings = [
-                item.model_copy(update={"value": normalized.get(item.key, item.value)})
-                for item in settings
-            ]
-            if "webdav_files_root_url" in normalized and not any(
-                item.key == "webdav_files_root_url" for item in settings
-            ):
-                settings.append(
-                    ConnectorSettingValue(
-                        key="webdav_files_root_url",
-                        value=normalized["webdav_files_root_url"],
-                        configured=bool(normalized["webdav_files_root_url"]),
-                    )
-                )
+        self._reject_generic_source_settings_write(row)
         self._upsert_settings(row, settings)
         self.record_event(
             connector_id=connector_id,
@@ -428,6 +433,25 @@ class IntegrationPlatformService:
         )
         self.db.refresh(row)
         return self._instance_to_shape(row)
+
+    @staticmethod
+    def _reject_generic_source_settings_write(
+        connector: IntegrationConnectorInstance,
+    ) -> None:
+        if connector.connector_type != "nextcloud":
+            return
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "SOURCE_SETTINGS_WRITE_REQUIRES_SOURCE_API",
+                "message": (
+                    "Nextcloud Source settings must be changed through the "
+                    "Commerce Source settings API so local identity evidence "
+                    "and Workspace creation share one version fence."
+                ),
+                "sourceId": connector.id,
+            },
+        )
 
     def test_connection_contract(self, connector_id: str) -> dict:
         """Return local health evidence without allowing Coming Soon connectors to test."""

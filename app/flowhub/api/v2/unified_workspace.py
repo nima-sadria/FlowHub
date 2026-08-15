@@ -53,9 +53,7 @@ class ManualWorkspaceCreateRequest(StrictModel):
 
 class SourceWorkspaceCreateRequest(StrictModel):
     name: str = Field(default="Source Workspace", min_length=1, max_length=240)
-    source_id: str | None = Field(default=None, min_length=1, max_length=36)
-    currency: str | None = Field(default=None, min_length=3, max_length=12)
-    unit: str | None = Field(default=None, min_length=3, max_length=24)
+    source_id: str = Field(min_length=1, max_length=36)
 
 
 class DraftChangeRequest(StrictModel):
@@ -169,8 +167,6 @@ async def create_source_workspace(
     return await service.create_source_workspace(
         name=body.name,
         source_id=body.source_id,
-        source_currency=body.currency,
-        source_unit=body.unit,
         user=user,
         correlation_id=correlation_id,
     )

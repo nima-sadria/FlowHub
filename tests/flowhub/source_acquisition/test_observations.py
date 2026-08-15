@@ -1,21 +1,26 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.data_layer.models import DlSourceSnapshot
 from app.flowhub.database import FlowHubBase
 from app.flowhub.source_acquisition.errors import SourceAcquisitionError
 from app.flowhub.source_acquisition.models import (
     SourceObservation,
+    SourceObservationDataset,
     SourceObservationEvidence,
     SourceObservationSnapshotReference,
+    SourceObservationWorksheetDataset,
 )
 from app.flowhub.source_acquisition.observations import SourceObservationService
 from app.flowhub.source_acquisition.service import SourceAcquisitionService
+from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
 from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 from app.flowhub.unified_workspace.domain import ImmutableRecordError, utcnow
@@ -222,3 +227,96 @@ def test_observation_versions_are_deterministic_per_source_scope_and_metadata_re
     unsafe["provenance"] = {"access_token": "never-persist"}
     with pytest.raises(SourceAcquisitionError, match="provenance_sensitive_field"):
         service.record_observation(acquisition_run_id=str(third["id"]), **unsafe)
+
+
+def test_observation_dataset_preserves_physical_rows_as_immutable_json_safe_evidence() -> None:
+    db = _session()
+    source = _source(db)
+    run = _succeeded_run(db, source.id)
+    observation = SourceObservationService(db).record_observation(
+        acquisition_run_id=str(run["id"]), **_payload()
+    )
+    snapshot = DlSourceSnapshot(
+        connector_id="nextcloud:primary",
+        file_path="/Products.xlsx",
+        integrity_hash="b" * 64,
+        sheet_names=["Products", "Archive"],
+        version_seq=3,
+        parsed_row_count=4,
+        duplicate_count=0,
+        invalid_row_count=0,
+        snapshotted_at=datetime(2026, 8, 15, 10, 0, 0),
+    )
+    db.add(snapshot)
+    db.commit()
+    db.refresh(snapshot)
+
+    worksheets = {
+        "Products": [
+            ["ID", "Date", "Amount", "Missing", "Float"],
+            [
+                "101",
+                date(2026, 8, 15),
+                Decimal("123.4500"),
+                None,
+                float("nan"),
+            ],
+            [
+                "102",
+                datetime(2026, 8, 15, 10, 30, 45),
+                Decimal("0.00"),
+                None,
+                float("inf"),
+            ],
+        ],
+        "Archive": [[time(9, 5, 7), float("-inf")]],
+    }
+    reader = SpreadsheetSourceReadService(db)
+    dataset = reader._persist_observation_dataset(
+        observation_id=str(observation["id"]),
+        source_id=source.id,
+        resource_scope=str(observation["resourceScope"]),
+        binding_fingerprint="b" * 64,
+        source_snapshot=snapshot,
+        workbook_checksum="c" * 64,
+        worksheets=worksheets,
+    )
+
+    assert dataset.observation_id == observation["id"]
+    assert dataset.source_snapshot_id == snapshot.id
+    assert dataset.source_snapshot_version == 3
+    assert dataset.row_count == 4
+    assert dataset.worksheet_count == 2
+    persisted = (
+        db.query(SourceObservationWorksheetDataset)
+        .filter_by(dataset_id=dataset.id)
+        .order_by(SourceObservationWorksheetDataset.worksheet_order)
+        .all()
+    )
+    assert [(row.worksheet_name, row.worksheet_order, row.row_count) for row in persisted] == [
+        ("Products", 1, 3),
+        ("Archive", 2, 1),
+    ]
+    assert persisted[0].rows_json == [
+        ["ID", "Date", "Amount", "Missing", "Float"],
+        ["101", "2026-08-15", "123.4500", None, "NaN"],
+        ["102", "2026-08-15T10:30:45", "0.00", None, "Infinity"],
+    ]
+    assert persisted[1].rows_json == [["09:05:07", "-Infinity"]]
+
+    replay = reader._persist_observation_dataset(
+        observation_id=str(observation["id"]),
+        source_id=source.id,
+        resource_scope=str(observation["resourceScope"]),
+        binding_fingerprint="b" * 64,
+        source_snapshot=snapshot,
+        workbook_checksum="c" * 64,
+        worksheets=worksheets,
+    )
+    assert replay.id == dataset.id
+    assert db.query(SourceObservationDataset).count() == 1
+
+    persisted[0].row_count = 99
+    with pytest.raises(ImmutableRecordError):
+        db.commit()
+    db.rollback()

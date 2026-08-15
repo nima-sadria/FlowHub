@@ -50,6 +50,15 @@ function sourceIsArchived(source: SourceProfile): boolean {
   return source.status.trim().toLocaleLowerCase() === 'archived'
 }
 
+function sourceMappingReadiness(source: SourceProfile): 'ready' | 'identity_validation_pending' | 'identity_validation_blocked' | null {
+  if (source.mappingVersion <= 0) return null
+  return source.mappingReadiness ?? 'identity_validation_pending'
+}
+
+function sourceMappingReady(source: SourceProfile): boolean {
+  return sourceMappingReadiness(source) === 'ready'
+}
+
 function sourceConfigurationState(source: CommerceSource): string {
   return source.configuration_state
     ?? (source.credential_status === 'configured' ? 'configured' : 'not_configured')
@@ -86,7 +95,7 @@ function sourceCardSignals(card: SourceCardModel): ResourceOrderingSignals {
     enabled: sourceEnabled && integrationAvailable && integrationEnabled,
     configured: active
       && integrationAvailable
-      && source.mappingVersion > 0
+      && sourceMappingReady(source)
       && (source.sourceKind !== 'external'
         || (integration !== null && sourceConfigurationState(integration) === 'configured')),
     healthStatus: integration?.health?.status === 'unknown' ? undefined : integration?.health?.status,
@@ -162,7 +171,7 @@ function sourceSetupPresentation(
     }
   }
   const linkedProfileComplete = !card.profile
-    || (sourceIsEnabled(card.profile) && card.profile.mappingVersion > 0)
+    || (sourceIsEnabled(card.profile) && sourceMappingReady(card.profile))
   if (sourceConfigurationState(integration) === 'configured' && linkedProfileComplete) {
     return {
       label: translate('commerce:commerceHub.sourceStatus.configured'),
@@ -643,14 +652,19 @@ export default function SourceCenter() {
             const worksheetsEnabled = worksheetsEnabledCount(card)
             const readStatus = integration?.read_status
             const lastReadAt = readStatus?.last_read_at ?? null
-            const validationStatus = readStatus
-              ? translate('sources:sourceCenter.validationSummary', {
+            const mappingReadiness = source ? sourceMappingReadiness(source) : null
+            const validationStatus = mappingReadiness === 'identity_validation_pending'
+              ? translate('sources:sourceCenter.mappingValidationPending')
+              : mappingReadiness === 'identity_validation_blocked'
+                ? translate('sources:sourceCenter.mappingValidationBlocked')
+                : readStatus
+                  ? translate('sources:sourceCenter.validationSummary', {
                 warnings: formatNumber(readStatus.last_warning_count ?? 0),
                 errors: formatNumber(readStatus.last_error_count ?? 0),
-              })
-              : source?.mappingVersion
-                ? translate('sources:sourceCenter.mappingReady')
-                : translate('sources:sourceCenter.mappingRequired')
+                  })
+                  : mappingReadiness === 'ready'
+                    ? translate('sources:sourceCenter.mappingReady')
+                    : translate('sources:sourceCenter.mappingRequired')
             const setupReason = source && sourceIsArchived(source)
               ? translate('sources:sourceCenter.archivedReadOnly')
               : (source && !sourceIsEnabled(source)) || integration?.enabled === false

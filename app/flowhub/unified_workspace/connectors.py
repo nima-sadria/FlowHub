@@ -138,6 +138,7 @@ class WooCommerceWorkspaceConnector:
             unit=unit,
             write_available=True,
             version="uw-1.2",
+            mapping_required_fields=("external_id",),
         )
 
     def validate_update(self, update: ListingUpdateLike) -> None:
@@ -317,6 +318,7 @@ class SnappShopWorkspaceConnector:
             unit="TOMAN",
             write_available=write_enabled,
             version="uw-1.2",
+            mapping_required_fields=("external_id", "stock", "status"),
         )
 
     def validate_update(self, update: ListingUpdateLike) -> None:
@@ -523,6 +525,7 @@ class TapsiShopWorkspaceConnector:
             unit="RIAL",
             write_available=write_enabled,
             version="uw-1.2",
+            mapping_required_fields=("external_id", "stock", "status"),
         )
 
     def validate_update(self, update: ListingUpdateLike) -> None:
@@ -698,6 +701,7 @@ class TechnolifeWorkspaceConnector:
             unit="RIAL",
             write_available=write_enabled,
             version="uw-1.3",
+            mapping_required_fields=("external_id", "stock", "status"),
         )
 
     def validate_update(self, update: ListingUpdateLike) -> None:

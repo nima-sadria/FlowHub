@@ -4,6 +4,7 @@ import asyncio
 import base64
 from datetime import UTC, datetime, timezone
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from fastapi import HTTPException
@@ -95,6 +96,85 @@ def _user(db: Session) -> FlowHubUser:
     )
     db.commit()
     return user
+
+
+_TEST_IDENTITY_AUTHORITY = {
+    "type": "internal",
+    "system_identifier": "backend-test-fixture",
+    "display_label": "Backend test fixture",
+}
+
+
+def _required_source_key(
+    fields: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    normalized = [dict(field) for field in fields if field.get("field") != "source_key"]
+    existing = next(
+        (field for field in fields if field.get("field") == "source_key"), None
+    )
+    if existing is not None and existing.get("reference_type") != "disabled":
+        return [
+            *normalized,
+            {**existing, "required": True},
+        ]
+    name = next(
+        (
+            field
+            for field in fields
+            if field.get("field") == "name"
+            and field.get("reference_type") != "disabled"
+        ),
+        None,
+    )
+    if name is None:
+        return normalized
+    return [
+        *normalized,
+        {
+            "field": "source_key",
+            "reference_type": name["reference_type"],
+            "reference_value": name.get("reference_value"),
+            "required": True,
+        },
+    ]
+
+
+def _save_v2_mapping(
+    service: SourceWorkspaceService, **payload: Any
+) -> dict[str, Any]:
+    payload["source_fields"] = _required_source_key(payload["source_fields"])
+    payload["identity_policy_version"] = 2
+    payload["identity_authority"] = _TEST_IDENTITY_AUTHORITY
+    return service.save_mapping(**payload)
+
+
+def _local_workbook(
+    worksheets: dict[str, list[list[object]]], *, suffix: str
+) -> dict[str, object]:
+    dataset = SimpleNamespace(
+        id=f"dataset-{suffix}",
+        observation_id=f"observation-{suffix}",
+        source_snapshot_id=f"snapshot-{suffix}",
+        source_snapshot_version=1,
+        workbook_checksum="f" * 64,
+        formula_evaluation_version="provider-evaluated-v1",
+    )
+    return {
+        "kind": "source_observation",
+        "sourceRevisionId": dataset.observation_id,
+        "sheetRevision": None,
+        "dataset": dataset,
+        "worksheets": worksheets,
+        "evidence": {
+            "kind": "source_observation",
+            "sourceRevisionId": dataset.observation_id,
+            "datasetId": dataset.id,
+            "snapshotId": dataset.source_snapshot_id,
+            "snapshotVersion": dataset.source_snapshot_version,
+            "label": f"Snapshot {dataset.source_snapshot_id}",
+            "validatedAt": None,
+        },
+    }
 
 
 def test_available_channels_seeds_each_implemented_channel_once_on_empty_database() -> None:
@@ -355,7 +435,11 @@ def test_worksheet_discovery_reuses_current_snapshot_metadata_without_a_remote_r
         calls += 1
         raise AssertionError("Snapshot worksheet metadata must avoid provider I/O")
 
-    monkeypatch.setattr(service, "_read_external_source", unexpected_read)
+    monkeypatch.setattr(
+        SpreadsheetSourceReadService,
+        "read_nextcloud_spreadsheet",
+        unexpected_read,
+    )
 
     source_configuration = service.get_source(source["id"], user)
     result = asyncio.run(service.list_source_worksheets(source["id"], user))
@@ -423,7 +507,8 @@ def test_mapping_supports_arbitrary_columns_multiple_channels_and_conservative_p
         user=user,
     )
     source = service.get_source(sheet["sourceId"], user)
-    mapping = service.save_mapping(
+    mapping = _save_v2_mapping(
+        service,
         source_id=source["id"],
         expected_source_version=source["version"],
         worksheet_mode="selected",
@@ -609,7 +694,8 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
             ],
         },
     ]
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=source["id"],
         expected_source_version=source["version"],
         worksheet_mode="selected",
@@ -629,7 +715,8 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
     }
 
     updated_source = service.get_source(source["id"], user)
-    disabled_revision = service.save_mapping(
+    disabled_revision = _save_v2_mapping(
+        service,
         source_id=source["id"],
         expected_source_version=updated_source["version"],
         worksheet_mode="selected",
@@ -655,7 +742,7 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
     }
 
 
-def test_external_source_is_read_once_and_resolves_three_independent_channel_columns(
+def test_external_source_replays_local_snapshot_and_resolves_independent_channel_columns(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     db = _session()
@@ -721,7 +808,8 @@ def test_external_source_is_read_once_and_resolves_three_independent_channel_col
         data_start_row=2,
         user=user,
     )
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=source["id"],
         expected_source_version=source["version"],
         worksheet_mode="selected",
@@ -760,23 +848,27 @@ def test_external_source_is_read_once_and_resolves_three_independent_channel_col
         value_policy={},
         user=user,
     )
-    read_count = 0
     rows = [
         ["نام محصول", "Woo ID", "Woo Price", "Woo Stock", "Snap Stock", "Snap Status", "قیمت اسنپ", None, None, "Tapsi Price", "Tapsi Stock", "Tapsi Status", None, None, "SNP", "Seller SKU"],
         ["کابل آیفون", "51550", "12500000", "8", "12", "instock", "12900000", None, None, "12700000", "6", "instock", None, None, "1826345203", "7785746738"],
     ]
 
-    async def fake_read_external_source(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        nonlocal read_count
-        read_count += 1
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(id="source-snapshot-1", version_seq=1, integrity_hash="f" * 64),
-            worksheets={"Sheet1": rows},
-        )
+    async def provider_read_forbidden(
+        *_args: object, **_kwargs: object
+    ) -> SimpleNamespace:
+        raise AssertionError("Workspace analysis must replay local Source evidence")
 
-    monkeypatch.setattr(service, "_read_external_source", fake_read_external_source)
+    monkeypatch.setattr(
+        SpreadsheetSourceReadService,
+        "read_nextcloud_spreadsheet",
+        provider_read_forbidden,
+    )
+    monkeypatch.setattr(
+        service,
+        "_latest_local_validation_data",
+        lambda _source: _local_workbook({"Sheet1": rows}, suffix="multi-channel"),
+    )
     analysis = asyncio.run(service.snapshot_candidates(source["id"], user))
-    assert read_count == 1
     assert {item["channelId"]: item["targets"] for item in analysis["candidates"]} == {
         "woocommerce:primary": {"price": "12500000"},
         "snappshop:main": {"price": "12900000", "stock": "12", "status": "instock"},
@@ -784,7 +876,7 @@ def test_external_source_is_read_once_and_resolves_three_independent_channel_col
     }
 
 
-def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_invalid_channel(
+def test_logitech_local_snapshot_resolves_targets_and_isolates_invalid_channel(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     db = _session()
@@ -880,7 +972,8 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
         data_start_row=2,
         user=user,
     )
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=source["id"],
         expected_source_version=source["version"],
         worksheet_mode="selected",
@@ -926,7 +1019,6 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
         value_policy={},
         user=user,
     )
-    read_count = 0
     workbook = {
         "Logitech": [
             [
@@ -974,22 +1066,23 @@ def test_logitech_worksheet_a_to_j_resolves_independent_targets_and_isolates_inv
         ]
     }
 
-    async def fake_read_external_source(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        nonlocal read_count
-        read_count += 1
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(
-                id="logitech-source-snapshot",
-                version_seq=1,
-                integrity_hash="e" * 64,
-            ),
-            worksheets=workbook,
-        )
+    async def provider_read_forbidden(
+        *_args: object, **_kwargs: object
+    ) -> SimpleNamespace:
+        raise AssertionError("Workspace analysis must replay local Source evidence")
 
-    monkeypatch.setattr(service, "_read_external_source", fake_read_external_source)
+    monkeypatch.setattr(
+        SpreadsheetSourceReadService,
+        "read_nextcloud_spreadsheet",
+        provider_read_forbidden,
+    )
+    monkeypatch.setattr(
+        service,
+        "_latest_local_validation_data",
+        lambda _source: _local_workbook(workbook, suffix="logitech"),
+    )
     analysis = asyncio.run(service.snapshot_candidates(source["id"], user))
 
-    assert read_count == 1
     targets = {
         (item["sourceRowKey"], item["channelId"]): item["targets"]
         for item in analysis["candidates"]
@@ -1051,7 +1144,8 @@ def test_new_source_mapping_revision_invalidates_review_and_pending_apply() -> N
             ],
         }
     ]
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=source["id"],
         expected_source_version=source["version"],
         worksheet_mode="selected",
@@ -1123,7 +1217,8 @@ def test_new_source_mapping_revision_invalidates_review_and_pending_apply() -> N
     )
     db.commit()
     current = service.get_source(source["id"], user)
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=source["id"],
         expected_source_version=current["version"],
         worksheet_mode="selected",
@@ -1197,7 +1292,8 @@ def test_channel_added_after_source_creation_can_receive_its_own_mapping() -> No
         )
     )
     db.commit()
-    mapping = service.save_mapping(
+    mapping = _save_v2_mapping(
+        service,
         source_id=source["id"],
         expected_source_version=source["version"],
         worksheet_mode="selected",
@@ -1242,7 +1338,8 @@ def test_coming_soon_channel_cannot_be_enabled_for_source_processing() -> None:
     )
     source = service.get_source(sheet["sourceId"], user)
     try:
-        service.save_mapping(
+        _save_v2_mapping(
+            service,
             source_id=source["id"],
             expected_source_version=source["version"],
             worksheet_mode="selected",
@@ -1284,7 +1381,8 @@ def test_enabling_a_non_woocommerce_channel_without_stock_and_status_is_rejected
     )
     source = service.get_source(sheet["sourceId"], user)
     try:
-        service.save_mapping(
+        _save_v2_mapping(
+            service,
             source_id=source["id"],
             expected_source_version=source["version"],
             worksheet_mode="selected",
@@ -1309,7 +1407,13 @@ def test_enabling_a_non_woocommerce_channel_without_stock_and_status_is_rejected
             user=user,
         )
     except Exception as exc:
-        assert getattr(exc, "detail", {}).get("code") == "CHANNEL_STOCK_STATUS_REQUIRED"
+        detail = getattr(exc, "detail", {})
+        assert detail.get("code") == "CHANNEL_REQUIRED_FIELD_MISSING"
+        assert detail.get("details", {}).get("requiredFields") == [
+            "external_id",
+            "status",
+            "stock",
+        ]
     else:
         raise AssertionError("SnappShop enabled without Stock and Status mappings unexpectedly saved")
 
@@ -1328,7 +1432,8 @@ def test_enabling_woocommerce_without_stock_and_status_is_allowed() -> None:
         user=user,
     )
     source = service.get_source(sheet["sourceId"], user)
-    mapping = service.save_mapping(
+    mapping = _save_v2_mapping(
+        service,
         source_id=source["id"],
         expected_source_version=source["version"],
         worksheet_mode="selected",

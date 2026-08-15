@@ -317,6 +317,11 @@ class FakeVendorConnector:
             raise self.error
         return self.vendors
 
+    async def get_vendor_information(self):
+        if self.error:
+            raise self.error
+        return self.vendors[0]
+
 
 def vendor(vendor_id: str, *, status: str = "ACTIVE") -> ChannelVendor:
     return ChannelVendor(

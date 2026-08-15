@@ -22,6 +22,7 @@ from app.flowhub.auth.dependencies import get_current_user
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.auth.repository import create_audit_event
 from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
+from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.database import get_db
 from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.rate_limit.service import RateLimitService
@@ -365,27 +366,17 @@ async def update_nextcloud(
         raise HTTPException(
             status_code=422, detail={"code": exc.code, "message": str(exc)}
         ) from exc
-    cfg = AppConfigService(db)
-    cfg.set_many(
+    CommerceHubService(db).update_source_settings(
+        "nextcloud:primary",
         {
-            "nextcloud.url": normalized["server_root_url"],
-            "nextcloud.webdav_files_root_url": normalized["webdav_files_root_url"],
-            "nextcloud.username": normalized["username"],
-            "nextcloud.password": body.password,
-            "nextcloud.spreadsheet_path": body.spreadsheet_path,
+            "settings": {
+                "url": normalized["server_root_url"],
+                "username": normalized["username"],
+                "spreadsheet_path": body.spreadsheet_path,
+            },
+            "secrets": {"password": body.password},
         },
-        updated_by=current_user.username,
-    )
-    IntegrationPlatformService(db).ensure_connector_from_settings(
-        connector_type="nextcloud",
-        connector_id="nextcloud:primary",
-        name="Nextcloud Spreadsheet",
-        values={
-            "url": normalized["server_root_url"],
-            "username": normalized["username"],
-            "password": body.password,
-            "spreadsheet_path": body.spreadsheet_path,
-        },
+        user=current_user,
     )
     create_audit_event(
         db,

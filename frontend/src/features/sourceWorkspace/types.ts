@@ -1,5 +1,50 @@
 export type ReferenceType = 'column_letter' | 'header_name' | 'column_id' | 'disabled'
 
+export type IdentityAuthorityType = 'external_system' | 'internal' | 'custom' | 'unspecified'
+
+export interface IdentityAuthority {
+  type: IdentityAuthorityType
+  systemIdentifier: string | null
+  displayLabel: string | null
+}
+
+export type MappingReadiness = 'ready' | 'identity_validation_pending' | 'identity_validation_blocked'
+
+export type IdentityValidationRow = string | { worksheetName: string; rowNumber: number }
+
+export interface IdentityValidation {
+  status: 'pass' | 'blocked' | 'pending'
+  participatingRowCount?: number | null
+  validKeyCount?: number | null
+  missingKeyCount?: number | null
+  duplicateKeyCount?: number | null
+  duplicateRowCount?: number | null
+  bindingConflictCount?: number | null
+  bindingContextFingerprint?: string | null
+  missingRows?: IdentityValidationRow[]
+  duplicateGroups?: Array<{ keyValue: string; rows: IdentityValidationRow[] }>
+  bindingConflicts?: Array<{
+    keyValue: string
+    rows: IdentityValidationRow[]
+    boundCanonicalProductId: string | null
+    conflictingCanonicalProductIds: string[]
+  }>
+  mappingReferences?: Array<{
+    worksheetName: string | null
+    referenceType: ReferenceType
+    referenceValue: string | null
+  }>
+  evidence?: {
+    kind: 'source_observation' | 'flowhub_sheet_revision' | 'none'
+    sourceRevisionId: string | null
+    datasetId: string | null
+    snapshotId: number | null
+    snapshotVersion: number | null
+    label: string | null
+    validatedAt: string | null
+  } | null
+}
+
 export interface SourceProfile {
   id: string
   name: string
@@ -12,6 +57,7 @@ export interface SourceProfile {
   archivedAt?: string | null
   version: number
   mappingVersion: number
+  mappingReadiness?: MappingReadiness | null
   sheetId: string | null
   createdAt: string | null
   updatedAt: string | null
@@ -101,12 +147,7 @@ export interface SourcePreview {
     channelsReady: number
     channelsNotConfigured: number
   }
-  identityValidation?: {
-    status: 'pass' | 'blocked'
-    validKeyCount: number
-    missingKeyCount: number
-    duplicateKeyCount: number
-  } | null
+  identityValidation?: IdentityValidation | null
   sheetRevisionId: string | null
   mappingRevisionId: string | null
 }
@@ -171,6 +212,10 @@ export interface SourceMapping {
   worksheetRuleMode?: 'shared' | 'per_worksheet'
   selectedWorksheetNames?: string[]
   duplicateProductPolicy?: 'block' | 'last_sheet_wins'
+  identityAuthority: IdentityAuthority
+  identityPolicyVersion: number
+  mappingReadiness: MappingReadiness
+  identityValidation: IdentityValidation | null
   worksheetRules?: SourceWorksheetRule[]
   sourceFields: FieldMapping[]
   channels: Array<{
@@ -258,6 +303,43 @@ export interface GroupedProduct {
   selectedListingCount: number
   state: 'ready' | 'blocked' | 'unchanged'
   children: GroupedListing[]
+}
+
+export interface SourceMappingSaveRequest {
+  expected_source_version: number
+  worksheet_mode: 'all' | 'selected'
+  worksheet_name: string | null
+  selected_worksheet_names: string[]
+  data_start_row: number
+  source_fields: Array<{ field: string; reference_type: ReferenceType; reference_value: string | null; required: boolean }>
+  channel_mappings: Array<{
+    channel_id: string
+    worksheet_name: string | null
+    enabled: boolean
+    fields: Array<{ field: string; reference_type: ReferenceType; reference_value: string | null; required: boolean }>
+  }>
+  value_policy: Record<string, string>
+  worksheet_rule_mode: 'shared' | 'per_worksheet'
+  duplicate_product_policy: 'block' | 'last_sheet_wins'
+  worksheet_rules: Array<{
+    worksheet_name: string
+    enabled: boolean
+    data_start_row: number
+    value_policy: Record<string, string>
+    source_fields: Array<{ field: string; reference_type: ReferenceType; reference_value: string | null; required: boolean }>
+    channel_mappings: Array<{
+      channel_id: string
+      worksheet_name: string | null
+      enabled: boolean
+      fields: Array<{ field: string; reference_type: ReferenceType; reference_value: string | null; required: boolean }>
+    }>
+  }>
+  identity_policy_version: number
+  identity_authority: {
+    type: IdentityAuthorityType
+    system_identifier: string | null
+    display_label: string | null
+  }
 }
 
 export interface DiscoveredColumn {

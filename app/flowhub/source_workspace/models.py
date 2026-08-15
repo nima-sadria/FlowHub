@@ -16,11 +16,13 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Mapped, Mapper, mapped_column
 
 from app.flowhub.database import FlowHubBase
-from app.flowhub.unified_workspace.domain import utcnow
+from app.flowhub.unified_workspace.domain import ImmutableRecordError, utcnow
 
 
 class SourceProfile(FlowHubBase):
@@ -58,6 +60,10 @@ class SourceMappingRevision(FlowHubBase):
     __table_args__ = (
         UniqueConstraint("source_id", "version", name="uq_sc_mapping_revision_version"),
         UniqueConstraint("source_id", "checksum", name="uq_sc_mapping_revision_checksum"),
+        CheckConstraint(
+            "identity_policy_version IN (1, 2)",
+            name="ck_sc_mapping_identity_policy_version",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -70,10 +76,177 @@ class SourceMappingRevision(FlowHubBase):
     worksheet_name: Mapped[str | None] = mapped_column(String(240), nullable=True)
     data_start_row: Mapped[int] = mapped_column(Integer, nullable=False)
     value_policy_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    identity_authority_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    identity_policy_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_by_user_id: Mapped[int] = mapped_column(
         ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class SourceMappingIdentityAssessment(FlowHubBase):
+    """Immutable local identity-validation evidence for one Mapping revision."""
+
+    __tablename__ = "sc_mapping_identity_assessments"
+    __table_args__ = (
+        CheckConstraint(
+            "source_revision_kind IN ('source_observation','flowhub_sheet_revision')",
+            name="ck_sc_identity_assessment_revision_kind",
+        ),
+        CheckConstraint(
+            "status IN ('pass','blocked')",
+            name="ck_sc_identity_assessment_status",
+        ),
+        CheckConstraint(
+            "participating_row_count >= 0 AND valid_key_count >= 0 "
+            "AND missing_key_count >= 0 AND duplicate_key_count >= 0 "
+            "AND duplicate_row_count >= 0 AND binding_conflict_count >= 0",
+            name="ck_sc_identity_assessment_counts",
+        ),
+        CheckConstraint(
+            "((source_revision_kind = 'source_observation' AND dataset_id IS NOT NULL "
+            "AND sheet_revision_id IS NULL) OR "
+            "(source_revision_kind = 'flowhub_sheet_revision' AND dataset_id IS NULL "
+            "AND sheet_revision_id IS NOT NULL))",
+            name="ck_sc_identity_assessment_evidence",
+        ),
+        UniqueConstraint(
+            "mapping_revision_id",
+            "source_revision_kind",
+            "source_revision_id",
+            "identity_fingerprint",
+            "binding_context_fingerprint",
+            "algorithm_version",
+            name="uq_sc_identity_assessment_revision",
+        ),
+        UniqueConstraint("checksum", name="uq_sc_identity_assessment_checksum"),
+        Index(
+            "ix_sc_identity_assessment_source_validated",
+            "source_id",
+            "validated_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    mapping_revision_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_source_mapping_revisions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    dataset_id: Mapped[str | None] = mapped_column(
+        ForeignKey("saq_observation_datasets.id", ondelete="RESTRICT"), nullable=True
+    )
+    sheet_revision_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sc_sheet_revisions.id", ondelete="RESTRICT"), nullable=True
+    )
+    source_revision_kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_revision_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    identity_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    binding_context_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    participating_row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    valid_key_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    missing_key_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    duplicate_key_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    duplicate_row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    binding_conflict_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    missing_rows_json: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    duplicate_groups_json: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    binding_conflicts_json: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    mapping_references_json: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    algorithm_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    validated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class SourceProductIdentity(FlowHubBase):
+    """Durable Source-key binding that recognizes a product across Snapshots."""
+
+    __tablename__ = "sc_source_product_identities"
+    __table_args__ = (
+        CheckConstraint(
+            "first_source_revision_kind IN "
+            "('source_observation','flowhub_sheet_revision')",
+            name="ck_sc_source_product_identity_revision_kind",
+        ),
+        CheckConstraint(
+            "((first_source_revision_kind = 'source_observation' "
+            "AND first_dataset_id IS NOT NULL AND first_sheet_revision_id IS NULL) OR "
+            "(first_source_revision_kind = 'flowhub_sheet_revision' "
+            "AND first_dataset_id IS NULL AND first_sheet_revision_id IS NOT NULL))",
+            name="ck_sc_source_product_identity_evidence",
+        ),
+        UniqueConstraint(
+            "source_id",
+            "normalization_version",
+            "source_key_hash",
+            name="uq_sc_source_product_identity_key",
+        ),
+        Index(
+            "ix_sc_source_product_identity_canonical",
+            "canonical_product_id",
+            "source_id",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    source_key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalized_source_key: Mapped[str] = mapped_column(Text, nullable=False)
+    normalization_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    canonical_product_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_canonical_products.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    first_mapping_revision_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_source_mapping_revisions.id", ondelete="RESTRICT"), nullable=False
+    )
+    first_source_revision_kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    first_source_revision_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    first_dataset_id: Mapped[str | None] = mapped_column(
+        ForeignKey("saq_observation_datasets.id", ondelete="RESTRICT"), nullable=True
+    )
+    first_sheet_revision_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sc_sheet_revisions.id", ondelete="RESTRICT"), nullable=True
+    )
+    identity_authority_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+def _reject_identity_evidence_mutation(
+    _mapper: Mapper[Any], _connection: Connection, target: Any
+) -> None:
+    raise ImmutableRecordError(f"{target.__class__.__name__} records are append-only.")
+
+
+for _identity_evidence_model in (
+    SourceMappingIdentityAssessment,
+    SourceProductIdentity,
+):
+    event.listen(
+        _identity_evidence_model, "before_update", _reject_identity_evidence_mutation
+    )
+    event.listen(
+        _identity_evidence_model, "before_delete", _reject_identity_evidence_mutation
+    )
 
 
 class SourceFieldMapping(FlowHubBase):

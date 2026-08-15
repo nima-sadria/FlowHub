@@ -18,7 +18,11 @@ from app.flowhub.data_layer import models as _dl_models  # noqa: F401
 from app.flowhub.integration_platform import models as _ip_models  # noqa: F401
 from app.flowhub.logging_platform import models as _logging_models  # noqa: F401
 from app.flowhub.orders import models as _order_models  # noqa: F401
+from app.flowhub.pricing_matrix import models as _pricing_matrix_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.source_acquisition import models as _source_acquisition_models  # noqa: F401
+from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
+from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 
 
 @pytest.fixture()
@@ -98,6 +102,37 @@ def viewer_headers(client, db):
     response = client.post("/api/auth/login", json={"username": "platformviewer", "password": "password123"})
     assert response.status_code == 200
     return {"Authorization": f"Bearer {response.json()['token']}"}
+
+
+def _create_linked_nextcloud_source(client, auth_headers, db, connector_id):
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.source_workspace.service import SourceWorkspaceService
+
+    created = client.post(
+        "/api/v2/integration-platform/connectors",
+        headers=auth_headers,
+        json={
+            "connector_type": "nextcloud",
+            "id": connector_id,
+            "name": "Linked Nextcloud",
+            "settings": {
+                "url": "https://cloud.example.test",
+                "username": "platform-owner",
+                "spreadsheet_path": "/identity.xlsx",
+            },
+        },
+    )
+    assert created.status_code == 201
+    owner = db.query(FlowHubUser).filter_by(username="platformadmin").one()
+    return SourceWorkspaceService(db).create_source(
+        name="Linked Source",
+        source_kind="external",
+        external_source_id=connector_id,
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=2,
+        user=owner,
+    )
 
 
 def test_FLOWHUB_007_migration_creates_platform_component_tables(tmp_path, monkeypatch):
@@ -413,6 +448,142 @@ def test_canonical_nextcloud_connector_rejects_credential_url(client, auth_heade
     assert response.json()["detail"]["code"] == "CREDENTIALS_IN_URL_NOT_ALLOWED"
     assert unsafe_url not in response.text
     assert "embedded-secret" not in response.text
+
+
+def test_canonical_nextcloud_settings_write_requires_commerce_source_api(
+    client,
+    auth_headers,
+    db,
+):
+    from app.flowhub.source_workspace.models import SourceProfile
+
+    connector_id = "nextcloud:fenced-settings"
+    source = _create_linked_nextcloud_source(
+        client,
+        auth_headers,
+        db,
+        connector_id,
+    )
+    before = client.get(
+        f"/api/v2/integration-platform/connectors/{connector_id}/settings",
+        headers=auth_headers,
+    ).json()
+    previous_version = source["version"]
+
+    response = client.put(
+        f"/api/v2/integration-platform/connectors/{connector_id}/settings",
+        headers=auth_headers,
+        json={
+            "settings": {
+                "url": "https://replacement.example.test",
+                "username": "replacement-owner",
+                "spreadsheet_path": "/replacement.xlsx",
+            }
+        },
+    )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "SOURCE_SETTINGS_WRITE_REQUIRES_SOURCE_API"
+    assert detail["sourceId"] == connector_id
+    assert "Commerce Source settings API" in detail["message"]
+    after = client.get(
+        f"/api/v2/integration-platform/connectors/{connector_id}/settings",
+        headers=auth_headers,
+    ).json()
+    assert after["settings"] == before["settings"]
+    assert after["secrets"] == before["secrets"]
+    db.expire_all()
+    assert db.get(SourceProfile, source["id"]).version == previous_version
+
+
+def test_canonical_nextcloud_instance_settings_update_is_fenced_before_mutation(
+    client,
+    auth_headers,
+    db,
+):
+    from app.flowhub.source_workspace.models import SourceProfile
+
+    connector_id = "nextcloud:fenced-instance"
+    source = _create_linked_nextcloud_source(
+        client,
+        auth_headers,
+        db,
+        connector_id,
+    )
+    before = client.get(
+        f"/api/v2/integration-platform/connectors/{connector_id}",
+        headers=auth_headers,
+    ).json()
+    before_settings = client.get(
+        f"/api/v2/integration-platform/connectors/{connector_id}/settings",
+        headers=auth_headers,
+    ).json()
+    previous_version = source["version"]
+
+    response = client.put(
+        f"/api/v2/integration-platform/connectors/{connector_id}",
+        headers=auth_headers,
+        json={
+            "name": "Must not persist",
+            "settings": {"spreadsheet_path": "/replacement.xlsx"},
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == (
+        "SOURCE_SETTINGS_WRITE_REQUIRES_SOURCE_API"
+    )
+    after = client.get(
+        f"/api/v2/integration-platform/connectors/{connector_id}",
+        headers=auth_headers,
+    ).json()
+    assert after["name"] == before["name"]
+    after_settings = client.get(
+        f"/api/v2/integration-platform/connectors/{connector_id}/settings",
+        headers=auth_headers,
+    ).json()
+    assert after_settings["settings"] == before_settings["settings"]
+    assert after_settings["secrets"] == before_settings["secrets"]
+    db.expire_all()
+    assert db.get(SourceProfile, source["id"]).version == previous_version
+
+
+def test_canonical_nextcloud_delete_requires_source_lifecycle_api(
+    client,
+    auth_headers,
+    db,
+):
+    from app.flowhub.source_workspace.models import SourceProfile
+
+    connector_id = "nextcloud:fenced-delete"
+    source = _create_linked_nextcloud_source(
+        client,
+        auth_headers,
+        db,
+        connector_id,
+    )
+    previous_version = source["version"]
+
+    response = client.delete(
+        f"/api/v2/integration-platform/connectors/{connector_id}",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == "SOURCE_LIFECYCLE_REQUIRES_SOURCE_API"
+    assert detail["sourceId"] == connector_id
+    assert "Source lifecycle API" in detail["message"]
+    assert client.get(
+        f"/api/v2/integration-platform/connectors/{connector_id}",
+        headers=auth_headers,
+    ).status_code == 200
+    db.expire_all()
+    profile = db.get(SourceProfile, source["id"])
+    assert profile is not None
+    assert profile.status == "active"
+    assert profile.version == previous_version
 
 
 def test_integration_platform_diagnostics_polling_webhook_are_safe(client, auth_headers):

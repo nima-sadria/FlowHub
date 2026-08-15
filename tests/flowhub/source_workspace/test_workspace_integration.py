@@ -194,7 +194,13 @@ def test_source_product_workspace_groups_listings_and_auto_selects_ready_changes
         worksheet_name="Sheet1",
         data_start_row=1,
         source_fields=[
-            {"field": "name", "reference_type": "column_id", "reference_value": "name", "required": True}
+            {"field": "name", "reference_type": "column_id", "reference_value": "name", "required": True},
+            {
+                "field": "source_key",
+                "reference_type": "column_id",
+                "reference_value": "wc-id",
+                "required": True,
+            },
         ],
         channel_mappings=[
             {
@@ -206,14 +212,18 @@ def test_source_product_workspace_groups_listings_and_auto_selects_ready_changes
             }
         ],
         value_policy={},
+        identity_policy_version=2,
+        identity_authority={
+            "type": "internal",
+            "system_identifier": "workspace-test-fixture",
+            "display_label": "Workspace test fixture",
+        },
         user=user,
     )
     workspace = asyncio.run(
         workspace_service.create_source_workspace(
             name="Daily Source Workspace",
             source_id=source["id"],
-            source_currency=None,
-            source_unit=None,
             user=user,
             correlation_id="source-create",
         )

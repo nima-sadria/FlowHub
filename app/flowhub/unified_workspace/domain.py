@@ -226,6 +226,7 @@ class ChannelCapabilities:
     unit: str
     write_available: bool
     version: str
+    mapping_required_fields: tuple[str, ...] = ("external_id",)
 
     def can_write(self, field: str) -> bool:
         return self.write_available and {

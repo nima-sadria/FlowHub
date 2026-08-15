@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from fastapi import HTTPException
@@ -81,6 +82,109 @@ def _external_source(service: SourceWorkspaceService, user: FlowHubUser) -> dict
     )
 
 
+def _local_workbook(worksheets: dict[str, list[list[object]]]) -> dict[str, object]:
+    dataset = SimpleNamespace(
+        id="dataset-local-test",
+        observation_id="observation-local-test",
+        source_snapshot_id="snapshot-local-test",
+        source_snapshot_version=1,
+        workbook_checksum="f" * 64,
+        formula_evaluation_version="provider-evaluated-v1",
+    )
+    return {
+        "kind": "source_observation",
+        "sourceRevisionId": dataset.observation_id,
+        "sheetRevision": None,
+        "dataset": dataset,
+        "worksheets": worksheets,
+        "evidence": {
+            "kind": "source_observation",
+            "sourceRevisionId": dataset.observation_id,
+            "datasetId": dataset.id,
+            "snapshotId": dataset.source_snapshot_id,
+            "snapshotVersion": dataset.source_snapshot_version,
+            "label": "Snapshot local test",
+            "validatedAt": None,
+        },
+    }
+
+
+_TEST_IDENTITY_AUTHORITY = {
+    "type": "internal",
+    "system_identifier": "worksheet-test-fixture",
+    "display_label": "Worksheet test fixture",
+}
+
+
+def _required_source_key(
+    fields: list[dict[str, Any]],
+    channel_mappings: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    if any(
+        field.get("field") == "source_key"
+        and field.get("reference_type") != "disabled"
+        for field in fields
+    ):
+        return [dict(field) for field in fields]
+    channel_identifier = next(
+        (
+            field
+            for channel in channel_mappings or []
+            if channel.get("enabled", True)
+            for field in channel.get("fields") or []
+            if field.get("field") == "external_id"
+            and field.get("reference_type") != "disabled"
+        ),
+        None,
+    )
+    name = next(
+        (
+            field
+            for field in fields
+            if field.get("field") == "name"
+            and field.get("reference_type") != "disabled"
+        ),
+        None,
+    )
+    authority_field = channel_identifier or name
+    if authority_field is None:
+        return [dict(field) for field in fields]
+    return [
+        *[dict(field) for field in fields],
+        {
+            "field": "source_key",
+            "reference_type": authority_field["reference_type"],
+            "reference_value": authority_field.get("reference_value"),
+            "required": True,
+        },
+    ]
+
+
+def _save_v2_mapping(
+    service: SourceWorkspaceService, **payload: Any
+) -> dict[str, Any]:
+    payload["source_fields"] = _required_source_key(
+        payload["source_fields"], payload.get("channel_mappings") or []
+    )
+    payload["worksheet_rules"] = [
+        {
+            **rule,
+            "source_fields": (
+                _required_source_key(
+                    rule.get("source_fields") or [],
+                    rule.get("channel_mappings") or [],
+                )
+                if rule.get("enabled", True)
+                else list(rule.get("source_fields") or [])
+            ),
+        }
+        for rule in payload.get("worksheet_rules") or []
+    ]
+    payload["identity_policy_version"] = 2
+    payload["identity_authority"] = _TEST_IDENTITY_AUTHORITY
+    return service.save_mapping(**payload)
+
+
 def _add_listing(
     db: Session,
     *,
@@ -131,7 +235,7 @@ def _add_listing(
     )
 
 
-def test_per_worksheet_rules_use_different_layouts_ignore_sheet_and_read_once(
+def test_per_worksheet_rules_replay_local_evidence_with_different_layouts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     db = _session()
@@ -155,7 +259,8 @@ def test_per_worksheet_rules_use_different_layouts_ignore_sheet_and_read_once(
         external_id="1826345203",
     )
     db.commit()
-    saved = service.save_mapping(
+    saved = _save_v2_mapping(
+        service,
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         worksheet_mode="all",
@@ -221,24 +326,18 @@ def test_per_worksheet_rules_use_different_layouts_ignore_sheet_and_read_once(
         "یادداشت‌ها",
     }
 
-    read_count = 0
     worksheets = {
         "فروش مستقیم": [["نام", "شناسه وو", "قیمت وو"], ["Cable WC", "51550", "12500000"]],
         "بازار": [["گزارش"], ["قیمت", "نام", "unused", "SNP", "Stock", "Status"], ["12900000", "Cable Snap", None, "1826345203", "4", "instock"]],
         "یادداشت‌ها": [["Cable ignored", "999", "999"]],
     }
 
-    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        nonlocal read_count
-        read_count += 1
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(id="snapshot", version_seq=1, integrity_hash="f" * 64),
-            worksheets=worksheets,
-        )
-
-    monkeypatch.setattr(service, "_read_external_source", fake_read)
+    monkeypatch.setattr(
+        service,
+        "_latest_local_validation_data",
+        lambda _source: _local_workbook(worksheets),
+    )
     result = asyncio.run(service.snapshot_candidates(str(source["id"]), user))
-    assert read_count == 1
     assert {item["channelId"]: item["targets"] for item in result["candidates"]} == {
         "woocommerce:primary": {"price": "12500000"},
         "snappshop:main": {"price": "12900000", "stock": "4", "status": "instock"},
@@ -246,14 +345,13 @@ def test_per_worksheet_rules_use_different_layouts_ignore_sheet_and_read_once(
     assert all("یادداشت‌ها" not in item["sourceRowKey"] for item in result["candidates"])
 
 
-def test_shared_rules_apply_to_all_worksheets_and_local_discovery_never_acquires(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_shared_rules_apply_to_all_worksheets_and_local_discovery_never_acquires() -> None:
     db = _session()
     user = _user_and_channels(db)
     service = SourceWorkspaceService(db)
     source = _external_source(service, user)
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         worksheet_mode="all",
@@ -276,19 +374,7 @@ def test_shared_rules_apply_to_all_worksheets_and_local_discovery_never_acquires
         "تهران": [["Name", "ID", "Price"], ["Mouse", "1", "100"]],
         "شیراز": [["Name", "ID", "Price"], ["Keyboard", "2", "200"]],
     }
-    read_count = 0
-
-    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        nonlocal read_count
-        read_count += 1
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(id="snapshot-discovery", version_seq=3),
-            worksheets=acquired,
-        )
-
-    monkeypatch.setattr(service, "_read_external_source", fake_read)
     discovery = asyncio.run(service.list_source_worksheets(str(source["id"]), user))
-    assert read_count == 0
     assert discovery["items"] == []
     assert discovery["worksheetDiscovery"]["metadataSource"] == "unavailable"
     mapping = service.sources.latest_mapping(str(source["id"]))
@@ -300,7 +386,7 @@ def test_shared_rules_apply_to_all_worksheets_and_local_discovery_never_acquires
     }
 
 
-def test_shared_rule_api_selects_two_worksheets_ignores_third_and_reads_once(
+def test_shared_rule_api_replays_selected_worksheets_from_local_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     db = _session()
@@ -337,6 +423,12 @@ def test_shared_rule_api_selects_two_worksheets_ignores_third_and_reads_once(
                     "field": "name",
                     "reference_type": "column_letter",
                     "reference_value": "A",
+                },
+                {
+                    "field": "source_key",
+                    "reference_type": "column_letter",
+                    "reference_value": "B",
+                    "required": True,
                 }
             ],
             "channel_mappings": [
@@ -358,6 +450,8 @@ def test_shared_rule_api_selects_two_worksheets_ignores_third_and_reads_once(
             ],
             "value_policy": {},
             "worksheet_rule_mode": "shared",
+            "identity_policy_version": 2,
+            "identity_authority": _TEST_IDENTITY_AUTHORITY,
         }
     )
     saved = save_source_mapping(str(source["id"]), body, user, service)
@@ -375,24 +469,13 @@ def test_shared_rule_api_selects_two_worksheets_ignores_third_and_reads_once(
         "شیراز": [["Name", "ID", "Price"], ["Shiraz keyboard", "wc-shiraz", "200"]],
         "یادداشت‌ها": [["Name", "ID", "Price"], ["Ignored", "wc-ignored", "999"]],
     }
-    read_count = 0
-
-    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        nonlocal read_count
-        read_count += 1
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(
-                id="snapshot-shared-selection",
-                version_seq=1,
-                integrity_hash="e" * 64,
-            ),
-            worksheets=workbook,
-        )
-
-    monkeypatch.setattr(service, "_read_external_source", fake_read)
+    monkeypatch.setattr(
+        service,
+        "_latest_local_validation_data",
+        lambda _source: _local_workbook(workbook),
+    )
     result = asyncio.run(service.snapshot_candidates(str(source["id"]), user))
 
-    assert read_count == 1
     assert {item["sourceProduct"]["name"] for item in result["candidates"]} == {
         "Tehran mouse",
         "Shiraz keyboard",
@@ -400,14 +483,15 @@ def test_shared_rule_api_selects_two_worksheets_ignores_third_and_reads_once(
     assert all("یادداشت‌ها" not in item["sourceRowKey"] for item in result["candidates"])
 
 
-def test_source_preview_business_summary_uses_distinct_product_and_attention_identities(
+def test_source_preview_business_summary_uses_source_keys_not_duplicate_names(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     db = _session()
     user = _user_and_channels(db)
     service = SourceWorkspaceService(db)
     source = _external_source(service, user)
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         worksheet_mode="all",
@@ -446,25 +530,23 @@ def test_source_preview_business_summary_uses_distinct_product_and_attention_ide
         ]
     }
 
-    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(id="preview-snapshot", version_seq=1),
-            worksheets=workbook,
-        )
-
-    monkeypatch.setattr(service, "_read_external_source", fake_read)
+    monkeypatch.setattr(
+        service,
+        "_latest_local_validation_data",
+        lambda _source: _local_workbook(workbook),
+    )
     preview = asyncio.run(
         service.source_preview(str(source["id"]), user, page=1, page_size=100)
     )
 
     assert preview["recognized"] == 2
     assert preview["businessSummary"] == {
-        "productsFound": 1,
-        "productsReady": 1,
+        "productsFound": 2,
+        "productsReady": 2,
         "priceChanges": None,
         "stockChanges": None,
         "unchanged": None,
-        "needsAttention": 1,
+        "needsAttention": 2,
         "channelsReady": 1,
         "channelsNotConfigured": 3,
     }
@@ -477,7 +559,8 @@ def test_source_preview_marks_a_recognized_row_with_an_issue_as_attention(
     user = _user_and_channels(db)
     service = SourceWorkspaceService(db)
     source = _external_source(service, user)
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         worksheet_mode="all",
@@ -509,13 +592,13 @@ def test_source_preview_marks_a_recognized_row_with_an_issue_as_attention(
         user=user,
     )
 
-    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(id="preview-snapshot", version_seq=1),
-            worksheets={"Pricing": [["Name", "ID", "Price"], ["Cable", "wc-1", "100"]]},
-        )
-
-    monkeypatch.setattr(service, "_read_external_source", fake_read)
+    monkeypatch.setattr(
+        service,
+        "_latest_local_validation_data",
+        lambda _source: _local_workbook(
+            {"Pricing": [["Name", "ID", "Price"], ["Cable", "wc-1", "100"]]}
+        ),
+    )
     preview = asyncio.run(
         service.source_preview(str(source["id"]), user, page=1, page_size=100)
     )
@@ -540,18 +623,17 @@ def test_unsaved_mapping_preview_resolves_rows_without_persisting_or_invalidatin
     source = _external_source(service, user)
     source_version = int(source["version"])
 
-    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(id="unsaved-preview-snapshot", version_seq=1),
-            worksheets={
-                "Pricing": [
-                    ["Name", "Woo ID", "Woo Price", "Snapp ID", "Snapp Price", "Snapp Stock", "Snapp Status"],
-                    ["Cable", "wc-1", "100", "snap-1", "125", "9", "instock"],
-                ]
-            },
-        )
-
-    monkeypatch.setattr(service, "_read_external_source", fake_read)
+    local_rows = {
+        "Pricing": [
+            ["Name", "Woo ID", "Woo Price", "Snapp ID", "Snapp Price", "Snapp Stock", "Snapp Status"],
+            ["Cable", "wc-1", "100", "snap-1", "125", "9", "instock"],
+        ]
+    }
+    monkeypatch.setattr(
+        service,
+        "_latest_local_validation_data",
+        lambda _source: _local_workbook(local_rows),
+    )
     preview = asyncio.run(
         service.preview_unsaved_mapping(
             source_id=str(source["id"]),
@@ -564,6 +646,12 @@ def test_unsaved_mapping_preview_resolves_rows_without_persisting_or_invalidatin
                     "field": "name",
                     "reference_type": "column_letter",
                     "reference_value": "A",
+                },
+                {
+                    "field": "source_key",
+                    "reference_type": "column_letter",
+                    "reference_value": "B",
+                    "required": True,
                 }
             ],
             channel_mappings=[
@@ -609,6 +697,8 @@ def test_unsaved_mapping_preview_resolves_rows_without_persisting_or_invalidatin
                 },
             ],
             value_policy={},
+            identity_policy_version=2,
+            identity_authority=_TEST_IDENTITY_AUTHORITY,
             user=user,
         )
     )
@@ -631,7 +721,7 @@ def test_unsaved_mapping_preview_resolves_rows_without_persisting_or_invalidatin
     assert persisted_source.version == source_version
 
 
-def test_cross_worksheet_duplicates_block_unless_last_sheet_wins_is_explicit() -> None:
+def test_cross_worksheet_duplicate_names_are_allowed_with_unique_v2_keys() -> None:
     db = _session()
     user = _user_and_channels(db)
     service = SourceWorkspaceService(db)
@@ -652,7 +742,8 @@ def test_cross_worksheet_duplicates_block_unless_last_sheet_wins_is_explicit() -
         ],
         "value_policy": {},
     }
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         duplicate_product_policy="block",
@@ -665,16 +756,18 @@ def test_cross_worksheet_duplicates_block_unless_last_sheet_wins_is_explicit() -
     }
     mapping = service.sources.latest_mapping(str(source["id"]))
     assert mapping is not None
-    blocked = service._mapped_external_records(workbook, mapping)
-    assert not any(item["recognized"] for item in blocked)
-    assert sum(
-        issue["category"] == "duplicate_source_product"
-        for item in blocked
+    blocked_policy_records = service._mapped_external_records(workbook, mapping)
+    assert sum(item["recognized"] for item in blocked_policy_records) == 2
+    assert not [
+        issue
+        for item in blocked_policy_records
         for issue in item["issues"]
-    ) == 2
+        if issue["category"] == "duplicate_source_product_key"
+    ]
 
     current = service.get_source(str(source["id"]), user)
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=str(source["id"]),
         expected_source_version=int(current["version"]),
         duplicate_product_policy="last_sheet_wins",
@@ -685,8 +778,8 @@ def test_cross_worksheet_duplicates_block_unless_last_sheet_wins_is_explicit() -
     assert mapping is not None
     resolved = service._mapped_external_records(workbook, mapping)
     recognized = [item for item in resolved if item["recognized"]]
-    assert len(recognized) == 1
-    assert recognized[0]["worksheetName"] == "Second"
+    assert len(recognized) == 2
+    assert {item["worksheetName"] for item in recognized} == {"First", "Second"}
 
 
 def test_flowhub_018_mapping_without_rule_set_remains_shared_compatible() -> None:
@@ -747,7 +840,8 @@ def test_backend_rejects_single_participant_with_per_worksheet_strategy() -> Non
     service = SourceWorkspaceService(db)
     source = _external_source(service, user)
     with pytest.raises(HTTPException) as error:
-        service.save_mapping(
+        _save_v2_mapping(
+            service,
             source_id=str(source["id"]), expected_source_version=int(source["version"]),
             worksheet_mode="selected", worksheet_name="Retail", selected_worksheet_names=["Retail"],
             data_start_row=2, source_fields=[], channel_mappings=[], value_policy={},
@@ -767,7 +861,8 @@ def test_backend_rejects_scope_rule_mismatch() -> None:
         "channel_mappings": [{"channel_id": "woocommerce:primary", "fields": [{"field": "external_id", "reference_type": "column_letter", "reference_value": "B"}]}],
     } for name in ("Retail", "Stale")]
     with pytest.raises(HTTPException) as error:
-        service.save_mapping(
+        _save_v2_mapping(
+            service,
             source_id=str(source["id"]), expected_source_version=int(source["version"]),
             worksheet_mode="selected", worksheet_name=None, selected_worksheet_names=["Retail", "Marketplace"],
             data_start_row=2, source_fields=[], channel_mappings=[], value_policy={},
@@ -781,7 +876,8 @@ def test_source_product_key_is_authoritative_and_names_may_repeat() -> None:
     user = _user_and_channels(db)
     service = SourceWorkspaceService(db)
     source = _external_source(service, user)
-    service.save_mapping(
+    _save_v2_mapping(
+        service,
         source_id=str(source["id"]), expected_source_version=int(source["version"]),
         worksheet_mode="all", worksheet_name=None, data_start_row=2,
         source_fields=[
@@ -809,9 +905,89 @@ def test_source_product_key_is_authoritative_and_names_may_repeat() -> None:
     assert blank[0]["issues"][0]["category"] == "missing_source_product_key"
 
 
-def test_woocommerce_product_id_can_be_both_source_key_and_listing_identifier(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_cost_only_row_participates_in_identity_validation_but_blank_row_is_ignored() -> None:
+    db = _session()
+    user = _user_and_channels(db)
+    service = SourceWorkspaceService(db)
+    source = _external_source(service, user)
+    _save_v2_mapping(
+        service,
+        source_id=str(source["id"]),
+        expected_source_version=int(source["version"]),
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=2,
+        source_fields=[
+            {
+                "field": "name",
+                "reference_type": "column_letter",
+                "reference_value": "A",
+                "required": True,
+            },
+            {
+                "field": "source_key",
+                "reference_type": "column_letter",
+                "reference_value": "B",
+                "required": True,
+            },
+            {
+                "field": "cost",
+                "reference_type": "column_letter",
+                "reference_value": "D",
+                "required": False,
+            },
+        ],
+        channel_mappings=[
+            {
+                "channel_id": "woocommerce:primary",
+                "fields": [
+                    {
+                        "field": "external_id",
+                        "reference_type": "column_letter",
+                        "reference_value": "C",
+                    }
+                ],
+            }
+        ],
+        value_policy={},
+        user=user,
+    )
+    mapping = service.sources.latest_mapping(str(source["id"]))
+    assert mapping is not None
+
+    records = service._mapped_external_records(
+        {
+            "Retail": [
+                ["Name", "Key", "ID", "Cost"],
+                ["", "", "", "125000"],
+                ["", "", "", ""],
+            ]
+        },
+        mapping,
+    )
+
+    assert len(records) == 2
+    assert records[0]["recognized"] is False
+    assert {issue["category"] for issue in records[0]["issues"]} == {
+        "missing_source_identity",
+        "missing_source_product_key",
+    }
+    assert records[1]["recognized"] is False
+    assert records[1]["issues"] == []
+    identity = service._identity_preview_summary(
+        records,
+        mapping=mapping,
+        validation_source={"kind": "source_observation"},
+    )
+    assert identity["status"] == "blocked"
+    assert identity["participatingRowCount"] == 1
+    assert identity["missingKeyCount"] == 1
+    assert identity["missingRows"] == [
+        {"worksheetName": "Retail", "rowNumber": 2}
+    ]
+
+
+def test_woocommerce_product_id_can_be_both_source_key_and_listing_identifier() -> None:
     db = _session()
     user = _user_and_channels(db)
     service = SourceWorkspaceService(db)
@@ -834,45 +1010,27 @@ def test_woocommerce_product_id_can_be_both_source_key_and_listing_identifier(
         }],
         "value_policy": {},
         "identity_policy_version": 2,
+        "identity_authority": {
+            "type": "external_system",
+            "system_identifier": "woocommerce",
+            "display_label": "WooCommerce / Website",
+        },
         "user": user,
     }
 
-    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(id="woocommerce-identity-preview", version_seq=1),
-            worksheets={
-                "Retail": [
-                    ["Website Product ID", "Product Name"],
-                    ["1001", "USB-C Cable"],
-                    ["1002", "USB-C Cable"],
-                ],
-            },
-        )
-
-    monkeypatch.setattr(service, "_read_external_source", fake_read)
     preview = asyncio.run(service.preview_unsaved_mapping(**payload))
-    assert preview["identityValidation"] == {
-        "status": "pass",
-        "validKeyCount": 2,
-        "missingKeyCount": 0,
-        "duplicateKeyCount": 0,
-    }
-    assert not [
-        issue
-        for item in preview["items"]
-        for issue in item["issues"]
-        if issue["category"] in {"missing_source_product_key", "duplicate_source_product_key"}
-    ]
+    assert preview["identityValidation"]["status"] == "pending"
+    assert preview["identityValidation"]["evidence"]["kind"] == "none"
 
     saved = service.save_mapping(**payload)
     source_key = next(field for field in saved["sourceFields"] if field["field"] == "source_key")
     woo_id = next(field for field in saved["channels"][0]["fields"] if field["field"] == "external_id")
     assert source_key["referenceValue"] == woo_id["referenceValue"] == "A"
+    assert saved["identityAuthority"]["systemIdentifier"] == "woocommerce"
+    assert saved["mappingReadiness"] == "identity_validation_pending"
 
 
-def test_v2_mapping_save_requires_a_matching_authoritative_identity_preview(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_v2_mapping_save_does_not_require_or_trigger_remote_preview() -> None:
     db = _session()
     user = _user_and_channels(db)
     service = SourceWorkspaceService(db)
@@ -893,34 +1051,21 @@ def test_v2_mapping_save_requires_a_matching_authoritative_identity_preview(
         }],
         "value_policy": {},
         "identity_policy_version": 2,
+        "identity_authority": {
+            "type": "external_system",
+            "system_identifier": "erp",
+            "display_label": "ERP",
+        },
         "user": user,
     }
-
-    with pytest.raises(HTTPException) as error:
-        service.save_mapping(**payload)
-    assert error.value.detail["code"] == "SOURCE_IDENTITY_VALIDATION_REQUIRED"
-
-    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(id="identity-preview", version_seq=1),
-            worksheets={
-                "Retail": [["Name", "Key", "ID"], ["Mouse", "sku-1", "wc-1"]],
-                "Marketplace": [["Name", "Key", "ID"], ["Mouse", "sku-2", "wc-2"]],
-            },
-        )
-
-    monkeypatch.setattr(service, "_read_external_source", fake_read)
-    preview = asyncio.run(service.preview_unsaved_mapping(**payload))
-    assert preview["businessSummary"]["needsAttention"] == 0
 
     saved = service.save_mapping(**payload)
     source_key = next(field for field in saved["sourceFields"] if field["field"] == "source_key")
     assert source_key["required"] is True
+    assert saved["identityValidation"]["status"] == "pending"
 
 
-def test_v2_mapping_save_rejects_duplicate_keys_found_by_preview(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_v2_local_preview_without_dataset_is_pending_not_blocked_or_remote() -> None:
     db = _session()
     user = _user_and_channels(db)
     service = SourceWorkspaceService(db)
@@ -941,37 +1086,16 @@ def test_v2_mapping_save_rejects_duplicate_keys_found_by_preview(
         }],
         "value_policy": {},
         "identity_policy_version": 2,
+        "identity_authority": {
+            "type": "external_system",
+            "system_identifier": "snappshop",
+            "display_label": "SnappShop",
+        },
         "user": user,
     }
 
-    async def fake_read(*_args: object, **_kwargs: object) -> SimpleNamespace:
-        return SimpleNamespace(
-            snapshot=SimpleNamespace(id="duplicate-preview", version_seq=1),
-            worksheets={
-                "Retail": [["Name", "Key", "ID"], ["Mouse", "same-key", "wc-1"]],
-                "Marketplace": [["Name", "Key", "ID"], ["Keyboard", "same-key", "wc-2"]],
-            },
-        )
-
-    monkeypatch.setattr(service, "_read_external_source", fake_read)
     preview = asyncio.run(service.preview_unsaved_mapping(**payload))
-    conflicts = [
-        issue
-        for item in preview["items"]
-        for issue in item["issues"]
-        if issue["category"] == "duplicate_source_product_key"
-    ]
-    assert len(conflicts) == 2
-    assert conflicts[0]["details"]["conflictingRows"] == ["Retail!2", "Marketplace!2"]
-    assert conflicts[0]["details"]["keyValue"] == "same-key"
-    assert preview["identityValidation"] == {
-        "status": "blocked",
-        "validKeyCount": 0,
-        "missingKeyCount": 0,
-        "duplicateKeyCount": 2,
-    }
-
-    with pytest.raises(HTTPException) as error:
-        service.save_mapping(**payload)
-    assert error.value.detail["code"] == "SOURCE_IDENTITY_VALIDATION_REQUIRED"
-    assert len(error.value.detail["details"]["conflicts"]) == 2
+    assert preview["identityValidation"]["status"] == "pending"
+    assert preview["identityValidation"]["validKeyCount"] is None
+    saved = service.save_mapping(**payload)
+    assert saved["identityValidation"]["status"] == "pending"
