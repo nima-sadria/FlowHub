@@ -264,3 +264,58 @@ def test_helper_start_and_restart_wait_for_readiness():
     assert "run_compose up -d" in src
     assert "run_compose restart" in src
     assert src.count("wait_for_app_health 60") >= 2
+
+
+def test_migration_head_verification_has_no_hardcoded_revision():
+    src = _helper_src()
+    # A hard-coded revision (e.g. "FLOWHUB_031") makes the check permanently
+    # stale the moment a new migration ships. The verification must compare
+    # two values discovered live from the running app container instead.
+    assert "FLOWHUB_031" not in src
+    assert "FLOWHUB_036" not in src
+    assert "current_migration_applied" in src
+    assert "current_migration_head" in src
+    assert 'expected="$(current_migration_head)"' in src
+    assert 'applied="$(current_migration_applied)"' in src
+    assert '[[ "$applied" == "$expected" ]]' in src
+
+
+def test_current_migration_applied_reads_db_state_not_code_head():
+    src = _helper_src()
+    assert "alembic -c alembic_flowhub.ini current" in src
+    assert "alembic -c alembic_flowhub.ini heads" in src
+
+
+def test_safe_upgrade_refuses_on_dirty_tree_wrong_branch_or_divergence():
+    src = _helper_src()
+    assert "safe_upgrade" in src
+    assert 'refusing update: tracked source changes are present.' in src
+    assert 'refusing update: expected branch main' in src
+    assert 'refusing update: local main diverges from origin/main' in src
+    assert "--ff-only" in src
+
+
+def test_deploy_current_migrates_before_swapping_runtime_containers():
+    src = _helper_src()
+    assert "deploy_current" in src
+    build_idx = src.index("run_compose build app")
+    migrate_idx = src.index("run_compose run --rm flowhub-migrate")
+    swap_idx = src.index("--force-recreate app order-sync-runner exchange-rate-runner")
+    assert build_idx < migrate_idx < swap_idx, "must build, then migrate, before replacing running containers"
+    assert "flowhub-owner-review-current" in src
+
+
+def test_run_installer_upgrade_uses_safe_upgrade_not_install_sh_reset_hard():
+    src = _helper_src()
+    assert "upgrade) safe_upgrade ;;" in src
+    assert 'upgrade) bash "${INSTALL_DIR}/installer/install.sh" --upgrade ;;' not in src
+    assert "deploy-current) deploy_current ;;" in src
+
+
+def test_git_and_docker_operations_run_as_the_checkout_owner_not_root():
+    src = _helper_src()
+    assert "run_as_operator" in src
+    assert "operator_user" in src
+    # run_compose must route through the operator, not invoke docker/docker
+    # compose directly as root.
+    assert 'run_as_operator ${dc} --project-directory' in src

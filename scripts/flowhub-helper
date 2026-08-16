@@ -35,6 +35,31 @@ load_env() {
     set +a
 }
 
+# The unprivileged account that owns the checkout. git/docker-compose
+# operations run as this user (not as root, even though this helper itself
+# runs with root privileges) so that git objects, Docker CLI config, and
+# build caches stay owned by the same account that normally operates them.
+# Override with FLOWHUB_OPERATOR_USER for installs where the checkout owner
+# differs from who should run these commands.
+operator_user() {
+    if [[ -n "${FLOWHUB_OPERATOR_USER:-}" ]]; then
+        echo "$FLOWHUB_OPERATOR_USER"
+        return
+    fi
+    stat -c '%U' "$INSTALL_DIR" 2>/dev/null || echo root
+}
+
+run_as_operator() {
+    local user home
+    user="$(operator_user)"
+    if [[ "$user" == "root" ]]; then
+        "$@"
+        return
+    fi
+    home="$(getent passwd "$user" 2>/dev/null | cut -d: -f6)"
+    sudo -u "$user" -H env HOME="${home:-/root}" "$@"
+}
+
 compose_cmd() {
     if docker compose version >/dev/null 2>&1; then
         echo "docker compose"
@@ -48,7 +73,7 @@ compose_cmd() {
 run_compose() {
     local dc
     dc="$(compose_cmd)"
-    ${dc} --project-directory "$INSTALL_DIR" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+    run_as_operator ${dc} --project-directory "$INSTALL_DIR" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
 }
 
 health_url() {
@@ -154,10 +179,69 @@ docker_state() {
 
 version_commit() {
     if [[ -d "${INSTALL_DIR}/.git" ]]; then
-        git -C "$INSTALL_DIR" -c safe.directory="$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown"
+        run_as_operator git -C "$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown"
     else
         echo "unknown"
     fi
+}
+
+# ---- Upgrade path (fetch/fast-forward + build/migrate/swap, keeps .env) ----
+#
+# Refuses on a dirty tree, a non-main branch, or local commits that diverge
+# from origin/main (fail closed rather than discarding operator work).
+# Migrations run before the running app/runner containers are replaced, so a
+# migration failure never leaves half-upgraded runtime containers in place.
+safe_upgrade() {
+    local status branch counts ahead behind head
+    status="$(run_as_operator git -C "$INSTALL_DIR" status --porcelain --untracked-files=no)"
+    [[ -z "$status" ]] || die "refusing update: tracked source changes are present."
+    branch="$(run_as_operator git -C "$INSTALL_DIR" branch --show-current)"
+    [[ "$branch" == "main" ]] || die "refusing update: expected branch main, found ${branch:-detached}."
+    run_as_operator git -C "$INSTALL_DIR" fetch origin --prune || die "git fetch failed."
+    counts="$(run_as_operator git -C "$INSTALL_DIR" rev-list --left-right --count HEAD...origin/main)"
+    read -r ahead behind <<<"$counts"
+    [[ "$ahead" == "0" ]] || die "refusing update: local main diverges from origin/main (ahead ${ahead}, behind ${behind})."
+    run_as_operator git -C "$INSTALL_DIR" pull --ff-only origin main || die "fast-forward pull failed."
+    head="$(run_as_operator git -C "$INSTALL_DIR" rev-parse HEAD)"
+    [[ -n "$head" ]] || die "could not verify resulting Git HEAD."
+    deploy_current
+    echo "Update complete at ${head}."
+}
+
+# Build the current checkout's image, migrate the database, then swap the
+# running containers onto the new image. If a previous manual rollback left
+# a "flowhub-owner-review-current" container around, it is stopped before the
+# swap and removed only once the new runtime is confirmed healthy; if the
+# swap itself fails, that legacy container is restarted as a fallback.
+deploy_current() {
+    local legacy="flowhub-owner-review-current"
+    run_compose build app || die "image build failed."
+    run_compose run --rm flowhub-migrate || die "migration failed; runtime was not replaced."
+    if run_as_operator docker container inspect "$legacy" >/dev/null 2>&1; then
+        run_as_operator docker stop "$legacy" || die "could not stop current runtime."
+    fi
+    if ! run_compose up -d --no-deps --force-recreate app order-sync-runner exchange-rate-runner; then
+        run_as_operator docker start "$legacy" >/dev/null 2>&1 || true
+        die "runtime restart failed; attempted to restore the previous runtime."
+    fi
+    if run_as_operator docker container inspect "$legacy" >/dev/null 2>&1; then
+        run_as_operator docker rm "$legacy" >/dev/null || die "new runtime is healthy but old runtime cleanup failed."
+    fi
+    wait_for_app_health 60 || die "runtime health check failed."
+    verify_migration_head
+}
+
+# Compares the migration revision actually applied to the database against
+# the head the *currently deployed* code declares (both discovered live from
+# the running app container, never hard-coded) so this check keeps working
+# unmodified across every future migration, not just the one head that
+# happened to be current when this function was written.
+verify_migration_head() {
+    local expected applied
+    expected="$(current_migration_head)"
+    applied="$(current_migration_applied)"
+    [[ -n "$expected" ]] || die "migration head verification failed: could not determine the code's migration head."
+    [[ "$applied" == "$expected" ]] || die "migration head verification failed: database is at '${applied:-none}', code expects '${expected}'."
 }
 
 run_app_cli() {
@@ -180,7 +264,12 @@ run_installer() {
     local mode="${1:-}"
     case "$mode" in
         install) bash "${INSTALL_DIR}/installer/install.sh" ;;
-        upgrade) bash "${INSTALL_DIR}/installer/install.sh" --upgrade ;;
+        # Deliberately not installer/install.sh's own --upgrade path: that
+        # path resets the tracked tree hard to origin/main unconditionally.
+        # safe_upgrade refuses on divergence/dirty tree and migrates before
+        # swapping the running containers.
+        upgrade) safe_upgrade ;;
+        deploy-current) deploy_current ;;
         repair) bash "${INSTALL_DIR}/installer/install.sh" --repair ;;
         reinstall) bash "${INSTALL_DIR}/installer/install.sh" --reinstall ;;
         uninstall) bash "${INSTALL_DIR}/installer/install.sh" --uninstall ;;
@@ -194,8 +283,18 @@ backup_manifest() {
     python3 "${INSTALL_DIR}/app/flowhub/backup/manifest.py" "$@"
 }
 
+# The migration head declared by the code currently in the deployed app
+# image (reads the Alembic version scripts baked into that image - not the
+# database). Whatever revision is newest in alembic_flowhub/versions/ at
+# build time is what this reports, automatically, with nothing to update
+# here when a new migration is added.
 current_migration_head() {
     run_compose exec -T app alembic -c alembic_flowhub.ini heads 2>/dev/null | awk 'NR == 1 { print $1 }'
+}
+
+# The migration revision actually applied to the database right now.
+current_migration_applied() {
+    run_compose exec -T app alembic -c alembic_flowhub.ini current 2>/dev/null | awk 'NR == 1 { print $1 }'
 }
 
 create_backup() {
