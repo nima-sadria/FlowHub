@@ -25,6 +25,7 @@ from .models import FlowHubAppConfig
 _SECRET_KEYS: frozenset[str] = frozenset({
     "woocommerce.key",
     "woocommerce.secret",
+    "woocommerce.webhook_secret",
     "nextcloud.password",
     "snappshop.token",
     "tapsishop.token",

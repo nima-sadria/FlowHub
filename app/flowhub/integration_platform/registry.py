@@ -54,6 +54,7 @@ _DEFINITIONS: dict[str, ConnectorDefinition] = {
             ConnectorSettingDefinition(key="url", label="Store URL", required=True),
             ConnectorSettingDefinition(key="key", label="Consumer key", required=True, secret=True),
             ConnectorSettingDefinition(key="secret", label="Consumer secret", required=True, secret=True),
+            ConnectorSettingDefinition(key="webhook_secret", label="Webhook secret", required=False, secret=True),
         ],
         diagnostics_contract=_diagnostics(
             ("settings", "configuration"),

@@ -3409,6 +3409,8 @@ class CommerceHubService:
             pairs["woocommerce.key"] = str(secrets["key"])
         if secrets.get("secret"):
             pairs["woocommerce.secret"] = str(secrets["secret"])
+        if secrets.get("webhook_secret"):
+            pairs["woocommerce.webhook_secret"] = str(secrets["webhook_secret"])
         if pairs:
             self.integration.config.set_many(
                 pairs,

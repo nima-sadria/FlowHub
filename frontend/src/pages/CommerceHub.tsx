@@ -349,6 +349,7 @@ function fieldLabel(kind: FormKind, provider: string, key: string, fallback: str
   if (kind === 'channel' && provider === 'woocommerce' && key === 'url') return translate('commerce:commerceHub.fields.storeUrl')
   if (kind === 'channel' && provider === 'woocommerce' && key === 'key') return translate('commerce:commerceHub.fields.consumerKey')
   if (kind === 'channel' && provider === 'woocommerce' && key === 'secret') return translate('commerce:commerceHub.fields.consumerSecret')
+  if (kind === 'channel' && provider === 'woocommerce' && key === 'webhook_secret') return translate('commerce:commerceHub.fields.webhookSecret')
   if (kind === 'channel' && provider === 'tapsishop') {
     const labels: Record<string, string> = {
       base_url: translate('commerce:commerceHub.fields.tapsishopBaseUrl'),
@@ -1744,6 +1745,21 @@ export function ConfigPanel({
               {vendorInformation.reference_code && <p className="fh-text-caption">{translate('commerce:commerceHub.storeNumber')} {vendorInformation.reference_code}</p>}
             </div>
           )}
+        </div>
+      )}
+
+      {kind === "channel" && selected.provider === "woocommerce" && (
+        <div className="fh-form-section">
+          <div>
+            <p className="fh-form-section-title">{translate('commerce:commerceHub.webhookRegistration')}</p>
+            <p className="fh-form-section-description">{translate('commerce:commerceHub.registerThisUrlInWoocommerceTheWebhook')}</p>
+            <p className="fh-form-section-description">{translate('commerce:commerceHub.woocommerceProductWebhooksOnly')}</p>
+          </div>
+          <label className="fh-field">
+            <span className="fh-help-text">{translate('commerce:commerceHub.webhookUrl')}</span>
+            <input readOnly value={`${window.location.origin}/api/v2/webhooks/woocommerce/${encodeURIComponent(selected.id)}`} className="fh-input" />
+          </label>
+          <p className="fh-help-text">{translate('commerce:commerceHub.webhookCredential')} {configuredSecret("webhook_secret") ? translate('commerce:commerceHub.configured') : translate('commerce:commerceHub.notConfigured2')}</p>
         </div>
       )}
 

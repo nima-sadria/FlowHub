@@ -249,8 +249,10 @@ class DiagnosticsPolicyCatalog:
             "data_layer_product_cache_policy",
         )
 
+    _WEBHOOK_SUPPORTED_PROVIDERS = frozenset({"tapsishop", "woocommerce"})
+
     def webhook(self, provider: str) -> CapabilityPolicy:
-        if provider != "tapsishop":
+        if provider not in self._WEBHOOK_SUPPORTED_PROVIDERS:
             return CapabilityPolicy(
                 ScheduleMode.NOT_APPLICABLE,
                 False,
@@ -259,7 +261,7 @@ class DiagnosticsPolicyCatalog:
                 "channel_capability_contract",
             )
         ttl = _env_positive_int(
-            "FLOWHUB_TAPSISHOP_WEBHOOK_EVIDENCE_TTL_SECONDS",
+            f"FLOWHUB_{provider.upper()}_WEBHOOK_EVIDENCE_TTL_SECONDS",
             self._WEBHOOK_EVIDENCE_TTL_SECONDS,
         )
         return CapabilityPolicy(
@@ -267,7 +269,7 @@ class DiagnosticsPolicyCatalog:
             True,
             None,
             ttl,
-            "tapsishop_webhook_contract",
+            f"{provider}_webhook_contract",
         )
 
     def runner_heartbeat_ttl_seconds(self) -> int:
@@ -715,13 +717,14 @@ class CanonicalDiagnosticsProjector:
         coming_soon: bool,
         instance: IntegrationConnectorInstance | None,
     ) -> dict[str, Any]:
-        supported = provider == "tapsishop"
+        supported = provider in {"tapsishop", "woocommerce"}
+        webhook_secret_setting_key = "webhook_token" if provider == "tapsishop" else "webhook_secret"
         webhook_enabled = bool(
-            instance and self._setting_configured(instance, "webhook_token")
+            instance and self._setting_configured(instance, webhook_secret_setting_key)
         )
         policy = self.policies.webhook(provider)
         receipts = (
-            self.db.query(WebhookReceipt).filter_by(channel_id=channel_id).all()
+            self.db.query(WebhookReceipt).filter_by(channel_id=channel_id, provider=provider).all()
             if supported and self._table_exists(WebhookReceipt)
             else []
         )
@@ -733,7 +736,7 @@ class CanonicalDiagnosticsProjector:
             if item.processing_state in {"queued", "retry_scheduled"}
         )
         dead_letters = (
-            self.db.query(WebhookDeadLetter).filter_by(channel_id=channel_id).count()
+            self.db.query(WebhookDeadLetter).filter_by(channel_id=channel_id, provider=provider).count()
             if supported and self._table_exists(WebhookDeadLetter)
             else 0
         )

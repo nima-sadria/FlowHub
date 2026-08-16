@@ -278,6 +278,22 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL WooCommerce webhook concurrency tests
+        id: postgres-woocommerce-webhook-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-wc-webhooks-junit.xml \
+            tests/flowhub/webhooks/test_woocommerce_webhooks_postgres.py 2>&1 | tee postgres-wc-webhooks-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-wc-webhooks-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-wc-webhooks-junit.xml woocommerce-webhooks | tee postgres-wc-webhooks-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-wc-webhooks-junit.xml' | tee postgres-wc-webhooks-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: Hard-process crash recovery tests
         id: postgres-crash-tests
         run: |
@@ -340,6 +356,9 @@ jobs:
             postgres-orders-junit.xml
             postgres-orders-output.log
             postgres-orders-manifest.log
+            postgres-wc-webhooks-junit.xml
+            postgres-wc-webhooks-output.log
+            postgres-wc-webhooks-manifest.log
             postgres-crash-junit.xml
             postgres-crash-output.log
             postgres-crash-manifest.log

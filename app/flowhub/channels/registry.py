@@ -61,6 +61,7 @@ def default_marketplace_registry() -> MarketplaceConnectorRegistry:
             capabilities=frozenset({
                 ChannelCapability.PRODUCTS_READ,
                 ChannelCapability.PRODUCTS_WRITE_PRICE,
+                ChannelCapability.PRODUCTS_WEBHOOK_RECEIVE,
                 ChannelCapability.ORDERS_READ,
                 ChannelCapability.ORDERS_EVENTS_POLL,
                 ChannelCapability.ORDERS_WEBHOOK_RECEIVE,

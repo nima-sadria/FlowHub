@@ -67,7 +67,7 @@ async def test_archived_disabled_and_coming_soon_never_produce_provider_io(
         calls.append(f"connection:{instance.id}")
         return {}
 
-    async def products(self, channel_id):
+    async def products(self, channel_id, **kwargs):
         calls.append(f"products:{channel_id}")
         return {}
 
@@ -118,7 +118,7 @@ async def test_due_connection_and_explicit_product_schedule_execute_once(
         calls.append(f"connection:{instance.id}")
         return {"connectorId": instance.id, "status": "connected"}
 
-    async def products(self, channel_id):
+    async def products(self, channel_id, **kwargs):
         calls.append(f"products:{channel_id}")
         return {"channelId": channel_id, "status": "completed"}
 
@@ -157,7 +157,7 @@ async def test_current_evidence_and_unscheduled_products_do_not_execute(
         calls.append(instance.id)
         return {}
 
-    async def products(self, channel_id):
+    async def products(self, channel_id, **kwargs):
         calls.append(channel_id)
         return {}
 

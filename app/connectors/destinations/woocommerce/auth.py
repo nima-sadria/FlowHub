@@ -11,6 +11,16 @@ from app.connectors.common.auth import AuthConfig
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 
 
+# Inbound webhook signature secret. Deliberately kept distinct from the
+# outbound REST `key`/`secret` pair above: WooCommerce issues a separate
+# secret when a webhook is registered in wp-admin, and it authenticates a
+# different direction of traffic (WooCommerce -> FlowHub, not FlowHub ->
+# WooCommerce). Never fold this into WooCommerceCredentials, which is used
+# exclusively by rest_client.py for outbound REST calls.
+WOOCOMMERCE_WEBHOOK_SECRET_APP_CONFIG_KEY = "woocommerce.webhook_secret"
+WOOCOMMERCE_WEBHOOK_SECRET_SETTING_KEY = "webhook_secret"
+
+
 @dataclass(frozen=True)
 class WooCommerceCredentials:
     url: str          # base store URL, trailing slash stripped

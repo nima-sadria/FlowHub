@@ -24,6 +24,7 @@ from app.flowhub.diagnostics.state_model import (
 )
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.webhooks.service import WebhookIngestionService
 
 
 class ScheduledDiagnosticsEvaluator:
@@ -79,14 +80,32 @@ class ScheduledDiagnosticsEvaluator:
             if instance.connector_type in SOURCE_CONNECTOR_TYPES:
                 continue
             product_policy = self.policies.product_sync(instance.connector_type)
-            if (
+            scheduled_poll_due = (
                 product_policy.mode == ScheduleMode.SCHEDULED
                 and product_policy.enabled
                 and product_policy.interval_seconds is not None
                 and self._supports_products(instance)
                 and self._product_due(instance.id, product_policy.interval_seconds, now)
-            ):
-                product_results.append(await self._sync_products(instance.id))
+            )
+            # WooCommerce product webhooks are event-driven evidence, kept
+            # independent of the scheduled/manual polling policy above (the
+            # safety-net axis). A queued webhook receipt makes a refresh due
+            # right now regardless of the polling interval; the refresh
+            # itself still goes through the exact same
+            # CommerceHubService.refresh_channel_cache -> read adapter path
+            # the scheduled poll uses, so there is no parallel identity
+            # mapping. Receipts are only marked processed after that refresh
+            # actually completes.
+            pending_woocommerce_receipt_ids: list[int] = []
+            if instance.connector_type == "woocommerce" and self._supports_products(instance):
+                with self.session_factory() as db:
+                    pending_woocommerce_receipt_ids = WebhookIngestionService(db).pending_woocommerce_receipt_ids(
+                        instance.id
+                    )
+            if scheduled_poll_due or pending_woocommerce_receipt_ids:
+                product_results.append(
+                    await self._sync_products(instance.id, webhook_receipt_ids=pending_woocommerce_receipt_ids)
+                )
 
         return {
             "connectionChecks": connection_results,
@@ -149,7 +168,9 @@ class ScheduledDiagnosticsEvaluator:
                     "externalCallPerformed": False,
                 }
 
-    async def _sync_products(self, channel_id: str) -> dict[str, Any]:
+    async def _sync_products(
+        self, channel_id: str, *, webhook_receipt_ids: list[int] | None = None
+    ) -> dict[str, Any]:
         with self.session_factory() as db:
             try:
                 result = await CommerceHubService(db).refresh_channel_cache(
@@ -157,13 +178,31 @@ class ScheduledDiagnosticsEvaluator:
                     "diagnostics-runner",
                     job_type="scheduled",
                 )
+                ok = str(result.get("status") or "unknown") in {"completed", "completed_with_warnings"}
+                if webhook_receipt_ids:
+                    service = WebhookIngestionService(db)
+                    for receipt_id in webhook_receipt_ids:
+                        if ok:
+                            service.mark_woocommerce_receipt_processed(receipt_id)
+                        else:
+                            service.mark_woocommerce_receipt_failed(
+                                receipt_id, "temporary", str(result.get("error") or "product cache refresh failed")
+                            )
                 return {
                     "channelId": channel_id,
                     "status": str(result.get("status") or "unknown"),
                     "externalWritePerformed": False,
+                    "webhookReceiptsProcessed": len(webhook_receipt_ids or []),
                 }
             except Exception as exc:
                 db.rollback()
+                if webhook_receipt_ids:
+                    service = WebhookIngestionService(db)
+                    for receipt_id in webhook_receipt_ids:
+                        try:
+                            service.mark_woocommerce_receipt_failed(receipt_id, "temporary", str(exc))
+                        except Exception:
+                            db.rollback()
                 return {
                     "channelId": channel_id,
                     "status": "failed",

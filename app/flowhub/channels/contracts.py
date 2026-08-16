@@ -22,6 +22,7 @@ class ChannelCapability(str, Enum):
     ORDERS_READ = "orders.read"
     ORDERS_EVENTS_POLL = "orders.events.poll"
     ORDERS_WEBHOOK_RECEIVE = "orders.webhook.receive"
+    PRODUCTS_WEBHOOK_RECEIVE = "products.webhook.receive"
     CREDENTIALS_REFRESH = "credentials.refresh"
     COURIER_READ = "courier.read"
     COURIER_REVIEW = "courier.review"
