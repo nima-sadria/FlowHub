@@ -40,6 +40,11 @@ function renderAt(path: string, { collapsed = false, open = true, onExpand = () 
 }
 
 describe('Sidebar Settings active state', () => {
+  it('labels the liveness-only indicator truthfully', () => {
+    renderAt('/home')
+    expect(container.textContent).toContain('Platform online')
+    expect(container.textContent).not.toContain('All systems operational')
+  })
   it('closes the mobile drawer with Escape and restores trigger focus in RTL', () => {
     document.documentElement.dir = 'rtl'
     function DrawerHarness() {

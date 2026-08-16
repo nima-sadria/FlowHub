@@ -191,9 +191,14 @@ INTERNAL_TERM_PATTERNS = {
     ),
     "frontend/src/i18n/locales/fa/commerce.json": (
         r'"commerceHub\.channelDocs\.searchPlaceholder":',
+        r'"commerceHub\.passwordConfiguredPlaceholder":',
+        r'"commerceHub\.passwordPlaceholder":',
         r'"commerceHub\.spreadsheetResourcePlaceholder":',
     ),
     "frontend/src/i18n/locales/en/settings.json": (
+        r'"users\.passwordPlaceholder":',
+    ),
+    "frontend/src/i18n/locales/fa/settings.json": (
         r'"users\.passwordPlaceholder":',
     ),
     "frontend/src/features/pricingMatrix/api.ts": (
@@ -209,6 +214,7 @@ INTERNAL_TERM_PATTERNS = {
         r"(Next|Previous) sample row",
         r"Sample \{\{current\}\} of \{\{total\}\}",
         r'msgctxt "pricing:productGroupEditor\.memberPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.channelDocs\.searchPlaceholder"',
         r'msgctxt "commerce:commerceHub\.passwordConfiguredPlaceholder"',
         r'msgctxt "commerce:commerceHub\.passwordPlaceholder"',
         r'msgctxt "settings:users\.passwordPlaceholder"',
@@ -220,6 +226,7 @@ INTERNAL_TERM_PATTERNS = {
         r"(Next|Previous) sample row",
         r"Sample \{\{current\}\} of \{\{total\}\}",
         r'msgctxt "pricing:productGroupEditor\.memberPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.channelDocs\.searchPlaceholder"',
         r'msgctxt "commerce:commerceHub\.passwordConfiguredPlaceholder"',
         r'msgctxt "commerce:commerceHub\.passwordPlaceholder"',
         r'msgctxt "settings:users\.passwordPlaceholder"',
@@ -231,6 +238,7 @@ INTERNAL_TERM_PATTERNS = {
         r"(Next|Previous) sample row",
         r"Sample \{\{current\}\} of \{\{total\}\}",
         r'msgctxt "pricing:productGroupEditor\.memberPlaceholder"',
+        r'msgctxt "commerce:commerceHub\.channelDocs\.searchPlaceholder"',
         r'msgctxt "commerce:commerceHub\.passwordConfiguredPlaceholder"',
         r'msgctxt "commerce:commerceHub\.passwordPlaceholder"',
         r'msgctxt "settings:users\.passwordPlaceholder"',

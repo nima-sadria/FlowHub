@@ -93,6 +93,7 @@ class SnappShopProductSyncService:
         retry_attempts: int = 2,
         page_delay_seconds: float = 1.1,
         rate_limit_backoff_seconds: float = 30.0,
+        job_type: str = "manual",
     ) -> SnappShopProductSyncResult:
         if not connector.config.vendor_id:
             raise ValueError("A selected SnappShop vendor is required before product synchronization.")
@@ -103,14 +104,14 @@ class SnappShopProductSyncService:
 
         started = _utcnow()
         job = DlRefreshJob(
-            job_type="manual",
+            job_type=job_type,
             entity_type="products",
             connector_id=connector.channel_id,
             status="running",
             triggered_by=actor,
             started_at=started,
             created_at=started,
-            meta={"provider": "snappshop", "vendor_id": connector.config.vendor_id},
+            meta={"provider": "snappshop", "vendor_id": connector.config.vendor_id, "automatic_sync": job_type == "scheduled"},
         )
         self.db.add(job)
         self.db.commit()

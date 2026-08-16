@@ -109,6 +109,7 @@ class MarketplaceProductSyncService:
         retry_attempts: int = 2,
         page_delay_seconds: float = 1.0,
         rate_limit_backoff_seconds: float = 30.0,
+        job_type: str = "manual",
     ) -> MarketplaceProductSyncResult:
         if page_size < 1 or max_pages < 1:
             raise ValueError("Marketplace product synchronization limits must be positive.")
@@ -118,14 +119,14 @@ class MarketplaceProductSyncService:
         started = _utcnow()
         provider = connector.connector_type
         job = DlRefreshJob(
-            job_type="manual",
+            job_type=job_type,
             entity_type="products",
             connector_id=connector.channel_id,
             status="running",
             triggered_by=actor,
             started_at=started,
             created_at=started,
-            meta={"provider": provider},
+            meta={"provider": provider, "automatic_sync": job_type == "scheduled"},
         )
         self.db.add(job)
         self.db.commit()

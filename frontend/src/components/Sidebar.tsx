@@ -127,7 +127,7 @@ const NAV_GROUPS: NavGroup[] = [
 ]
 
 const HEALTH_FOOTER: Record<HealthStatus, { dotClass: string; labelKey: string }> = {
-  ok: { dotClass: 'fh-status-dot-success', labelKey: 'navigation:sidebar.allSystemsOperational' },
+  ok: { dotClass: 'fh-status-dot-success', labelKey: 'navigation:sidebar.platformOnline' },
   loading: { dotClass: 'fh-status-dot-neutral', labelKey: 'common:status.checking' },
   error: { dotClass: 'fh-status-dot-error', labelKey: 'common:status.offline' },
 }

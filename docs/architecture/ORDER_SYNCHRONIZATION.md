@@ -48,6 +48,12 @@ connector instances and applies connector capabilities before doing work:
 - `orders.read`: reconciliation from provider order APIs.
 - `orders.webhook.receive`: pending TapsiShop webhook receipt processing.
 
+The loop is also the execution host for scheduled Diagnostics evidence. When
+`FLOWHUB_SCHEDULED_DIAGNOSTICS_ENABLED=true`, it evaluates provider-aware
+connection TTLs and explicit product-sync intervals. Diagnostics reads do not
+invoke this work, and lifecycle/configuration guards exclude archived,
+disabled, Coming Soon, and incomplete resources before provider I/O.
+
 One channel failure is recorded as an order-sync event and does not stop other
 channels. Normal runner logs and Integration Platform events must not include
 credentials, authorization headers, customer phone numbers, national IDs, or
@@ -68,6 +74,16 @@ the global defaults for that channel.
 - `FLOWHUB_ORDER_SYNC_RECONCILE_PAGE_SIZE`
 - `FLOWHUB_ORDER_SYNC_WEBHOOK_BATCH_SIZE`
 - `FLOWHUB_ORDER_SYNC_OPERATION_TIMEOUT_SECONDS`
+- `FLOWHUB_SCHEDULED_DIAGNOSTICS_ENABLED`
+- `FLOWHUB_<PROVIDER>_CONNECTION_HEALTH_ENABLED`
+- `FLOWHUB_<PROVIDER>_CONNECTION_HEALTH_INTERVAL_SECONDS`
+- `FLOWHUB_<PROVIDER>_CONNECTION_HEALTH_FRESHNESS_TTL_SECONDS`
+- `FLOWHUB_<PROVIDER>_PRODUCT_SYNC_ENABLED`
+- `FLOWHUB_<PROVIDER>_PRODUCT_SYNC_INTERVAL_SECONDS`
+- `FLOWHUB_<PROVIDER>_PRODUCT_SYNC_FRESHNESS_TTL_SECONDS`
+
+Product synchronization requires both its provider-specific enabled flag and a
+positive interval. Missing legacy values are intentionally `NOT_SCHEDULED`.
 
 ## Leases
 

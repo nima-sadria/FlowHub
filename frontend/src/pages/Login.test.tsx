@@ -77,7 +77,7 @@ describe('Login', () => {
     expect(container.textContent).not.toContain('Remember me')
     expect(container.textContent).not.toContain('Forgot password?')
     expect(container.textContent).toContain('Need access? Contact your workspace Owner.')
-    expect(container.textContent).toContain('نیما صدریا. تمامی حقوق محفوظ است. 1405')
+    expect(container.textContent).toContain('Nima Sadria. All rights reserved. 1405')
     expect(container.textContent).toContain('FlowHub')
     expect(container.querySelector('[aria-label="FlowHub"]')?.getAttribute('dir')).toBe('ltr')
     expect(container.querySelector('input[type="checkbox"]')).toBeNull()

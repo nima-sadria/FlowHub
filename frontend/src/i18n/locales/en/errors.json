@@ -9,6 +9,6 @@
   "codes.SELECTION_CHECKSUM_MISMATCH": "The confirmed selection changed. Review and confirm it again.",
   "codes.SOURCE_READ_LIMIT_REACHED": "The Source read limit was reached. Try again after the allowance resets.",
   "codes.STALE_REVIEW": "This Review is stale. Generate a new Review before Apply.",
-  "codes.unsafe_destination": "The configured source destination is blocked by the Source network safety policy.",
-  "codes.UNKNOWN": "The request could not be completed."
+  "codes.UNKNOWN": "The request could not be completed.",
+  "codes.unsafe_destination": "The configured source destination is blocked by the Source network safety policy."
 }

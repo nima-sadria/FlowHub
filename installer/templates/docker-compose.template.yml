@@ -36,6 +36,8 @@ services:
     command: ["python", "-m", "app.flowhub.orders.runner"]
     env_file:
       - .env
+    environment:
+      FLOWHUB_SCHEDULED_DIAGNOSTICS_ENABLED: ${FLOWHUB_SCHEDULED_DIAGNOSTICS_ENABLED:-true}
     volumes:
       - ./storage:/data/storage
       - ./backups:/data/backups

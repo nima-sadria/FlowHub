@@ -466,6 +466,29 @@ export default function Dashboard() {
 
   // -- Unified channel + source health -------------------------------------
   const combinedHealthRows = useMemo<HealthRow[]>(() => {
+    const canonical = channelHealth?.stateModel
+    if (canonical) {
+      const tierFor = (readiness: string): ResourceTier => readiness === 'ARCHIVED'
+        ? 'archived'
+        : readiness === 'COMING_SOON'
+          ? 'comingSoon'
+          : readiness === 'DISABLED'
+            ? 'disabled'
+            : readiness === 'READY'
+              ? 'configured'
+              : 'attention'
+      return canonical.resources
+        .map(resource => ({
+          id: `${resource.kind.toLowerCase()}:${resource.id}`,
+          entityType: resource.kind === 'SOURCE' ? 'Source' as const : 'Channel' as const,
+          name: resource.displayName,
+          detail: `${translate(resource.kind === 'SOURCE' ? 'commerce:type.source' : 'commerce:type.channel')} · ${translate(`diagnostics:canonicalState.${resource.readiness.state}`)} · ${translate(`diagnostics:canonicalState.${resource.freshness.state}`)}`,
+          tone: resource.readiness.state === 'READY' ? 'success' as const : 'warning' as const,
+          tier: tierFor(resource.readiness.state),
+          onClick: () => navigate('/diagnostics'),
+        }))
+        .sort((left, right) => TIER_RANK[left.tier] - TIER_RANK[right.tier])
+    }
     const channelRows: HealthRow[] = orderedChannels.ordered.map(resource => {
       const channel = resource.item
       const tone: HealthRow['tone'] = resource.badge === 'healthy' || resource.badge === 'configured' ? 'success' : 'warning'
@@ -496,12 +519,19 @@ export default function Dashboard() {
       }
     })
     return [...channelRows, ...sourceRows].sort((left, right) => TIER_RANK[left.tier] - TIER_RANK[right.tier])
-  }, [orderedChannels, orderedSources, navigate])
+  }, [channelHealth, orderedChannels, orderedSources, navigate])
 
   const sourceWarnings = orderedSources.ordered.filter(resource => resource.tier === 'attention').length
   const combinedWarnings = channelWarnings + sourceWarnings
   const combinedBlocking = channelBlocking
-  const healthBadge = combinedBlocking > 0
+  const canonicalOverall = channelHealth?.stateModel?.overallState
+  const healthBadge = canonicalOverall
+    ? canonicalOverall === 'ERROR' || canonicalOverall === 'BLOCKED'
+      ? { variant: 'error' as const, label: translate(`diagnostics:canonicalState.${canonicalOverall}`) }
+      : canonicalOverall === 'NEEDS_ATTENTION'
+        ? { variant: 'warning' as const, label: translate('diagnostics:canonicalState.NEEDS_ATTENTION') }
+        : { variant: 'success' as const, label: translate('diagnostics:canonicalState.HEALTHY') }
+    : combinedBlocking > 0
     ? { variant: 'error' as const, label: translate('dashboard:dashboard.blockingCountBadge', { count: combinedBlocking, value: formatNumber(combinedBlocking) }) }
     : combinedWarnings > 0
       ? { variant: 'warning' as const, label: translate('dashboard:dashboard.warningCountBadge', { count: combinedWarnings, value: formatNumber(combinedWarnings) }) }

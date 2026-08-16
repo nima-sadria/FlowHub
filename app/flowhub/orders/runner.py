@@ -32,6 +32,7 @@ from app.flowhub.channels.tapsishop import TapsiShopConfig, TapsiShopConnector
 from app.flowhub.channels.technolife import TechnolifeConfig, TechnolifeConnector
 from app.flowhub.channels.woocommerce import WooCommerceOrderConnector
 from app.flowhub.database import _get_engine
+from app.flowhub.diagnostics.scheduling import ScheduledDiagnosticsEvaluator
 from app.flowhub.integration_platform.models import (
     IntegrationConnectorEvent,
     IntegrationConnectorInstance,
@@ -62,6 +63,7 @@ class OrderSyncRunnerSettings:
     reconciliation_page_size: int
     tapsishop_webhook_batch_size: int
     operation_timeout_seconds: int
+    scheduled_diagnostics_enabled: bool = False
 
     @classmethod
     def from_env(cls) -> OrderSyncRunnerSettings:
@@ -75,6 +77,9 @@ class OrderSyncRunnerSettings:
             reconciliation_page_size=_env_int("FLOWHUB_ORDER_SYNC_RECONCILE_PAGE_SIZE", 50),
             tapsishop_webhook_batch_size=_env_int("FLOWHUB_ORDER_SYNC_WEBHOOK_BATCH_SIZE", 100),
             operation_timeout_seconds=_env_int("FLOWHUB_ORDER_SYNC_OPERATION_TIMEOUT_SECONDS", 60),
+            scheduled_diagnostics_enabled=_env_bool(
+                "FLOWHUB_SCHEDULED_DIAGNOSTICS_ENABLED", False
+            ),
         )
 
 
@@ -85,11 +90,17 @@ class OrderSyncRunner:
         *,
         settings: OrderSyncRunnerSettings | None = None,
         runner_id: str | None = None,
+        diagnostics_evaluator: ScheduledDiagnosticsEvaluator | None = None,
     ) -> None:
         self.session_factory = session_factory
         self.settings = settings or OrderSyncRunnerSettings.from_env()
         self.runner_id = runner_id or f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:12]}"
         self._registry = default_marketplace_registry()
+        self._diagnostics_evaluator = diagnostics_evaluator or (
+            ScheduledDiagnosticsEvaluator(session_factory)
+            if self.settings.scheduled_diagnostics_enabled
+            else None
+        )
         self._stop = asyncio.Event()
 
     def stop(self) -> None:
@@ -98,7 +109,7 @@ class OrderSyncRunner:
     async def serve_forever(self) -> None:
         LOGGER.info("order_sync_runner_started", extra={"runner_id": self.runner_id, "enabled": self.settings.enabled})
         while not self._stop.is_set():
-            if self.settings.enabled:
+            if self.settings.enabled or self._diagnostics_evaluator is not None:
                 await self.run_once()
             else:
                 self._record_runner_heartbeat("disabled")
@@ -111,7 +122,7 @@ class OrderSyncRunner:
 
     async def run_once(self) -> dict[str, Any]:
         self._record_runner_heartbeat("running")
-        channels = self._discover_channels()
+        channels = self._discover_channels() if self.settings.enabled else []
         results: list[dict[str, Any]] = []
         for channel in channels:
             try:
@@ -129,8 +140,18 @@ class OrderSyncRunner:
                     "order_sync_channel_failed",
                     extra={"channel_id": channel.id, "connector_type": channel.connector_type, "category": _error_category(exc)},
                 )
+        diagnostics = (
+            await self._diagnostics_evaluator.run_once()
+            if self._diagnostics_evaluator is not None
+            else None
+        )
         self._record_runner_heartbeat("idle")
-        return {"runnerId": self.runner_id, "channels": len(channels), "results": results}
+        return {
+            "runnerId": self.runner_id,
+            "channels": len(channels),
+            "results": results,
+            "diagnostics": diagnostics,
+        }
 
     def _discover_channels(self) -> list[IntegrationConnectorInstance]:
         with self.session_factory() as db:
@@ -404,12 +425,35 @@ class OrderSyncRunner:
         return TechnolifeConnector(channel_id=channel_id, config=config)
 
     def _record_runner_heartbeat(self, state: str) -> None:
-        self._record_event(
-            "flowhub:order-sync-runner",
-            RUNNER_EVENT_NAME,
-            f"Order sync runner heartbeat: {state}.",
-            {"runner_id": self.runner_id, "state": state},
-        )
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        with self.session_factory() as db:
+            latest = (
+                db.query(IntegrationConnectorEvent)
+                .filter_by(
+                    connector_id="flowhub:order-sync-runner",
+                    event_name=RUNNER_EVENT_NAME,
+                )
+                .order_by(IntegrationConnectorEvent.created_at.desc())
+                .first()
+            )
+            latest_metadata = latest.metadata_json if latest and isinstance(latest.metadata_json, dict) else {}
+            if latest is not None and latest_metadata.get("runner_id") == self.runner_id:
+                latest.severity = "info"
+                latest.message = f"Integration background runner heartbeat: {state}."
+                latest.metadata_json = {"runner_id": self.runner_id, "state": state}
+                latest.created_at = now
+            else:
+                db.add(
+                    IntegrationConnectorEvent(
+                        connector_id="flowhub:order-sync-runner",
+                        event_name=RUNNER_EVENT_NAME,
+                        severity="info",
+                        message=f"Integration background runner heartbeat: {state}.",
+                        metadata_json={"runner_id": self.runner_id, "state": state},
+                        created_at=now,
+                    )
+                )
+            db.commit()
 
     def _record_event(self, connector_id: str, event_name: str, message: str, metadata: dict, *, severity: str = "info") -> None:
         with self.session_factory() as db:

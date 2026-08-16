@@ -377,11 +377,11 @@ pending -> running -> completed
 - Same connector_id + entity_type cannot have two `running` jobs simultaneously
 - New manual trigger for a running job returns the existing job ID
 
-**Current state (DL1):** Table and service exist. No automated Data Layer
-refresh-job creation exists yet; jobs are created manually through
-`RefreshJobService.create()`. This restriction does not apply to the separate
-Integration Platform `order-sync-runner`, which normalizes marketplace orders
-without scheduling Data Layer refresh jobs.
+**Current state (DL1):** Table and service exist. Manual refresh jobs remain the
+default. The separate Integration Platform `order-sync-runner` may also create
+`scheduled` product refresh jobs only when the connector-specific Diagnostics
+policy is explicitly enabled and interval-configured. It does not schedule
+Source acquisition, pricing, marketplace writes, or Apply.
 
 ---
 

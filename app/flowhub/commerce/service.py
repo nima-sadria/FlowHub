@@ -354,6 +354,7 @@ class CommerceHubService:
         actor: str,
         *,
         before_cache_write: Callable[[str, str], None] | None = None,
+        job_type: str = "manual",
     ) -> dict:
         meta = self._channel_meta(channel_id)
         if self._is_coming_soon(meta):
@@ -366,9 +367,9 @@ class CommerceHubService:
             )
         provider = str(meta["provider"])
         if provider == "snappshop" and not bool(meta.get("placeholder")):
-            return await self._refresh_snappshop_channel_cache(channel_id, actor)
+            return await self._refresh_snappshop_channel_cache(channel_id, actor, job_type=job_type)
         if provider in {"tapsishop", "technolife"} and not bool(meta.get("placeholder")):
-            return await self._refresh_marketplace_channel_cache(channel_id, actor)
+            return await self._refresh_marketplace_channel_cache(channel_id, actor, job_type=job_type)
         if provider != "woocommerce" or bool(meta.get("placeholder")):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Product cache refresh is not available for this channel.")
         instance = self.db.get(IntegrationConnectorInstance, meta["id"])
@@ -379,13 +380,15 @@ class CommerceHubService:
             )
 
         started = datetime.now(timezone.utc).replace(tzinfo=None)
+        trigger_label = "Scheduled" if job_type == "scheduled" else "Manual"
         adapter: WooCommerceProductReadAdapter | None = None
         self.integration.record_event(
             connector_id=channel_id,
             event_name="product_cache_refresh_started",
-            message="Manual WooCommerce product cache refresh started.",
+            message=f"{trigger_label} WooCommerce product cache refresh started.",
             metadata={
                 "actor": actor,
+                "job_type": job_type,
                 "read_only": True,
                 "external_write": False,
                 "stock_write": False,
@@ -402,6 +405,7 @@ class CommerceHubService:
                 triggered_by=actor,
                 force_full=True,
                 before_cache_write=before_cache_write,
+                job_type=job_type,
             )
             warnings = list(adapter.warnings)
             result_status = "completed_with_warnings" if warnings else "completed"
@@ -420,8 +424,8 @@ class CommerceHubService:
             self.integration.record_event(
                 connector_id=channel_id,
                 event_name="product_cache_refresh_completed",
-                message="Manual WooCommerce product cache refresh completed.",
-                metadata={**result, "actor": actor, "external_write": False},
+                message=f"{trigger_label} WooCommerce product cache refresh completed.",
+                metadata={**result, "actor": actor, "job_type": job_type, "external_write": False},
             )
             return result
 
@@ -444,13 +448,13 @@ class CommerceHubService:
             self.integration.record_event(
                 connector_id=channel_id,
                 event_name="product_cache_refresh_failed",
-                message="Manual WooCommerce product cache refresh failed.",
+                message=f"{trigger_label} WooCommerce product cache refresh failed.",
                 severity="error",
-                metadata={**result, "actor": actor, "external_write": False},
+                metadata={**result, "actor": actor, "job_type": job_type, "external_write": False},
             )
             return result
 
-    async def _refresh_snappshop_channel_cache(self, channel_id: str, actor: str) -> dict:
+    async def _refresh_snappshop_channel_cache(self, channel_id: str, actor: str, *, job_type: str = "manual") -> dict:
         instance = self.db.get(IntegrationConnectorInstance, channel_id)
         if instance is None or not instance.enabled:
             raise HTTPException(
@@ -477,6 +481,7 @@ class CommerceHubService:
             rate_limit_backoff_seconds=_env_float(
                 "FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_RATE_LIMIT_BACKOFF_SECONDS", 30.0, minimum=1.0, maximum=60.0
             ),
+            job_type=job_type,
         )
         payload = {
             **result.as_dict(),
@@ -489,7 +494,7 @@ class CommerceHubService:
         }
         return payload
 
-    async def _refresh_marketplace_channel_cache(self, channel_id: str, actor: str) -> dict:
+    async def _refresh_marketplace_channel_cache(self, channel_id: str, actor: str, *, job_type: str = "manual") -> dict:
         instance = self.db.get(IntegrationConnectorInstance, channel_id)
         if instance is None or not instance.enabled:
             raise HTTPException(
@@ -545,6 +550,7 @@ class CommerceHubService:
                 minimum=1.0,
                 maximum=60.0,
             ),
+            job_type=job_type,
         )
         payload = {
             **result.as_dict(),

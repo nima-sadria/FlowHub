@@ -73,6 +73,7 @@ class IncrementalReadEngine:
         triggered_by: str = "manual",
         force_full: bool = False,
         before_cache_write: Callable[[str, str], None] | None = None,
+        job_type: str = "manual",
     ) -> ReadProgress:
         strategy = "initial_full_read" if force_full else self.determine_strategy(adapter)
         job = self._resume_or_create_job(
@@ -80,6 +81,7 @@ class IncrementalReadEngine:
             strategy,
             triggered_by,
             resume_pending=not force_full,
+            job_type=job_type,
         )
         job.status = "running"
         job.started_at = job.started_at or datetime.now(timezone.utc).replace(tzinfo=None)
@@ -242,6 +244,7 @@ class IncrementalReadEngine:
         triggered_by: str,
         *,
         resume_pending: bool = True,
+        job_type: str = "manual",
     ) -> DlRefreshJob:
         existing = (
             self.db.query(DlRefreshJob)
@@ -257,7 +260,7 @@ class IncrementalReadEngine:
             existing.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
             self.db.commit()
         job = DlRefreshJob(
-            job_type="manual",
+            job_type=job_type,
             entity_type="products",
             connector_id=connector_id,
             status="pending",
@@ -265,8 +268,8 @@ class IncrementalReadEngine:
             meta={
                 "strategy": strategy,
                 "force_full": not resume_pending,
-                "scheduler_started": False,
-                "automatic_sync": False,
+                "scheduler_started": job_type == "scheduled",
+                "automatic_sync": job_type == "scheduled",
             },
             created_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )

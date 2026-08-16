@@ -194,7 +194,12 @@ async def test_runner_discovers_enabled_channels_filters_capabilities_and_record
     with session_factory() as db:
         assert db.query(_order_models.ChannelOrderRecord).filter_by(channel_id="snappshop:main").count() == 1
         assert db.query(_webhook_models.WebhookReceipt).filter_by(channel_id="tapsishop:main", processing_state="processed").count() == 1
-        assert db.query(_integration_models.IntegrationConnectorEvent).filter_by(connector_id="flowhub:order-sync-runner", event_name="order_sync_runner_heartbeat").count() >= 2
+        heartbeats = db.query(_integration_models.IntegrationConnectorEvent).filter_by(
+            connector_id="flowhub:order-sync-runner",
+            event_name="order_sync_runner_heartbeat",
+        ).all()
+        assert len(heartbeats) == 1
+        assert heartbeats[0].metadata_json["state"] == "idle"
         assert db.query(_order_models.ChannelOrderRecord).filter_by(channel_id="snappshop:disabled").count() == 0
 
 

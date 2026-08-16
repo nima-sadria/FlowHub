@@ -140,6 +140,47 @@ function channelHealthPayload() {
   }
 }
 
+function canonicalStateModel() {
+  const now = new Date().toISOString()
+  const capability = (freshness: string, outcome = 'SUCCESSFUL') => ({
+    support: 'SUPPORTED_ENABLED', freshness,
+    schedule: { mode: 'SCHEDULED', enabled: true, intervalSeconds: 3600, jitterSeconds: 0, policySource: 'test' },
+    lastAttemptAt: now, lastSuccessAt: now, lastOutcome: outcome, nextExpectedAt: now,
+    required: true, policy: { freshnessTtlSeconds: 7200, source: 'test' }, evidenceKey: 'test',
+  })
+  const channel = {
+    id: 'woocommerce:primary', kind: 'CHANNEL', provider: 'woocommerce', displayName: 'WooCommerce', lifecycle: 'ACTIVE', enabled: true, configured: true, denominatorEligible: true,
+    connectivity: { state: 'HEALTHY', freshness: 'FRESH', lastVerifiedAt: now, lastCheckedAt: now },
+    readiness: { state: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale' }, freshness: { state: 'STALE' }, overallState: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale',
+    recommendedAction: { code: 'NEXT_PRODUCT_SYNC_SCHEDULED', scheduledAt: now, actionable: true }, latestRelevantAt: now,
+    capabilities: {
+      connectionVerification: capability('FRESH'),
+      productSynchronization: capability('STALE'),
+      productCache: { ...capability('STALE'), cachedItemCount: 7597 },
+      orderSynchronization: capability('FRESH'),
+      webhookProcessing: { ...capability('NOT_APPLICABLE'), support: 'NOT_SUPPORTED', required: false },
+      providerAcquisition: { ...capability('NOT_APPLICABLE'), support: 'NOT_SUPPORTED', required: false },
+    },
+    advancedEvidence: [{ key: 'data_layer_health', label: 'Connection health record', value: 'healthy', recordedAt: now }],
+  }
+  const archived = {
+    ...channel, id: 'source-legacy', connectorId: 'nextcloud:legacy', kind: 'SOURCE', provider: 'nextcloud', displayName: 'Nextcloud — Archived legacy source', lifecycle: 'ARCHIVED', enabled: false, denominatorEligible: false,
+    connectivity: { state: 'NOT_APPLICABLE', freshness: 'NOT_APPLICABLE', lastVerifiedAt: null, lastCheckedAt: null }, readiness: { state: 'ARCHIVED', reasonCode: 'source_archived' }, freshness: { state: 'NOT_APPLICABLE' }, overallState: 'HEALTHY', reasonCode: 'source_archived', recommendedAction: { code: 'NO_ACTION_REQUIRED', scheduledAt: null, actionable: false },
+  }
+  const comingSoon = {
+    ...channel, id: 'digikala:main', kind: 'CHANNEL', provider: 'digikala', displayName: 'Digikala', lifecycle: 'COMING_SOON', enabled: false, denominatorEligible: false,
+    connectivity: { state: 'NOT_APPLICABLE', freshness: 'NOT_APPLICABLE', lastVerifiedAt: null, lastCheckedAt: null }, readiness: { state: 'COMING_SOON', reasonCode: 'channel_coming_soon' }, freshness: { state: 'NOT_APPLICABLE' }, overallState: 'HEALTHY', reasonCode: 'channel_coming_soon', recommendedAction: { code: 'NO_ACTION_REQUIRED', scheduledAt: null, actionable: false },
+  }
+  return {
+    schemaVersion: 'diagnostics-state-v1', generatedAt: now, overallState: 'NEEDS_ATTENTION',
+    summary: { overallState: 'NEEDS_ATTENTION', channels: { ready: 0, operational: 1, needsAttention: 1, blocked: 0, disabled: 0, comingSoon: 1 }, sources: { ready: 0, active: 0, needsAttention: 0, blocked: 0, disabled: 0, archived: 1 } },
+    resources: [channel, archived, comingSoon],
+    backgroundJobs: [{ id: 'flowhub:order-sync-runner', displayName: 'Integration background runner', state: 'IDLE', health: 'HEALTHY', required: true, lastHeartbeatAt: now, heartbeatTtlSeconds: 180, runnerId: 'runner', lastSuccessfulJobAt: now, queueDepth: 0, lastFailureAt: null, lastFailureCode: null }],
+    recentChecks: [{ id: channel.id, kind: channel.kind, displayName: channel.displayName, provider: channel.provider, lifecycle: channel.lifecycle, connectivity: 'HEALTHY', readiness: 'NEEDS_ATTENTION', freshness: 'STALE', state: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale', recordedAt: now }],
+    consumerStates: { diagnostics: 'NEEDS_ATTENTION', dashboard: 'NEEDS_ATTENTION', sidebar: 'NEEDS_ATTENTION' }, externalCallPerformed: false,
+  }
+}
+
 beforeEach(() => {
   container = document.createElement('div')
   document.body.appendChild(container)
@@ -945,5 +986,37 @@ describe('Diagnostics', () => {
     const recentText = recentSection?.textContent ?? ''
     expect(recentText.indexOf('TapsiShop')).toBeLessThan(recentText.indexOf('WooCommerce'))
     expect(c.querySelector('.fh-alert-warning')?.textContent).toContain('Accepted webhook receipts are waiting for processing.')
+  })
+
+  it('renders canonical readiness, freshness, denominators, lifecycle groups, and advanced evidence', async () => {
+    const model = canonicalStateModel()
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: model.overallState,
+          checkedAt: model.generatedAt,
+          checks: [],
+          connectors: [],
+          channelHealth: { ...channelHealthPayload(), stateModel: model },
+          stateModel: model,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+
+    expect(c.textContent).toContain('0 of 1 operational Channels ready')
+    expect(c.textContent).toContain('1 Coming Soon')
+    expect(c.textContent).toContain('1 Archived')
+    expect(c.textContent).toContain('Operational readiness')
+    expect(c.textContent).toContain('Product synchronization')
+    expect(c.textContent).toContain('Stale')
+    expect(c.textContent).toContain('7,597')
+    expect(c.textContent).toContain('Historical Sources')
+    expect(c.textContent).toContain('Nextcloud — Archived legacy source')
+    expect(c.textContent).toContain('Non-operational Channels')
+    expect(c.textContent).toContain('Advanced evidence')
+    expect(c.textContent).not.toContain('All systems operational')
   })
 })

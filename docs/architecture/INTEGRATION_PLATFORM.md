@@ -81,8 +81,9 @@ Supported transport families:
 - Webhooks must not directly mutate products. They may validate, record, and
   enqueue an invalidation or refresh event after Owner-approved runtime work.
 - Marketplace order polling and reconciliation run in the separate
-  `order-sync-runner`. Data Layer product/source refresh scheduling remains a
-  separate future concern.
+  `order-sync-runner`. That existing loop also evaluates due Diagnostics
+  connection evidence and explicitly configured product synchronization.
+  Source acquisition remains unscheduled; no second scheduler exists.
 
 ## Commerce Hub 1.0.0 Contract
 

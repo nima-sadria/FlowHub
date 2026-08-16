@@ -47,6 +47,7 @@ DEFAULT_CHANNEL_IDS = (
     "technolife:main",
     "digikala:main",
 )
+from app.flowhub.diagnostics.state_model import CanonicalDiagnosticsProjector
 COMING_SOON_CHANNEL_IDS = frozenset({"digikala:main"})
 SOURCE_CONNECTOR_TYPES = frozenset({"nextcloud", "csv", "gsheets", "erp"})
 CONNECTION_TEST_CHANNEL_TYPES = frozenset(
@@ -54,8 +55,6 @@ CONNECTION_TEST_CHANNEL_TYPES = frozenset(
 )
 HEALTH_CACHE_SECONDS = 60
 EXTERNAL_CHECK_TIMEOUT_SECONDS = 8.0
-STALE_SYNC_AFTER = timedelta(hours=24)
-STALE_HEALTH_AFTER = timedelta(hours=24)
 _REFRESH_LOCKS: dict[str, asyncio.Lock] = {}
 logger = logging.getLogger(__name__)
 
@@ -65,10 +64,17 @@ class ChannelHealthReporter:
         self.db = db
 
     def report(self) -> dict[str, Any]:
+        canonical = CanonicalDiagnosticsProjector(self.db).project()
+        canonical_channels = {
+            item["id"]: item
+            for item in canonical["resources"]
+            if item["kind"] == "CHANNEL"
+        }
+        self._canonical_channels = canonical_channels
         items: list[dict[str, Any]] = []
         for channel_id in self._channel_ids():
             try:
-                items.append(self._channel_shape(channel_id))
+                item = self._channel_shape(channel_id)
             except Exception as exc:
                 logger.error(
                     "channel_health_report_failed",
@@ -82,12 +88,15 @@ class ChannelHealthReporter:
                         ],
                     },
                 )
-                items.append(self._unavailable_channel_shape(channel_id))
+                item = self._unavailable_channel_shape(channel_id)
+            item["canonical"] = canonical_channels.get(channel_id)
+            items.append(item)
         return {
             "checkedAt": _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
             "summary": _summary(items),
             "items": items,
             "orderSyncRunner": self._runner_state(),
+            "stateModel": canonical,
             "external_call_performed": False,
         }
 
@@ -240,8 +249,19 @@ class ChannelHealthReporter:
                 is_actionable=not configured,
                 recommended_action="" if configured else "Complete channel configuration.",
             ),
-            "credentials": self._credential_dimension(enabled, credentials_configured, health),
-            "externalApi": self._external_dimension(enabled, configured, health, external_probe_supported),
+            "credentials": self._credential_dimension(
+                enabled,
+                credentials_configured,
+                health,
+                self._canonical_ttl(channel_id, "connectionVerification"),
+            ),
+            "externalApi": self._external_dimension(
+                enabled,
+                configured,
+                health,
+                external_probe_supported,
+                self._canonical_ttl(channel_id, "connectionVerification"),
+            ),
             "readCapability": self._capability_dimension(
                 bool(capability_state.get("read_products") or capability_state.get("read_orders")),
                 "Product or order reads are supported.",
@@ -257,12 +277,19 @@ class ChannelHealthReporter:
                 configured=configured,
                 supported=product_read_supported,
                 last_at=product_read,
+                freshness_ttl_seconds=(
+                    self._canonical_ttl(channel_id, "productSynchronization")
+                    or self._canonical_ttl(channel_id, "productCache")
+                ),
             ),
             "lastOrderSync": self._order_sync_dimension(
                 enabled=enabled,
                 connector_type=connector_type,
                 expected=order_sync_expected,
                 last_at=order_sync,
+                freshness_ttl_seconds=self._canonical_ttl(
+                    channel_id, "orderSynchronization"
+                ),
             ),
             "webhookReceipt": self._webhook_receipt_dimension(webhook),
             "webhookProcessing": self._webhook_processing_dimension(webhook),
@@ -274,6 +301,9 @@ class ChannelHealthReporter:
                 polling_policy,
                 enabled,
                 configured,
+                freshness_ttl_seconds=self._canonical_ttl(
+                    channel_id, "orderSynchronization"
+                ),
             ),
         }
         if connector_type == "snappshop":
@@ -542,6 +572,22 @@ class ChannelHealthReporter:
     def _health(self, channel_id: str) -> DlConnectorHealth | None:
         return self.db.query(DlConnectorHealth).filter_by(connector_id=channel_id).first()
 
+    def _canonical_ttl(self, channel_id: str, capability_key: str) -> int | None:
+        """Read a capability's freshness TTL from the canonical policy catalog.
+
+        `report()` populates `self._canonical_channels` from
+        `CanonicalDiagnosticsProjector` before building any legacy channel
+        shape, so this method reuses that single policy source instead of
+        duplicating TTL rules here.
+        """
+        channel = getattr(self, "_canonical_channels", {}).get(channel_id)
+        if not channel:
+            return None
+        capability = channel.get("capabilities", {}).get(capability_key)
+        if not capability:
+            return None
+        return capability.get("policy", {}).get("freshnessTtlSeconds")
+
     def _configured(self, instance: IntegrationConnectorInstance | None) -> bool:
         if instance is None:
             return False
@@ -634,6 +680,7 @@ class ChannelHealthReporter:
         configured: bool,
         supported: bool,
         last_at: datetime | None,
+        freshness_ttl_seconds: int | None,
     ) -> DiagnosticPresentation:
         if not enabled:
             return _dimension(
@@ -671,24 +718,24 @@ class ChannelHealthReporter:
                 is_actionable=True,
                 recommended_action="Refresh products.",
             )
-        if _is_stale(last_at, STALE_SYNC_AFTER):
+        if _is_stale_seconds(last_at, freshness_ttl_seconds):
             return _dimension(
                 DiagnosticState.WARNING,
-                f"Last successful product sync was {_age_text(last_at)} ago. Expected freshness: within 24 hours.",
+                f"Last successful product sync was {_age_text(last_at)} ago and is outside its configured freshness policy (expected within {_hours(freshness_ttl_seconds)} hours).",
                 reason_code="product_sync_stale",
                 checked_at=_iso(last_at),
                 evidence_source="data_layer_product_cache",
                 is_actionable=True,
                 recommended_action="Refresh products.",
-                freshness_threshold_hours=24,
+                freshness_threshold_hours=_hours(freshness_ttl_seconds),
             )
         return _dimension(
             DiagnosticState.HEALTHY,
-            "Product data was synchronized within the expected 24-hour freshness window.",
+            "Product data was synchronized within its configured freshness policy.",
             reason_code="product_sync_fresh",
             checked_at=_iso(last_at),
             evidence_source="data_layer_product_cache",
-            freshness_threshold_hours=24,
+            freshness_threshold_hours=_hours(freshness_ttl_seconds),
         )
 
     def _order_sync_dimension(
@@ -698,6 +745,7 @@ class ChannelHealthReporter:
         connector_type: str,
         expected: bool,
         last_at: datetime | None,
+        freshness_ttl_seconds: int | None,
     ) -> DiagnosticPresentation:
         if not enabled:
             return _dimension(
@@ -732,16 +780,16 @@ class ChannelHealthReporter:
                 is_actionable=True,
                 recommended_action="Review order synchronization settings.",
             )
-        if _is_stale(last_at, STALE_SYNC_AFTER):
+        if _is_stale_seconds(last_at, freshness_ttl_seconds):
             return _dimension(
                 DiagnosticState.WARNING,
-                f"Last successful order sync was {_age_text(last_at)} ago. Expected freshness: within 24 hours.",
+                f"Last successful order sync was {_age_text(last_at)} ago and is outside its configured freshness policy.",
                 reason_code="order_sync_stale",
                 checked_at=_iso(last_at),
                 evidence_source="order_sync_checkpoint",
                 is_actionable=True,
                 recommended_action="Review order synchronization.",
-                freshness_threshold_hours=24,
+                freshness_threshold_hours=_hours(freshness_ttl_seconds),
             )
         return _dimension(
             DiagnosticState.HEALTHY,
@@ -749,7 +797,7 @@ class ChannelHealthReporter:
             reason_code="order_sync_fresh",
             checked_at=_iso(last_at),
             evidence_source="order_sync_checkpoint",
-            freshness_threshold_hours=24,
+            freshness_threshold_hours=_hours(freshness_ttl_seconds),
         )
 
     def _connector_has_order_sync(self, connector_type: str) -> bool:
@@ -947,7 +995,13 @@ class ChannelHealthReporter:
             "lastProcessedAt": _iso(max((item.processed_at for item in receipts if item.processed_at), default=None)),
         }
 
-    def _credential_dimension(self, enabled: bool, configured: bool, health: DlConnectorHealth | None) -> DiagnosticPresentation:
+    def _credential_dimension(
+        self,
+        enabled: bool,
+        configured: bool,
+        health: DlConnectorHealth | None,
+        freshness_ttl_seconds: int | None,
+    ) -> DiagnosticPresentation:
         if not enabled:
             return _dimension(
                 DiagnosticState.DISABLED,
@@ -986,10 +1040,10 @@ class ChannelHealthReporter:
                 is_actionable=True,
                 recommended_action="Run the connection test to verify credentials.",
             )
-        if _is_stale(health.checked_at, STALE_HEALTH_AFTER):
+        if _is_stale_seconds(health.checked_at, freshness_ttl_seconds):
             return _dimension(
                 DiagnosticState.WARNING,
-                "Credential verification evidence is older than 24 hours.",
+                "Credential verification evidence is outside its configured freshness policy.",
                 reason_code="credential_evidence_expired",
                 checked_at=_iso(health.checked_at),
                 evidence_source="data_layer_health",
@@ -1021,6 +1075,7 @@ class ChannelHealthReporter:
         configured: bool,
         health: DlConnectorHealth | None,
         supported: bool,
+        freshness_ttl_seconds: int | None,
     ) -> DiagnosticPresentation:
         if not enabled:
             return _dimension(
@@ -1058,10 +1113,10 @@ class ChannelHealthReporter:
                 is_actionable=True,
                 recommended_action="Run the connection test.",
             )
-        if _is_stale(health.checked_at, STALE_HEALTH_AFTER):
+        if _is_stale_seconds(health.checked_at, freshness_ttl_seconds):
             return _dimension(
                 DiagnosticState.WARNING,
-                "API health evidence is older than 24 hours.",
+                "API health evidence is outside its configured freshness policy.",
                 reason_code="external_api_evidence_expired",
                 checked_at=_iso(health.checked_at),
                 evidence_source="data_layer_health",
@@ -1390,6 +1445,7 @@ class ChannelHealthReporter:
         policy: IntegrationPollingPolicy | None,
         enabled: bool,
         configured: bool,
+        freshness_ttl_seconds: int | None = None,
     ) -> DiagnosticPresentation:
         if connector_type != "snappshop":
             return _dimension(
@@ -1443,7 +1499,7 @@ class ChannelHealthReporter:
                 is_actionable=True,
                 recommended_action="Review order polling settings.",
             )
-        if _is_stale(checkpoint.last_success_at, STALE_SYNC_AFTER):
+        if _is_stale_seconds(checkpoint.last_success_at, freshness_ttl_seconds):
             return _dimension(
                 DiagnosticState.WARNING,
                 f"Last successful order polling run was {_age_text(checkpoint.last_success_at)} ago.",
@@ -1452,7 +1508,7 @@ class ChannelHealthReporter:
                 evidence_source="order_sync_checkpoint",
                 is_actionable=True,
                 recommended_action="Review order polling.",
-                freshness_threshold_hours=24,
+                freshness_threshold_hours=_hours(freshness_ttl_seconds),
             )
         return _dimension(
             DiagnosticState.HEALTHY,
@@ -1460,7 +1516,7 @@ class ChannelHealthReporter:
             reason_code="polling_healthy",
             checked_at=_iso(checkpoint.last_success_at),
             evidence_source="order_sync_checkpoint",
-            freshness_threshold_hours=24,
+            freshness_threshold_hours=_hours(freshness_ttl_seconds),
         )
 
 
@@ -1622,8 +1678,14 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat() + "Z" if value else None
 
 
-def _is_stale(value: datetime, maximum_age: timedelta) -> bool:
-    return value < datetime.now(timezone.utc).replace(tzinfo=None) - maximum_age
+def _is_stale_seconds(value: datetime | None, ttl_seconds: int | None) -> bool:
+    if value is None or ttl_seconds is None:
+        return False
+    return value < datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=ttl_seconds)
+
+
+def _hours(ttl_seconds: int | None) -> int | None:
+    return round(ttl_seconds / 3_600) if ttl_seconds is not None else None
 
 
 def _age_text(value: datetime) -> str:

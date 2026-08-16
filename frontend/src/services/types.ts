@@ -76,6 +76,73 @@ export interface ChannelHealthItem extends DiagnosticEvidence {
     lastReceivedAt: string | null
     lastProcessedAt: string | null
   }
+  canonical?: CanonicalDiagnosticResource | null
+}
+
+export type ConnectivityState = 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'NOT_APPLICABLE'
+export type ReadinessState = 'READY' | 'NEEDS_ATTENTION' | 'BLOCKED' | 'DISABLED' | 'ARCHIVED' | 'COMING_SOON' | 'NOT_APPLICABLE'
+export type FreshnessState = 'FRESH' | 'STALE' | 'NEVER_RUN' | 'NOT_SCHEDULED' | 'NOT_ENABLED' | 'NOT_APPLICABLE'
+export type CanonicalOverallState = 'ERROR' | 'BLOCKED' | 'NEEDS_ATTENTION' | 'HEALTHY'
+
+export interface CanonicalCapabilityEvidence {
+  support: string
+  freshness: FreshnessState
+  schedule: {
+    mode: string
+    enabled: boolean
+    intervalSeconds: number | null
+    jitterSeconds: number
+    policySource: string
+  }
+  lastAttemptAt: string | null
+  lastSuccessAt: string | null
+  lastOutcome: string
+  nextExpectedAt: string | null
+  required: boolean
+  policy: { freshnessTtlSeconds: number | null; source: string }
+  evidenceKey: string
+  cachedItemCount?: number
+  lastReceivedAt?: string | null
+  lastProcessedAt?: string | null
+  deadLetterCount?: number
+  queuedCount?: number
+}
+
+export interface CanonicalDiagnosticResource {
+  id: string
+  connectorId?: string | null
+  kind: 'CHANNEL' | 'SOURCE'
+  provider: string
+  displayName: string
+  lifecycle: string
+  enabled: boolean
+  configured: boolean
+  denominatorEligible: boolean
+  connectivity: { state: ConnectivityState; freshness: FreshnessState; lastVerifiedAt: string | null; lastCheckedAt: string | null }
+  readiness: { state: ReadinessState; reasonCode: string }
+  freshness: { state: FreshnessState }
+  capabilities: Record<string, CanonicalCapabilityEvidence>
+  overallState: CanonicalOverallState
+  reasonCode: string
+  recommendedAction: { code: string; scheduledAt: string | null; actionable: boolean }
+  latestRelevantAt: string | null
+  advancedEvidence: Array<{ key: string; label: string; value: unknown; recordedAt: string | null }>
+}
+
+export interface CanonicalDiagnosticsStateModel {
+  schemaVersion: string
+  generatedAt: string
+  overallState: CanonicalOverallState
+  summary: {
+    overallState: CanonicalOverallState
+    channels: { ready: number; operational: number; needsAttention: number; blocked: number; disabled: number; comingSoon: number }
+    sources: { ready: number; active: number; needsAttention: number; blocked: number; disabled: number; archived: number }
+  }
+  resources: CanonicalDiagnosticResource[]
+  backgroundJobs: Array<{ id: string; displayName: string; state: string; health: string; required: boolean; lastHeartbeatAt: string | null; heartbeatTtlSeconds: number; runnerId: string | null; lastSuccessfulJobAt: string | null; queueDepth: number; lastFailureAt: string | null; lastFailureCode: string | null }>
+  recentChecks: Array<{ id: string; kind: string; displayName: string; provider: string; lifecycle: string; connectivity: string; readiness: string; freshness: string; state: CanonicalOverallState; reasonCode: string; recordedAt: string | null }>
+  consumerStates: Record<string, CanonicalOverallState>
+  externalCallPerformed: false
 }
 
 export interface ChannelHealthResponse {
@@ -89,6 +156,7 @@ export interface ChannelHealthResponse {
     state_counts?: Partial<Record<DiagnosticState, number>>
   }
   items: ChannelHealthItem[]
+  stateModel?: CanonicalDiagnosticsStateModel
   external_call_performed: boolean
 }
 

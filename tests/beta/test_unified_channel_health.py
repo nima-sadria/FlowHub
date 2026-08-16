@@ -574,7 +574,11 @@ def test_failed_connection_evidence_preserves_successful_sync_timestamps(db):
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     previous_verification = now - timedelta(hours=3)
-    successful_activity = now - timedelta(hours=1)
+    # The canonical order-sync freshness policy for snappshop is derived from
+    # its polling interval (max(interval * 3, 1 hour)); this must stay well
+    # inside that 1-hour window to assert HEALTHY rather than landing on the
+    # policy boundary.
+    successful_activity = now - timedelta(minutes=10)
     _seed_channel(
         db,
         "snappshop:main",

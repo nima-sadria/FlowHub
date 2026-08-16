@@ -26,15 +26,36 @@ function minutesAgoIso(minutes: number): string {
   return new Date(NOW.getTime() - minutes * 60_000).toISOString()
 }
 
+function canonicalStateModel() {
+  const now = minutesAgoIso(1)
+  const capability = (freshness: string, required = true) => ({ support: 'SUPPORTED_ENABLED', freshness, schedule: { mode: 'SCHEDULED', enabled: true, intervalSeconds: 3600, jitterSeconds: 0, policySource: 'visual-test' }, lastAttemptAt: now, lastSuccessAt: now, lastOutcome: 'SUCCESSFUL', nextExpectedAt: now, required, policy: { freshnessTtlSeconds: 7200, source: 'visual-test' }, evidenceKey: 'visual_test' })
+  const channel = {
+    id: 'woocommerce:primary', kind: 'CHANNEL', provider: 'woocommerce', displayName: 'WooCommerce', lifecycle: 'ACTIVE', enabled: true, configured: true, denominatorEligible: true,
+    connectivity: { state: 'HEALTHY', freshness: 'FRESH', lastVerifiedAt: now, lastCheckedAt: now }, readiness: { state: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale' }, freshness: { state: 'STALE' }, overallState: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale', recommendedAction: { code: 'NEXT_PRODUCT_SYNC_SCHEDULED', scheduledAt: now, actionable: true }, latestRelevantAt: now,
+    capabilities: { connectionVerification: capability('FRESH'), productSynchronization: capability('STALE'), productCache: { ...capability('STALE'), cachedItemCount: 7597 }, orderSynchronization: capability('FRESH'), webhookProcessing: { ...capability('NOT_APPLICABLE', false), support: 'NOT_SUPPORTED' }, providerAcquisition: { ...capability('NOT_APPLICABLE', false), support: 'NOT_SUPPORTED' } },
+    advancedEvidence: [{ key: 'data_layer_health', label: 'Connection health record', value: 'healthy', recordedAt: now }],
+  }
+  const source = { ...channel, id: 'source-price-list', connectorId: 'nextcloud:primary', kind: 'SOURCE', provider: 'nextcloud', displayName: 'Nextcloud — Primary catalog', readiness: { state: 'READY', reasonCode: 'source_ready' }, freshness: { state: 'FRESH' }, overallState: 'HEALTHY', reasonCode: 'source_ready', recommendedAction: { code: 'NO_ACTION_REQUIRED', scheduledAt: null, actionable: false } }
+  const archived = { ...source, id: 'source-legacy', connectorId: 'nextcloud:legacy', displayName: 'Nextcloud — Archived legacy', lifecycle: 'ARCHIVED', enabled: false, denominatorEligible: false, connectivity: { state: 'NOT_APPLICABLE', freshness: 'NOT_APPLICABLE', lastVerifiedAt: null, lastCheckedAt: null }, readiness: { state: 'ARCHIVED', reasonCode: 'source_archived' }, freshness: { state: 'NOT_APPLICABLE' }, reasonCode: 'source_archived' }
+  const comingSoon = { ...channel, id: 'digikala:main', provider: 'digikala', displayName: 'Digikala', lifecycle: 'COMING_SOON', enabled: false, denominatorEligible: false, connectivity: { state: 'NOT_APPLICABLE', freshness: 'NOT_APPLICABLE', lastVerifiedAt: null, lastCheckedAt: null }, readiness: { state: 'COMING_SOON', reasonCode: 'channel_coming_soon' }, freshness: { state: 'NOT_APPLICABLE' }, overallState: 'HEALTHY', reasonCode: 'channel_coming_soon', recommendedAction: { code: 'NO_ACTION_REQUIRED', scheduledAt: null, actionable: false } }
+  return { schemaVersion: 'diagnostics-state-v1', generatedAt: now, overallState: 'NEEDS_ATTENTION', summary: { overallState: 'NEEDS_ATTENTION', channels: { ready: 0, operational: 1, needsAttention: 1, blocked: 0, disabled: 0, comingSoon: 1 }, sources: { ready: 1, active: 1, needsAttention: 0, blocked: 0, disabled: 0, archived: 1 } }, resources: [channel, source, archived, comingSoon], backgroundJobs: [{ id: 'flowhub:order-sync-runner', displayName: 'Integration background runner', state: 'IDLE', health: 'HEALTHY', required: true, lastHeartbeatAt: now, heartbeatTtlSeconds: 180, runnerId: 'visual-runner', lastSuccessfulJobAt: now, queueDepth: 0, lastFailureAt: null, lastFailureCode: null }], recentChecks: [{ id: channel.id, kind: channel.kind, displayName: channel.displayName, provider: channel.provider, lifecycle: channel.lifecycle, connectivity: 'HEALTHY', readiness: 'NEEDS_ATTENTION', freshness: 'STALE', state: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale', recordedAt: now }], consumerStates: { diagnostics: 'NEEDS_ATTENTION', dashboard: 'NEEDS_ATTENTION', sidebar: 'NEEDS_ATTENTION' }, externalCallPerformed: false }
+}
+
 async function installDiagnosticsMocks(page: Page, audit: TrafficAudit) {
   await page.route('**/*', async route => {
     const request = route.request()
     const url = new URL(request.url())
     const method = request.method().toUpperCase()
 
+    if (url.hostname === 'static.userback.io') {
+      return route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.Userback={identify:function(){}}' })
+    }
     if (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') {
       audit.externalRequests.push(`${method} ${url.href}`)
       return route.abort('blockedbyclient')
+    }
+    if (url.pathname.startsWith('/static/logos/')) {
+      return route.fulfill({ path: path.resolve('..', decodeURIComponent(url.pathname.slice(1))) })
     }
     if (!url.pathname.startsWith('/api/')) return route.continue()
 
@@ -53,8 +74,10 @@ async function installDiagnosticsMocks(page: Page, audit: TrafficAudit) {
     if (url.pathname === '/api/v2/exchange-rates/me' && method === 'GET') return json(route, { selections: [], rates: [] })
 
     if (url.pathname === '/api/v2/diagnostics/status' && method === 'GET') {
+      const stateModel = canonicalStateModel()
       return json(route, {
-        overall_status: 'ok',
+        overall_status: stateModel.overallState,
+        stateModel,
         checkedAt: minutesAgoIso(1),
         checks: [{ check_name: 'database_connection', category: 'database', target: 'flowhub', status: 'pass', severity: 'info' }],
         connectors: [
@@ -62,6 +85,7 @@ async function installDiagnosticsMocks(page: Page, audit: TrafficAudit) {
           { id: 'nextcloud:primary', name: 'Primary catalog', connector_type: 'nextcloud', enabled: true, status: 'healthy', last_checked_at: minutesAgoIso(5), last_successful_operation: minutesAgoIso(5) },
         ],
         channelHealth: {
+          stateModel,
           checkedAt: minutesAgoIso(1),
           summary: { overall: 'Warning', overall_state: 'WARNING', counts: { Operational: 1, Warning: 1 } },
           external_call_performed: false,
@@ -116,14 +140,14 @@ async function assertFigmaDiagnosticsHierarchy(page: Page, locale: 'en' | 'fa') 
   if (locale === 'en') {
     await expect(page.getByRole('button', { name: /Re-check/ })).toBeVisible()
     await expect(page.getByText('Overall State', { exact: true })).toBeVisible()
-    await expect(page.getByText('Healthy Services', { exact: true })).toBeVisible()
     await expect(page.getByText('Channel Checks', { exact: true })).toBeVisible()
     await expect(page.getByText('Source Checks', { exact: true })).toBeVisible()
-    await expect(page.getByText('System health', { exact: true })).toBeVisible()
+    await expect(page.getByText('Operational resources', { exact: true })).toBeVisible()
     await expect(page.getByText('Recent checks', { exact: true })).toBeVisible()
     await expect(page.getByText('WooCommerce').first()).toBeVisible()
-    await expect(page.getByText('SnappShop').first()).toBeVisible()
-    await expect(page.getByText('Warehouse inventory').first()).toBeVisible()
+    await expect(page.getByText('Nextcloud — Primary catalog').first()).toBeVisible()
+    await expect(page.getByText('Historical Sources', { exact: false })).toBeVisible()
+    await expect(page.getByText('Non-operational Channels', { exact: true })).toBeVisible()
   } else {
     await expect(page.getByRole('button', { name: /بررسی دوباره/ })).toBeVisible()
   }
@@ -150,7 +174,7 @@ test('diagnostics matches the approved Figma hierarchy in Light/Dark and LTR/RTL
     if (variant.theme === 'dark') {
       await expect(page.locator('html')).toHaveClass(/dark/)
     }
-    await expect(page.locator('#diagnostics-system-health')).toBeVisible()
+    await expect(page.locator('#operational-resources')).toBeVisible()
     await assertFigmaDiagnosticsHierarchy(page, variant.locale)
     await page.evaluate(() => document.fonts.ready)
     await page.screenshot({
@@ -161,4 +185,20 @@ test('diagnostics matches the approved Figma hierarchy in Light/Dark and LTR/RTL
 
   expect(audit.externalRequests, 'No request may leave the isolated local browser environment').toEqual([])
   expect(audit.unhandledApiRequests, 'Every Diagnostics API request must be explicitly mocked').toEqual([])
+})
+
+test('canonical diagnostics remains usable at 390x844 in LTR light and RTL dark', async ({ page }) => {
+  const audit: TrafficAudit = { externalRequests: [], unhandledApiRequests: [] }
+  await installDiagnosticsMocks(page, audit)
+  await page.setViewportSize({ width: 390, height: 844 })
+  for (const variant of [{ locale: 'en', theme: 'light', dir: 'ltr' }, { locale: 'fa', theme: 'dark', dir: 'rtl' }] as const) {
+    await seedSession(page, variant.locale, variant.theme)
+    await page.goto('/diagnostics')
+    await expect(page.locator('html')).toHaveAttribute('dir', variant.dir)
+    await expect(page.locator('#operational-resources')).toBeVisible()
+    await expect(page.locator('[data-canonical-resource="woocommerce:primary"]')).toBeVisible()
+    expect(await page.locator('body').evaluate(element => element.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+  expect(audit.externalRequests).toEqual([])
+  expect(audit.unhandledApiRequests).toEqual([])
 })

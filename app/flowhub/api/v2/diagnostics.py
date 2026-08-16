@@ -105,15 +105,18 @@ async def diagnostics_status(
         for item in connector_status["items"]
     ]
     channel_health = ChannelHealthReporter(db).report()
+    state_model = channel_health["stateModel"]
     telemetry = service.telemetry(limit=20)
     telemetry_contract = service.telemetry_contract(limit=20)
     rate_limits = RateLimitService(db).diagnostics()
     return {
-        "overall_status": run["overall_status"],
+        "overall_status": state_model["overallState"],
+        "legacy_overall_status": run["overall_status"],
         "checkedAt": run["completed_at"],
         "checks": run["checks"],
         "connectors": connectors,
         "channelHealth": channel_health,
+        "stateModel": state_model,
         "telemetry": telemetry.model_dump(),
         "telemetryContract": telemetry_contract,
         "rateLimiter": rate_limits,

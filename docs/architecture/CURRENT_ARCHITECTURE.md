@@ -227,6 +227,13 @@ Marketplace order synchronization uses a separate `order-sync-runner` process
 with channel-scoped database leases. It polls SnappShop order events, processes
 accepted TapsiShop webhook receipts, and reconciles recent orders without
 performing product price writes, stock writes, or automatic Apply.
+The same established runner loop also evaluates the canonical Diagnostics
+policy catalog. It performs due read-only connection verification and only
+explicitly enabled, interval-configured product-cache synchronization. Missing
+product policy is `NOT_SCHEDULED`; archived, disabled, incomplete, and Coming
+Soon resources are hard provider-I/O exclusions. Diagnostics HTTP reads remain
+record-backed and never execute provider work. See
+`ADR_DIAGNOSTICS_STATE_MODEL.md`.
 Digikala is deliberately excluded: its supplied documentation does not define
 the order fields or date/status filter contract required for normalized,
 idempotent synchronization, and no order mutation is authorized.

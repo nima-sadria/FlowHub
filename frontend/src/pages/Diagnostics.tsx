@@ -10,7 +10,13 @@ import PageShell from '../components/PageShell'
 import Badge from '../components/Badge'
 import DiagnosticStateBadge from '../components/DiagnosticStateBadge'
 import BrandIcon from '../components/BrandIcon'
-import type { ChannelHealthItem, ChannelHealthResponse } from '../services/types'
+import type {
+  CanonicalDiagnosticResource,
+  CanonicalDiagnosticsStateModel,
+  CanonicalOverallState,
+  ChannelHealthItem,
+  ChannelHealthResponse,
+} from '../services/types'
 import type { ConnectionCheckResult } from '../services/commerce/CommerceService'
 import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/format'
 import { formatDiagnosticDimension, formatDiagnosticMessage, formatStatus } from '../i18n/display'
@@ -86,6 +92,7 @@ interface DiagnosticsStatusResponse {
   checks?: DiagnosticCheck[]
   connectors?: ConnectorStatus[]
   channelHealth?: ChannelHealthResponse & { orderSyncRunner?: RunnerState }
+  stateModel?: CanonicalDiagnosticsStateModel
   rateLimiter?: {
     settings?: {
       read_requests_per_minute?: number
@@ -621,6 +628,164 @@ function RecentCheckRow({ entry }: { entry: RecentCheckEntry }) {
   )
 }
 
+const CAPABILITY_LABEL_KEYS: Record<string, string> = {
+  connectionVerification: 'diagnostics:diagnostics.connectionVerification',
+  productSynchronization: 'diagnostics:diagnostics.productSynchronization',
+  orderSynchronization: 'diagnostics:diagnostics.orderSynchronization',
+  webhookProcessing: 'diagnostics:diagnostics.webhookProcessing',
+  productCache: 'diagnostics:diagnostics.productCache',
+  providerAcquisition: 'diagnostics:diagnostics.providerAcquisition',
+}
+
+function canonicalBadgeState(state: CanonicalOverallState): DiagnosticState {
+  if (state === 'ERROR' || state === 'BLOCKED') return 'ERROR'
+  if (state === 'NEEDS_ATTENTION') return 'WARNING'
+  return 'HEALTHY'
+}
+
+function canonicalStateLabel(value: string): string {
+  const key = `diagnostics:canonicalState.${value}`
+  return translate(key)
+}
+
+function canonicalActionLabel(resource: CanonicalDiagnosticResource): string {
+  const action = resource.recommendedAction
+  if (action.scheduledAt) {
+    const scheduled = formatDateTime(action.scheduledAt)
+    if (action.code === 'NEXT_PRODUCT_SYNC_SCHEDULED') return translate('diagnostics:canonicalAction.nextProductSync', { value1: scheduled })
+    if (action.code === 'NEXT_ORDER_SYNC_SCHEDULED') return translate('diagnostics:canonicalAction.nextOrderSync', { value1: scheduled })
+    if (action.code === 'NEXT_CONNECTION_CHECK_SCHEDULED') return translate('diagnostics:canonicalAction.nextConnectionCheck', { value1: scheduled })
+  }
+  return translate(`diagnostics:canonicalAction.${action.code}`)
+}
+
+function CanonicalResourceCard({
+  resource,
+  canRefresh,
+  busy,
+  onTest,
+}: {
+  resource: CanonicalDiagnosticResource
+  canRefresh: boolean
+  busy: boolean
+  onTest: () => void
+}) {
+  const expanded = ['ERROR', 'BLOCKED', 'NEEDS_ATTENTION'].includes(resource.overallState)
+  const capabilities = Object.entries(resource.capabilities).filter(([, evidence]) => evidence.support !== 'NOT_SUPPORTED')
+  return (
+    <details className="fh-card overflow-hidden" open={expanded} data-canonical-resource={resource.id}>
+      <summary className="cursor-pointer list-none p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandIcon identity={resource.provider} label={resource.displayName} size={36} />
+            <div className="min-w-0">
+              <p className="fh-text-body font-semibold text-text-base">{resource.displayName}</p>
+              <p className="fh-text-caption">{canonicalActionLabel(resource)}</p>
+            </div>
+          </div>
+          <DiagnosticStateBadge state={canonicalBadgeState(resource.overallState)} />
+        </div>
+      </summary>
+      <div className="border-t border-border p-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div><p className="fh-text-caption">{translate('diagnostics:diagnostics.connectivity')}</p><p className="fh-text-body-sm font-semibold">{canonicalStateLabel(resource.connectivity.state)}</p></div>
+          <div><p className="fh-text-caption">{translate('diagnostics:diagnostics.operationalReadiness')}</p><p className="fh-text-body-sm font-semibold">{canonicalStateLabel(resource.readiness.state)}</p></div>
+          <div><p className="fh-text-caption">{translate('diagnostics:diagnostics.freshness')}</p><p className="fh-text-body-sm font-semibold">{canonicalStateLabel(resource.freshness.state)}</p></div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {capabilities.map(([name, evidence]) => (
+            <article key={name} className="rounded-xl border border-border bg-bg-subtle p-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="fh-text-body-sm font-semibold">{translate(CAPABILITY_LABEL_KEYS[name] ?? 'diagnostics:diagnostics.capabilityEvidence')}</p>
+                <Badge variant="neutral">{canonicalStateLabel(evidence.freshness)}</Badge>
+              </div>
+              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 fh-text-caption">
+                <dt>{translate('diagnostics:diagnostics.lastOutcome')}</dt><dd>{canonicalStateLabel(evidence.lastOutcome)}</dd>
+                <dt>{translate('diagnostics:diagnostics.lastAttempt')}</dt><dd>{evidence.lastAttemptAt ? formatDateTime(evidence.lastAttemptAt) : canonicalStateLabel('NEVER_RUN')}</dd>
+                <dt>{translate('diagnostics:diagnostics.lastSuccess')}</dt><dd>{evidence.lastSuccessAt ? formatDateTime(evidence.lastSuccessAt) : '—'}</dd>
+                <dt>{translate('diagnostics:diagnostics.nextScheduled')}</dt><dd>{evidence.nextExpectedAt ? formatDateTime(evidence.nextExpectedAt) : canonicalStateLabel(evidence.schedule.mode)}</dd>
+                {typeof evidence.cachedItemCount === 'number' && <><dt>{translate('diagnostics:diagnostics.cachedProducts')}</dt><dd>{formatNumber(evidence.cachedItemCount)}</dd></>}
+              </dl>
+            </article>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="fh-text-body-sm"><strong>{translate('diagnostics:diagnostics.recommendedNextAction')}:</strong> {canonicalActionLabel(resource)}</p>
+          {canRefresh && resource.enabled && resource.configured && resource.connectivity.state !== 'NOT_APPLICABLE' && (
+            <button type="button" className="fh-button-secondary fh-button-sm" disabled={busy} onClick={onTest}>
+              {busy ? <Spinner size="sm" /> : <Icon name="refresh" />}
+              {translate('diagnostics:diagnostics.testConnection')}
+            </button>
+          )}
+        </div>
+        <details className="mt-4 rounded-xl border border-border p-3">
+          <summary className="cursor-pointer fh-text-body-sm font-semibold">{translate('diagnostics:diagnostics.advancedEvidence')}</summary>
+          <dl className="mt-3 grid gap-2 fh-text-caption">
+            {resource.advancedEvidence.map(item => (
+              <div key={item.key} className="grid gap-1 sm:grid-cols-[220px_1fr]">
+                <dt>{item.label}</dt><dd className="break-all font-mono">{String(item.value ?? '—')}{item.recordedAt ? ` · ${formatDateTime(item.recordedAt)}` : ''}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      </div>
+    </details>
+  )
+}
+
+function CanonicalDiagnosticsView({
+  model,
+  loading,
+  err,
+  checkedAt,
+  canRefresh,
+  refreshingChannel,
+  testingSource,
+  onReload,
+  onRefreshChannel,
+  onTestSource,
+}: {
+  model: CanonicalDiagnosticsStateModel
+  loading: boolean
+  err: string | null
+  checkedAt: Date | null
+  canRefresh: boolean
+  refreshingChannel: string | null
+  testingSource: string | null
+  onReload: () => void
+  onRefreshChannel: (id: string) => void
+  onTestSource: (id: string) => void
+}) {
+  const channels = model.resources.filter(resource => resource.kind === 'CHANNEL')
+  const sources = model.resources.filter(resource => resource.kind === 'SOURCE')
+  const operationalChannels = channels.filter(resource => resource.denominatorEligible)
+  const activeSources = sources.filter(resource => resource.denominatorEligible)
+  const archivedSources = sources.filter(resource => resource.readiness.state === 'ARCHIVED')
+  const comingSoon = channels.filter(resource => resource.readiness.state === 'COMING_SOON')
+  const runner = model.backgroundJobs[0]
+  const rank = (resource: CanonicalDiagnosticResource) => ({ ERROR: 0, BLOCKED: 1, NEEDS_ATTENTION: 2, HEALTHY: 3 }[resource.overallState])
+  const orderedOperational = [...operationalChannels, ...activeSources].sort((a, b) => rank(a) - rank(b))
+  const summaryCards: SummaryCardProps[] = [
+    { label: translate('diagnostics:diagnostics.overallState'), value: canonicalStateLabel(model.overallState), detail: checkedAt ? translate('diagnostics:diagnostics.lastChecked2', { value1: formatRelativeTime(checkedAt) }) : undefined, status: canonicalBadgeState(model.overallState), icon: 'diagnostics' },
+    { label: translate('diagnostics:diagnostics.channelChecks'), value: translate('diagnostics:diagnostics.operationalReadyCount', { ready: formatNumber(model.summary.channels.ready), total: formatNumber(model.summary.channels.operational) }), detail: model.summary.channels.comingSoon ? translate('diagnostics:diagnostics.comingSoonCount', { count: model.summary.channels.comingSoon }) : undefined, status: model.summary.channels.blocked ? 'ERROR' : model.summary.channels.needsAttention ? 'WARNING' : 'HEALTHY', icon: 'channel' },
+    { label: translate('diagnostics:diagnostics.sourceChecks'), value: translate('diagnostics:diagnostics.activeReadyCount', { ready: formatNumber(model.summary.sources.ready), total: formatNumber(model.summary.sources.active) }), detail: model.summary.sources.archived ? translate('diagnostics:diagnostics.archivedCount', { count: model.summary.sources.archived }) : undefined, status: model.summary.sources.blocked ? 'ERROR' : model.summary.sources.needsAttention ? 'WARNING' : 'HEALTHY', icon: 'file' },
+    { label: translate('diagnostics:diagnostics.backgroundJobs'), value: runner ? canonicalStateLabel(runner.state) : canonicalStateLabel('UNKNOWN'), detail: runner ? translate('diagnostics:diagnostics.queueDepthCount', { count: runner.queueDepth }) : undefined, status: runner?.health === 'ERROR' ? 'ERROR' : runner?.health === 'NEEDS_ATTENTION' ? 'WARNING' : 'HEALTHY', icon: 'activity' },
+  ]
+  return (
+    <PageShell>
+      <div className="fh-page-header"><div><h1 className="fh-page-title">{translate('diagnostics:diagnostics.diagnostics')}</h1><p className="fh-page-subtitle">{translate('diagnostics:diagnostics.systemHealthAndIntegrationChecks')}</p></div><button type="button" onClick={onReload} disabled={loading} className="fh-button-secondary">{loading ? <Spinner size="sm" /> : <Icon name="refresh" />}{loading ? translate('diagnostics:diagnostics.loading') : translate('diagnostics:diagnostics.reCheck')}</button></div>
+      {err && <div className="fh-alert fh-alert-danger" role="alert">{err}</div>}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{summaryCards.map(card => <SummaryCard key={card.label} {...card} />)}</div>
+      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+        <section aria-labelledby="operational-resources"><h2 id="operational-resources" className="fh-section-title mb-3">{translate('diagnostics:diagnostics.operationalResources')}</h2><div className="space-y-3">{orderedOperational.map(resource => <CanonicalResourceCard key={resource.id} resource={resource} canRefresh={canRefresh} busy={resource.kind === 'CHANNEL' ? refreshingChannel === resource.id : testingSource === resource.connectorId} onTest={() => resource.kind === 'CHANNEL' ? onRefreshChannel(resource.id) : resource.connectorId && onTestSource(resource.connectorId)} />)}</div></section>
+        <section className="fh-card fh-card-pad" aria-labelledby="diagnostics-recent-checks"><h2 id="diagnostics-recent-checks" className="fh-section-title mb-2">{translate('diagnostics:diagnostics.recentChecks')}</h2><div>{model.recentChecks.map(check => <RecentCheckRow key={`${check.kind}:${check.id}`} entry={{ key: `${check.kind}:${check.id}`, icon: check.kind === 'SOURCE' ? 'file' : check.kind === 'BACKGROUND_JOB' ? 'activity' : 'channel', brandIdentity: check.kind === 'BACKGROUND_JOB' ? undefined : check.provider, title: check.displayName, description: `${canonicalStateLabel(check.readiness)} · ${canonicalStateLabel(check.freshness)}`, status: canonicalBadgeState(check.state), lastChecked: check.recordedAt }} />)}</div></section>
+      </div>
+      {archivedSources.length > 0 && <details className="fh-card fh-card-pad"><summary className="cursor-pointer fh-section-title">{translate('diagnostics:diagnostics.historicalSources')} · {formatNumber(archivedSources.length)}</summary><div className="mt-3 space-y-2">{archivedSources.map(resource => <div key={resource.id} className="flex items-center justify-between gap-3 rounded-xl bg-bg-subtle p-3"><span>{resource.displayName}</span><Badge variant="neutral">{canonicalStateLabel('ARCHIVED')}</Badge></div>)}</div></details>}
+      {comingSoon.length > 0 && <section className="fh-card fh-card-pad"><h2 className="fh-section-title">{translate('diagnostics:diagnostics.nonOperationalChannels')}</h2><div className="mt-3 flex flex-wrap gap-2">{comingSoon.map(resource => <Badge key={resource.id} variant="neutral">{resource.displayName} · {canonicalStateLabel('COMING_SOON')}</Badge>)}</div></section>}
+    </PageShell>
+  )
+}
+
 export default function Diagnostics() {
   const { user, authFetch } = useAuth()
   const { success, error: notifyError } = useNotification()
@@ -741,6 +906,7 @@ export default function Diagnostics() {
     [connectors],
   )
   const channelHealth = diag?.channelHealth
+  const stateModel = diag?.stateModel ?? channelHealth?.stateModel
   const channels = channelHealth?.items ?? []
   const orderedSources = useMemo(
     () => prepareResourceCollection(sourceConnectors, connector => diagnosticSourceSignals({
@@ -870,6 +1036,23 @@ export default function Diagnostics() {
       : item.kind === 'source'
         ? { key: item.key, icon: 'file', brandIdentity: item.connector.connector_type, title: item.displayName, description: sourcePresentation(item.connector).description, status: item.status, lastChecked: item.lastChecked }
         : { key: item.key, icon: 'activity', title: translate('diagnostics:diagnostics.backgroundJobs'), description: item.runner.state ? formatStatus(item.runner.state) : translate('diagnostics:diagnostics.notCheckedYet'), status: item.status, lastChecked: item.lastChecked })
+
+  if (stateModel) {
+    return (
+      <CanonicalDiagnosticsView
+        model={stateModel}
+        loading={loading}
+        err={err}
+        checkedAt={checkedAt}
+        canRefresh={canRefreshChannel}
+        refreshingChannel={refreshingChannel}
+        testingSource={testingSource}
+        onReload={() => void runCheck()}
+        onRefreshChannel={id => void refreshChannel(id)}
+        onTestSource={id => void testSourceConnection(id)}
+      />
+    )
+  }
 
   return (
     <PageShell>
