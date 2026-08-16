@@ -66,6 +66,10 @@ REQUIRED_WOOCOMMERCE_WEBHOOK_TESTS = (
     "test_concurrent_duplicate_delivery_resolves_to_exactly_one_receipt",
     "test_concurrent_deliveries_for_different_channels_are_fully_independent",
 )
+REQUIRED_TAPSISHOP_WEBHOOK_TESTS = (
+    "test_concurrent_duplicate_delivery_resolves_to_exactly_one_receipt",
+    "test_concurrent_deliveries_for_different_channels_are_fully_independent",
+)
 
 
 def main() -> int:
@@ -88,6 +92,7 @@ def main() -> int:
         "orders": REQUIRED_ORDER_TESTS,
         "crash": REQUIRED_CRASH_TESTS,
         "woocommerce-webhooks": REQUIRED_WOOCOMMERCE_WEBHOOK_TESTS,
+        "tapsishop-webhooks": REQUIRED_TAPSISHOP_WEBHOOK_TESTS,
     }.get(group, REQUIRED_017_TESTS)
     root = ET.parse(report).getroot()
     cases = list(root.iter("testcase"))

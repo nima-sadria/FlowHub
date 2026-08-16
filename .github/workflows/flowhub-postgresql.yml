@@ -294,6 +294,22 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL TapsiShop webhook concurrency tests
+        id: postgres-tapsishop-webhook-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-tapsi-webhooks-junit.xml \
+            tests/flowhub/webhooks/test_tapsishop_webhooks_postgres.py 2>&1 | tee postgres-tapsi-webhooks-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-tapsi-webhooks-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-tapsi-webhooks-junit.xml tapsishop-webhooks | tee postgres-tapsi-webhooks-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-tapsi-webhooks-junit.xml' | tee postgres-tapsi-webhooks-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: Hard-process crash recovery tests
         id: postgres-crash-tests
         run: |
@@ -359,6 +375,9 @@ jobs:
             postgres-wc-webhooks-junit.xml
             postgres-wc-webhooks-output.log
             postgres-wc-webhooks-manifest.log
+            postgres-tapsi-webhooks-junit.xml
+            postgres-tapsi-webhooks-output.log
+            postgres-tapsi-webhooks-manifest.log
             postgres-crash-junit.xml
             postgres-crash-output.log
             postgres-crash-manifest.log

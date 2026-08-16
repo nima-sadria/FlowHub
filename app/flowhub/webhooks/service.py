@@ -102,33 +102,37 @@ class WebhookIngestionService:
             retention_until=now + timedelta(days=WEBHOOK_RETENTION_DAYS),
         )
         self.db.add(receipt)
-        self.db.flush()
-        self.db.add_all(
-            [
-                WebhookProviderEventIdentity(
-                    receipt_id=receipt.id,
-                    channel_id=channel_id,
-                    provider="tapsishop",
-                    provider_event_id=item_event_id,
-                    created_at=now,
-                )
-                for item_event_id in provider_event_ids
-            ]
-        )
-        self._record_event(
-            channel_id,
-            "webhook_accepted",
-            "TapsiShop webhook was durably accepted. Business effects were not applied in the request handler.",
-            {
-                "provider": "tapsishop",
-                "provider_event_id": provider_event_id,
-                "payload_hash": receipt.payload_hash,
-                "direct_business_effects": False,
-                "queued_for_processing": True,
-            },
-            commit=False,
-        )
         try:
+            # flush() (not just commit()) can be where the unique constraint
+            # actually fires, since it issues the INSERT immediately to
+            # populate receipt.id for the identity rows below. Both must be
+            # covered by the same duplicate-race recovery.
+            self.db.flush()
+            self.db.add_all(
+                [
+                    WebhookProviderEventIdentity(
+                        receipt_id=receipt.id,
+                        channel_id=channel_id,
+                        provider="tapsishop",
+                        provider_event_id=item_event_id,
+                        created_at=now,
+                    )
+                    for item_event_id in provider_event_ids
+                ]
+            )
+            self._record_event(
+                channel_id,
+                "webhook_accepted",
+                "TapsiShop webhook was durably accepted. Business effects were not applied in the request handler.",
+                {
+                    "provider": "tapsishop",
+                    "provider_event_id": provider_event_id,
+                    "payload_hash": receipt.payload_hash,
+                    "direct_business_effects": False,
+                    "queued_for_processing": True,
+                },
+                commit=False,
+            )
             self.db.commit()
         except IntegrityError:
             self.db.rollback()
