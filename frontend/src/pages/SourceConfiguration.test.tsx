@@ -893,7 +893,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
       sourceKind: 'external',
       externalSourceId: 'nextcloud:primary',
       sheetId: null,
-      readQuota: { enabled: true, limit: 10, usage: 10, remaining: 0, reset_at: '2026-08-16T00:00:00Z', exhausted: true },
+      readQuota: { enabled: true, limit: 10, usage: 10, remaining: 0, reset_at: '2030-08-14T00:00:00Z', exhausted: true },
     })
     vi.mocked(sourceWorkspaceApi.saveMapping).mockResolvedValue(pendingMapping)
     await renderPage()
