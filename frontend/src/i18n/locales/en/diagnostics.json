@@ -25,6 +25,7 @@
   "action.select_a_vendor_before_product_synchronization": "Select a vendor before product synchronization",
   "canonicalAction.COMPLETE_CHANNEL_CONFIGURATION": "Complete Channel configuration.",
   "canonicalAction.COMPLETE_SOURCE_CONFIGURATION": "Complete Source configuration.",
+  "canonicalAction.CONFIGURE_PRODUCT_SYNC_SCHEDULE": "Configure product synchronization schedule.",
   "canonicalAction.nextConnectionCheck": "Next connection verification scheduled for {{value1}}.",
   "canonicalAction.nextOrderSync": "Next order synchronization scheduled for {{value1}}.",
   "canonicalAction.nextProductSync": "Next product synchronization scheduled for {{value1}}.",

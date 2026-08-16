@@ -171,6 +171,140 @@ def test_product_sync_not_scheduled_is_neutral_when_cache_is_fresh(db):
     assert channel["readiness"]["state"] == "READY"
 
 
+def test_supported_optional_not_scheduled_product_sync_is_ready(db):
+    now = _now()
+    _seed_channel(db, "snappshop:main", "snappshop")
+    _seed_health(db, "snappshop:main", now)
+
+    channel = _resource(_project(db, now), "snappshop:main")
+    product = channel["capabilities"]["productSynchronization"]
+
+    assert product["schedule"]["mode"] == "NOT_SCHEDULED"
+    assert channel["readiness"]["state"] == "READY"
+    assert channel["recommendedAction"]["code"] == "NO_ACTION_REQUIRED"
+
+
+def test_required_product_sync_with_no_schedule_needs_configuration(db, monkeypatch):
+    now = _now()
+    monkeypatch.setenv("FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_REQUIRED", "true")
+    _seed_channel(db, "snappshop:main", "snappshop")
+    _seed_health(db, "snappshop:main", now)
+
+    channel = _resource(_project(db, now), "snappshop:main")
+
+    assert channel["capabilities"]["productSynchronization"]["schedule"]["mode"] == "NOT_SCHEDULED"
+    assert channel["readiness"]["state"] == "NEEDS_ATTENTION"
+    assert channel["reasonCode"] == "product_cache_never_run"
+    assert channel["recommendedAction"]["code"] == "CONFIGURE_PRODUCT_SYNC_SCHEDULE"
+
+
+def test_manual_only_optional_product_sync_never_run_is_not_a_failure(db, monkeypatch):
+    now = _now()
+    monkeypatch.setenv("FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_MANUAL", "true")
+    _seed_channel(db, "snappshop:main", "snappshop")
+    _seed_health(db, "snappshop:main", now)
+
+    channel = _resource(_project(db, now), "snappshop:main")
+
+    assert channel["capabilities"]["productSynchronization"]["schedule"]["mode"] == "MANUAL"
+    assert channel["readiness"]["state"] == "READY"
+    assert channel["recommendedAction"]["code"] == "NO_ACTION_REQUIRED"
+
+
+def test_manual_required_product_sync_never_run_is_actionable_refresh(db, monkeypatch):
+    now = _now()
+    monkeypatch.setenv("FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_MANUAL", "true")
+    monkeypatch.setenv("FLOWHUB_SNAPPSHOP_PRODUCT_SYNC_REQUIRED", "true")
+    _seed_channel(db, "snappshop:main", "snappshop")
+    _seed_health(db, "snappshop:main", now)
+
+    channel = _resource(_project(db, now), "snappshop:main")
+
+    assert channel["capabilities"]["productSynchronization"]["schedule"]["mode"] == "MANUAL"
+    assert channel["readiness"]["state"] == "NEEDS_ATTENTION"
+    assert channel["reasonCode"] == "product_cache_never_run"
+    assert channel["recommendedAction"]["code"] == "REFRESH_PRODUCTS"
+
+
+def test_stale_manual_evidence_stays_actionable_regardless_of_schedule(db):
+    # Mirrors WooCommerce's real default configuration: product sync is not
+    # scheduled, but a prior manual refresh exists and has gone stale. Once a
+    # manual cadence is evidenced, staleness must remain actionable.
+    now = _now()
+    old = now - timedelta(days=3)
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_product_cache(db, "woocommerce:primary", old)
+    _seed_refresh(db, "woocommerce:primary", old, status="completed")
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+
+    assert channel["capabilities"]["productSynchronization"]["schedule"]["mode"] == "NOT_SCHEDULED"
+    assert channel["readiness"]["state"] == "NEEDS_ATTENTION"
+    assert channel["reasonCode"] == "product_cache_stale"
+    assert channel["recommendedAction"]["code"] == "REFRESH_PRODUCTS"
+
+
+def test_archived_source_recent_check_is_archived_not_healthy(db):
+    now = _now()
+    _seed_source(db, "source-archived", "Nextcloud — Legacy", "nextcloud:legacy", "archived")
+    _seed_source_connector(db, "nextcloud:legacy", enabled=False)
+    _seed_health(db, "nextcloud:legacy", now - timedelta(days=10))
+
+    model = _project(db, now)
+    archived = _resource(model, "source-archived")
+    check = _recent_check(model, "source-archived")
+
+    assert archived["overallState"] == "ARCHIVED"
+    assert check["state"] == "ARCHIVED"
+
+
+def test_coming_soon_recent_check_is_coming_soon_not_healthy(db):
+    now = _now()
+    model = _project(db, now)
+    digikala = _resource(model, "digikala:main")
+    check = _recent_check(model, "digikala:main")
+
+    assert digikala["overallState"] == "COMING_SOON"
+    assert check["state"] == "COMING_SOON"
+
+
+def test_disabled_channel_recent_check_is_disabled_not_healthy(db):
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce", enabled=False)
+
+    model = _project(db, now)
+    channel = _resource(model, "woocommerce:primary")
+    check = _recent_check(model, "woocommerce:primary")
+
+    assert channel["overallState"] == "DISABLED"
+    assert check["state"] == "DISABLED"
+
+
+def test_lifecycle_state_takes_precedence_over_healthy_connectivity(db):
+    # A Coming Soon channel with (hypothetically) healthy connectivity
+    # evidence must still present as COMING_SOON, never HEALTHY.
+    now = _now()
+    _seed_health(db, "digikala:main", now, status="healthy")
+
+    model = _project(db, now)
+    check = _recent_check(model, "digikala:main")
+
+    assert check["state"] == "COMING_SOON"
+    assert check["state"] != "HEALTHY"
+
+
+def test_channel_denominator_recovers_once_not_scheduled_is_no_longer_needs_attention(db):
+    now = _now()
+    _seed_channel(db, "snappshop:main", "snappshop")
+    _seed_health(db, "snappshop:main", now)
+
+    model = _project(db, now)
+
+    assert model["summary"]["channels"]["ready"] == 1
+    assert model["summary"]["channels"]["needsAttention"] == 0
+
+
 def test_fresh_order_sync_does_not_make_product_fresh(db, monkeypatch):
     now = _now()
     monkeypatch.setenv("FLOWHUB_ORDER_SYNC_ENABLED", "true")
@@ -282,6 +416,10 @@ def _project(db, now: datetime) -> dict:
 
 def _resource(model: dict, resource_id: str) -> dict:
     return next(item for item in model["resources"] if item["id"] == resource_id)
+
+
+def _recent_check(model: dict, resource_id: str) -> dict:
+    return next(item for item in model["recentChecks"] if item["id"] == resource_id)
 
 
 def _now() -> datetime:

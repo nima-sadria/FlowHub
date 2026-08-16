@@ -638,6 +638,8 @@ const CAPABILITY_LABEL_KEYS: Record<string, string> = {
 }
 
 function canonicalBadgeState(state: CanonicalOverallState): DiagnosticState {
+  if (state === 'ARCHIVED' || state === 'DISABLED') return 'DISABLED'
+  if (state === 'COMING_SOON') return 'COMING_SOON'
   if (state === 'ERROR' || state === 'BLOCKED') return 'ERROR'
   if (state === 'NEEDS_ATTENTION') return 'WARNING'
   return 'HEALTHY'
@@ -763,7 +765,10 @@ function CanonicalDiagnosticsView({
   const archivedSources = sources.filter(resource => resource.readiness.state === 'ARCHIVED')
   const comingSoon = channels.filter(resource => resource.readiness.state === 'COMING_SOON')
   const runner = model.backgroundJobs[0]
-  const rank = (resource: CanonicalDiagnosticResource) => ({ ERROR: 0, BLOCKED: 1, NEEDS_ATTENTION: 2, HEALTHY: 3 }[resource.overallState])
+  // operationalChannels/activeSources are already denominator-filtered, so
+  // ARCHIVED/COMING_SOON/DISABLED never appear here in practice; the
+  // fallback keeps this exhaustive against the wider CanonicalOverallState type.
+  const rank = (resource: CanonicalDiagnosticResource) => ({ ERROR: 0, BLOCKED: 1, NEEDS_ATTENTION: 2, HEALTHY: 3, ARCHIVED: 4, COMING_SOON: 4, DISABLED: 4 }[resource.overallState] ?? 4)
   const orderedOperational = [...operationalChannels, ...activeSources].sort((a, b) => rank(a) - rank(b))
   const summaryCards: SummaryCardProps[] = [
     { label: translate('diagnostics:diagnostics.overallState'), value: canonicalStateLabel(model.overallState), detail: checkedAt ? translate('diagnostics:diagnostics.lastChecked2', { value1: formatRelativeTime(checkedAt) }) : undefined, status: canonicalBadgeState(model.overallState), icon: 'diagnostics' },

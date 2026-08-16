@@ -25,6 +25,7 @@
   "action.select_a_vendor_before_product_synchronization": "پیش از همگام‌سازی محصولات، فروشنده را انتخاب کنید",
   "canonicalAction.COMPLETE_CHANNEL_CONFIGURATION": "پیکربندی کانال را کامل کنید.",
   "canonicalAction.COMPLETE_SOURCE_CONFIGURATION": "پیکربندی منبع را کامل کنید.",
+  "canonicalAction.CONFIGURE_PRODUCT_SYNC_SCHEDULE": "زمان‌بندی همگام‌سازی محصولات را پیکربندی کنید.",
   "canonicalAction.nextConnectionCheck": "بررسی بعدی اتصال برای {{value1}} زمان‌بندی شده است.",
   "canonicalAction.nextOrderSync": "همگام‌سازی بعدی سفارش‌ها برای {{value1}} زمان‌بندی شده است.",
   "canonicalAction.nextProductSync": "همگام‌سازی بعدی محصولات برای {{value1}} زمان‌بندی شده است.",

@@ -82,7 +82,7 @@ export interface ChannelHealthItem extends DiagnosticEvidence {
 export type ConnectivityState = 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'NOT_APPLICABLE'
 export type ReadinessState = 'READY' | 'NEEDS_ATTENTION' | 'BLOCKED' | 'DISABLED' | 'ARCHIVED' | 'COMING_SOON' | 'NOT_APPLICABLE'
 export type FreshnessState = 'FRESH' | 'STALE' | 'NEVER_RUN' | 'NOT_SCHEDULED' | 'NOT_ENABLED' | 'NOT_APPLICABLE'
-export type CanonicalOverallState = 'ERROR' | 'BLOCKED' | 'NEEDS_ATTENTION' | 'HEALTHY'
+export type CanonicalOverallState = 'ERROR' | 'BLOCKED' | 'NEEDS_ATTENTION' | 'HEALTHY' | 'ARCHIVED' | 'COMING_SOON' | 'DISABLED'
 
 export interface CanonicalCapabilityEvidence {
   support: string

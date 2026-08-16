@@ -165,18 +165,22 @@ function canonicalStateModel() {
   }
   const archived = {
     ...channel, id: 'source-legacy', connectorId: 'nextcloud:legacy', kind: 'SOURCE', provider: 'nextcloud', displayName: 'Nextcloud — Archived legacy source', lifecycle: 'ARCHIVED', enabled: false, denominatorEligible: false,
-    connectivity: { state: 'NOT_APPLICABLE', freshness: 'NOT_APPLICABLE', lastVerifiedAt: null, lastCheckedAt: null }, readiness: { state: 'ARCHIVED', reasonCode: 'source_archived' }, freshness: { state: 'NOT_APPLICABLE' }, overallState: 'HEALTHY', reasonCode: 'source_archived', recommendedAction: { code: 'NO_ACTION_REQUIRED', scheduledAt: null, actionable: false },
+    connectivity: { state: 'NOT_APPLICABLE', freshness: 'NOT_APPLICABLE', lastVerifiedAt: null, lastCheckedAt: null }, readiness: { state: 'ARCHIVED', reasonCode: 'source_archived' }, freshness: { state: 'NOT_APPLICABLE' }, overallState: 'ARCHIVED', reasonCode: 'source_archived', recommendedAction: { code: 'NO_ACTION_REQUIRED', scheduledAt: null, actionable: false },
   }
   const comingSoon = {
     ...channel, id: 'digikala:main', kind: 'CHANNEL', provider: 'digikala', displayName: 'Digikala', lifecycle: 'COMING_SOON', enabled: false, denominatorEligible: false,
-    connectivity: { state: 'NOT_APPLICABLE', freshness: 'NOT_APPLICABLE', lastVerifiedAt: null, lastCheckedAt: null }, readiness: { state: 'COMING_SOON', reasonCode: 'channel_coming_soon' }, freshness: { state: 'NOT_APPLICABLE' }, overallState: 'HEALTHY', reasonCode: 'channel_coming_soon', recommendedAction: { code: 'NO_ACTION_REQUIRED', scheduledAt: null, actionable: false },
+    connectivity: { state: 'NOT_APPLICABLE', freshness: 'NOT_APPLICABLE', lastVerifiedAt: null, lastCheckedAt: null }, readiness: { state: 'COMING_SOON', reasonCode: 'channel_coming_soon' }, freshness: { state: 'NOT_APPLICABLE' }, overallState: 'COMING_SOON', reasonCode: 'channel_coming_soon', recommendedAction: { code: 'NO_ACTION_REQUIRED', scheduledAt: null, actionable: false },
   }
   return {
     schemaVersion: 'diagnostics-state-v1', generatedAt: now, overallState: 'NEEDS_ATTENTION',
     summary: { overallState: 'NEEDS_ATTENTION', channels: { ready: 0, operational: 1, needsAttention: 1, blocked: 0, disabled: 0, comingSoon: 1 }, sources: { ready: 0, active: 0, needsAttention: 0, blocked: 0, disabled: 0, archived: 1 } },
     resources: [channel, archived, comingSoon],
     backgroundJobs: [{ id: 'flowhub:order-sync-runner', displayName: 'Integration background runner', state: 'IDLE', health: 'HEALTHY', required: true, lastHeartbeatAt: now, heartbeatTtlSeconds: 180, runnerId: 'runner', lastSuccessfulJobAt: now, queueDepth: 0, lastFailureAt: null, lastFailureCode: null }],
-    recentChecks: [{ id: channel.id, kind: channel.kind, displayName: channel.displayName, provider: channel.provider, lifecycle: channel.lifecycle, connectivity: 'HEALTHY', readiness: 'NEEDS_ATTENTION', freshness: 'STALE', state: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale', recordedAt: now }],
+    recentChecks: [
+      { id: channel.id, kind: channel.kind, displayName: channel.displayName, provider: channel.provider, lifecycle: channel.lifecycle, connectivity: 'HEALTHY', readiness: 'NEEDS_ATTENTION', freshness: 'STALE', state: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale', recordedAt: now },
+      { id: archived.id, kind: archived.kind, displayName: archived.displayName, provider: archived.provider, lifecycle: archived.lifecycle, connectivity: 'NOT_APPLICABLE', readiness: 'ARCHIVED', freshness: 'NOT_APPLICABLE', state: 'ARCHIVED', reasonCode: 'source_archived', recordedAt: now },
+      { id: comingSoon.id, kind: comingSoon.kind, displayName: comingSoon.displayName, provider: comingSoon.provider, lifecycle: comingSoon.lifecycle, connectivity: 'NOT_APPLICABLE', readiness: 'COMING_SOON', freshness: 'NOT_APPLICABLE', state: 'COMING_SOON', reasonCode: 'channel_coming_soon', recordedAt: now },
+    ],
     consumerStates: { diagnostics: 'NEEDS_ATTENTION', dashboard: 'NEEDS_ATTENTION', sidebar: 'NEEDS_ATTENTION' }, externalCallPerformed: false,
   }
 }
@@ -1018,5 +1022,31 @@ describe('Diagnostics', () => {
     expect(c.textContent).toContain('Non-operational Channels')
     expect(c.textContent).toContain('Advanced evidence')
     expect(c.textContent).not.toContain('All systems operational')
+  })
+
+  it('never presents an Archived or Coming Soon resource as Healthy in Recent Checks', async () => {
+    const model = canonicalStateModel()
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: model.overallState,
+          checkedAt: model.generatedAt,
+          checks: [],
+          connectors: [],
+          channelHealth: { ...channelHealthPayload(), stateModel: model },
+          stateModel: model,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+
+    const c = await renderPage()
+    const recentSection = c.querySelector('#diagnostics-recent-checks')?.closest('section')
+    const rows = Array.from(recentSection?.querySelectorAll('[data-diagnostic-state]') ?? [])
+    const archivedRow = rows.find(row => row.closest('div')?.textContent?.includes('Archived legacy source'))
+    const comingSoonRow = rows.find(row => row.closest('div')?.textContent?.includes('Digikala'))
+
+    expect(archivedRow?.getAttribute('data-diagnostic-state')).not.toBe('HEALTHY')
+    expect(comingSoonRow?.getAttribute('data-diagnostic-state')).not.toBe('HEALTHY')
   })
 })

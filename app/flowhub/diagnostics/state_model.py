@@ -104,6 +104,13 @@ class OverallState(StrEnum):
     BLOCKED = "BLOCKED"
     NEEDS_ATTENTION = "NEEDS_ATTENTION"
     HEALTHY = "HEALTHY"
+    # Lifecycle-excluded states. These take precedence over connection-health
+    # coloring: a resource that is intentionally non-operational must never
+    # render as HEALTHY (or any other operational state) in Recent Checks or
+    # anywhere else this projection is displayed.
+    ARCHIVED = "ARCHIVED"
+    COMING_SOON = "COMING_SOON"
+    DISABLED = "DISABLED"
 
 
 class OutcomeState(StrEnum):
@@ -124,6 +131,11 @@ class CapabilityPolicy:
     freshness_ttl_seconds: int | None
     policy_source: str
     jitter_seconds: int = 0
+    # An explicit, connector-declared requirement that this capability have
+    # current evidence for the resource to be READY.  Never inferred from
+    # `mode == SCHEDULED` alone: an operator choosing to schedule a capability
+    # is a separate fact from the connector contract requiring it.
+    required_for_readiness: bool = False
 
     def shape(self) -> dict[str, Any]:
         return {
@@ -193,13 +205,24 @@ class DiagnosticsPolicyCatalog:
         prefix = f"FLOWHUB_{provider.upper()}_PRODUCT_SYNC"
         enabled = _env_bool(f"{prefix}_ENABLED", False)
         interval = _env_optional_positive_int(f"{prefix}_INTERVAL_SECONDS")
+        # Operator-declared: this connector's product data must stay current
+        # for the resource to be READY, independent of whether an automatic
+        # schedule is configured. Defaults False for every connector — no
+        # capability is treated as required unless explicitly declared.
+        required = _env_bool(f"{prefix}_REQUIRED", False)
+        # Operator-declared: this connector is refreshed by manual trigger by
+        # design (no automatic schedule is ever expected). Distinct from
+        # NOT_SCHEDULED, which may simply mean nobody has configured a
+        # schedule yet.
+        manual = _env_bool(f"{prefix}_MANUAL", False)
         if not enabled or interval is None:
             return CapabilityPolicy(
-                ScheduleMode.NOT_SCHEDULED,
+                ScheduleMode.MANUAL if manual else ScheduleMode.NOT_SCHEDULED,
                 False,
                 None,
                 None,
                 "connector_product_sync_environment",
+                required_for_readiness=required,
             )
         freshness = _env_positive_int(
             f"{prefix}_FRESHNESS_TTL_SECONDS", max(interval * 2, 3_600)
@@ -210,6 +233,7 @@ class DiagnosticsPolicyCatalog:
             interval,
             freshness,
             "connector_product_sync_environment",
+            required_for_readiness=required,
         )
 
     def product_cache(self, provider: str) -> CapabilityPolicy:
@@ -544,11 +568,15 @@ class CanonicalDiagnosticsProjector:
                 self._refresh_attempt_at(latest) or last_success, policy
             ),
             policy=policy,
+            # Required for readiness when the operator has actually scheduled
+            # automatic sync (an implicit freshness promise), or when the
+            # connector contract explicitly requires it regardless of
+            # scheduling. Being merely SUPPORTED never implies REQUIRED.
             required=bool(
                 supported
                 and enabled
                 and configured
-                and policy.mode == ScheduleMode.SCHEDULED
+                and (policy.mode == ScheduleMode.SCHEDULED or policy.required_for_readiness)
             ),
             evidence_key="data_layer_refresh_job",
         )
@@ -1248,16 +1276,21 @@ class CanonicalDiagnosticsProjector:
             OutcomeState.PARTIAL.value,
         }:
             return ReadinessState.NEEDS_ATTENTION, "product_cache_refresh_failed"
-        if product_cache["required"] and product_cache["freshness"] in {
-            FreshnessState.STALE.value,
-            FreshnessState.NEVER_RUN.value,
-        }:
-            return (
-                ReadinessState.NEEDS_ATTENTION,
-                "product_cache_stale"
-                if product_cache["freshness"] == FreshnessState.STALE.value
-                else "product_cache_never_run",
-            )
+        if product_cache["required"] and product_cache["freshness"] == FreshnessState.STALE.value:
+            # Prior evidence exists and has aged out: a manual cadence was
+            # already established, so staleness is actionable regardless of
+            # whether automatic scheduling is configured.
+            return ReadinessState.NEEDS_ATTENTION, "product_cache_stale"
+        if (
+            product_cache["required"]
+            and product_cache["freshness"] == FreshnessState.NEVER_RUN.value
+            and product_sync["required"]
+        ):
+            # Never having run is only a readiness problem when product sync
+            # is actually expected (scheduled, or explicitly required by
+            # connector policy). Merely SUPPORTED-but-unscheduled must not
+            # manufacture a false NEEDS_ATTENTION.
+            return ReadinessState.NEEDS_ATTENTION, "product_cache_never_run"
         if order_sync["required"] and order_sync["freshness"] in {
             FreshnessState.STALE.value,
             FreshnessState.NEVER_RUN.value,
@@ -1303,23 +1336,13 @@ class CanonicalDiagnosticsProjector:
                 else _action("TEST_CONNECTION")
             )
         if reason in {"product_sync_stale", "product_sync_never_run"}:
-            next_run = product_sync.get("nextExpectedAt")
-            return (
-                _action("NEXT_PRODUCT_SYNC_SCHEDULED", scheduled_at=next_run)
-                if product_sync["schedule"]["mode"] == ScheduleMode.SCHEDULED.value
-                else _action("REFRESH_PRODUCTS")
-            )
+            return self._product_sync_action(product_sync)
         if reason in {
             "product_cache_stale",
             "product_cache_never_run",
             "product_cache_refresh_failed",
         }:
-            next_run = product_sync.get("nextExpectedAt")
-            return (
-                _action("NEXT_PRODUCT_SYNC_SCHEDULED", scheduled_at=next_run)
-                if product_sync["schedule"]["mode"] == ScheduleMode.SCHEDULED.value
-                else _action("REFRESH_PRODUCTS")
-            )
+            return self._product_sync_action(product_sync)
         if reason in {"order_sync_stale", "order_sync_never_run"}:
             return _action(
                 "NEXT_ORDER_SYNC_SCHEDULED",
@@ -1330,6 +1353,22 @@ class CanonicalDiagnosticsProjector:
         if reason == "webhook_processing_delayed":
             return _action("REVIEW_WEBHOOK_QUEUE")
         return _action("REVIEW_DIAGNOSTICS")
+
+    @staticmethod
+    def _product_sync_action(product_sync: dict[str, Any]) -> dict[str, Any]:
+        mode = product_sync["schedule"]["mode"]
+        if mode == ScheduleMode.SCHEDULED.value:
+            return _action(
+                "NEXT_PRODUCT_SYNC_SCHEDULED",
+                scheduled_at=product_sync.get("nextExpectedAt"),
+            )
+        required_for_readiness = product_sync["policy"].get("requiredForReadiness")
+        if required_for_readiness and mode != ScheduleMode.MANUAL.value:
+            # Required by connector policy but no schedule exists and manual
+            # refresh isn't the declared design: this is a configuration gap,
+            # not stale data waiting on an expected trigger.
+            return _action("CONFIGURE_PRODUCT_SYNC_SCHEDULE")
+        return _action("REFRESH_PRODUCTS")
 
     def _basic_action(
         self, reason: str, connection: dict[str, Any]
@@ -1373,6 +1412,7 @@ class CanonicalDiagnosticsProjector:
             "policy": {
                 "freshnessTtlSeconds": policy.freshness_ttl_seconds,
                 "source": policy.policy_source,
+                "requiredForReadiness": policy.required_for_readiness,
             },
             "evidenceKey": evidence_key,
         }
@@ -1478,6 +1518,15 @@ class CanonicalDiagnosticsProjector:
     def _resource_overall(
         readiness: ReadinessState, connectivity: str
     ) -> OverallState:
+        # Lifecycle exclusion states take precedence over connection-health
+        # coloring: an intentionally non-operational resource is never
+        # HEALTHY, ERROR, BLOCKED, or NEEDS_ATTENTION.
+        if readiness == ReadinessState.ARCHIVED:
+            return OverallState.ARCHIVED
+        if readiness == ReadinessState.COMING_SOON:
+            return OverallState.COMING_SOON
+        if readiness == ReadinessState.DISABLED:
+            return OverallState.DISABLED
         if connectivity == ConnectivityState.UNHEALTHY.value:
             return OverallState.ERROR
         if readiness == ReadinessState.BLOCKED:
