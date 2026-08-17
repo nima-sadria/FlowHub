@@ -293,6 +293,121 @@ def test_business_events_are_emitted_for_received_and_duplicate(client, db):
         assert row.domain == "channels"
 
 
+def test_initial_ping_is_acknowledged_with_2xx(client, db):
+    _seed_woocommerce_channel(db, "woocommerce:primary", "hook-secret")
+
+    response = client.post(
+        "/api/v2/webhooks/woocommerce/woocommerce:primary",
+        content=b"webhook_id=42",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["succeed"] is True
+
+
+def test_initial_ping_creates_zero_receipts(client, db):
+    _seed_woocommerce_channel(db, "woocommerce:primary", "hook-secret")
+
+    client.post(
+        "/api/v2/webhooks/woocommerce/woocommerce:primary",
+        content=b"webhook_id=42",
+    )
+
+    assert db.query(_webhook_models.WebhookReceipt).count() == 0
+
+
+def test_initial_ping_triggers_zero_product_processing(client, db, monkeypatch):
+    _seed_woocommerce_channel(db, "woocommerce:primary", "hook-secret")
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("Ping must never reach product-event acceptance.")
+
+    monkeypatch.setattr(
+        "app.flowhub.webhooks.service.WebhookIngestionService.accept_woocommerce_event",
+        fail_if_called,
+    )
+    monkeypatch.setattr(
+        "app.flowhub.webhooks.service.WebhookIngestionService.verify_woocommerce_signature",
+        fail_if_called,
+    )
+
+    response = client.post(
+        "/api/v2/webhooks/woocommerce/woocommerce:primary",
+        content=b"webhook_id=42",
+    )
+
+    assert response.status_code == 200
+    from app.flowhub.business_observability.models import BusinessEvent
+
+    assert db.query(BusinessEvent).count() == 0
+
+
+def test_initial_ping_with_content_type_and_no_delivery_headers_is_still_a_ping(client, db):
+    # WC_Webhook::deliver_ping() never sets Content-Type, but a request that
+    # merely lacks all X-WC-Webhook-* headers must still be treated as the
+    # ping rather than an unsupported-media-type real delivery.
+    _seed_woocommerce_channel(db, "woocommerce:primary", "hook-secret")
+
+    response = client.post(
+        "/api/v2/webhooks/woocommerce/woocommerce:primary",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        content=b"webhook_id=42",
+    )
+
+    assert response.status_code == 200
+    assert db.query(_webhook_models.WebhookReceipt).count() == 0
+
+
+def test_real_product_updated_delivery_still_accepted_after_ping_handling(client, db):
+    _seed_woocommerce_channel(db, "woocommerce:primary", "hook-secret")
+
+    response = _post_webhook(client, "woocommerce:primary", _payload(), "hook-secret", topic="product.updated")
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Webhook accepted.", "succeed": True}
+    assert db.query(_webhook_models.WebhookReceipt).filter_by(channel_id="woocommerce:primary").count() == 1
+
+
+def test_real_delivery_with_invalid_signature_still_rejected(client, db):
+    _seed_woocommerce_channel(db, "woocommerce:primary", "hook-secret")
+
+    response = _post_webhook(client, "woocommerce:primary", _payload(), "wrong-secret", topic="product.updated")
+
+    assert response.status_code == 403
+    assert db.query(_webhook_models.WebhookReceipt).count() == 0
+
+
+def test_real_delivery_with_unsupported_media_type_still_rejected(client, db):
+    _seed_woocommerce_channel(db, "woocommerce:primary", "hook-secret")
+    raw_body = json.dumps(_payload()).encode("utf-8")
+    signature = _sign(raw_body, "hook-secret")
+
+    response = client.post(
+        "/api/v2/webhooks/woocommerce/woocommerce:primary",
+        headers={
+            "Content-Type": "text/plain",
+            "X-WC-Webhook-Topic": "product.updated",
+            "X-WC-Webhook-Signature": signature,
+            "X-WC-Webhook-ID": "wh-1",
+            "X-WC-Webhook-Delivery-ID": "dl-1",
+        },
+        content=raw_body,
+    )
+
+    assert response.status_code == 415
+    assert db.query(_webhook_models.WebhookReceipt).count() == 0
+
+
+def test_ping_to_unknown_channel_is_still_404(client, db):
+    response = client.post(
+        "/api/v2/webhooks/woocommerce/woocommerce:unknown",
+        content=b"webhook_id=42",
+    )
+
+    assert response.status_code == 404
+    assert db.query(_webhook_models.WebhookReceipt).count() == 0
+
+
 def _seed_woocommerce_channel(db, channel_id: str, webhook_secret: str, *, enabled: bool = True) -> None:
     from datetime import datetime, timezone
 

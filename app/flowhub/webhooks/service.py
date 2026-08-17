@@ -53,6 +53,28 @@ PERMANENT_ERRORS = {"validation", "malformed_payload", "unsupported_event"}
 WOOCOMMERCE_PRODUCT_TOPICS = frozenset({"product.created", "product.updated", "product.deleted"})
 
 
+def is_woocommerce_ping(
+    *,
+    topic: str | None,
+    resource: str | None,
+    event: str | None,
+    signature: str | None,
+    webhook_id: str | None,
+    delivery_id: str | None,
+) -> bool:
+    """True for WooCommerce's initial webhook-activation ping.
+
+    Per WC_Webhook::deliver_ping() in WooCommerce core, the ping sent the
+    first time an Active webhook is saved carries only a `webhook_id=<id>`
+    body and a User-Agent header -- no Content-Type and none of the
+    X-WC-Webhook-* headers that WC_Webhook::deliver() always attaches to a
+    real product/order/etc. delivery. Their total absence is the signal;
+    a request missing only some of them is malformed, not a ping, and must
+    keep failing the strict real-delivery checks.
+    """
+    return not any((topic, resource, event, signature, webhook_id, delivery_id))
+
+
 @dataclass(frozen=True)
 class AcceptedWebhook:
     receipt: WebhookReceipt

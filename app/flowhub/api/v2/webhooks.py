@@ -15,6 +15,7 @@ from app.flowhub.webhooks.service import (
     MAX_WOOCOMMERCE_WEBHOOK_BYTES,
     WOOCOMMERCE_PRODUCT_TOPICS,
     WebhookIngestionService,
+    is_woocommerce_ping,
     parse_json_body,
 )
 
@@ -81,6 +82,32 @@ async def receive_woocommerce_webhook(
                 raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Webhook payload is too large.")
         except ValueError:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid Content-Length header.") from None
+
+    service = WebhookIngestionService(db)
+    # Lifecycle guard first: channel must exist, be a WooCommerce channel, and
+    # be enabled, before any content-type, ping, or signature material is
+    # even considered.
+    service.authenticate_woocommerce(channel_id)
+
+    if is_woocommerce_ping(
+        topic=wc_webhook_topic,
+        resource=wc_webhook_resource,
+        event=wc_webhook_event,
+        signature=wc_webhook_signature,
+        webhook_id=wc_webhook_id,
+        delivery_id=wc_webhook_delivery_id,
+    ):
+        # WooCommerce's "the first time you save a webhook as Active, it sends
+        # a ping to the Delivery URL" handshake. It has no Content-Type and
+        # none of the X-WC-Webhook-* headers, so it must never reach the
+        # strict real-delivery checks below. It is acknowledged, not
+        # processed: no receipt, no signature check, no product cache write,
+        # no Business Event.
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "WooCommerce webhook ping acknowledged.", "succeed": True},
+        )
+
     content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
     if content_type != "application/json":
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Webhook payload must be application/json.")
@@ -89,10 +116,6 @@ async def receive_woocommerce_webhook(
     if len(raw_body) > MAX_WOOCOMMERCE_WEBHOOK_BYTES:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Webhook payload is too large.")
 
-    service = WebhookIngestionService(db)
-    # Lifecycle guard first: channel must exist, be a WooCommerce channel, and
-    # be enabled, before any signature material is even considered.
-    service.authenticate_woocommerce(channel_id)
     # Signature verification happens before any durable write and before the
     # body is parsed as JSON, mirroring the TapsiShop route's ordering.
     service.verify_woocommerce_signature(channel_id, raw_body, wc_webhook_signature)
