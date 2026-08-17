@@ -2071,3 +2071,26 @@ def test_large_manual_selection_uses_bounded_sqlite_batches(db, admin):
         db.query(SnapshotRow).filter_by(snapshot_id=workspace["snapshot"]["id"]).count()
         == 501
     )
+
+
+def test_grouped_grid_changed_view_is_not_empty_before_any_draft_revision_exists(
+    client, auth_headers, db
+):
+    """Regression for Userback #8215161: "Workspace appears empty after
+    successful fetch". A freshly created workspace has no Draft Revision yet
+    (nothing has been edited), so the "changed" view must not resolve to an
+    empty include-set — that previously hid every row even though the fetch
+    genuinely populated the Workspace Snapshot.
+    """
+    _seed(db)
+    workspace = _create(client, auth_headers)
+
+    response = client.get(
+        f"/api/v2/unified-workspaces/{workspace['id']}/grouped-grid?page=1&pageSize=100&view=changed",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["name"] == "Canonical Test Product"

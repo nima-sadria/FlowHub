@@ -1086,7 +1086,12 @@ def _normalize_status(connector_type: str, status_value: str) -> str:
         return SNAPPSHOP_STATUS_MAP.get(key, key.lower() or "unknown")
     if connector_type == "woocommerce":
         return WOOCOMMERCE_STATUS_MAP.get(key, key.lower() or "unknown")
-    return TAPSISHOP_STATUS_MAP.get(key, key.lower() or "unknown")
+    if connector_type == "tapsishop":
+        return TAPSISHOP_STATUS_MAP.get(key, key.lower() or "unknown")
+    # No documented status vocabulary for this connector (e.g. technolife) —
+    # pass the raw status through rather than silently aliasing it against
+    # another provider's codes (tapsishop's "1"-"4" would otherwise collide).
+    return key.lower() or "unknown"
 
 
 def _normalize_event_type(connector_type: str, event_type: str) -> str:

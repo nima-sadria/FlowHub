@@ -76,7 +76,7 @@
   "status.error": "Error",
   "status.failed": "Failed",
   "status.fresh": "Fresh",
-  "status.fulfilled": "Fulfilled",
+  "status.fulfilled": "Delivered",
   "status.future": "Future",
   "status.global": "Global",
   "status.healthy": "Healthy",

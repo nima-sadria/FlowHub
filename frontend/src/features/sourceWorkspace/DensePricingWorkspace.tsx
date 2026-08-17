@@ -95,7 +95,9 @@ export default function DensePricingWorkspace({
   const [channelInventory, setChannelInventory] = useState<SourceChannel[]>([])
   const [channelInventoryReady, setChannelInventoryReady] = useState(false)
   const [page, setPage] = useState(1)
-  const [view, setView] = useState<View>(() => workspace.entryPoint === 'manual' ? 'all' : 'changed')
+  const [view, setView] = useState<View>(() => (
+    workspace.entryPoint === 'manual' || workspace.draft.currentRevisionId === null ? 'all' : 'changed'
+  ))
   const [searchInput, setSearchInput] = useState(() => initialSearch.trim())
   const [search, setSearch] = useState(() => initialSearch.trim())
   const [channelFilter, setChannelFilter] = useState('')

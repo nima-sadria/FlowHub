@@ -1023,6 +1023,22 @@ def _order(channel_id: str, order_number: str, status: str, updated: str, *, sku
     )
 
 
+def test_normalize_status_does_not_alias_unmapped_connectors_onto_tapsishop_codes():
+    """Regression for Userback #8215153 investigation: connectors with no
+    documented status vocabulary of their own (e.g. technolife) used to fall
+    through to TAPSISHOP_STATUS_MAP, so a raw status that happened to collide
+    with a TapsiShop numeric code ("1"-"4") would silently be mis-mapped to
+    TapsiShop's semantics instead of passed through as-is.
+    """
+    from app.flowhub.orders.service import _normalize_status
+
+    # TapsiShop's own map still applies for TapsiShop.
+    assert _normalize_status("tapsishop", "3") == "fulfilled"
+    # An unrelated connector must not inherit TapsiShop's numeric-code map.
+    assert _normalize_status("technolife", "3") == "3"
+    assert _normalize_status("technolife", "Delivered") == "delivered"
+
+
 def _receipt(db, request_id: str, change_type: int) -> None:
     db.add(_webhook_models.WebhookReceipt(
         channel_id="tapsi:1",

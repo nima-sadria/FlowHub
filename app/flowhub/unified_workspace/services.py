@@ -1124,7 +1124,13 @@ class UnifiedWorkspaceService:
             ready_product_ids = set(changed_product_ids)
         include_product_ids: set[str] | None = None
         exclude_product_ids: set[str] | None = None
-        if view == "changed":
+        # A workspace with no draft revision yet has nothing "changed" by
+        # definition (nothing has been edited). Treat "changed" as "all" in
+        # that case instead of resolving to an empty include-set, which would
+        # otherwise hide every row despite a successful fetch.
+        if view == "changed" and draft.current_revision_id is None:
+            pass
+        elif view == "changed":
             include_product_ids = changed_product_ids | blocked_product_ids
         elif view == "ready":
             include_product_ids = ready_product_ids
