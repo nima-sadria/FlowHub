@@ -33,6 +33,7 @@ def _env_file_to_installer_config(env_file: Path | None):  # type: ignore[return
             # Map FLOWHUB_* env vars to InstallerConfig fields
             _MAP = {
                 "FLOWHUB_DOMAIN": "domain",
+                "FLOWHUB_PUBLIC_URL": "public_url",
                 "FLOWHUB_ADMIN_EMAIL": "admin_email",
                 "FLOWHUB_NEXTCLOUD_URL": "nextcloud_url",
                 "FLOWHUB_NEXTCLOUD_FILE_PATH": "nextcloud_file_path",

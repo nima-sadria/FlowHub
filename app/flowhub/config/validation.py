@@ -24,6 +24,7 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 REQUIRED_FIELDS: tuple[str, ...] = (
     "FLOWHUB_ENV",
     "FLOWHUB_DOMAIN",
+    "FLOWHUB_PUBLIC_URL",
     "FLOWHUB_PORT",
     "FLOWHUB_DATABASE_URL",
     "FLOWHUB_POSTGRES_DB",
@@ -119,6 +120,7 @@ class ConfigValidator:
         get = env.get
 
         _v(result, "FLOWHUB_ENV", get("FLOWHUB_ENV", ""), _check_env)
+        _v(result, "FLOWHUB_PUBLIC_URL", get("FLOWHUB_PUBLIC_URL", ""), _check_url)
         _v(result, "FLOWHUB_PORT", get("FLOWHUB_PORT", ""), _check_port)
         _v(result, "FLOWHUB_DATABASE_URL", get("FLOWHUB_DATABASE_URL", ""), _check_database_url)
         _v(result, "FLOWHUB_JWT_SECRET", get("FLOWHUB_JWT_SECRET", ""), _check_jwt_secret)

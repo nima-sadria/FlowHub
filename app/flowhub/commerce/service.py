@@ -50,6 +50,7 @@ from app.flowhub.channels.technolife import (
     TechnolifeConnector,
 )
 from app.flowhub.config.nextcloud_url import NextcloudUrlValidationError, normalize_nextcloud_url
+from app.flowhub.config.public_url import public_webhook_url
 from app.connectors.common.source_http import (
     SourceHttpClient,
     SourceHttpError,
@@ -1092,7 +1093,9 @@ class CommerceHubService:
             "access_token_configured": secret_status.get("access_token", {}).get("status") == "configured",
             "refresh_token_configured": secret_status.get("refresh_token", {}).get("status") == "configured",
             "settings_schema": [item.model_dump() for item in definition.settings_schema] if definition else [],
-            "webhook_path": f"/api/v2/webhooks/tapsishop/{channel_id}" if meta["provider"] == "tapsishop" else None,
+            "webhook_path": f"/api/v2/webhooks/{meta['provider']}/{channel_id}" if meta["provider"] in {"tapsishop", "woocommerce"} else None,
+            "webhook_url": public_webhook_url(str(meta["provider"]), channel_id)
+            if meta["provider"] in {"tapsishop", "woocommerce"} else None,
             "credentials_returned": False,
             "currency_profile": PricingMatrixService(self.db).unit_declaration(
                 "channel", channel_id

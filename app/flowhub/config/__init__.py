@@ -21,6 +21,7 @@ from .loader import ConfigurationError, EnvironmentLoader
 from .manager import ConfigurationManager, NotLoadedError, NotValidError
 from .migration import ConfigMigration
 from .profiles import ConfigProfile
+from .public_url import canonical_public_url, public_webhook_url
 from .schema import FlowHubConfig
 from .secrets import EnvSecretProvider, SecretProvider, SECRET_FIELDS
 from .validation import (
@@ -58,4 +59,6 @@ __all__ = [
     "find_unexpanded_template_variables",
     # Migration
     "ConfigMigration",
+    "canonical_public_url",
+    "public_webhook_url",
 ]

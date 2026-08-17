@@ -1010,6 +1010,7 @@ describe('CommerceHub', () => {
         const base = await commerce.getChannelConfiguration(channelId)
         return {
           ...base,
+          webhook_url: 'https://flowhub.softpple.business/api/v2/webhooks/tapsishop/tapsishop%3Amain',
           settings: { base_url: 'https://vendorgw.tapsi.shop/Web/Hub/vendors/v1', request_timeout: '30' },
           secrets: {
             token: { status: 'configured', replaced_at: null },
@@ -1037,7 +1038,15 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('Webhook credential: Configured')
     expect(c.textContent).toContain('Dry Run, Review, Approval, Apply')
     expect(c.textContent).toContain('Variations, listing creation, categories, attributes, discounts, and courier review are unavailable')
-    expect((inputByLabel(c, 'Webhook URL')).value).toContain('/api/v2/webhooks/tapsishop/tapsishop%3Amain')
+    expect((inputByLabel(c, 'Webhook URL')).value).toBe('https://flowhub.softpple.business/api/v2/webhooks/tapsishop/tapsishop%3Amain')
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    await act(async () => {
+      Array.from(c.querySelectorAll('button')).find(button => button.textContent === 'Copy webhook URL')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await Promise.resolve()
+    })
+    expect(writeText).toHaveBeenCalledWith('https://flowhub.softpple.business/api/v2/webhooks/tapsishop/tapsishop%3Amain')
     const accessMode = selectByLabel(c, 'Access mode')
     expect(Array.from(accessMode.options).map(option => option.value)).toEqual(['read_only', 'write_enabled'])
     expect(accessMode.value).toBe('read_only')

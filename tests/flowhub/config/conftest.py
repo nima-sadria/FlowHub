@@ -6,6 +6,7 @@ import pytest
 _BASE_VALID_ENV: dict[str, str] = {
     "FLOWHUB_ENV": "production",
     "FLOWHUB_DOMAIN": "test.example.com",
+    "FLOWHUB_PUBLIC_URL": "https://test.example.com",
     "FLOWHUB_PORT": "8080",
     "FLOWHUB_DATABASE_URL": "postgresql://user:pass@localhost/db",
     "FLOWHUB_POSTGRES_DB": "flowhub",

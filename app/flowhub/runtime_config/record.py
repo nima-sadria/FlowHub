@@ -43,6 +43,7 @@ INSTALLER_ONLY_FIELDS: frozenset[str] = frozenset(
     {
         "FLOWHUB_ENV",
         "FLOWHUB_DOMAIN",
+        "FLOWHUB_PUBLIC_URL",
         "FLOWHUB_PORT",
         "FLOWHUB_SSL_MODE",
         "FLOWHUB_DATABASE_URL",

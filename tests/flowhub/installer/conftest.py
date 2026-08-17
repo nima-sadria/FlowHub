@@ -10,6 +10,7 @@ def valid_config() -> InstallerConfig:
     """InstallerConfig with all required fields populated with test values."""
     return InstallerConfig(
         domain="test.example.com",
+        public_url="https://test.example.com",
         port=8080,
         ssl_mode="off",
         env="production",

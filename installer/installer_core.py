@@ -53,6 +53,7 @@ class InstallerConfig:
 
     # --- Required (no usable default) ---
     domain: str = ""
+    public_url: str = ""
     admin_email: str = ""
     nextcloud_url: str = ""
     nextcloud_file_path: str = ""
@@ -426,6 +427,7 @@ def generate_env_content(config: InstallerConfig) -> str:
         "",
         f"FLOWHUB_ENV={config.env}",
         f"FLOWHUB_DOMAIN={config.domain}",
+        f"FLOWHUB_PUBLIC_URL={config.public_url}",
         f"FLOWHUB_PORT={config.port}",
         f"FLOWHUB_DATABASE_URL={database_url}",
         f"FLOWHUB_POSTGRES_DB={config.postgres_db}",

@@ -40,7 +40,7 @@ class TestGenerateEnvContent:
     def test_contains_all_required_field_names(self, valid_config_with_paths: InstallerConfig):
         content = generate_env_content(valid_config_with_paths)
         required = [
-            "FLOWHUB_DOMAIN", "FLOWHUB_PORT", "FLOWHUB_DATABASE_URL",
+            "FLOWHUB_DOMAIN", "FLOWHUB_PUBLIC_URL", "FLOWHUB_PORT", "FLOWHUB_DATABASE_URL",
             "FLOWHUB_POSTGRES_DB", "FLOWHUB_POSTGRES_USER", "FLOWHUB_POSTGRES_PASSWORD",
             "FLOWHUB_JWT_SECRET", "FLOWHUB_REST_API_SECRET",
             "FLOWHUB_NEXTCLOUD_URL", "FLOWHUB_NEXTCLOUD_FILE_PATH",

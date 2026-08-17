@@ -1,4 +1,7 @@
 {
+  "commerceHub.copyWebhookUrl": "Copy webhook URL",
+  "commerceHub.webhookUrlCopied": "Webhook URL copied.",
+  "commerceHub.webhookUrlCopyFailed": "Could not copy the webhook URL.",
   "capability.categoryRead": "خواندن دسته‌بندی‌ها",
   "capability.inventoryRead": "خواندن موجودی",
   "capability.orderRead": "خواندن سفارش‌ها",

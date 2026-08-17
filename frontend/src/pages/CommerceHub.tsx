@@ -7,7 +7,7 @@ import Badge from '../components/Badge'
 import Alert from '../components/Alert'
 import { useServices } from '../services/ServiceContext'
 import type { CommerceChannel, CommerceRelationshipMap, CommerceSource, CommerceTypeField, CommerceTypeOption } from '../services/types'
-import type { ChannelCacheRefreshResult, CommerceConfigPayload, CommerceSourceConfiguration, CommerceVendor, ConnectionCheckResult, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
+import type { ChannelCacheRefreshResult, CommerceChannelConfiguration, CommerceConfigPayload, CommerceSourceConfiguration, CommerceVendor, ConnectionCheckResult, NextcloudBrowseItem, NextcloudBrowseResult } from '../services/commerce/CommerceService'
 import Spinner from '../components/loading/Spinner'
 import SecretField from '../components/SecretField'
 import BrandIcon from '../components/BrandIcon'
@@ -699,6 +699,7 @@ export function ConfigPanel({
   const [sourceArchivedAt, setSourceArchivedAt] = useState<string | null>(null)
   const [savedNextcloudConnection, setSavedNextcloudConnection] = useState<SavedNextcloudConnection | null>(null)
   const [savedNextcloudSpreadsheetPath, setSavedNextcloudSpreadsheetPath] = useState('')
+  const [webhookUrl, setWebhookUrl] = useState<string | null>(null)
   const [lastTestEvidence, setLastTestEvidence] = useState<CommerceSourceConfiguration['last_test']>(undefined)
   const [vendors, setVendors] = useState<CommerceVendor[]>([])
   const [vendorInformation, setVendorInformation] = useState<CommerceVendor | null>(null)
@@ -719,6 +720,16 @@ export function ConfigPanel({
     ? nextcloudUrlErrorFor(settings)
     : null
 
+  const copyWebhookUrl = async () => {
+    if (!webhookUrl) return
+    try {
+      await navigator.clipboard.writeText(webhookUrl)
+      success(translate('commerce:commerceHub.webhookUrlCopied'))
+    } catch {
+      notifyError(translate('commerce:commerceHub.webhookUrlCopyFailed'))
+    }
+  }
+
   useEffect(() => {
     if (initialResourceId) return
     setDisplayName(selected?.name ?? '')
@@ -738,6 +749,7 @@ export function ConfigPanel({
     setSourceArchivedAt(null)
     setSavedNextcloudConnection(null)
     setSavedNextcloudSpreadsheetPath('')
+    setWebhookUrl(null)
     setLastTestEvidence(undefined)
     setVendors([])
     setVendorInformation(null)
@@ -773,6 +785,7 @@ export function ConfigPanel({
         const providerType = types.find(item => item.provider === configuration.provider)
         if (providerType) setSelectedId(providerType.id)
         setDisplayName(configuration.display_name)
+        setWebhookUrl(kind === 'channel' ? (configuration as CommerceChannelConfiguration).webhook_url ?? null : null)
         // A bootstrap Source has no persisted operational state. Keep its edit
         // checkbox false without treating that absence as a disabled connection.
         setEnabled(configuration.enabled === true)
@@ -1735,8 +1748,9 @@ export function ConfigPanel({
           </div>
           <label className="fh-field">
             <span className="fh-help-text">{translate('commerce:commerceHub.webhookUrl')}</span>
-            <input readOnly value={`${window.location.origin}/api/v2/webhooks/tapsishop/${encodeURIComponent(selected.id)}`} className="fh-input" />
+            <input readOnly value={webhookUrl ?? ''} className="fh-input" />
           </label>
+          <button type="button" onClick={copyWebhookUrl} disabled={!webhookUrl} className="fh-button-secondary fh-button-sm">{translate('commerce:commerceHub.copyWebhookUrl')}</button>
           <p className="fh-help-text">{translate('commerce:commerceHub.webhookCredential')} {configuredSecret("webhook_token") ? translate('commerce:commerceHub.configured') : translate('commerce:commerceHub.notConfigured2')}</p>
           {vendorInformation && (
             <div className="rounded-md border border-border bg-bg-subtle p-3 fh-text-body-sm">
@@ -1757,8 +1771,9 @@ export function ConfigPanel({
           </div>
           <label className="fh-field">
             <span className="fh-help-text">{translate('commerce:commerceHub.webhookUrl')}</span>
-            <input readOnly value={`${window.location.origin}/api/v2/webhooks/woocommerce/${encodeURIComponent(selected.id)}`} className="fh-input" />
+            <input readOnly value={webhookUrl ?? ''} className="fh-input" />
           </label>
+          <button type="button" onClick={copyWebhookUrl} disabled={!webhookUrl} className="fh-button-secondary fh-button-sm">{translate('commerce:commerceHub.copyWebhookUrl')}</button>
           <p className="fh-help-text">{translate('commerce:commerceHub.webhookCredential')} {configuredSecret("webhook_secret") ? translate('commerce:commerceHub.configured') : translate('commerce:commerceHub.notConfigured2')}</p>
         </div>
       )}

@@ -4118,6 +4118,20 @@ def test_tapsishop_configuration_reports_separate_secret_states_and_webhook_path
     assert "outbound-only" not in configuration.text
 
 
+def test_channel_configuration_returns_backend_canonical_webhook_url(client, auth_headers, monkeypatch):
+    monkeypatch.setenv("FLOWHUB_PUBLIC_URL", "https://flowhub.softpple.business/")
+
+    configuration = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary/configuration",
+        headers=auth_headers,
+    )
+
+    assert configuration.status_code == 200
+    assert configuration.json()["webhook_url"] == (
+        "https://flowhub.softpple.business/api/v2/webhooks/woocommerce/woocommerce%3Aprimary"
+    )
+
+
 def test_marketplace_configuration_requires_admin_and_valid_required_fields(client, auth_headers, db):
     from app.flowhub.auth.jwt_service import create_access_token
     from app.flowhub.auth.models import FlowHubUser

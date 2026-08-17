@@ -51,6 +51,7 @@ export interface CommerceChannelConfiguration {
   refresh_token_configured?: boolean
   settings_schema: CommerceTypeOption['settings_schema']
   webhook_path: string | null
+  webhook_url?: string | null
   credentials_returned: false
   currency_profile?: CommerceCurrencyProfile
 }
