@@ -134,6 +134,13 @@ class OrderSyncRunner:
 
     async def run_once(self) -> dict[str, Any]:
         self._record_runner_heartbeat("running")
+        # Release abandoned ownership every tick, not only at process start.
+        # A job whose owner died keeps an unexpired lease for its full policy
+        # window (30 minutes for products:initial_full_read). Recovering only
+        # at startup meant every evaluator tick inside that window hit
+        # RefreshJobAlreadyRunning against a dead owner, and -- before the
+        # deferral fix below it -- burned webhook receipt attempts each time.
+        self._recover_stale_refresh_jobs()
         channels = self._discover_channels() if self.settings.enabled else []
         results: list[dict[str, Any]] = []
         for channel in channels:

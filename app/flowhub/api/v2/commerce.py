@@ -173,6 +173,21 @@ async def refresh_channel_cache(
     return await service.refresh_channel_cache(channel_id, user.username)
 
 
+@router.post("/channels/{channel_id}/reconcile")
+async def retry_channel_reconciliation(
+    channel_id: str,
+    user: FlowHubUser = Depends(get_current_user),
+    service: CommerceHubService = Depends(_service),
+) -> dict:
+    """Retry the failed product reconciliation through the established read path."""
+    _require_admin(user)
+    return await service.refresh_channel_cache(
+        channel_id,
+        user.username,
+        job_type="reconciliation",
+    )
+
+
 @router.get("/channels/{channel_id}/health")
 async def get_channel_health(
     channel_id: str,

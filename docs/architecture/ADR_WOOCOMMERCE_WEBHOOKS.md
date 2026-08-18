@@ -64,6 +64,9 @@ concurrent duplicate delivery converges on the same receipt row instead of
 raising or double-writing. A Postgres-only concurrency test
 (`tests/flowhub/webhooks/test_woocommerce_webhooks_postgres.py`) exercises
 this race directly, since SQLite's single-connection test pool cannot.
+The receipt transition itself is also row-locked: concurrent evaluators
+cannot create duplicate processing attempts or duplicate Business Events for
+one receipt outcome.
 
 ### Processing model: request validates, a background process applies
 
@@ -175,6 +178,51 @@ internal step.
 4. **Product freshness stays an independent evidence axis** per channel,
    never merged with order freshness, connection health, or any other
    channel's evidence.
+5. **Retryability follows the real failure category.** A receipt's
+   `error_category` is derived from the normalized classification of the
+   failure that actually occurred (`classify_failure` in
+   `security/upstream_errors.py`), never hardcoded. Categories in
+   `TRANSIENT_ERRORS` retry with backoff up to `MAX_PROCESSING_ATTEMPTS`;
+   categories in `PERMANENT_ERRORS` (including `auth_failed`, `not_found`
+   and `internal_error`) dead-letter on the first attempt. An unrecognized
+   category is treated as permanent, because five identical retries of a
+   non-retryable failure tell the Owner nothing.
+6. **Work that was never attempted must not consume an attempt.** When a
+   refresh is deferred because FlowHub's own single-flight lease is already
+   held (`RefreshJobAlreadyRunning` → category `refresh_in_progress`), the
+   pending receipts stay `queued` and are retried on a later tick. They are
+   not marked failed. Charging an attempt for work that never ran is what
+   dead-lettered 13 healthy `product.updated` deliveries on 2026-08-18.
+7. **Reconciliation is a distinct read operation.**
+   `POST /api/v2/commerce/channels/{channel_id}/reconcile` handles the
+   canonical `RETRY_RECONCILIATION` action by running the existing
+   WooCommerce product-cache/read path with `job_type="reconciliation"`.
+   It reuses `RefreshJobLifecycle` single-flight ownership, never resumes a
+   stale pending run, preserves previously successful cache evidence on a
+   failed refresh, and never processes or replays webhook receipts.
+
+## Amendment (2026-08-18): honest failure attribution
+
+Production evidence: 13 `product.updated` receipts for `woocommerce:primary`
+dead-lettered at `attempt_count = 5`, every attempt recording
+`error_category: "temporary"` and a `CHANNEL_UPSTREAM_ERROR` payload, while
+the same store served `/wp-json/wc/v3/orders` with HTTP 200 throughout. Two
+defects produced that, and both are now closed:
+
+* `ScheduledDiagnosticsEvaluator._sync_products` hardcoded
+  `error_category="temporary"` for every refresh failure, so retryability
+  never reflected the real cause (invariant 5 above).
+* A refresh blocked by an existing lease was reported as a *failed* refresh
+  and relabelled `CHANNEL_UPSTREAM_ERROR` by the catch-all in
+  `normalize_upstream_error`, even though no provider call had been made
+  (invariants 5 and 6, plus `ADR_DIAGNOSTICS_STATE_MODEL.md`).
+
+`normalize_upstream_error` keeps its exact public payload
+(`code`/`message`/`source`/`http_status`) for contract compatibility;
+`classify_failure` is the internal entry point that additionally returns
+`category` and `upstream_attributable`. Those richer values are persisted
+only as Advanced Evidence/refresh-job metadata and are consumed in-process by
+the evaluator; they are not added to public error objects.
 
 ## Explicitly out of scope this phase
 

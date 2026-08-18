@@ -30,6 +30,7 @@ from app.flowhub.integration_platform.models import (
     IntegrationConnectorSetting,
 )
 from app.flowhub.security.redaction import redact_sensitive
+from app.flowhub.security.upstream_errors import CATEGORY_REFRESH_IN_PROGRESS
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.webhooks.models import (
     WebhookDeadLetter,
@@ -43,8 +44,38 @@ MAX_TAPSISHOP_WEBHOOK_BYTES = 256 * 1024
 MAX_WOOCOMMERCE_WEBHOOK_BYTES = 256 * 1024
 WEBHOOK_RETENTION_DAYS = 90
 MAX_PROCESSING_ATTEMPTS = 5
-TRANSIENT_ERRORS = {"timeout", "rate_limit", "upstream_unavailable", "storage_unavailable", "temporary"}
-PERMANENT_ERRORS = {"validation", "malformed_payload", "unsupported_event"}
+# Retryability taxonomy, reconciled with the categories
+# `normalize_upstream_error` can actually produce (see
+# app/flowhub/security/upstream_errors.py). A category that is in neither set
+# is treated as permanent by `process_receipt`: refusing to retry an
+# unrecognized failure is the safe direction, because retrying a permanent
+# failure five times produces five identical dead-letter attempts that tell
+# the Owner nothing.
+TRANSIENT_ERRORS = {
+    "timeout",
+    "rate_limit",
+    "rate_limited",
+    "upstream_unavailable",
+    "storage_unavailable",
+    "temporary",
+    # Genuine transport-level faults against the provider. These are the only
+    # network categories that a plain retry can plausibly fix.
+    "dns_error",
+    "tls_error",
+}
+PERMANENT_ERRORS = {
+    "validation",
+    "malformed_payload",
+    "unsupported_event",
+    # Credentials/permissions and missing resources never fix themselves on a
+    # retry; they need an Owner action.
+    "auth_failed",
+    "not_found",
+    "not_configured",
+    # A FlowHub bug is not retryable provider trouble. Retrying it just hides
+    # the defect behind five identical attempts.
+    "internal_error",
+}
 
 # WooCommerce core product webhook topics supported in Phase 1. Orders,
 # customers, and product.restored (not a WooCommerce core topic) are
@@ -347,9 +378,9 @@ class WebhookIngestionService:
         return [row_id for (row_id,) in rows]
 
     def mark_woocommerce_receipt_processed(self, receipt_id: int) -> dict:
-        result = self.process_receipt(receipt_id)
+        result, transitioned = self._process_receipt(receipt_id)
         receipt = self.db.get(WebhookReceipt, receipt_id)
-        if receipt is not None:
+        if receipt is not None and transitioned:
             topic = (receipt.normalized_event_json or {}).get("topic", "unknown")
             self._emit_business_event(
                 receipt.channel_id,
@@ -366,9 +397,19 @@ class WebhookIngestionService:
         return result
 
     def mark_woocommerce_receipt_failed(self, receipt_id: int, error_category: str, error_message: str) -> dict:
-        result = self.process_receipt(receipt_id, error_category=error_category, error_message=error_message)
+        if error_category == CATEGORY_REFRESH_IN_PROGRESS:
+            # Defensive: a deferred refresh never executed, so there is no
+            # failure to record and no attempt to consume. The receipt stays
+            # queued for the next tick.
+            receipt = self.db.get(WebhookReceipt, receipt_id)
+            if receipt is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Webhook receipt not found.")
+            return self._receipt_shape(receipt)
+        result, transitioned = self._process_receipt(
+            receipt_id, error_category=error_category, error_message=error_message
+        )
         receipt = self.db.get(WebhookReceipt, receipt_id)
-        if receipt is not None:
+        if receipt is not None and transitioned:
             self._emit_business_event(
                 receipt.channel_id,
                 event_type="woocommerce_webhook_processing_failed",
@@ -405,19 +446,52 @@ class WebhookIngestionService:
         )
 
     def process_receipt(self, receipt_id: int, *, error_category: str | None = None, error_message: str | None = None) -> dict:
-        receipt = self.db.get(WebhookReceipt, receipt_id)
+        result, _ = self._process_receipt(
+            receipt_id, error_category=error_category, error_message=error_message
+        )
+        return result
+
+    def _process_receipt(
+        self,
+        receipt_id: int,
+        *,
+        error_category: str | None = None,
+        error_message: str | None = None,
+    ) -> tuple[dict, bool]:
+        """Apply at most one durable transition for a receipt.
+
+        PostgreSQL evaluators can select the same due receipt concurrently.
+        Locking the receipt row makes the second worker observe the first
+        worker's transition rather than creating another attempt or Business
+        Event for the same reconciliation outcome.
+        """
+        receipt = (
+            self.db.query(WebhookReceipt)
+            .filter_by(id=receipt_id)
+            .with_for_update()
+            .one_or_none()
+        )
         if receipt is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Webhook receipt not found.")
         if receipt.processing_state == "processed":
-            return self._receipt_shape(receipt)
+            return self._receipt_shape(receipt), False
         if receipt.processing_state == "dead_letter":
             raise HTTPException(status.HTTP_409_CONFLICT, "Dead-lettered webhook must be replayed before processing.")
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        if (
+            receipt.provider == "woocommerce"
+            and receipt.processing_state == "retry_scheduled"
+            and receipt.next_attempt_at is not None
+            and receipt.next_attempt_at > now
+        ):
+            return self._receipt_shape(receipt), False
 
         receipt.attempt_count += 1
         attempt_no = receipt.attempt_count
         if error_category:
             retryable = error_category in TRANSIENT_ERRORS and attempt_no < MAX_PROCESSING_ATTEMPTS
-            next_attempt_at = datetime.now(timezone.utc).replace(tzinfo=None) + _backoff(attempt_no) if retryable else None
+            next_attempt_at = now + _backoff(attempt_no) if retryable else None
             receipt.processing_state = "retry_scheduled" if retryable else "dead_letter"
             receipt.last_error_category = error_category
             receipt.next_attempt_at = next_attempt_at
@@ -437,10 +511,10 @@ class WebhookIngestionService:
                 self._dead_letter(receipt, error_category, error_message or error_category)
             self.db.commit()
             self.db.refresh(receipt)
-            return self._receipt_shape(receipt)
+            return self._receipt_shape(receipt), True
 
         receipt.processing_state = "processed"
-        receipt.processed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        receipt.processed_at = now
         receipt.last_error_category = None
         receipt.next_attempt_at = None
         self.db.add(WebhookProcessingAttempt(
@@ -460,7 +534,7 @@ class WebhookIngestionService:
         )
         self.db.commit()
         self.db.refresh(receipt)
-        return self._receipt_shape(receipt)
+        return self._receipt_shape(receipt), True
 
     def replay(self, receipt_id: int, user: FlowHubUser) -> dict:
         if user.role not in {"owner", "super_admin", "admin"}:

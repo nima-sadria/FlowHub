@@ -110,6 +110,67 @@ def test_completion_releases_the_lease_and_allows_a_new_job(db):
     assert db.get(DlRefreshJob, retry.id).status == "running"
 
 
+@pytest.mark.asyncio
+async def test_runner_recovers_abandoned_leases_on_every_tick_not_only_at_startup():
+    """A dead owner must not hold a channel hostage for its whole lease window.
+
+    `products:initial_full_read` leases for 1,800s. Recovering only at process
+    start meant that after an owner died mid-refresh, every subsequent
+    evaluator tick for up to 30 minutes hit `RefreshJobAlreadyRunning` against
+    a job nothing was executing -- which is how a healthy WooCommerce store
+    produced a continuous stream of "upstream" refresh failures.
+    """
+
+    from app.flowhub.orders.runner import OrderSyncRunner, OrderSyncRunnerSettings
+
+    engine = create_engine("sqlite:///:memory:")
+    FlowHubBase.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+
+    stale_started = utcnow() - timedelta(hours=2)
+    with session_factory() as db:
+        db.add(
+            DlRefreshJob(
+                job_type="scheduled",
+                entity_type="products",
+                connector_id="woocommerce:primary",
+                status="running",
+                created_at=stale_started,
+                started_at=stale_started,
+                heartbeat_at=stale_started,
+                # Lease already elapsed; the owning process is gone.
+                lease_expires_at=stale_started + timedelta(minutes=30),
+                meta={"strategy": "initial_full_read"},
+            )
+        )
+        db.commit()
+
+    settings = OrderSyncRunnerSettings(
+        enabled=False,
+        loop_interval_seconds=30,
+        polling_interval_seconds=300,
+        reconciliation_interval_seconds=900,
+        lease_seconds=900,
+        snappshop_max_pages=1,
+        reconciliation_page_size=10,
+        tapsishop_webhook_batch_size=10,
+        operation_timeout_seconds=60,
+        scheduled_diagnostics_enabled=False,
+    )
+    runner = OrderSyncRunner(session_factory, settings=settings)
+
+    # One ordinary loop tick -- no restart involved.
+    await runner.run_once()
+
+    with session_factory() as db:
+        recovered = db.query(DlRefreshJob).one()
+        assert recovered.status == "failed"
+        assert recovered.recovery_reason == "execution_lease_expired"
+        assert recovered.lease_expires_at is None
+
+    engine.dispose()
+
+
 def test_startup_recovery_skips_a_pre_037_refresh_table() -> None:
     from app.flowhub.app import _has_refresh_lifecycle_schema
 
