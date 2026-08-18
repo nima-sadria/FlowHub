@@ -107,7 +107,7 @@ class RefreshJobLifecycle:
             .with_for_update()
             .all()
         )
-        rows = [job for job in candidates if self._expired(job, now)]
+        rows = [job for job in candidates if self.is_expired(job, now)]
         for job in rows:
             job.status = "failed"
             job.completed_at = now
@@ -136,8 +136,14 @@ class RefreshJobLifecycle:
             self.db.commit()
         return rows
 
-    def _expired(self, job: DlRefreshJob, now: datetime) -> bool:
-        """Also recover pre-migration RUNNING rows that have no lease evidence."""
+    def is_expired(self, job: DlRefreshJob, now: datetime) -> bool:
+        """Has this job outlived the execution window its policy allows?
+
+        Also covers pre-migration RUNNING rows that have no lease evidence, and
+        PENDING rows nothing ever leased. Read-only consumers (Diagnostics)
+        share this single definition so "abandoned" means the same thing to the
+        recovery path and to the projection.
+        """
 
         if job.lease_expires_at is not None:
             return job.lease_expires_at < now

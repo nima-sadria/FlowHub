@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -28,6 +29,7 @@ from app.flowhub.source_workspace import models as _source_models  # noqa: F401
 from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 from app.flowhub.webhooks import models as _webhook_models  # noqa: F401
+from app.flowhub.webhooks.models import WebhookReceipt
 
 
 @pytest.fixture()
@@ -410,6 +412,274 @@ def test_freshness_threshold_comes_from_backend_policy(db, monkeypatch):
     assert product["freshness"] == "STALE"
 
 
+# ----------------------------------------------------------------------
+# Composed product-synchronization scheduling semantics
+# ----------------------------------------------------------------------
+
+
+def test_event_driven_channel_is_not_reported_as_not_scheduled(db):
+    """A: webhook capability + accepted evidence means EVENT_DRIVEN."""
+
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="processed")
+    _seed_product_cache(db, "woocommerce:primary", now)
+    _seed_refresh(db, "woocommerce:primary", now, status="completed")
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+    product = channel["capabilities"]["productSynchronization"]
+
+    assert product["schedule"]["mode"] == "EVENT_DRIVEN"
+    assert product["schedule"]["mode"] != "NOT_SCHEDULED"
+    assert product["freshness"] == "FRESH"
+    assert product["freshness"] != "NOT_SCHEDULED"
+    assert channel["capabilities"]["webhookProcessing"]["schedule"]["mode"] == "EVENT_DRIVEN"
+    # The product-sync axis is now required, so stale product data on an
+    # event-driven channel can still surface NEEDS_ATTENTION.
+    assert product["required"] is True
+
+
+def test_event_driven_with_scheduled_reconciliation_reports_both_facts(db, monkeypatch):
+    """B: composed mode carries its own next-reconciliation timestamp."""
+
+    now = _now()
+    _enable_product_schedule(monkeypatch, "WOOCOMMERCE", interval=3_600, freshness=7_200)
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="processed")
+    _seed_product_cache(db, "woocommerce:primary", now)
+    _seed_refresh(db, "woocommerce:primary", now, status="completed")
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+    product = channel["capabilities"]["productSynchronization"]
+
+    assert product["schedule"]["mode"] == "EVENT_DRIVEN_WITH_RECONCILIATION"
+    assert product["reconciliation"]["mode"] == "SCHEDULED"
+    assert product["reconciliation"]["nextReconciliationAt"] is not None
+    assert product["freshness"] == "FRESH"
+
+
+def test_event_driven_without_a_poll_reports_manual_reconciliation(db):
+    """C: reconciliation is a separate sub-fact, not folded into the mode."""
+
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="processed")
+    _seed_product_cache(db, "woocommerce:primary", now)
+    _seed_refresh(db, "woocommerce:primary", now, status="completed")
+
+    product = _resource(_project(db, now), "woocommerce:primary")["capabilities"][
+        "productSynchronization"
+    ]
+
+    assert product["schedule"]["mode"] == "EVENT_DRIVEN"
+    assert product["reconciliation"]["mode"] == "MANUAL"
+    assert product["reconciliation"]["nextReconciliationAt"] is None
+
+
+def test_unsupported_provider_reconciliation_is_disabled(db):
+    now = _now()
+    _seed_channel(db, "technolife:main", "technolife")
+    _seed_health(db, "technolife:main", now)
+
+    product = _resource(_project(db, now), "technolife:main")["capabilities"][
+        "productSynchronization"
+    ]
+
+    assert product["schedule"]["mode"] == "NOT_SCHEDULED"
+    assert product["reconciliation"]["mode"] == "DISABLED"
+
+
+def test_configured_webhook_without_accepted_evidence_is_not_event_driven(db):
+    # Configuration alone is a claim; only a durably accepted receipt is
+    # evidence that the provider is actually delivering.
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_product_cache(db, "woocommerce:primary", now)
+    _seed_refresh(db, "woocommerce:primary", now, status="completed")
+
+    product = _resource(_project(db, now), "woocommerce:primary")["capabilities"][
+        "productSynchronization"
+    ]
+
+    assert product["schedule"]["mode"] == "NOT_SCHEDULED"
+
+
+def test_fresh_cache_is_preserved_when_the_latest_attempt_failed(db):
+    """D: cache freshness comes from last success, outcome from last attempt."""
+
+    now = _now()
+    success_at = now - timedelta(hours=2)
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="processed")
+    _seed_product_cache(db, "woocommerce:primary", success_at)
+    _seed_refresh(db, "woocommerce:primary", success_at, status="completed")
+    _seed_refresh(db, "woocommerce:primary", now, status="failed")
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+    cache = channel["capabilities"]["productCache"]
+    product = channel["capabilities"]["productSynchronization"]
+
+    assert cache["freshness"] == "FRESH"
+    assert cache["lastOutcome"] == "FAILED"
+    assert cache["lastSuccessAt"] is not None
+    assert product["lastSuccessAt"] == cache["lastSuccessAt"]
+    # The live symptom: still fresh, but the newest reconciliation attempt
+    # failed, so the action must be to retry it -- not a blanket refresh.
+    assert channel["reasonCode"] == "product_cache_refresh_failed"
+    assert channel["recommendedAction"]["code"] == "RETRY_RECONCILIATION"
+
+
+def test_healthy_event_driven_channel_produces_no_false_refresh_products(db):
+    """E: a working event-driven channel is READY with no action."""
+
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="processed")
+    _seed_product_cache(db, "woocommerce:primary", now)
+    _seed_refresh(db, "woocommerce:primary", now, status="completed")
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+
+    assert channel["readiness"]["state"] == "READY"
+    assert channel["reasonCode"] == "channel_ready"
+    assert channel["recommendedAction"]["code"] == "NO_ACTION_REQUIRED"
+    assert channel["recommendedAction"]["code"] != "REFRESH_PRODUCTS"
+
+
+def test_stale_event_driven_product_data_still_surfaces_needs_attention(db, monkeypatch):
+    now = _now()
+    monkeypatch.setenv("FLOWHUB_WOOCOMMERCE_PRODUCT_SYNC_FRESHNESS_TTL_SECONDS", "3600")
+    old = now - timedelta(days=2)
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", old, state="processed")
+    _seed_product_cache(db, "woocommerce:primary", old)
+    _seed_refresh(db, "woocommerce:primary", old, status="completed")
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+
+    assert channel["capabilities"]["productSynchronization"]["schedule"]["mode"] == "EVENT_DRIVEN"
+    assert channel["capabilities"]["productSynchronization"]["freshness"] == "STALE"
+    assert channel["readiness"]["state"] == "NEEDS_ATTENTION"
+    assert channel["reasonCode"] == "product_sync_stale"
+
+
+def test_queue_depth_above_zero_forbids_idle_runner_state(db):
+    """F: a live runner with executable work is PENDING, never IDLE."""
+
+    now = _now()
+    _seed_heartbeat(db, now - timedelta(seconds=15), state="idle")
+    for _ in range(3):
+        _seed_queued_refresh_job(db, now)
+
+    runner = _project(db, now)["backgroundJobs"][0]
+
+    assert runner["queueDepth"] == 3
+    assert runner["state"] == "PENDING"
+    assert runner["state"] != "IDLE"
+    assert runner["health"] == "HEALTHY"
+
+
+def test_live_runner_with_no_queued_work_is_still_idle(db):
+    now = _now()
+    _seed_heartbeat(db, now - timedelta(seconds=15), state="idle")
+
+    runner = _project(db, now)["backgroundJobs"][0]
+
+    assert runner["queueDepth"] == 0
+    assert runner["state"] == "IDLE"
+    assert runner["health"] == "HEALTHY"
+
+
+def test_abandoned_records_do_not_inflate_queue_depth_but_stay_visible(db):
+    """G: expired-lease jobs and expired receipts are evidence, not backlog."""
+
+    now = _now()
+    _seed_heartbeat(db, now - timedelta(seconds=15), state="idle")
+    _seed_queued_refresh_job(db, now)
+    _seed_abandoned_refresh_job(db, now - timedelta(days=2))
+    _seed_webhook_receipt(
+        db,
+        "woocommerce:primary",
+        now - timedelta(days=200),
+        state="queued",
+        retention_until=now - timedelta(days=110),
+    )
+
+    runner = _project(db, now)["backgroundJobs"][0]
+
+    assert runner["queueDepth"] == 1
+    assert runner["staleQueueDepth"] == 2
+    evidence = {item["key"]: item["value"] for item in runner["advancedEvidence"]}
+    assert evidence["runner_stale_queue_depth"] == 2
+
+
+def test_webhook_partial_comes_from_queued_receipts_not_ping_noise(db):
+    """H: PARTIAL is derived from durable receipts; pings persist nothing."""
+
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="processed")
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="queued")
+
+    webhook = _resource(_project(db, now), "woocommerce:primary")["capabilities"][
+        "webhookProcessing"
+    ]
+
+    assert webhook["lastOutcome"] == "PARTIAL"
+    assert webhook["queuedCount"] == 1
+    assert webhook["receivedCount"] == 2
+    assert webhook["acceptedCount"] == 2
+
+
+def test_woocommerce_activation_ping_is_not_persisted_as_webhook_evidence(db):
+    # The ping is acknowledged by the route without a receipt, so a channel
+    # that has only ever been pinged shows no delivery evidence at all and
+    # cannot be inflated to PARTIAL.
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+
+    webhook = _resource(_project(db, now), "woocommerce:primary")["capabilities"][
+        "webhookProcessing"
+    ]
+
+    assert webhook["receivedCount"] == 0
+    assert webhook["acceptedCount"] == 0
+    assert webhook["lastOutcome"] == "NEVER_RUN"
+    assert webhook["lastOutcome"] != "PARTIAL"
+
+
+def test_dead_lettered_receipts_are_not_accepted_delivery_evidence(db):
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="dead_letter")
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+    webhook = channel["capabilities"]["webhookProcessing"]
+
+    assert webhook["acceptedCount"] == 0
+    assert channel["capabilities"]["productSynchronization"]["schedule"]["mode"] == "NOT_SCHEDULED"
+
+
 def _project(db, now: datetime) -> dict:
     return CanonicalDiagnosticsProjector(db, now=now).project()
 
@@ -557,3 +827,98 @@ def _enable_product_schedule(monkeypatch, provider: str, *, interval: int, fresh
     monkeypatch.setenv(f"FLOWHUB_{provider}_PRODUCT_SYNC_INTERVAL_SECONDS", str(interval))
     if freshness is not None:
         monkeypatch.setenv(f"FLOWHUB_{provider}_PRODUCT_SYNC_FRESHNESS_TTL_SECONDS", str(freshness))
+
+
+def _seed_webhook_secret(db, channel_id: str, *, key: str = "webhook_secret") -> None:
+    db.add(
+        IntegrationConnectorSetting(
+            connector_id=channel_id,
+            key=key,
+            value_json=None,
+            secret=True,
+            configured=True,
+            updated_at=_now(),
+        )
+    )
+    db.commit()
+
+
+_RECEIPT_SEQUENCE = itertools.count(1)
+
+
+def _seed_webhook_receipt(
+    db,
+    channel_id: str,
+    at: datetime,
+    *,
+    state: str = "processed",
+    provider: str = "woocommerce",
+    retention_until: datetime | None = None,
+) -> None:
+    index = next(_RECEIPT_SEQUENCE)
+    db.add(
+        WebhookReceipt(
+            channel_id=channel_id,
+            provider=provider,
+            provider_event_id=f"evt-{index}",
+            payload_hash=f"hash-{index}",
+            payload_summary_json={},
+            normalized_event_json={},
+            received_at=at,
+            acknowledged_at=at,
+            processing_state=state,
+            attempt_count=1,
+            processed_at=at if state == "processed" else None,
+            retention_until=retention_until,
+        )
+    )
+    db.commit()
+
+
+def _seed_heartbeat(db, at: datetime, *, state: str = "idle") -> None:
+    db.add(
+        IntegrationConnectorEvent(
+            connector_id="flowhub:order-sync-runner",
+            event_name="order_sync_runner_heartbeat",
+            severity="info",
+            message=f"Runner is {state}.",
+            metadata_json={"state": state, "runner_id": "runner-1"},
+            created_at=at,
+        )
+    )
+    db.commit()
+
+
+def _seed_queued_refresh_job(db, at: datetime) -> None:
+    """A pending job a live runner will genuinely pick up."""
+
+    db.add(
+        DlRefreshJob(
+            job_type="scheduled",
+            entity_type="products",
+            connector_id="woocommerce:primary",
+            status="pending",
+            created_at=at,
+            meta={},
+        )
+    )
+    db.commit()
+
+
+def _seed_abandoned_refresh_job(db, at: datetime) -> None:
+    """A running job whose execution lease expired long ago."""
+
+    db.add(
+        DlRefreshJob(
+            job_type="scheduled",
+            entity_type="products",
+            connector_id="woocommerce:primary",
+            status="running",
+            started_at=at,
+            heartbeat_at=at,
+            lease_expires_at=at + timedelta(minutes=15),
+            created_at=at,
+            meta={},
+        )
+    )
+    db.commit()

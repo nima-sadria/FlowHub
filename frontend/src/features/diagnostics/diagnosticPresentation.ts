@@ -175,6 +175,44 @@ export function diagnosticEvidenceCheckedAt(evidence: DiagnosticEvidenceLike): s
   return evidence.checked_at?.trim() || null
 }
 
+/**
+ * Canonical projection values (schedule modes, freshness, outcomes, runner
+ * states, readiness) all localize through the same `diagnostics:canonicalState.*`
+ * namespace. The backend owns the value; the frontend only names it.
+ */
+export function canonicalStateLabel(value: string | null | undefined): string {
+  const key = String(value ?? '').trim()
+  if (!key) return translate('diagnostics:canonicalState.UNKNOWN')
+  return translate(`diagnostics:canonicalState.${key}`)
+}
+
+export const EVENT_DRIVEN_SCHEDULE_MODES = ['EVENT_DRIVEN', 'EVENT_DRIVEN_WITH_RECONCILIATION'] as const
+
+export function isEventDrivenScheduleMode(mode: string | null | undefined): boolean {
+  return (EVENT_DRIVEN_SCHEDULE_MODES as readonly string[]).includes(String(mode ?? ''))
+}
+
+export interface ReconciliationLike {
+  mode?: string | null
+  nextReconciliationAt?: string | null
+}
+
+/**
+ * Reconciliation is its own row, not a value squeezed into "Next scheduled".
+ * Returns the localized mode label plus the raw timestamp (formatting is the
+ * caller's concern, so this stays locale-format agnostic and testable).
+ */
+export function reconciliationPresentation(
+  reconciliation: ReconciliationLike | null | undefined,
+): { mode: string; label: string; nextReconciliationAt: string | null } {
+  const mode = String(reconciliation?.mode ?? 'DISABLED')
+  return {
+    mode,
+    label: canonicalStateLabel(mode),
+    nextReconciliationAt: reconciliation?.nextReconciliationAt?.trim() || null,
+  }
+}
+
 export function deriveOverallDiagnosticState(
   evidence: readonly DiagnosticEvidenceLike[],
   options: { disabled?: boolean; required?: readonly DiagnosticEvidenceLike[] } = {},

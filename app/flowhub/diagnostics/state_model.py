@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.flowhub.channels.contracts import ChannelCapability
 from app.flowhub.channels.registry import default_marketplace_registry
 from app.flowhub.config.values import parse_config_bool
+from app.flowhub.data_layer.job_lifecycle import RefreshJobLifecycle
 from app.flowhub.data_layer.models import (
     DlConnectorHealth,
     DlProductCache,
@@ -85,15 +86,37 @@ class CapabilitySupport(StrEnum):
 class ScheduleMode(StrEnum):
     SCHEDULED = "SCHEDULED"
     EVENT_DRIVEN = "EVENT_DRIVEN"
+    # Provider pushes changes as they happen AND an operator has additionally
+    # configured a periodic reconciliation poll as a safety net. Both facts are
+    # true at once; collapsing either one into the other loses information.
+    EVENT_DRIVEN_WITH_RECONCILIATION = "EVENT_DRIVEN_WITH_RECONCILIATION"
     MANUAL = "MANUAL"
     NOT_SCHEDULED = "NOT_SCHEDULED"
     NOT_ENABLED = "NOT_ENABLED"
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
 
+EVENT_DRIVEN_MODES = frozenset(
+    {ScheduleMode.EVENT_DRIVEN, ScheduleMode.EVENT_DRIVEN_WITH_RECONCILIATION}
+)
+
+
+class ReconciliationMode(StrEnum):
+    """Whether a *reconciliation* pass exists, independent of event delivery."""
+
+    SCHEDULED = "SCHEDULED"
+    MANUAL = "MANUAL"
+    DISABLED = "DISABLED"
+
+
 class RunnerState(StrEnum):
     RUNNING = "RUNNING"
     IDLE = "IDLE"
+    # A live, healthy runner that has real executable work waiting. Distinct
+    # from IDLE (live and nothing to do) and from RUNNING (currently executing
+    # a job in this heartbeat). A queue depth above zero must never present as
+    # IDLE: that contradiction is what made the tile untrustworthy.
+    PENDING = "PENDING"
     DEGRADED = "DEGRADED"
     FAILED = "FAILED"
     UNKNOWN = "UNKNOWN"
@@ -234,6 +257,21 @@ class DiagnosticsPolicyCatalog:
             freshness,
             "connector_product_sync_environment",
             required_for_readiness=required,
+        )
+
+    def product_sync_event_driven_ttl_seconds(self, provider: str) -> int:
+        """Accepted evidence window for webhook-driven product currency.
+
+        An event-driven connector has no polling interval to derive a TTL
+        from, so product-sync currency is judged against the same window the
+        product cache already uses, with the existing product-sync override
+        honoured when an operator has declared one.
+        """
+
+        return _env_positive_int(
+            f"FLOWHUB_{provider.upper()}_PRODUCT_SYNC_FRESHNESS_TTL_SECONDS",
+            self.product_cache(provider).freshness_ttl_seconds
+            or self._PRODUCT_CACHE_TTL_SECONDS,
         )
 
     def product_cache(self, provider: str) -> CapabilityPolicy:
@@ -395,6 +433,19 @@ class CanonicalDiagnosticsProjector:
             connectivity=connectivity,
             policy=connection_policy,
         )
+        # Webhook evidence is computed first because product synchronization
+        # composes its effective schedule mode from it. The two were previously
+        # independent lookups, which is why an event-driven channel reported
+        # "not scheduled" product sync while its webhook was verifiably
+        # delivering.
+        webhook = self._webhook_capability(
+            channel_id,
+            provider,
+            enabled=enabled,
+            configured=configured,
+            coming_soon=coming_soon,
+            instance=instance,
+        )
         product_sync = self._product_sync_capability(
             channel_id,
             provider,
@@ -402,6 +453,7 @@ class CanonicalDiagnosticsProjector:
             enabled=enabled,
             configured=configured,
             coming_soon=coming_soon,
+            webhook=webhook,
         )
         product_cache = self._product_cache_capability(
             channel_id,
@@ -415,14 +467,6 @@ class CanonicalDiagnosticsProjector:
             channel_id,
             provider,
             supported=order_supported,
-            enabled=enabled,
-            configured=configured,
-            coming_soon=coming_soon,
-            instance=instance,
-        )
-        webhook = self._webhook_capability(
-            channel_id,
-            provider,
             enabled=enabled,
             configured=configured,
             coming_soon=coming_soon,
@@ -531,6 +575,61 @@ class CanonicalDiagnosticsProjector:
             evidence_key="data_layer_health",
         )
 
+    def _effective_product_sync_policy(
+        self,
+        provider: str,
+        *,
+        supported: bool,
+        enabled: bool,
+        configured: bool,
+        coming_soon: bool,
+        webhook: dict[str, Any] | None,
+    ) -> CapabilityPolicy:
+        """Compose the product-sync schedule mode from *all* real evidence.
+
+        The connector's own ``product_sync`` environment policy only ever
+        describes a polling schedule. For a provider that pushes product
+        changes over webhooks, the absence of that poll is not "no schedule" —
+        delivery is event-driven, and the poll (when configured) is a
+        reconciliation safety net layered on top. Reporting only the polling
+        axis is what produced the "Webhook: event driven / Product
+        synchronization: not scheduled" contradiction.
+        """
+
+        policy = self.policies.product_sync(provider)
+        if coming_soon or not supported or not enabled or not configured:
+            return policy
+
+        webhook_policy = self.policies.webhook(provider)
+        if webhook_policy.mode != ScheduleMode.EVENT_DRIVEN:
+            return policy
+        if webhook is None or not webhook.get("configured"):
+            # Webhook support exists for the provider, but this instance has no
+            # configured secret: there is no event-driven delivery to compose.
+            return policy
+        if int(webhook.get("acceptedCount") or 0) <= 0:
+            # Configuration alone is not evidence. Until the provider has
+            # actually delivered at least one accepted (non-dead-letter)
+            # receipt, event-driven delivery is a claim, not a fact.
+            return policy
+
+        if policy.mode == ScheduleMode.SCHEDULED:
+            mode = ScheduleMode.EVENT_DRIVEN_WITH_RECONCILIATION
+            ttl = policy.freshness_ttl_seconds
+            interval = policy.interval_seconds
+        else:
+            mode = ScheduleMode.EVENT_DRIVEN
+            ttl = self.policies.product_sync_event_driven_ttl_seconds(provider)
+            interval = None
+        return CapabilityPolicy(
+            mode,
+            True,
+            interval,
+            ttl,
+            f"{policy.policy_source}+{webhook_policy.policy_source}",
+            required_for_readiness=policy.required_for_readiness,
+        )
+
     def _product_sync_capability(
         self,
         channel_id: str,
@@ -540,8 +639,17 @@ class CanonicalDiagnosticsProjector:
         enabled: bool,
         configured: bool,
         coming_soon: bool,
+        webhook: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        policy = self.policies.product_sync(provider)
+        declared = self.policies.product_sync(provider)
+        policy = self._effective_product_sync_policy(
+            provider,
+            supported=supported,
+            enabled=enabled,
+            configured=configured,
+            coming_soon=coming_soon,
+            webhook=webhook,
+        )
         latest = self._latest_product_refresh(channel_id)
         last_success = self._last_successful_product_sync(channel_id)
         if coming_soon:
@@ -556,32 +664,93 @@ class CanonicalDiagnosticsProjector:
         elif not configured:
             support = CapabilitySupport.NOT_CONFIGURED
             freshness = FreshnessState.NOT_ENABLED
+        elif policy.mode in EVENT_DRIVEN_MODES:
+            # Event-driven currency is judged against real product evidence.
+            # `_scheduled_freshness` would answer NOT_SCHEDULED for anything
+            # that is not literally SCHEDULED, which makes the tile useless
+            # for exactly the channels that are working correctly.
+            support = CapabilitySupport.SUPPORTED_ENABLED
+            freshness = self._evidence_freshness(
+                last_success, policy.freshness_ttl_seconds
+            )
         else:
             support = CapabilitySupport.SUPPORTED_ENABLED
             freshness = self._scheduled_freshness(last_success, policy)
-        return self._capability(
+
+        # Reconciliation is derived from the *declared* polling policy, which
+        # is a separate fact from event delivery. It is published as its own
+        # sub-fact rather than being folded into `nextExpectedAt`.
+        next_reconciliation = self._next_expected(
+            self._refresh_attempt_at(latest) or last_success, declared
+        )
+        reconciliation = self._reconciliation_fact(
+            support=support,
+            mode=policy.mode,
+            declared=declared,
+            next_reconciliation_at=next_reconciliation,
+        )
+        result = self._capability(
             support=support,
             freshness=freshness,
             schedule=policy,
             last_attempt_at=self._refresh_attempt_at(latest),
             last_success_at=last_success,
             last_outcome=self._refresh_outcome(latest),
-            next_expected_at=self._next_expected(
-                self._refresh_attempt_at(latest) or last_success, policy
-            ),
+            next_expected_at=next_reconciliation,
             policy=policy,
             # Required for readiness when the operator has actually scheduled
-            # automatic sync (an implicit freshness promise), or when the
+            # automatic sync (an implicit freshness promise), when delivery is
+            # event-driven (the provider is actively pushing changes, so stale
+            # product data is a real operational problem), or when the
             # connector contract explicitly requires it regardless of
             # scheduling. Being merely SUPPORTED never implies REQUIRED.
             required=bool(
                 supported
                 and enabled
                 and configured
-                and (policy.mode == ScheduleMode.SCHEDULED or policy.required_for_readiness)
+                and (
+                    policy.mode == ScheduleMode.SCHEDULED
+                    or policy.mode in EVENT_DRIVEN_MODES
+                    or policy.required_for_readiness
+                )
             ),
             evidence_key="data_layer_refresh_job",
         )
+        result["reconciliation"] = reconciliation
+        return result
+
+    @staticmethod
+    def _reconciliation_fact(
+        *,
+        support: CapabilitySupport,
+        mode: ScheduleMode,
+        declared: CapabilityPolicy,
+        next_reconciliation_at: datetime | None,
+    ) -> dict[str, Any]:
+        if support != CapabilitySupport.SUPPORTED_ENABLED:
+            reconciliation = ReconciliationMode.DISABLED
+        elif mode in {
+            ScheduleMode.SCHEDULED,
+            ScheduleMode.EVENT_DRIVEN_WITH_RECONCILIATION,
+        }:
+            reconciliation = ReconciliationMode.SCHEDULED
+        elif mode == ScheduleMode.EVENT_DRIVEN or declared.mode == ScheduleMode.MANUAL:
+            # Event-driven delivery with no reconciliation poll configured, or
+            # an explicitly manual-by-design connector: a manual refresh is the
+            # available reconciliation path.
+            reconciliation = ReconciliationMode.MANUAL
+        else:
+            # Neither event delivery nor any schedule: nothing reconciles this
+            # channel on its own.
+            reconciliation = ReconciliationMode.DISABLED
+        return {
+            "mode": reconciliation.value,
+            "nextReconciliationAt": (
+                _iso(next_reconciliation_at)
+                if reconciliation == ReconciliationMode.SCHEDULED
+                else None
+            ),
+        }
 
     def _product_cache_capability(
         self,
@@ -735,6 +904,11 @@ class CanonicalDiagnosticsProjector:
             for item in receipts
             if item.processing_state in {"queued", "retry_scheduled"}
         )
+        # Durably accepted delivery evidence. WooCommerce's activation ping is
+        # acknowledged without persisting a receipt (see
+        # `app/flowhub/api/v2/webhooks.py`), so handshake noise never reaches
+        # this count; only real, signature-verified deliveries do.
+        accepted = sum(1 for item in receipts if item.processing_state != "dead_letter")
         dead_letters = (
             self.db.query(WebhookDeadLetter).filter_by(channel_id=channel_id, provider=provider).count()
             if supported and self._table_exists(WebhookDeadLetter)
@@ -782,6 +956,7 @@ class CanonicalDiagnosticsProjector:
             {
                 "configured": webhook_enabled,
                 "receivedCount": len(receipts),
+                "acceptedCount": accepted,
                 "queuedCount": queued,
                 "deadLetterCount": dead_letters,
                 "lastReceivedAt": _iso(last_received),
@@ -989,6 +1164,7 @@ class CanonicalDiagnosticsProjector:
         metadata = event.metadata_json if event and isinstance(event.metadata_json, dict) else {}
         raw_state = str(metadata.get("state") or "unknown").lower()
         stale = bool(event and event.created_at < self.now - timedelta(seconds=ttl))
+        queue_depth, stale_queue_depth = self._queue_depths()
         if event is None:
             state = RunnerState.UNKNOWN
             health = "NEEDS_ATTENTION" if required else "NOT_APPLICABLE"
@@ -999,7 +1175,10 @@ class CanonicalDiagnosticsProjector:
             state = RunnerState.RUNNING
             health = "HEALTHY"
         elif raw_state == "idle":
-            state = RunnerState.IDLE
+            # A live runner with genuinely executable work waiting is not idle.
+            # Reporting IDLE alongside a non-zero queue depth is a
+            # contradiction the Owner cannot act on.
+            state = RunnerState.PENDING if queue_depth > 0 else RunnerState.IDLE
             health = "HEALTHY"
         elif raw_state in {"stopped", "disabled"}:
             state = RunnerState.DEGRADED if required else RunnerState.IDLE
@@ -1032,15 +1211,6 @@ class CanonicalDiagnosticsProjector:
             .order_by(IntegrationConnectorEvent.created_at.desc())
             .first()
         )
-        queue_depth = 0
-        if self._table_exists(DlRefreshJob):
-            queue_depth += self.db.query(DlRefreshJob).filter(
-                DlRefreshJob.status.in_(("pending", "running"))
-            ).count()
-        if self._table_exists(WebhookReceipt):
-            queue_depth += self.db.query(WebhookReceipt).filter(
-                WebhookReceipt.processing_state.in_(("queued", "retry_scheduled"))
-            ).count()
         return {
             "id": "flowhub:order-sync-runner",
             "displayName": "Integration background runner",
@@ -1052,9 +1222,67 @@ class CanonicalDiagnosticsProjector:
             "runnerId": metadata.get("runner_id") if event else None,
             "lastSuccessfulJobAt": _iso(successes.created_at) if successes else None,
             "queueDepth": queue_depth,
+            "staleQueueDepth": stale_queue_depth,
             "lastFailureAt": _iso(failure.created_at) if failure else None,
             "lastFailureCode": failure.event_name if failure else None,
+            "advancedEvidence": [
+                {
+                    "key": "runner_queue_depth",
+                    "label": "Executable queued work",
+                    "value": queue_depth,
+                    "recordedAt": _iso(event.created_at) if event else None,
+                },
+                {
+                    "key": "runner_stale_queue_depth",
+                    "label": "Abandoned records past their execution lease",
+                    "value": stale_queue_depth,
+                    "recordedAt": None,
+                },
+            ],
         }
+
+    def _queue_depths(self) -> tuple[int, int]:
+        """Split queued work into executable versus abandoned/historical.
+
+        The previous count summed every ``pending``/``running`` refresh job and
+        every ``queued``/``retry_scheduled`` receipt, so records that no live
+        runner will ever pick up — jobs whose execution lease already expired,
+        receipts already past their retention window — inflated queue depth
+        forever. Both halves are returned: abandoned records stay visible as
+        evidence rather than being deleted from the projection.
+        """
+
+        lifecycle = RefreshJobLifecycle(self.db)
+        executable = 0
+        abandoned = 0
+        if self._table_exists(DlRefreshJob):
+            jobs = (
+                self.db.query(DlRefreshJob)
+                .filter(DlRefreshJob.status.in_(("pending", "running")))
+                .all()
+            )
+            for job in jobs:
+                if lifecycle.is_expired(job, self.now):
+                    abandoned += 1
+                else:
+                    executable += 1
+        if self._table_exists(WebhookReceipt):
+            receipts = (
+                self.db.query(WebhookReceipt)
+                .filter(
+                    WebhookReceipt.processing_state.in_(("queued", "retry_scheduled"))
+                )
+                .all()
+            )
+            for receipt in receipts:
+                if (
+                    receipt.retention_until is not None
+                    and receipt.retention_until < self.now
+                ):
+                    abandoned += 1
+                else:
+                    executable += 1
+        return executable, abandoned
 
     def _overall(
         self,
@@ -1365,6 +1593,26 @@ class CanonicalDiagnosticsProjector:
                 "NEXT_PRODUCT_SYNC_SCHEDULED",
                 scheduled_at=product_sync.get("nextExpectedAt"),
             )
+        if mode in {item.value for item in EVENT_DRIVEN_MODES}:
+            reconciliation = product_sync.get("reconciliation") or {}
+            if product_sync["lastOutcome"] in {
+                OutcomeState.FAILED.value,
+                OutcomeState.PARTIAL.value,
+            }:
+                # Delivery is event-driven and the last reconciliation/refresh
+                # attempt actually failed. The action is to investigate and
+                # retry that attempt, not to prescribe a manual full refresh as
+                # though nothing had ever run.
+                return _action(
+                    "RETRY_RECONCILIATION",
+                    scheduled_at=reconciliation.get("nextReconciliationAt"),
+                )
+            if reconciliation.get("nextReconciliationAt"):
+                return _action(
+                    "NEXT_PRODUCT_SYNC_SCHEDULED",
+                    scheduled_at=reconciliation["nextReconciliationAt"],
+                )
+            return _action("REFRESH_PRODUCTS")
         required_for_readiness = product_sync["policy"].get("requiredForReadiness")
         if required_for_readiness and mode != ScheduleMode.MANUAL.value:
             # Required by connector policy but no schedule exists and manual

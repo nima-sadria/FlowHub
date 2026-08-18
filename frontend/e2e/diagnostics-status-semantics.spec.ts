@@ -341,6 +341,13 @@ async function installStrictDiagnosticsMocks(page: Page, audit: TrafficAudit) {
     const method = request.method().toUpperCase()
     const requestLabel = `${method} ${url.pathname}${url.search}`
 
+    // The app shell loads the Userback widget unconditionally from index.html.
+    // Stub it the same way the sibling diagnostics-screen and overlay-stacking
+    // specs already do, so the isolation audit measures application traffic
+    // rather than this third-party script tag.
+    if (url.hostname === 'static.userback.io') {
+      return route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.Userback={identify:function(){}}' })
+    }
     if (!['127.0.0.1', 'localhost'].includes(url.hostname)) {
       audit.externalRequests.push(`${method} ${url.href}`)
       return route.abort('blockedbyclient')

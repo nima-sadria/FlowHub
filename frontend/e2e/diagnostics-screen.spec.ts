@@ -32,7 +32,10 @@ function canonicalStateModel() {
   const channel = {
     id: 'woocommerce:primary', kind: 'CHANNEL', provider: 'woocommerce', displayName: 'WooCommerce', lifecycle: 'ACTIVE', enabled: true, configured: true, denominatorEligible: true,
     connectivity: { state: 'HEALTHY', freshness: 'FRESH', lastVerifiedAt: now, lastCheckedAt: now }, readiness: { state: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale' }, freshness: { state: 'STALE' }, overallState: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale', recommendedAction: { code: 'NEXT_PRODUCT_SYNC_SCHEDULED', scheduledAt: now, actionable: true }, latestRelevantAt: now,
-    capabilities: { connectionVerification: capability('FRESH'), productSynchronization: capability('STALE'), productCache: { ...capability('STALE'), cachedItemCount: 7597 }, orderSynchronization: capability('FRESH'), webhookProcessing: { ...capability('NOT_APPLICABLE', false), support: 'NOT_SUPPORTED' }, providerAcquisition: { ...capability('NOT_APPLICABLE', false), support: 'NOT_SUPPORTED' } },
+    // Event-driven WooCommerce with a scheduled reconciliation poll: the
+    // composed mode, the webhook delivery row, and the reconciliation row must
+    // all render (and stay within the viewport) in every locale/theme.
+    capabilities: { connectionVerification: capability('FRESH'), productSynchronization: { ...capability('STALE'), schedule: { mode: 'EVENT_DRIVEN_WITH_RECONCILIATION', enabled: true, intervalSeconds: 3600, jitterSeconds: 0, policySource: 'visual-test' }, reconciliation: { mode: 'SCHEDULED', nextReconciliationAt: now } }, productCache: { ...capability('STALE'), cachedItemCount: 7597 }, orderSynchronization: capability('FRESH'), webhookProcessing: { ...capability('FRESH', false), schedule: { mode: 'EVENT_DRIVEN', enabled: true, intervalSeconds: null, jitterSeconds: 0, policySource: 'visual-test' }, acceptedCount: 3, queuedCount: 0, deadLetterCount: 0 }, providerAcquisition: { ...capability('NOT_APPLICABLE', false), support: 'NOT_SUPPORTED' } },
     advancedEvidence: [{ key: 'data_layer_health', label: 'Connection health record', value: 'healthy', recordedAt: now }],
   }
   const source = { ...channel, id: 'source-price-list', connectorId: 'nextcloud:primary', kind: 'SOURCE', provider: 'nextcloud', displayName: 'Nextcloud — Primary catalog', readiness: { state: 'READY', reasonCode: 'source_ready' }, freshness: { state: 'FRESH' }, overallState: 'HEALTHY', reasonCode: 'source_ready', recommendedAction: { code: 'NO_ACTION_REQUIRED', scheduledAt: null, actionable: false } }
@@ -148,7 +151,16 @@ async function assertFigmaDiagnosticsHierarchy(page: Page, locale: 'en' | 'fa') 
     await expect(page.getByText('Nextcloud — Primary catalog').first()).toBeVisible()
     await expect(page.getByText('Historical Sources', { exact: false })).toBeVisible()
     await expect(page.getByText('Non-operational Channels', { exact: true })).toBeVisible()
+    // Product synchronization publishes mode, webhook delivery, and
+    // reconciliation as three distinct rows -- never one collapsed
+    // "Next scheduled" field.
+    await expect(page.getByText('Synchronization mode', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('Webhook delivery', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('Reconciliation', { exact: true }).first()).toBeVisible()
+    await expect(page.getByTestId('product-sync-mode').first()).toHaveText('Event driven with reconciliation')
+    await expect(page.getByTestId('product-sync-reconciliation').first()).toHaveText('Scheduled')
   } else {
+    await expect(page.getByTestId('product-sync-mode').first()).toHaveText('رویدادمحور با مغایرت‌گیری')
     await expect(page.getByRole('button', { name: /بررسی دوباره/ })).toBeVisible()
   }
 }
@@ -197,6 +209,11 @@ test('canonical diagnostics remains usable at 390x844 in LTR light and RTL dark'
     await expect(page.locator('html')).toHaveAttribute('dir', variant.dir)
     await expect(page.locator('#operational-resources')).toBeVisible()
     await expect(page.locator('[data-canonical-resource="woocommerce:primary"]')).toBeVisible()
+    // The composed schedule mode, webhook delivery, and reconciliation are
+    // separate rows and must remain legible at mobile width.
+    await expect(page.getByTestId('product-sync-mode').first()).toBeVisible()
+    await expect(page.getByTestId('product-sync-webhook').first()).toBeVisible()
+    await expect(page.getByTestId('product-sync-reconciliation').first()).toBeVisible()
     expect(await page.locator('body').evaluate(element => element.scrollWidth <= window.innerWidth)).toBe(true)
   }
   expect(audit.externalRequests).toEqual([])

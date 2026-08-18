@@ -83,6 +83,16 @@ export type ConnectivityState = 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY'
 export type ReadinessState = 'READY' | 'NEEDS_ATTENTION' | 'BLOCKED' | 'DISABLED' | 'ARCHIVED' | 'COMING_SOON' | 'NOT_APPLICABLE'
 export type FreshnessState = 'FRESH' | 'STALE' | 'NEVER_RUN' | 'NOT_SCHEDULED' | 'NOT_ENABLED' | 'NOT_APPLICABLE'
 export type CanonicalOverallState = 'ERROR' | 'BLOCKED' | 'NEEDS_ATTENTION' | 'HEALTHY' | 'ARCHIVED' | 'COMING_SOON' | 'DISABLED'
+export type ScheduleMode =
+  | 'SCHEDULED'
+  | 'EVENT_DRIVEN'
+  | 'EVENT_DRIVEN_WITH_RECONCILIATION'
+  | 'MANUAL'
+  | 'NOT_SCHEDULED'
+  | 'NOT_ENABLED'
+  | 'NOT_APPLICABLE'
+export type ReconciliationMode = 'SCHEDULED' | 'MANUAL' | 'DISABLED'
+export type RunnerState = 'RUNNING' | 'IDLE' | 'PENDING' | 'DEGRADED' | 'FAILED' | 'UNKNOWN'
 
 export interface CanonicalCapabilityEvidence {
   support: string
@@ -99,13 +109,20 @@ export interface CanonicalCapabilityEvidence {
   lastOutcome: string
   nextExpectedAt: string | null
   required: boolean
-  policy: { freshnessTtlSeconds: number | null; source: string }
+  policy: { freshnessTtlSeconds: number | null; source: string; requiredForReadiness?: boolean }
   evidenceKey: string
   cachedItemCount?: number
   lastReceivedAt?: string | null
   lastProcessedAt?: string | null
   deadLetterCount?: number
   queuedCount?: number
+  acceptedCount?: number
+  /**
+   * Reconciliation is a separate axis from event delivery: an event-driven
+   * channel may still have a scheduled safety-net poll, a manual refresh, or
+   * nothing at all. Present on the product-synchronization capability.
+   */
+  reconciliation?: { mode: ReconciliationMode; nextReconciliationAt: string | null }
 }
 
 export interface CanonicalDiagnosticResource {
@@ -139,7 +156,7 @@ export interface CanonicalDiagnosticsStateModel {
     sources: { ready: number; active: number; needsAttention: number; blocked: number; disabled: number; archived: number }
   }
   resources: CanonicalDiagnosticResource[]
-  backgroundJobs: Array<{ id: string; displayName: string; state: string; health: string; required: boolean; lastHeartbeatAt: string | null; heartbeatTtlSeconds: number; runnerId: string | null; lastSuccessfulJobAt: string | null; queueDepth: number; lastFailureAt: string | null; lastFailureCode: string | null }>
+  backgroundJobs: Array<{ id: string; displayName: string; state: RunnerState | string; health: string; required: boolean; lastHeartbeatAt: string | null; heartbeatTtlSeconds: number; runnerId: string | null; lastSuccessfulJobAt: string | null; queueDepth: number; staleQueueDepth?: number; lastFailureAt: string | null; lastFailureCode: string | null; advancedEvidence?: Array<{ key: string; label: string; value: unknown; recordedAt: string | null }> }>
   recentChecks: Array<{ id: string; kind: string; displayName: string; provider: string; lifecycle: string; connectivity: string; readiness: string; freshness: string; state: CanonicalOverallState; reasonCode: string; recordedAt: string | null }>
   consumerStates: Record<string, CanonicalOverallState>
   externalCallPerformed: false

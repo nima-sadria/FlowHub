@@ -155,10 +155,20 @@ function canonicalStateModel() {
     recommendedAction: { code: 'NEXT_PRODUCT_SYNC_SCHEDULED', scheduledAt: now, actionable: true }, latestRelevantAt: now,
     capabilities: {
       connectionVerification: capability('FRESH'),
-      productSynchronization: capability('STALE'),
+      productSynchronization: {
+        ...capability('STALE'),
+        reconciliation: { mode: 'SCHEDULED', nextReconciliationAt: now as string | null },
+      },
       productCache: { ...capability('STALE'), cachedItemCount: 7597 },
       orderSynchronization: capability('FRESH'),
-      webhookProcessing: { ...capability('NOT_APPLICABLE'), support: 'NOT_SUPPORTED', required: false },
+      webhookProcessing: {
+        ...capability('NOT_APPLICABLE'),
+        support: 'NOT_SUPPORTED',
+        required: false,
+        acceptedCount: 0,
+        queuedCount: 0,
+        deadLetterCount: 0,
+      },
       providerAcquisition: { ...capability('NOT_APPLICABLE'), support: 'NOT_SUPPORTED', required: false },
     },
     advancedEvidence: [{ key: 'data_layer_health', label: 'Connection health record', value: 'healthy', recordedAt: now }],
@@ -175,7 +185,7 @@ function canonicalStateModel() {
     schemaVersion: 'diagnostics-state-v1', generatedAt: now, overallState: 'NEEDS_ATTENTION',
     summary: { overallState: 'NEEDS_ATTENTION', channels: { ready: 0, operational: 1, needsAttention: 1, blocked: 0, disabled: 0, comingSoon: 1 }, sources: { ready: 0, active: 0, needsAttention: 0, blocked: 0, disabled: 0, archived: 1 } },
     resources: [channel, archived, comingSoon],
-    backgroundJobs: [{ id: 'flowhub:order-sync-runner', displayName: 'Integration background runner', state: 'IDLE', health: 'HEALTHY', required: true, lastHeartbeatAt: now, heartbeatTtlSeconds: 180, runnerId: 'runner', lastSuccessfulJobAt: now, queueDepth: 0, lastFailureAt: null, lastFailureCode: null }],
+    backgroundJobs: [{ id: 'flowhub:order-sync-runner', displayName: 'Integration background runner', state: 'IDLE', health: 'HEALTHY', required: true, lastHeartbeatAt: now, heartbeatTtlSeconds: 180, runnerId: 'runner', lastSuccessfulJobAt: now, queueDepth: 0, staleQueueDepth: 0, lastFailureAt: null, lastFailureCode: null }],
     recentChecks: [
       { id: channel.id, kind: channel.kind, displayName: channel.displayName, provider: channel.provider, lifecycle: channel.lifecycle, connectivity: 'HEALTHY', readiness: 'NEEDS_ATTENTION', freshness: 'STALE', state: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale', recordedAt: now },
       { id: archived.id, kind: archived.kind, displayName: archived.displayName, provider: archived.provider, lifecycle: archived.lifecycle, connectivity: 'NOT_APPLICABLE', readiness: 'ARCHIVED', freshness: 'NOT_APPLICABLE', state: 'ARCHIVED', reasonCode: 'source_archived', recordedAt: now },
@@ -1048,5 +1058,104 @@ describe('Diagnostics', () => {
 
     expect(archivedRow?.getAttribute('data-diagnostic-state')).not.toBe('HEALTHY')
     expect(comingSoonRow?.getAttribute('data-diagnostic-state')).not.toBe('HEALTHY')
+  })
+
+  async function renderCanonical(model: ReturnType<typeof canonicalStateModel>) {
+    vi.stubGlobal('fetch', vi.fn(async input => {
+      if (String(input).includes('/api/v2/diagnostics/status')) {
+        return new Response(JSON.stringify({
+          overall_status: model.overallState,
+          checkedAt: model.generatedAt,
+          checks: [],
+          connectors: [],
+          channelHealth: { ...channelHealthPayload(), stateModel: model },
+          stateModel: model,
+        }), { status: 200 })
+      }
+      return responseFor(input as RequestInfo | URL)
+    }))
+    return renderPage()
+  }
+
+  function eventDrivenModel(overrides: {
+    mode?: string
+    reconciliation?: { mode: string; nextReconciliationAt: string | null }
+  } = {}) {
+    const model = canonicalStateModel()
+    const now = model.generatedAt
+    const channel = model.resources[0]
+    channel.capabilities.productSynchronization = {
+      ...channel.capabilities.productSynchronization,
+      freshness: 'FRESH',
+      schedule: { ...channel.capabilities.productSynchronization.schedule, mode: overrides.mode ?? 'EVENT_DRIVEN' },
+      reconciliation: overrides.reconciliation ?? { mode: 'MANUAL', nextReconciliationAt: null },
+    }
+    channel.capabilities.webhookProcessing = {
+      ...channel.capabilities.webhookProcessing,
+      support: 'SUPPORTED_ENABLED',
+      freshness: 'FRESH',
+      schedule: { ...channel.capabilities.webhookProcessing.schedule, mode: 'EVENT_DRIVEN' },
+      required: false,
+      queuedCount: 0,
+      deadLetterCount: 0,
+      acceptedCount: 3,
+    }
+    return { model, now }
+  }
+
+  it('renders synchronization mode, webhook delivery, and reconciliation as separate rows', async () => {
+    const { model } = eventDrivenModel()
+
+    const c = await renderCanonical(model)
+
+    expect(c.textContent).toContain('Synchronization mode')
+    expect(c.textContent).toContain('Webhook delivery')
+    expect(c.textContent).toContain('Reconciliation')
+    expect(c.querySelector('[data-testid="product-sync-mode"]')?.textContent).toBe('Event driven')
+    expect(c.querySelector('[data-testid="product-sync-webhook"]')?.textContent).toBe('Event driven')
+    expect(c.querySelector('[data-testid="product-sync-reconciliation"]')?.textContent).toBe('Manual')
+    // The bug being fixed: an event-driven channel must never be labelled
+    // "Not scheduled" on its product-synchronization mode row.
+    expect(c.querySelector('[data-testid="product-sync-mode"]')?.textContent).not.toBe('Not scheduled')
+  })
+
+  it('renders the composed event-driven-with-reconciliation mode and its own next-reconciliation timestamp', async () => {
+    const scheduledAt = new Date().toISOString()
+    const { model } = eventDrivenModel({
+      mode: 'EVENT_DRIVEN_WITH_RECONCILIATION',
+      reconciliation: { mode: 'SCHEDULED', nextReconciliationAt: scheduledAt },
+    })
+
+    const c = await renderCanonical(model)
+
+    expect(c.querySelector('[data-testid="product-sync-mode"]')?.textContent).toBe('Event driven with reconciliation')
+    expect(c.querySelector('[data-testid="product-sync-reconciliation"]')?.textContent).toBe('Scheduled')
+    expect(c.querySelector('[data-testid="product-sync-next-reconciliation"]')?.textContent).toBeTruthy()
+    expect(c.textContent).toContain('Next reconciliation')
+  })
+
+  it('renders the retry-reconciliation action for a failed event-driven reconciliation', async () => {
+    const { model } = eventDrivenModel()
+    const channel = model.resources[0]
+    channel.readiness = { state: 'NEEDS_ATTENTION', reasonCode: 'product_cache_refresh_failed' }
+    channel.reasonCode = 'product_cache_refresh_failed'
+    channel.recommendedAction = { code: 'RETRY_RECONCILIATION', scheduledAt: null, actionable: true }
+
+    const c = await renderCanonical(model)
+
+    expect(c.textContent).toContain('Review the failed reconciliation and retry it.')
+    expect(c.textContent).not.toContain('Refresh products.')
+  })
+
+  it('shows a pending runner with its queue depth and abandoned-record count', async () => {
+    const model = canonicalStateModel()
+    model.backgroundJobs[0] = { ...model.backgroundJobs[0], state: 'PENDING', queueDepth: 12, staleQueueDepth: 4 }
+
+    const c = await renderCanonical(model)
+
+    expect(c.textContent).toContain('Pending work')
+    expect(c.textContent).toContain('Queue depth: 12')
+    // Abandoned records stay visible as evidence rather than being hidden.
+    expect(c.textContent).toContain('Abandoned records: 4')
   })
 })

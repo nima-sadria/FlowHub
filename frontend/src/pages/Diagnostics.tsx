@@ -11,6 +11,7 @@ import Badge from '../components/Badge'
 import DiagnosticStateBadge from '../components/DiagnosticStateBadge'
 import BrandIcon from '../components/BrandIcon'
 import type {
+  CanonicalCapabilityEvidence,
   CanonicalDiagnosticResource,
   CanonicalDiagnosticsStateModel,
   CanonicalOverallState,
@@ -22,11 +23,13 @@ import { formatDateTime, formatNumber, formatRelativeTime } from '../i18n/format
 import { formatDiagnosticDimension, formatDiagnosticMessage, formatStatus } from '../i18n/display'
 import { formatChannelDisplayName } from '../features/unifiedWorkspace/channelDisplayName'
 import {
+  canonicalStateLabel,
   deriveOverallDiagnosticState,
   diagnosticEvidenceCheckedAt,
   diagnosticEvidenceDescription,
   diagnosticRecommendedAction,
   diagnosticStatePresentation,
+  reconciliationPresentation,
   resolveDiagnosticState,
   type DiagnosticEvidenceLike,
   type DiagnosticState,
@@ -645,11 +648,6 @@ function canonicalBadgeState(state: CanonicalOverallState): DiagnosticState {
   return 'HEALTHY'
 }
 
-function canonicalStateLabel(value: string): string {
-  const key = `diagnostics:canonicalState.${value}`
-  return translate(key)
-}
-
 function canonicalActionLabel(resource: CanonicalDiagnosticResource): string {
   const action = resource.recommendedAction
   if (action.scheduledAt) {
@@ -659,6 +657,52 @@ function canonicalActionLabel(resource: CanonicalDiagnosticResource): string {
     if (action.code === 'NEXT_CONNECTION_CHECK_SCHEDULED') return translate('diagnostics:canonicalAction.nextConnectionCheck', { value1: scheduled })
   }
   return translate(`diagnostics:canonicalAction.${action.code}`)
+}
+
+/**
+ * Product synchronization publishes three independent facts: how changes
+ * arrive (schedule mode), whether webhook delivery is live, and whether a
+ * reconciliation pass exists. They render as separate rows -- collapsing them
+ * into a single "Next scheduled" field is what hid the event-driven mode.
+ */
+function CapabilityScheduleRows({
+  name,
+  evidence,
+  webhook,
+}: {
+  name: string
+  evidence: CanonicalCapabilityEvidence
+  webhook?: CanonicalCapabilityEvidence
+}) {
+  if (name !== 'productSynchronization') {
+    return (
+      <>
+        <dt>{translate('diagnostics:diagnostics.nextScheduled')}</dt>
+        <dd>{evidence.nextExpectedAt ? formatDateTime(evidence.nextExpectedAt) : canonicalStateLabel(evidence.schedule.mode)}</dd>
+      </>
+    )
+  }
+  const reconciliation = reconciliationPresentation(evidence.reconciliation)
+  return (
+    <>
+      <dt>{translate('diagnostics:diagnostics.synchronizationMode')}</dt>
+      <dd data-testid="product-sync-mode">{canonicalStateLabel(evidence.schedule.mode)}</dd>
+      {webhook && webhook.support !== 'NOT_SUPPORTED' && (
+        <>
+          <dt>{translate('diagnostics:diagnostics.webhookDelivery')}</dt>
+          <dd data-testid="product-sync-webhook">{canonicalStateLabel(webhook.schedule.mode)}</dd>
+        </>
+      )}
+      <dt>{translate('diagnostics:diagnostics.reconciliation')}</dt>
+      <dd data-testid="product-sync-reconciliation">{reconciliation.label}</dd>
+      {reconciliation.nextReconciliationAt && (
+        <>
+          <dt>{translate('diagnostics:diagnostics.nextReconciliation')}</dt>
+          <dd data-testid="product-sync-next-reconciliation">{formatDateTime(reconciliation.nextReconciliationAt)}</dd>
+        </>
+      )}
+    </>
+  )
 }
 
 function CanonicalResourceCard({
@@ -705,7 +749,7 @@ function CanonicalResourceCard({
                 <dt>{translate('diagnostics:diagnostics.lastOutcome')}</dt><dd>{canonicalStateLabel(evidence.lastOutcome)}</dd>
                 <dt>{translate('diagnostics:diagnostics.lastAttempt')}</dt><dd>{evidence.lastAttemptAt ? formatDateTime(evidence.lastAttemptAt) : canonicalStateLabel('NEVER_RUN')}</dd>
                 <dt>{translate('diagnostics:diagnostics.lastSuccess')}</dt><dd>{evidence.lastSuccessAt ? formatDateTime(evidence.lastSuccessAt) : '—'}</dd>
-                <dt>{translate('diagnostics:diagnostics.nextScheduled')}</dt><dd>{evidence.nextExpectedAt ? formatDateTime(evidence.nextExpectedAt) : canonicalStateLabel(evidence.schedule.mode)}</dd>
+                <CapabilityScheduleRows name={name} evidence={evidence} webhook={resource.capabilities.webhookProcessing} />
                 {typeof evidence.cachedItemCount === 'number' && <><dt>{translate('diagnostics:diagnostics.cachedProducts')}</dt><dd>{formatNumber(evidence.cachedItemCount)}</dd></>}
               </dl>
             </article>
@@ -774,7 +818,10 @@ function CanonicalDiagnosticsView({
     { label: translate('diagnostics:diagnostics.overallState'), value: canonicalStateLabel(model.overallState), detail: checkedAt ? translate('diagnostics:diagnostics.lastChecked2', { value1: formatRelativeTime(checkedAt) }) : undefined, status: canonicalBadgeState(model.overallState), icon: 'diagnostics' },
     { label: translate('diagnostics:diagnostics.channelChecks'), value: translate('diagnostics:diagnostics.operationalReadyCount', { ready: formatNumber(model.summary.channels.ready), total: formatNumber(model.summary.channels.operational) }), detail: model.summary.channels.comingSoon ? translate('diagnostics:diagnostics.comingSoonCount', { count: model.summary.channels.comingSoon }) : undefined, status: model.summary.channels.blocked ? 'ERROR' : model.summary.channels.needsAttention ? 'WARNING' : 'HEALTHY', icon: 'channel' },
     { label: translate('diagnostics:diagnostics.sourceChecks'), value: translate('diagnostics:diagnostics.activeReadyCount', { ready: formatNumber(model.summary.sources.ready), total: formatNumber(model.summary.sources.active) }), detail: model.summary.sources.archived ? translate('diagnostics:diagnostics.archivedCount', { count: model.summary.sources.archived }) : undefined, status: model.summary.sources.blocked ? 'ERROR' : model.summary.sources.needsAttention ? 'WARNING' : 'HEALTHY', icon: 'file' },
-    { label: translate('diagnostics:diagnostics.backgroundJobs'), value: runner ? canonicalStateLabel(runner.state) : canonicalStateLabel('UNKNOWN'), detail: runner ? translate('diagnostics:diagnostics.queueDepthCount', { count: runner.queueDepth }) : undefined, status: runner?.health === 'ERROR' ? 'ERROR' : runner?.health === 'NEEDS_ATTENTION' ? 'WARNING' : 'HEALTHY', icon: 'activity' },
+    // Queue depth counts only executable work. Abandoned records past their
+    // execution lease stay visible as a separate count rather than being
+    // hidden or folded into the backlog.
+    { label: translate('diagnostics:diagnostics.backgroundJobs'), value: runner ? canonicalStateLabel(runner.state) : canonicalStateLabel('UNKNOWN'), detail: runner ? [translate('diagnostics:diagnostics.queueDepthCount', { count: runner.queueDepth }), runner.staleQueueDepth ? translate('diagnostics:diagnostics.staleQueueDepthCount', { count: runner.staleQueueDepth }) : null].filter(Boolean).join(' · ') : undefined, status: runner?.health === 'ERROR' ? 'ERROR' : runner?.health === 'NEEDS_ATTENTION' ? 'WARNING' : 'HEALTHY', icon: 'activity' },
   ]
   return (
     <PageShell>

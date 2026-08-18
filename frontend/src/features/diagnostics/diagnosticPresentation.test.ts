@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { changeLocale } from '../../i18n'
 import {
+  canonicalStateLabel,
   deriveOverallDiagnosticState,
   diagnosticEvidenceDescription,
   diagnosticRecommendedAction,
   diagnosticStatePresentation,
+  isEventDrivenScheduleMode,
+  reconciliationPresentation,
   resolveDiagnosticState,
 } from './diagnosticPresentation'
 
@@ -105,5 +108,44 @@ describe('diagnostic presentation semantics', () => {
       checked_at: checkedAt,
       freshness_threshold_hours: 24,
     })).toBe('Last successful product sync was 4 days ago. Expected freshness: within 24 hours.')
+  })
+
+  it('localizes every canonical schedule mode, including the composed one', () => {
+    expect(canonicalStateLabel('SCHEDULED')).toBe('Scheduled')
+    expect(canonicalStateLabel('EVENT_DRIVEN')).toBe('Event driven')
+    expect(canonicalStateLabel('EVENT_DRIVEN_WITH_RECONCILIATION')).toBe('Event driven with reconciliation')
+    expect(canonicalStateLabel('NOT_SCHEDULED')).toBe('Not scheduled')
+  })
+
+  it('localizes the new pending background-job state', () => {
+    expect(canonicalStateLabel('PENDING')).toBe('Pending work')
+    expect(canonicalStateLabel('IDLE')).toBe('Idle')
+  })
+
+  it('recognizes both event-driven schedule modes', () => {
+    expect(isEventDrivenScheduleMode('EVENT_DRIVEN')).toBe(true)
+    expect(isEventDrivenScheduleMode('EVENT_DRIVEN_WITH_RECONCILIATION')).toBe(true)
+    expect(isEventDrivenScheduleMode('SCHEDULED')).toBe(false)
+    expect(isEventDrivenScheduleMode('NOT_SCHEDULED')).toBe(false)
+    expect(isEventDrivenScheduleMode(undefined)).toBe(false)
+  })
+
+  it('presents reconciliation as its own fact with a timestamp only when scheduled', () => {
+    const at = '2026-08-18T10:00:00Z'
+    expect(reconciliationPresentation({ mode: 'SCHEDULED', nextReconciliationAt: at })).toEqual({
+      mode: 'SCHEDULED', label: 'Scheduled', nextReconciliationAt: at,
+    })
+    expect(reconciliationPresentation({ mode: 'MANUAL', nextReconciliationAt: null })).toEqual({
+      mode: 'MANUAL', label: 'Manual', nextReconciliationAt: null,
+    })
+    expect(reconciliationPresentation({ mode: 'DISABLED', nextReconciliationAt: null })).toEqual({
+      mode: 'DISABLED', label: 'Disabled', nextReconciliationAt: null,
+    })
+  })
+
+  it('defaults a missing reconciliation fact to disabled rather than inventing a schedule', () => {
+    expect(reconciliationPresentation(undefined)).toEqual({
+      mode: 'DISABLED', label: 'Disabled', nextReconciliationAt: null,
+    })
   })
 })
