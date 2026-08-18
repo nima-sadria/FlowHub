@@ -108,3 +108,15 @@ def test_completion_releases_the_lease_and_allows_a_new_job(db):
 
     assert db.get(DlRefreshJob, first.id).lease_expires_at is None
     assert db.get(DlRefreshJob, retry.id).status == "running"
+
+
+def test_startup_recovery_skips_a_pre_037_refresh_table() -> None:
+    from app.flowhub.app import _has_refresh_lifecycle_schema
+
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "CREATE TABLE dl_refresh_jobs (id INTEGER PRIMARY KEY, status VARCHAR(20) NOT NULL)"
+        )
+
+    assert _has_refresh_lifecycle_schema(engine) is False

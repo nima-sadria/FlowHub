@@ -73,6 +73,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import inspect
 
 from app.connectors.common.errors import ConnectorError
 from app.flowhub.api.health import router as health_router
@@ -172,12 +173,24 @@ app = FastAPI(
     openapi_url=None,
 )
 
+_REFRESH_LIFECYCLE_COLUMNS = frozenset(
+    {"heartbeat_at", "lease_expires_at", "recovery_reason"}
+)
+
+
+def _has_refresh_lifecycle_schema(bind: object) -> bool:
+    """Avoid querying FLOWHUB_037 fields in an intentionally pre-migration schema."""
+
+    inspector = inspect(bind)
+    if "dl_refresh_jobs" not in inspector.get_table_names():
+        return False
+    columns = {column["name"] for column in inspector.get_columns("dl_refresh_jobs")}
+    return _REFRESH_LIFECYCLE_COLUMNS.issubset(columns)
+
 
 @app.on_event("startup")
 def recover_abandoned_durable_jobs() -> None:
     """Recover only expired ownership records; never repeat provider work."""
-    from sqlalchemy import inspect
-
     from app.flowhub.data_layer.job_lifecycle import RefreshJobLifecycle
     from app.flowhub.database import get_db
     from app.flowhub.source_acquisition.service import SourceAcquisitionService
@@ -185,7 +198,7 @@ def recover_abandoned_durable_jobs() -> None:
     db = next(get_db())
     try:
         tables = inspect(db.get_bind()).get_table_names()
-        if "dl_refresh_jobs" in tables:
+        if _has_refresh_lifecycle_schema(db.get_bind()):
             RefreshJobLifecycle(db).recover_expired()
         if "saq_runs" in tables:
             SourceAcquisitionService(db).abandon_expired_runs()
