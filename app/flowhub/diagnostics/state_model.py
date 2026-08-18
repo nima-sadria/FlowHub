@@ -909,10 +909,25 @@ class CanonicalDiagnosticsProjector:
         # `app/flowhub/api/v2/webhooks.py`), so handshake noise never reaches
         # this count; only real, signature-verified deliveries do.
         accepted = sum(1 for item in receipts if item.processing_state != "dead_letter")
-        dead_letters = (
-            self.db.query(WebhookDeadLetter).filter_by(channel_id=channel_id, provider=provider).count()
+        dead_letter_rows = (
+            self.db.query(WebhookDeadLetter)
+            .filter_by(channel_id=channel_id, provider=provider)
+            .all()
             if supported and self._table_exists(WebhookDeadLetter)
-            else 0
+            else []
+        )
+        dead_letters = len(dead_letter_rows)
+        # A dead-letter row is permanent evidence and is never deleted. But it
+        # is only *actionable* while its receipt is still parked in
+        # `dead_letter`: once an admin replays it (processing_state -> queued)
+        # or it reprocesses successfully (-> processed), there is nothing left
+        # for the Owner to do. Counting every dead letter that ever existed is
+        # what pinned a recovered channel at NEEDS_ATTENTION forever.
+        unresolved_receipt_ids = {
+            item.id for item in receipts if item.processing_state == "dead_letter"
+        }
+        actionable_dead_letters = sum(
+            1 for row in dead_letter_rows if row.receipt_id in unresolved_receipt_ids
         )
         if coming_soon:
             support = CapabilitySupport.COMING_SOON
@@ -933,7 +948,7 @@ class CanonicalDiagnosticsProjector:
             )
         outcome = (
             OutcomeState.FAILED
-            if dead_letters
+            if actionable_dead_letters
             else OutcomeState.PARTIAL
             if queued
             else OutcomeState.SUCCESSFUL
@@ -958,7 +973,9 @@ class CanonicalDiagnosticsProjector:
                 "receivedCount": len(receipts),
                 "acceptedCount": accepted,
                 "queuedCount": queued,
+                # Total is retained evidence; actionable is what readiness acts on.
                 "deadLetterCount": dead_letters,
+                "actionableDeadLetterCount": actionable_dead_letters,
                 "lastReceivedAt": _iso(last_received),
                 "lastProcessedAt": _iso(last_processed),
             }
@@ -1534,7 +1551,7 @@ class CanonicalDiagnosticsProjector:
             )
         if (
             webhook["support"] == CapabilitySupport.SUPPORTED_ENABLED.value
-            and webhook.get("deadLetterCount", 0) > 0
+            and webhook.get("actionableDeadLetterCount", 0) > 0
         ):
             return ReadinessState.NEEDS_ATTENTION, "webhook_dead_letters"
         if (

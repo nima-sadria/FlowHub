@@ -23,6 +23,11 @@ from app.flowhub.diagnostics.state_model import (
     ScheduleMode,
 )
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+from app.flowhub.security.upstream_errors import (
+    CATEGORY_INTERNAL_ERROR,
+    CATEGORY_REFRESH_IN_PROGRESS,
+    classify_failure,
+)
 from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.webhooks.service import WebhookIngestionService
 
@@ -178,35 +183,66 @@ class ScheduledDiagnosticsEvaluator:
                     "diagnostics-runner",
                     job_type="scheduled",
                 )
-                ok = str(result.get("status") or "unknown") in {"completed", "completed_with_warnings"}
-                if webhook_receipt_ids:
+                status_value = str(result.get("status") or "unknown")
+                ok = status_value in {"completed", "completed_with_warnings"}
+                error = result.get("error") if isinstance(result.get("error"), dict) else {}
+                # Refresh responses retain the public error contract.  The
+                # internal result object carries the classification for this
+                # in-process evaluator without serialising it to API callers.
+                category = str(
+                    getattr(result, "failure_category", None) or error.get("category") or ""
+                )
+                # A deferred refresh was never executed (another unexpired
+                # lease owns the channel). Leaving the receipts queued costs
+                # them nothing; marking them failed burned one of their five
+                # attempts per 30s runner tick and dead-lettered healthy
+                # deliveries within ~2.5 minutes.
+                deferred = bool(result.get("deferred")) or category == CATEGORY_REFRESH_IN_PROGRESS
+                processed = 0
+                if webhook_receipt_ids and not deferred:
                     service = WebhookIngestionService(db)
                     for receipt_id in webhook_receipt_ids:
                         if ok:
                             service.mark_woocommerce_receipt_processed(receipt_id)
                         else:
+                            # Retryability must follow the real, normalized
+                            # category. Hardcoding "temporary" made an expired
+                            # credential and an internal bug retry five times
+                            # exactly like a transient network blip.
                             service.mark_woocommerce_receipt_failed(
-                                receipt_id, "temporary", str(result.get("error") or "product cache refresh failed")
+                                receipt_id,
+                                category or "temporary",
+                                str(error.get("message") or "product cache refresh failed"),
                             )
+                        processed += 1
                 return {
                     "channelId": channel_id,
-                    "status": str(result.get("status") or "unknown"),
+                    "status": status_value,
+                    "deferred": deferred,
+                    "errorCategory": category or None,
                     "externalWritePerformed": False,
-                    "webhookReceiptsProcessed": len(webhook_receipt_ids or []),
+                    "webhookReceiptsProcessed": processed,
                 }
             except Exception as exc:
                 db.rollback()
+                # An exception escaping refresh_channel_cache is FlowHub's own
+                # failure, not the provider's: classify it honestly so the
+                # receipt taxonomy stays truthful.
+                safe = classify_failure(exc, source="woocommerce")
+                category = str(safe.get("category") or CATEGORY_INTERNAL_ERROR)
                 if webhook_receipt_ids:
                     service = WebhookIngestionService(db)
                     for receipt_id in webhook_receipt_ids:
                         try:
-                            service.mark_woocommerce_receipt_failed(receipt_id, "temporary", str(exc))
+                            service.mark_woocommerce_receipt_failed(
+                                receipt_id, category, str(safe.get("message") or exc.__class__.__name__)
+                            )
                         except Exception:
                             db.rollback()
                 return {
                     "channelId": channel_id,
                     "status": "failed",
-                    "errorCategory": exc.__class__.__name__,
+                    "errorCategory": category,
                     "externalWritePerformed": False,
                 }
 

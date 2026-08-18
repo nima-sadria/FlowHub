@@ -239,7 +239,14 @@ async def safe_http_exception_handler(request: Request, exc: HTTPException) -> R
     if is_unsafe_upstream_content(exc.detail):
         return JSONResponse(
             status_code=exc.status_code,
-            content=normalize_upstream_error(Exception("unsafe upstream response"), source="proxy"),
+            content=normalize_upstream_error(
+                Exception("unsafe upstream response"),
+                source="proxy",
+                # The body came off the wire from the external service, so this
+                # is upstream by construction even though the carrier is a
+                # plain Exception.
+                attributable=True,
+            ),
         )
     return await http_exception_handler(request, exc)
 

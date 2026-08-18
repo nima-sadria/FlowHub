@@ -277,10 +277,19 @@ extends axes this ADR already owns and contradicts none of its decisions.
 - Added the `reconciliation` sub-fact (`SCHEDULED` / `MANUAL` / `DISABLED`,
   with `nextReconciliationAt`) to the product-synchronization capability shape.
 - Added the `RETRY_RECONCILIATION` recommended action for event-driven channels
-  whose latest reconciliation attempt failed (see *Recommended Actions*).
+  whose latest reconciliation attempt failed (see *Recommended Actions*). It
+  maps to the existing WooCommerce cache/read operation at
+  `POST /api/v2/commerce/channels/{channel_id}/reconcile`, with a distinct
+  reconciliation job type and the existing refresh lease; it does not replay
+  webhook receipts or execute a Channel write.
 - Added `PENDING` to the background-job state vocabulary and excluded
   lease-expired jobs and retention-expired receipts from queue depth, keeping
   them visible as a separate stale count (see *Background Jobs*).
+- Dead-letter rows remain retained historical evidence. Only a receipt still
+  in `dead_letter` is actionable: a row whose receipt was replayed and then
+  processed no longer pins the channel to `NEEDS_ATTENTION`. The projection
+  exposes both total and actionable dead-letter counts; no evidence is
+  deleted.
 
 No schema change, no migration, and no new scheduler or polling interval was
 introduced. `ScheduledDiagnosticsEvaluator` is unchanged; its existing

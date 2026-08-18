@@ -29,7 +29,7 @@ from app.flowhub.source_workspace import models as _source_models  # noqa: F401
 from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 from app.flowhub.webhooks import models as _webhook_models  # noqa: F401
-from app.flowhub.webhooks.models import WebhookReceipt
+from app.flowhub.webhooks.models import WebhookDeadLetter, WebhookReceipt
 
 
 @pytest.fixture()
@@ -539,6 +539,56 @@ def test_fresh_cache_is_preserved_when_the_latest_attempt_failed(db):
     assert channel["recommendedAction"]["code"] == "RETRY_RECONCILIATION"
 
 
+def test_unresolved_dead_letter_keeps_the_channel_needing_attention(db):
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="processed")
+    _seed_product_cache(db, "woocommerce:primary", now)
+    _seed_refresh(db, "woocommerce:primary", now, status="completed")
+    _seed_dead_letter(db, "woocommerce:primary", now, receipt_state="dead_letter")
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+    webhook = channel["capabilities"]["webhookProcessing"]
+
+    assert webhook["deadLetterCount"] == 1
+    assert webhook["actionableDeadLetterCount"] == 1
+    assert channel["readiness"]["state"] == "NEEDS_ATTENTION"
+    assert channel["reasonCode"] == "webhook_dead_letters"
+
+
+def test_replayed_dead_letter_stops_pinning_the_channel_but_keeps_the_evidence(db):
+    """A dead letter that is no longer actionable must release readiness.
+
+    The 13 WooCommerce dead letters from the 2026-08-18 incident would
+    otherwise hold the channel at NEEDS_ATTENTION permanently, because the
+    projection counted every dead-letter row that had ever been written. The
+    row itself is retained evidence and is never deleted.
+    """
+
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="processed")
+    _seed_product_cache(db, "woocommerce:primary", now)
+    _seed_refresh(db, "woocommerce:primary", now, status="completed")
+    # The dead letter was replayed and has since reprocessed successfully.
+    _seed_dead_letter(db, "woocommerce:primary", now, receipt_state="processed")
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+    webhook = channel["capabilities"]["webhookProcessing"]
+
+    # Evidence preserved...
+    assert webhook["deadLetterCount"] == 1
+    # ...but nothing is actionable any more.
+    assert webhook["actionableDeadLetterCount"] == 0
+    assert webhook["lastOutcome"] != "FAILED"
+    assert channel["readiness"]["state"] == "READY"
+    assert channel["reasonCode"] == "channel_ready"
+
+
 def test_healthy_event_driven_channel_produces_no_false_refresh_products(db):
     """E: a working event-driven channel is READY with no action."""
 
@@ -838,6 +888,51 @@ def _seed_webhook_secret(db, channel_id: str, *, key: str = "webhook_secret") ->
             secret=True,
             configured=True,
             updated_at=_now(),
+        )
+    )
+    db.commit()
+
+
+def _seed_dead_letter(
+    db,
+    channel_id: str,
+    at: datetime,
+    *,
+    receipt_state: str = "dead_letter",
+    provider: str = "woocommerce",
+) -> None:
+    """Write a dead-letter row plus the receipt it points at.
+
+    `receipt_state` is what decides whether the dead letter is still
+    actionable: "dead_letter" means it is still parked, anything else means an
+    admin replay or a later success has already resolved it.
+    """
+
+    index = next(_RECEIPT_SEQUENCE)
+    receipt = WebhookReceipt(
+        channel_id=channel_id,
+        provider=provider,
+        provider_event_id=f"dl-evt-{index}",
+        payload_hash=f"dl-hash-{index}",
+        payload_summary_json={},
+        normalized_event_json={},
+        received_at=at,
+        acknowledged_at=at,
+        processing_state=receipt_state,
+        attempt_count=5,
+        processed_at=at if receipt_state == "processed" else None,
+    )
+    db.add(receipt)
+    db.flush()
+    db.add(
+        WebhookDeadLetter(
+            receipt_id=receipt.id,
+            channel_id=channel_id,
+            provider=provider,
+            provider_event_id=receipt.provider_event_id,
+            reason="product cache refresh failed",
+            error_category="upstream_unavailable",
+            created_at=at,
         )
     )
     db.commit()

@@ -71,7 +71,13 @@ from app.flowhub.integrations.nextcloud import NextcloudClient
 from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.read_engine.manual import ManualReadService
 from app.flowhub.read_engine.service import IncrementalReadEngine
-from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
+from app.flowhub.data_layer.job_lifecycle import RefreshJobAlreadyRunning
+from app.flowhub.security.upstream_errors import (
+    CATEGORY_REFRESH_IN_PROGRESS,
+    UpstreamServiceError,
+    classify_failure,
+    normalize_upstream_error,
+)
 from app.flowhub.source_acquisition.nextcloud_provider import NextcloudWebDavAcquisitionProvider
 from app.flowhub.source_workspace.models import SourceMappingRevision, SourceProfile
 from app.flowhub.sources.spreadsheet_source import (
@@ -81,6 +87,18 @@ from app.flowhub.sources.spreadsheet_source import (
     serialize_read_policy,
     serialize_source_mapping,
 )
+
+
+class CacheRefreshResult(dict):
+    """Public refresh response plus non-serialised internal classification.
+
+    The dict itself remains the established HTTP response.  Diagnostics runs
+    in-process and can read these attributes without adding internal taxonomy
+    fields to the public ``error`` payload.
+    """
+
+    failure_category: str | None = None
+    upstream_attributable: bool | None = None
 
 ACCESS_MODE_READ_ONLY = "read_only"
 ACCESS_MODE_WRITE_ENABLED = "write_enabled"
@@ -411,7 +429,13 @@ class CommerceHubService:
             warnings = list(adapter.warnings)
             result_status = "completed_with_warnings" if warnings else "completed"
             completed = datetime.now(timezone.utc).replace(tzinfo=None)
-            self._mark_latest_refresh_status(channel_id, result_status, completed)
+            # Finalize the job that actually ran, by id. Selecting "the newest
+            # products job" instead let a concurrent evaluator tick's own
+            # (cancelled) job absorb this run's terminal status, which made
+            # refresh history and Diagnostics freshness non-deterministic.
+            self._mark_latest_refresh_status(
+                channel_id, result_status, completed, job_id=progress.job_id
+            )
             result = self._cache_refresh_result(
                 adapter,
                 ok=True,
@@ -430,9 +454,59 @@ class CommerceHubService:
             )
             return result
 
+        except RefreshJobAlreadyRunning as exc:
+            # Not a failure, and emphatically not an upstream failure: another
+            # unexpired lease already owns this channel's product refresh, so
+            # this attempt was never executed. Reporting it as a failed refresh
+            # is what burned webhook receipt attempts (5 per receipt, one per
+            # 30s runner tick) against a healthy WooCommerce store and produced
+            # CHANNEL_UPSTREAM_ERROR dead letters with no HTTP status.
+            completed = datetime.now(timezone.utc).replace(tzinfo=None)
+            result = self._cache_refresh_result(
+                adapter,
+                ok=False,
+                status_value="deferred",
+                cache_rows_upserted=0,
+                warnings=list(adapter.warnings) if adapter else [],
+                errors=[],
+                started=started,
+                completed=completed,
+            )
+            result["error"] = {
+                "code": "CHANNEL_REFRESH_IN_PROGRESS",
+                "message": "A product cache refresh is already running for this channel.",
+                "source": "flowhub",
+                "http_status": None,
+            }
+            result.failure_category = CATEGORY_REFRESH_IN_PROGRESS
+            result.upstream_attributable = False
+            result["deferred"] = True
+            self.integration.record_event(
+                connector_id=channel_id,
+                event_name="product_cache_refresh_deferred",
+                message=(
+                    f"{trigger_label} WooCommerce product cache refresh was deferred; "
+                    "another refresh already owns this channel."
+                ),
+                metadata={
+                    **result,
+                    "actor": actor,
+                    "job_type": job_type,
+                    "external_write": False,
+                    "failure_category": CATEGORY_REFRESH_IN_PROGRESS,
+                    "upstream_attributable": False,
+                    "active_job_id": exc.active_job_id,
+                },
+            )
+            return result
+
         except Exception as exc:
             completed = datetime.now(timezone.utc).replace(tzinfo=None)
             cache_rows_upserted, result_status = self._mark_latest_refresh_failed(channel_id, exc, completed)
+            # ``classify_failure`` is retained internally for retry taxonomy
+            # and Advanced Evidence.  The established public error dict stays
+            # exactly ``code/message/source/http_status``.
+            classification = classify_failure(exc, source="woocommerce")
             safe_error = normalize_upstream_error(exc, source="woocommerce")
             errors = [safe_error["message"]]
             result = self._cache_refresh_result(
@@ -446,12 +520,21 @@ class CommerceHubService:
                 completed=completed,
             )
             result["error"] = safe_error
+            result.failure_category = str(classification["category"])
+            result.upstream_attributable = bool(classification["upstream_attributable"])
             self.integration.record_event(
                 connector_id=channel_id,
                 event_name="product_cache_refresh_failed",
                 message=f"{trigger_label} WooCommerce product cache refresh failed.",
                 severity="error",
-                metadata={**result, "actor": actor, "job_type": job_type, "external_write": False},
+                metadata={
+                    **result,
+                    "actor": actor,
+                    "job_type": job_type,
+                    "external_write": False,
+                    "failure_category": result.failure_category,
+                    "upstream_attributable": result.upstream_attributable,
+                },
             )
             return result
 
@@ -1679,8 +1762,8 @@ class CommerceHubService:
         errors: list[str],
         started: datetime,
         completed: datetime,
-    ) -> dict:
-        return {
+    ) -> CacheRefreshResult:
+        return CacheRefreshResult({
             "ok": ok,
             "status": status_value,
             "products_read": adapter.products_read if adapter else 0,
@@ -1699,7 +1782,7 @@ class CommerceHubService:
             "approval_created": False,
             "apply_executed": False,
             "credentials_returned": False,
-        }
+        })
 
     def _latest_product_refresh(self, channel_id: str) -> DlRefreshJob | None:
         return (
@@ -1760,13 +1843,22 @@ class CommerceHubService:
             return "operational"
         return "configured"
 
-    def _mark_latest_refresh_status(self, channel_id: str, status_value: str, completed: datetime) -> None:
-        job = (
-            self.db.query(DlRefreshJob)
-            .filter(DlRefreshJob.connector_id == channel_id, DlRefreshJob.entity_type == "products")
-            .order_by(DlRefreshJob.created_at.desc(), DlRefreshJob.id.desc())
-            .first()
-        )
+    def _mark_latest_refresh_status(
+        self,
+        channel_id: str,
+        status_value: str,
+        completed: datetime,
+        *,
+        job_id: int | None = None,
+    ) -> None:
+        job = self.db.get(DlRefreshJob, job_id) if job_id is not None else None
+        if job is None:
+            job = (
+                self.db.query(DlRefreshJob)
+                .filter(DlRefreshJob.connector_id == channel_id, DlRefreshJob.entity_type == "products")
+                .order_by(DlRefreshJob.created_at.desc(), DlRefreshJob.id.desc())
+                .first()
+            )
         if job is None:
             return
         job.status = status_value
@@ -1787,7 +1879,7 @@ class CommerceHubService:
             return 0, "failed"
         stored = int((job.meta or {}).get("products_stored") or 0)
         status_value = "partial_failed" if stored > 0 else "failed"
-        safe_error = normalize_upstream_error(exc, source="woocommerce")
+        safe_error = classify_failure(exc, source="woocommerce")
         job.status = status_value
         job.completed_at = completed
         job.heartbeat_at = completed
@@ -1797,6 +1889,12 @@ class CommerceHubService:
         job.meta = {
             **(job.meta or {}),
             "error_category": self._cache_refresh_error_category(exc, safe_error),
+            # Honest attribution, persisted as evidence: whether the external
+            # service or FlowHub itself caused this failure. Diagnostics
+            # Advanced Evidence reads this rather than inferring blame from
+            # the compatibility-preserving public error code.
+            "failure_category": safe_error.get("category"),
+            "upstream_attributable": bool(safe_error.get("upstream_attributable")),
         }
         self.db.commit()
         return stored, status_value

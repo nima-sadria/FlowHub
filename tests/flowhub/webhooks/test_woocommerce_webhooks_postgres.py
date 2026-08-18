@@ -27,8 +27,15 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.flowhub.database import FlowHubBase
+from app.flowhub.business_observability.models import BusinessEvent
+from app.flowhub.data_layer.job_lifecycle import RefreshJobAlreadyRunning, RefreshJobLifecycle
+from app.flowhub.data_layer.models import DlRefreshJob
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
-from app.flowhub.webhooks.models import WebhookProviderEventIdentity, WebhookReceipt
+from app.flowhub.webhooks.models import (
+    WebhookProcessingAttempt,
+    WebhookProviderEventIdentity,
+    WebhookReceipt,
+)
 from app.flowhub.webhooks.service import WebhookIngestionService
 
 pytestmark = pytest.mark.postgres
@@ -160,3 +167,92 @@ def test_concurrent_deliveries_for_different_channels_are_fully_independent(pg_s
     assert all(is_duplicate is False for _, is_duplicate in results)
     with pg_sessions() as db:
         assert db.query(WebhookReceipt).filter_by(provider_event_id="wh-shared:dl-shared").count() == 2
+
+
+def test_concurrent_receipt_retry_records_one_attempt_and_one_business_event(pg_sessions):
+    """Two evaluator ticks must not charge one queued receipt twice."""
+    with pg_sessions() as db:
+        _seed_channel(db, "woocommerce:contended")
+        receipt = WebhookReceipt(
+            channel_id="woocommerce:contended",
+            provider="woocommerce",
+            provider_event_id="wh-retry:dl-retry",
+            payload_hash="retry-hash",
+            payload_summary_json={"topic": "product.updated"},
+            normalized_event_json={"topic": "product.updated"},
+            received_at=sa.func.now(),
+            acknowledged_at=sa.func.now(),
+            processing_state="queued",
+            attempt_count=0,
+        )
+        db.add(receipt)
+        db.commit()
+        receipt_id = receipt.id
+
+    barrier = threading.Barrier(2)
+
+    def retry(_: int):
+        with pg_sessions() as db:
+            barrier.wait(timeout=10)
+            return WebhookIngestionService(db).mark_woocommerce_receipt_failed(
+                receipt_id, "upstream_unavailable", "WooCommerce origin did not respond."
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(retry, range(2)))
+
+    assert {item["attempt_count"] for item in results} == {1}
+    with pg_sessions() as db:
+        receipt = db.get(WebhookReceipt, receipt_id)
+        assert receipt is not None
+        assert receipt.processing_state == "retry_scheduled"
+        assert receipt.attempt_count == 1
+        assert db.query(WebhookProcessingAttempt).filter_by(receipt_id=receipt_id).count() == 1
+        assert db.query(BusinessEvent).filter_by(
+            event_type="woocommerce_webhook_processing_failed"
+        ).count() == 1
+
+
+def test_concurrent_reconciliation_lease_has_one_owner_and_one_deferred_contender(pg_sessions):
+    """A reconciliation retry remains one read path, never two cache mutations."""
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    with pg_sessions() as db:
+        jobs = [
+            DlRefreshJob(
+                job_type="reconciliation",
+                entity_type="products",
+                connector_id="woocommerce:contended",
+                status="pending",
+                triggered_by=f"test-{index}",
+                created_at=now,
+                meta={"strategy": "initial_full_read", "force_full": True},
+            )
+            for index in range(2)
+        ]
+        db.add_all(jobs)
+        db.commit()
+        job_ids = [job.id for job in jobs]
+
+    barrier = threading.Barrier(2)
+
+    def acquire(job_id: int) -> str:
+        with pg_sessions() as db:
+            job = db.get(DlRefreshJob, job_id)
+            assert job is not None
+            barrier.wait(timeout=10)
+            try:
+                RefreshJobLifecycle(db).start(job)
+                return "owner"
+            except RefreshJobAlreadyRunning:
+                return "deferred"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(acquire, job_ids))
+
+    assert sorted(outcomes) == ["deferred", "owner"]
+    with pg_sessions() as db:
+        rows = db.query(DlRefreshJob).filter(DlRefreshJob.id.in_(job_ids)).all()
+        assert sum(row.status == "running" for row in rows) == 1
+        assert sum(row.status == "cancelled" for row in rows) == 1

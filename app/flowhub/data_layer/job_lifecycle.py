@@ -43,18 +43,31 @@ class RefreshJobLifecycle:
 
     def start(self, job: DlRefreshJob, *, now: datetime | None = None) -> None:
         now = now or utcnow()
-        active = (
+        # Lock every live contender in deterministic id order.  Locking only
+        # an already-running row leaves two pending reconciliation jobs free
+        # to promote themselves at the same time on PostgreSQL.  Once the
+        # first owner commits, the waiting contender observes it and defers.
+        contenders = (
             self.db.query(DlRefreshJob)
             .filter(
-                DlRefreshJob.id != job.id,
                 DlRefreshJob.connector_id == job.connector_id,
                 DlRefreshJob.entity_type == job.entity_type,
-                DlRefreshJob.status == "running",
-                DlRefreshJob.lease_expires_at.is_not(None),
-                DlRefreshJob.lease_expires_at > now,
+                DlRefreshJob.status.in_(("pending", "running")),
             )
+            .order_by(DlRefreshJob.id.asc())
             .with_for_update()
-            .first()
+            .all()
+        )
+        active = next(
+            (
+                contender
+                for contender in contenders
+                if contender.id != job.id
+                and contender.status == "running"
+                and contender.lease_expires_at is not None
+                and contender.lease_expires_at > now
+            ),
+            None,
         )
         if active is not None:
             job.status = "cancelled"

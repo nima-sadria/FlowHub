@@ -3334,6 +3334,112 @@ def test_woocommerce_cache_refresh_reports_partial_page_failure_safely(
     assert diagnostic["dimensions"]["productCache"]["state"] == "WARNING"
 
 
+def test_woocommerce_cache_refresh_defers_instead_of_failing_when_a_lease_is_held(
+    client, auth_headers, db, monkeypatch
+):
+    """An active lease means "not now", not "WooCommerce is broken".
+
+    Production regression: `RefreshJobAlreadyRunning` escaped into
+    `refresh_channel_cache`'s blanket `except Exception`, was relabelled
+    CHANNEL_UPSTREAM_ERROR (no HTTP status, because nothing was ever
+    contacted), and each such tick charged every pending webhook receipt an
+    attempt. The refresh must instead report itself deferred, perform no
+    provider I/O, and leave the previously cached products untouched.
+    """
+
+    from datetime import datetime, timedelta, timezone
+
+    from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob
+
+    _configure_woocommerce_channel(client, auth_headers)
+
+    provider_calls: list[int] = []
+
+    async def fake_list_products(_creds, *, page, **_kwargs):
+        provider_calls.append(page)
+        return [{
+            "id": 101,
+            "name": "Cached product",
+            "type": "simple",
+            "regular_price": "10.00",
+            "price": "10.00",
+        }], 1, 1
+
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fake_list_products)
+
+    # First refresh succeeds and establishes the cache we must not lose.
+    first = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+    assert first.status_code == 200
+    assert first.json()["status"] == "completed"
+    assert db.query(DlProductCache).count() == 1
+    calls_after_first_refresh = len(provider_calls)
+
+    # Another owner takes the lease and is still well inside it.
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.add(
+        DlRefreshJob(
+            job_type="scheduled",
+            entity_type="products",
+            connector_id="woocommerce:primary",
+            status="running",
+            triggered_by="other-runner",
+            created_at=now,
+            started_at=now,
+            heartbeat_at=now,
+            lease_expires_at=now + timedelta(minutes=25),
+            meta={"strategy": "initial_full_read"},
+        )
+    )
+    db.commit()
+
+    response = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "deferred"
+    assert data["deferred"] is True
+    assert data["error"]["code"] == "CHANNEL_REFRESH_IN_PROGRESS"
+    assert tuple(data["error"]) == ("code", "message", "source", "http_status")
+    # Never blamed on the store, and never given a fake HTTP status.
+    assert data["error"]["code"] != "CHANNEL_UPSTREAM_ERROR"
+    assert data["error"]["http_status"] is None
+    # No provider I/O was attempted for the deferred call.
+    assert len(provider_calls) == calls_after_first_refresh
+    # The existing cache survives untouched.
+    assert db.query(DlProductCache).count() == 1
+
+
+def test_woocommerce_reconciliation_uses_the_existing_read_path_without_receipt_replay(
+    client, auth_headers, monkeypatch
+):
+    """`RETRY_RECONCILIATION` is a real, separate read-only operation."""
+
+    calls: list[tuple[str, str]] = []
+
+    async def fake_refresh(self, channel_id, actor, **kwargs):
+        calls.append((channel_id, str(kwargs.get("job_type"))))
+        return {"ok": True, "status": "completed", "external_write": False}
+
+    monkeypatch.setattr(
+        "app.flowhub.commerce.service.CommerceHubService.refresh_channel_cache", fake_refresh
+    )
+
+    response = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/reconcile",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["external_write"] is False
+    assert calls == [("woocommerce:primary", "reconciliation")]
+
+
 def test_woocommerce_cache_refresh_reports_full_failure_reason_after_reload(
     client, auth_headers, db, monkeypatch
 ):

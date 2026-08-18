@@ -65,6 +65,8 @@ REQUIRED_SOURCE_LIFECYCLE_TESTS = (
 REQUIRED_WOOCOMMERCE_WEBHOOK_TESTS = (
     "test_concurrent_duplicate_delivery_resolves_to_exactly_one_receipt",
     "test_concurrent_deliveries_for_different_channels_are_fully_independent",
+    "test_concurrent_receipt_retry_records_one_attempt_and_one_business_event",
+    "test_concurrent_reconciliation_lease_has_one_owner_and_one_deferred_contender",
 )
 REQUIRED_TAPSISHOP_WEBHOOK_TESTS = (
     "test_concurrent_duplicate_delivery_resolves_to_exactly_one_receipt",
