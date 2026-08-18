@@ -328,7 +328,7 @@ export default function Topbar({
             </button>
 
             {langOpen && (
-              <div className="fh-dropdown absolute end-0 top-full z-50 mt-2 min-w-[160px]">
+              <div className="fh-dropdown absolute end-0 top-full mt-2 min-w-[160px]">
                 {LANGUAGES.map(lang => (
                   <button
                     key={lang.code}
@@ -384,7 +384,7 @@ export default function Topbar({
               </button>
 
               {menuOpen && (
-                <div className="fh-dropdown fh-topbar-account-menu absolute end-0 top-full z-50 mt-2">
+                <div className="fh-dropdown fh-topbar-account-menu absolute end-0 top-full mt-2">
                   <div className="fh-topbar-account-profile">
                     <div className="text-[13px] font-medium leading-5 text-text-base">
                       {user.username}

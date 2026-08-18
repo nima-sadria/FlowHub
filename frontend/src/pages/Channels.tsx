@@ -540,7 +540,7 @@ export default function Channels() {
       {setupTarget && canManageCommerce && (
         <div
           ref={setupDialogRef}
-          className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+          className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-label={setupResourceId ? translate('common:action.settings') : translate('commerce:commerceHub.addChannel')}

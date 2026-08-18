@@ -554,7 +554,7 @@ export default function Orders() {
       {detailTarget && (
         <div
           ref={detailDialogRef}
-          className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+          className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="order-detail-title"

@@ -770,7 +770,7 @@ export default function SourceCenter() {
       )}
 
       {canCreateSources && addPanelOpen && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-add-title">
+        <div className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-add-title">
           <div className="fh-card fh-card-pad w-full max-w-3xl">
             <div className="flex items-center justify-between gap-3">
               <h2 className="fh-page-title" id="source-add-title">{translate('sources:sources.addSource')}</h2>
@@ -805,7 +805,7 @@ export default function SourceCenter() {
       )}
 
       {pendingDelete && (
-        <div ref={removalOverlayRef} className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-delete-title" aria-describedby="source-delete-description">
+        <div ref={removalOverlayRef} className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-delete-title" aria-describedby="source-delete-description">
           <div className="fh-card fh-card-pad w-full max-w-lg">
             <h2 className="fh-page-title" id="source-delete-title">{translate('sources:sourceCenter.deleteSource')}</h2>
             <p className="mt-3 text-text-base" id="source-delete-description">{translate('sources:sourceCenter.confirmSourceRemoval', { source: pendingDelete.name })}</p>

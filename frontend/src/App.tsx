@@ -71,7 +71,7 @@ const realServices = {
 function MaintenanceOverlay({ message }: { message?: string }) {
   const { logout } = useAuth()
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/95 backdrop-blur-sm">
+    <div className="fh-overlay-backdrop fixed inset-0 flex items-center justify-center bg-bg-base/95 backdrop-blur-sm">
       <div className="fh-card max-w-md w-full mx-4 p-8 text-center">
         <div className="w-14 h-14 rounded-lg bg-wp-yellow/10 border border-wp-yellow/20 flex items-center justify-center mx-auto mb-4">
           <svg viewBox="0 0 24 24" className="w-7 h-7 text-wp-yellow" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

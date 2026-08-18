@@ -201,7 +201,7 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
     <>
       {open && (
         <div
-          className="fixed inset-0 z-[9998] bg-black/45 backdrop-blur-[1px] xl:hidden"
+          className="fh-sidebar-backdrop fixed inset-0 bg-black/45 backdrop-blur-[1px] xl:hidden"
           onClick={onClose}
         />
       )}
@@ -213,9 +213,10 @@ export default function Sidebar({ open, collapsed, onClose, onExpand, user, heal
         aria-modal={open ? true : undefined}
         aria-labelledby={open ? 'sidebar-brand' : undefined}
         className={[
+          'fh-sidebar-drawer',
           'flex h-screen h-[100dvh] min-h-0 flex-shrink-0 flex-col border-e border-border',
           'bg-[color:var(--fh-nav-bg)]',
-          'fixed top-0 inset-y-0 start-0 z-[9999] xl:sticky',
+          'fixed top-0 inset-y-0 start-0 xl:sticky',
           'transition-all duration-300 ease-in-out',
           open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full xl:!translate-x-0',
           collapsed ? 'w-[290px] max-w-[86vw] xl:w-[90px]' : 'w-[290px] max-w-[86vw] xl:w-[290px]',

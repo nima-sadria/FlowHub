@@ -41,7 +41,7 @@ export default function NotificationContainer() {
 
   return (
     <div
-      className="fixed inset-x-4 top-[calc(var(--fh-topbar-height)+8px)] z-50 flex w-auto max-w-sm flex-col gap-2 pointer-events-none sm:start-auto sm:end-4 sm:w-full"
+      className="fh-toast-stack fixed inset-x-4 top-[calc(var(--fh-topbar-height)+8px)] flex w-auto max-w-sm flex-col gap-2 pointer-events-none sm:start-auto sm:end-4 sm:w-full"
       role="region"
       aria-label={translate('notifications:notificationContainer.notifications')}
     >

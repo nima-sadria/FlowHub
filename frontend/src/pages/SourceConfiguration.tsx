@@ -2199,7 +2199,7 @@ export default function SourceConfiguration() {
         </div>
       )}
 
-      <div className="sticky bottom-2 z-30 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-bg-base/95 p-2 shadow-lg backdrop-blur sm:bottom-3 sm:gap-3 sm:p-3" data-testid="source-configuration-actions">
+      <div className="fh-sticky-action-bar sticky bottom-2 mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-bg-base/95 p-2 shadow-lg backdrop-blur sm:bottom-3 sm:gap-3 sm:p-3" data-testid="source-configuration-actions">
         <Badge variant={dirty ? 'warning' : 'success'}>{dirty ? translate('sources:sourceConfiguration.unsavedChanges') : translate('sources:sourceConfiguration.allChangesSaved')}</Badge>
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ms-auto sm:flex sm:w-auto sm:flex-wrap">
@@ -2220,7 +2220,7 @@ export default function SourceConfiguration() {
       </div>
 
       {removalOpen && source && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-delete-title" aria-describedby="source-delete-description">
+        <div className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-delete-title" aria-describedby="source-delete-description">
           <div className="fh-card fh-card-pad w-full max-w-lg">
             <h2 className="fh-page-title" id="source-delete-title">{translate('sources:sourceCenter.deleteSource')}</h2>
             <p className="mt-3 text-text-base" id="source-delete-description">{translate('sources:sourceCenter.confirmSourceRemoval', { source: source.name })}</p>
@@ -2272,13 +2272,13 @@ export default function SourceConfiguration() {
         </div>
       )}
 
-      {channelSetupId && canManageCommerce && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('commerce:commerceHub.addChannel')}>
+      {channelSetupId && canManageCommerce && <div className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('commerce:commerceHub.addChannel')}>
         <div className="max-h-[calc(100vh-2rem)] w-full max-w-[45rem] overflow-y-auto">
           {channelSetupLoading ? <div className="fh-card fh-card-pad fh-text-caption" role="status">{translate('commerce:commerceHub.loadingChannelConfiguration')}</div> : channelSetupError ? <div className="fh-card fh-card-pad" role="alert"><p className="fh-section-title">{translate('commerce:commerceHub.unableToLoadCommerceHub')}</p><div className="mt-4 flex gap-2"><button className="fh-button-secondary" type="button" onClick={closeChannelSetup}>{translate('common:action.cancel')}</button><button className="fh-button-primary" type="button" onClick={() => void openChannelSetup(channelSetupId === 'new' ? undefined : channelSetupId)}>{translate('common:action.retry')}</button></div></div> : <ConfigPanel kind="channel" types={channelTypes} initialResourceId={channelSetupId === 'new' ? null : channelSetupId} headingLevel={2} onCancel={closeChannelSetup} onSaved={handleChannelSetupSaved} />}
         </div>
       </div>}
 
-      {pendingSharedChannelCopy && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="copy-channel-title">
+      {pendingSharedChannelCopy && <div className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="copy-channel-title">
         <div className="fh-card fh-card-pad w-full max-w-xl">
           <h2 className="fh-page-title" id="copy-channel-title">{translate('sources:sourceConfiguration.copyChannelSettings')}</h2>
           <p className="mt-2 fh-text-caption">{translate('sources:sourceConfiguration.copyChannelPreview', { source: channelName(pendingSharedChannelCopy.sourceChannelId), destination: channelName(pendingSharedChannelCopy.targetChannelId) })}</p>
@@ -2288,7 +2288,7 @@ export default function SourceConfiguration() {
         </div>
       </div>}
 
-      {pendingCopy && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="copy-worksheet-title">
+      {pendingCopy && <div className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="copy-worksheet-title">
         <div className="fh-card fh-card-pad max-h-[90vh] w-full max-w-2xl overflow-y-auto">
           <h2 className="fh-page-title" id="copy-worksheet-title">{pendingCopy.intent.kind === 'shared_fields' ? translate('sources:sourceConfiguration.copySharedFields') : translate('sources:sourceConfiguration.copyChannelSettings')}</h2>
           <p className="mt-2 fh-text-caption">{translate('sources:sourceConfiguration.copyFromWorksheet', { worksheet: pendingCopy.intent.worksheetName })}</p>

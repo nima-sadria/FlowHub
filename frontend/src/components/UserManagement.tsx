@@ -196,7 +196,7 @@ export default function UserManagement() {
         )}
       </div>
 
-      {editTarget && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-user-title">
+      {editTarget && <div className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-user-title">
         <div className="fh-card w-full max-w-lg p-5">
           <h3 className="fh-section-title" id="edit-user-title">{translate('settings:users.editUserFor', { username: editTarget.username })}</h3>
 
@@ -226,7 +226,7 @@ export default function UserManagement() {
         </div>
       </div>}
 
-      {passwordTarget && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="password-dialog-title">
+      {passwordTarget && <div className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="password-dialog-title">
         <form className="fh-card w-full max-w-lg p-5" onSubmit={event => { event.preventDefault(); void updateUser(passwordTarget, { password: replacementPassword }) }}>
           <h3 className="fh-section-title" id="password-dialog-title">{translate('settings:users.changePasswordFor', { username: passwordTarget.username })}</h3>
           <div className="my-4"><SecretField label={translate('settings:users.newPassword')} value={replacementPassword} required onChange={setReplacementPassword} configuredHint="" placeholder={translate('settings:users.passwordPlaceholder')} revealLabel={translate('settings:users.showPassword')} concealLabel={translate('settings:users.hidePassword')} copyLabel={translate('settings:users.copyPassword')} copiedLabel={translate('settings:users.enteredPasswordCopied')} emptySecretHint={translate('settings:users.savedPasswordHiddenHint')} /></div>
@@ -234,7 +234,7 @@ export default function UserManagement() {
         </form>
       </div>}
 
-      {deleteTarget && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-user-title">
+      {deleteTarget && <div className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-user-title">
         <div className="fh-card w-full max-w-lg p-5">
           <h3 className="fh-section-title" id="delete-user-title">{translate('settings:users.deleteTitle')}</h3>
           <p className="fh-text-body-sm my-3">{translate('settings:users.deleteConfirmation', { username: deleteTarget.username })}</p>

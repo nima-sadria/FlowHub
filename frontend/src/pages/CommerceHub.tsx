@@ -569,7 +569,7 @@ function NextcloudFilePicker({
   const currentPath = data?.path ?? requestedPath
   const parentPath = currentPath === '/' ? null : `/${currentPath.split('/').filter(Boolean).slice(0, -1).join('/')}`
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4" role="presentation">
+    <div className="fh-overlay-backdrop fixed inset-0 flex items-center justify-center bg-black/30 px-4" role="presentation">
       <div className="fh-card w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col" role="dialog" aria-modal="true" aria-labelledby="nextcloud-file-picker-title">
         <div className="fh-panel-header !min-h-0 !items-start">
           <div>

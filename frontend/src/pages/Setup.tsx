@@ -185,7 +185,7 @@ export function SearchableListbox({
         <ChevronIcon open={open} />
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-bg-card shadow-card">
+        <div className="fh-listbox-panel absolute mt-1 w-full overflow-hidden rounded-md border border-border bg-bg-card shadow-card">
           <div className="border-b border-border p-2">
             <input
               ref={searchRef}
