@@ -108,6 +108,7 @@ class OrderSyncRunner:
 
     async def serve_forever(self) -> None:
         LOGGER.info("order_sync_runner_started", extra={"runner_id": self.runner_id, "enabled": self.settings.enabled})
+        self._recover_stale_refresh_jobs()
         while not self._stop.is_set():
             if self.settings.enabled or self._diagnostics_evaluator is not None:
                 await self.run_once()
@@ -119,6 +120,17 @@ class OrderSyncRunner:
                 continue
         self._record_runner_heartbeat("stopped")
         LOGGER.info("order_sync_runner_stopped", extra={"runner_id": self.runner_id})
+
+    def _recover_stale_refresh_jobs(self) -> None:
+        """Release only expired product-refresh ownership before scheduled work starts."""
+
+        from app.flowhub.data_layer.job_lifecycle import RefreshJobLifecycle
+
+        db = self.session_factory()
+        try:
+            RefreshJobLifecycle(db).recover_expired()
+        finally:
+            db.close()
 
     async def run_once(self) -> dict[str, Any]:
         self._record_runner_heartbeat("running")

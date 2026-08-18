@@ -277,10 +277,13 @@ class DlRefreshJob(FlowHubBase):
     retry_count = Column(Integer, default=0)
     max_retries = Column(Integer, default=3)
     started_at = Column(DateTime, nullable=True)
+    heartbeat_at = Column(DateTime, nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True, index=True)
     completed_at = Column(DateTime, nullable=True)
     failed_at = Column(DateTime, nullable=True)
     duration_ms = Column(Float, nullable=True)
     error_message = Column(Text, nullable=True)
+    recovery_reason = Column(String(120), nullable=True)
     meta = Column(JSON, nullable=True)
     created_at = Column(DateTime, nullable=False, index=True)
 

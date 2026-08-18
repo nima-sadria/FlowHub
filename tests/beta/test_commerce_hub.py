@@ -3387,6 +3387,54 @@ def test_woocommerce_cache_refresh_reports_full_failure_reason_after_reload(
     assert diagnostic["dimensions"]["productCache"]["state"] == "ERROR"
 
 
+def test_recovered_stale_product_refresh_keeps_cache_count_and_projects_recovery_state(
+    client, auth_headers, db
+):
+    from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob
+
+    _configure_woocommerce_channel(client, auth_headers)
+    at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.add(
+        DlProductCache(
+            connector_id="woocommerce:primary",
+            product_id="persisted-product",
+            name="Persisted product",
+            exists=True,
+        )
+    )
+    db.add(
+        DlRefreshJob(
+            job_type="manual",
+            entity_type="products",
+            connector_id="woocommerce:primary",
+            status="failed",
+            started_at=at - timedelta(minutes=30),
+            heartbeat_at=at - timedelta(minutes=20),
+            completed_at=at,
+            recovery_reason="execution_lease_expired",
+            error_message="Completion was not durably recorded before the execution lease expired.",
+            meta={"products_stored": 1452},
+            created_at=at - timedelta(minutes=30),
+        )
+    )
+    db.commit()
+
+    channel = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers
+    ).json()
+    assert channel["cache_refresh_status"] == "stale"
+    assert channel["cache_refresh_recovery_reason"] == "execution_lease_expired"
+    assert channel["cache_refresh_last_heartbeat"]
+    assert channel["cached_products"] == 1
+    assert channel["last_cache_refresh"] is None
+
+    diagnostics = client.get(
+        "/api/v2/diagnostics/channels/health", headers=auth_headers
+    ).json()
+    diagnostic = next(item for item in diagnostics["items"] if item["channelId"] == "woocommerce:primary")
+    assert diagnostic["dimensions"]["productCache"]["state"] == "WARNING"
+
+
 def test_woocommerce_cache_refresh_blocks_disabled_channels_before_outbound_calls(client, auth_headers, monkeypatch):
     _configure_woocommerce_channel(client, auth_headers)
     outbound_calls = 0

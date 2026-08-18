@@ -254,6 +254,7 @@
   "commerceHub.refreshing": "Refreshing",
   "commerceHub.refreshProductCache": "Refresh product cache",
   "commerceHub.refreshStatus": "Refresh status:",
+  "commerceHub.refreshRecoveryRequired": "The refresh was interrupted and needs an explicit retry. Cached data was preserved.",
   "commerceHub.registerThisUrlInTapsishopTheWebhook": "Register this URL in TapsiShop. The webhook credential is stored separately from the outbound API token.",
   "commerceHub.registerThisUrlInWoocommerceTheWebhook": "Register this URL in WooCommerce (Settings → Advanced → Webhooks) with topics Product created, Product updated, and Product deleted.",
   "commerceHub.reviewCaption": "Review",

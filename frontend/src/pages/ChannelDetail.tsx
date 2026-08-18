@@ -229,6 +229,12 @@ export default function ChannelDetail() {
       )}
 
       <div className="grid gap-4">
+        {channel.cache_refresh_recovery_reason && (
+          <div className="fh-alert fh-alert-warning" role="status">
+            <Icon name="warning" />
+            <span>{translate('commerce:commerceHub.refreshRecoveryRequired')}</span>
+          </div>
+        )}
         <section className="fh-card fh-card-pad" id="overview">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="fh-section-title">{translate('commerce:commerceHub.channelDetails.overview')}</h2>

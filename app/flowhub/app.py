@@ -173,6 +173,26 @@ app = FastAPI(
 )
 
 
+@app.on_event("startup")
+def recover_abandoned_durable_jobs() -> None:
+    """Recover only expired ownership records; never repeat provider work."""
+    from sqlalchemy import inspect
+
+    from app.flowhub.data_layer.job_lifecycle import RefreshJobLifecycle
+    from app.flowhub.database import get_db
+    from app.flowhub.source_acquisition.service import SourceAcquisitionService
+
+    db = next(get_db())
+    try:
+        tables = inspect(db.get_bind()).get_table_names()
+        if "dl_refresh_jobs" in tables:
+            RefreshJobLifecycle(db).recover_expired()
+        if "saq_runs" in tables:
+            SourceAcquisitionService(db).abandon_expired_runs()
+    finally:
+        db.close()
+
+
 @app.exception_handler(MaintenanceModeActiveError)
 async def maintenance_mode_active_handler(_: Request, __: MaintenanceModeActiveError) -> JSONResponse:
     return JSONResponse(

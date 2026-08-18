@@ -254,6 +254,7 @@
   "commerceHub.refreshing": "در حال به‌روزرسانی",
   "commerceHub.refreshProductCache": "به‌روزرسانی کش محصولات",
   "commerceHub.refreshStatus": "وضعیت به‌روزرسانی:",
+  "commerceHub.refreshRecoveryRequired": "به‌روزرسانی قطع شده و به تلاش مجدد نیاز دارد. داده‌های کش‌شده حفظ شده‌اند.",
   "commerceHub.registerThisUrlInTapsishopTheWebhook": "این نشانی اینترنتی را در تپ‌سی شاپ ثبت کنید. اطلاعات ورود webhook جدا از توکن API خروجی نگهداری می‌شود.",
   "commerceHub.registerThisUrlInWoocommerceTheWebhook": "این نشانی را در ووکامرس (تنظیمات ← پیشرفته ← وب‌هوک‌ها) با موضوعات ایجاد محصول، به‌روزرسانی محصول و حذف محصول ثبت کنید.",
   "commerceHub.reviewCaption": "بررسی",

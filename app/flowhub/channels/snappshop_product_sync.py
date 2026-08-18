@@ -8,7 +8,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from time import monotonic
-from typing import Any
+from typing import Any, Callable
 
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,7 @@ from app.flowhub.channels.snappshop import (
     SnappShopConnectorError,
 )
 from app.flowhub.data_layer.models import DlInventoryCache, DlProductCache, DlRefreshJob
+from app.flowhub.data_layer.job_lifecycle import RefreshJobLifecycle
 from app.flowhub.integration_platform.models import IntegrationConnectorEvent
 
 _RETRYABLE_READ_ERRORS = frozenset(
@@ -107,7 +108,7 @@ class SnappShopProductSyncService:
             job_type=job_type,
             entity_type="products",
             connector_id=connector.channel_id,
-            status="running",
+            status="pending",
             triggered_by=actor,
             started_at=started,
             created_at=started,
@@ -116,6 +117,8 @@ class SnappShopProductSyncService:
         self.db.add(job)
         self.db.commit()
         self.db.refresh(job)
+        lifecycle = RefreshJobLifecycle(self.db)
+        lifecycle.start(job)
 
         started_clock = monotonic()
         try:
@@ -125,6 +128,7 @@ class SnappShopProductSyncService:
                 retry_attempts=retry_attempts,
                 page_delay_seconds=page_delay_seconds,
                 rate_limit_backoff_seconds=rate_limit_backoff_seconds,
+                on_page_progress=lambda: lifecycle.heartbeat(job),
             )
             completed = _utcnow()
             rows = [self._cache_row(connector, product, completed) for product in products]
@@ -148,8 +152,7 @@ class SnappShopProductSyncService:
                 durable_job = self.db.get(DlRefreshJob, job.id)
                 if durable_job is None:
                     raise RuntimeError("SnappShop refresh job disappeared before cache commit.")
-                durable_job.status = "completed"
-                durable_job.completed_at = completed
+                lifecycle.finish(durable_job, now=completed, commit=False)
                 durable_job.duration_ms = round((monotonic() - started_clock) * 1000, 2)
                 durable_job.meta = {
                     "provider": "snappshop",
@@ -194,7 +197,7 @@ class SnappShopProductSyncService:
             products_skipped = fetch_error.products_skipped if fetch_error else 0
             failed_job = self.db.get(DlRefreshJob, job.id)
             if failed_job is not None:
-                failed_job.status = "failed"
+                lifecycle.finish(failed_job, status="failed", now=completed, commit=False)
                 failed_job.failed_at = completed
                 failed_job.duration_ms = round((monotonic() - started_clock) * 1000, 2)
                 failed_job.error_message = message
@@ -234,6 +237,7 @@ class SnappShopProductSyncService:
         retry_attempts: int,
         page_delay_seconds: float,
         rate_limit_backoff_seconds: float,
+        on_page_progress: Callable[[], None] | None = None,
     ) -> tuple[list[ChannelProduct], int, int, int]:
         page_number = 1
         pages_read = 0
@@ -277,6 +281,9 @@ class SnappShopProductSyncService:
                     raise ValueError("SnappShop returned a duplicate external product identifier.")
                 identifiers.add(product_id)
                 products.append(item)
+
+            if on_page_progress is not None:
+                on_page_progress()
 
             pagination = page.pagination
             if not isinstance(pagination, PageNumberPagination) or not pagination.has_more:

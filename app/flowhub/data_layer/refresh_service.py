@@ -103,6 +103,7 @@ def _job_to_dict(r: DlRefreshJob) -> dict:
         "entity_type": r.entity_type,
         "connector_id": r.connector_id,
         "status": r.status,
+        "display_status": "stale" if r.recovery_reason else r.status,
         "triggered_by": r.triggered_by,
         "retry_count": r.retry_count,
         "max_retries": r.max_retries,
@@ -110,8 +111,11 @@ def _job_to_dict(r: DlRefreshJob) -> dict:
         "error_message": r.error_message,
         "created_at": _iso(r.created_at),
         "started_at": _iso(r.started_at),
+        "heartbeat_at": _iso(r.heartbeat_at),
+        "lease_expires_at": _iso(r.lease_expires_at),
         "completed_at": _iso(r.completed_at),
         "failed_at": _iso(r.failed_at),
+        "recovery_reason": r.recovery_reason,
     }
 
 

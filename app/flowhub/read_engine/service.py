@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob
+from app.flowhub.data_layer.job_lifecycle import RefreshJobLifecycle
 from app.flowhub.data_layer.product_service import ProductReadModelService
 from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.read_engine.contracts import ReadConnectorAdapter, ReadPage
@@ -83,9 +84,8 @@ class IncrementalReadEngine:
             resume_pending=not force_full,
             job_type=job_type,
         )
-        job.status = "running"
-        job.started_at = job.started_at or datetime.now(timezone.utc).replace(tzinfo=None)
-        self.db.commit()
+        lifecycle = RefreshJobLifecycle(self.db)
+        lifecycle.start(job)
 
         meta = dict(job.meta or {})
         strategy = str(meta.get("strategy") or strategy)
@@ -135,6 +135,7 @@ class IncrementalReadEngine:
                         "automatic_sync": False,
                     },
                 )
+                lifecycle.heartbeat(job)
                 if not cursor:
                     break
         except Exception as exc:
@@ -157,11 +158,7 @@ class IncrementalReadEngine:
                 unseen = unseen.filter(DlProductCache.product_id.notin_(seen_product_ids))
             unseen.update({"exists": False, "freshness": "stale"}, synchronize_session=False)
 
-        job.status = "completed"
-        job.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        if job.started_at:
-            job.duration_ms = (job.completed_at - job.started_at).total_seconds() * 1000
-        self.db.commit()
+        lifecycle.finish(job)
 
         remaining_queue = 0 if cursor is None else 1
         estimated = (

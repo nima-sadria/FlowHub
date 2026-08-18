@@ -759,6 +759,8 @@ export interface CommerceChannel {
   cached_variations: number
   last_cache_refresh: string | null
   cache_refresh_status: string
+  cache_refresh_recovery_reason?: string | null
+  cache_refresh_last_heartbeat?: string | null
   product_sync_error_category?: string | null
 }
 

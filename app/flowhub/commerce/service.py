@@ -1356,6 +1356,19 @@ class CommerceHubService:
         else:
             cached_products = len(cache_rows) - cached_variations
         latest_refresh = self._latest_product_refresh(str(meta["id"]))
+        latest_successful_refresh = self._latest_successful_product_refresh(str(meta["id"]))
+        last_cache_refresh: datetime | None = None
+        if latest_refresh and latest_refresh.recovery_reason:
+            if latest_successful_refresh:
+                last_cache_refresh = (
+                    latest_successful_refresh.completed_at
+                    or latest_successful_refresh.started_at
+                    or latest_successful_refresh.created_at
+                )
+        elif latest_refresh:
+            last_cache_refresh = (
+                latest_refresh.completed_at or latest_refresh.started_at or latest_refresh.created_at
+            )
         configuration_state = (
             "coming_soon"
             if coming_soon
@@ -1421,11 +1434,17 @@ class CommerceHubService:
             # count represents supported, verified marketplace synchronization.
             "cached_products": cached_products if not coming_soon else 0,
             "cached_variations": cached_variations if not coming_soon else 0,
-            "last_cache_refresh": self._iso(
-                latest_refresh.completed_at or latest_refresh.started_at or latest_refresh.created_at
-            ) if latest_refresh and not coming_soon else None,
+            "last_cache_refresh": self._iso(last_cache_refresh) if not coming_soon else None,
             "cache_refresh_status": (
-                latest_refresh.status if latest_refresh and not coming_soon else "not_run"
+                "stale"
+                if latest_refresh and latest_refresh.recovery_reason and not coming_soon
+                else latest_refresh.status if latest_refresh and not coming_soon else "not_run"
+            ),
+            "cache_refresh_recovery_reason": (
+                latest_refresh.recovery_reason if latest_refresh and not coming_soon else None
+            ),
+            "cache_refresh_last_heartbeat": (
+                self._iso(latest_refresh.heartbeat_at) if latest_refresh and not coming_soon else None
             ),
             "product_sync_error_category": (
                 (
@@ -1690,6 +1709,18 @@ class CommerceHubService:
             .first()
         )
 
+    def _latest_successful_product_refresh(self, channel_id: str) -> DlRefreshJob | None:
+        return (
+            self.db.query(DlRefreshJob)
+            .filter(
+                DlRefreshJob.connector_id == channel_id,
+                DlRefreshJob.entity_type == "products",
+                DlRefreshJob.status.in_(("completed", "completed_with_warnings")),
+            )
+            .order_by(DlRefreshJob.completed_at.desc(), DlRefreshJob.id.desc())
+            .first()
+        )
+
     def _credentials_configured(self, instance: IntegrationConnectorInstance | None) -> bool:
         if instance is None:
             return False
@@ -1740,6 +1771,9 @@ class CommerceHubService:
             return
         job.status = status_value
         job.completed_at = completed
+        job.heartbeat_at = completed
+        job.lease_expires_at = None
+        job.recovery_reason = None
         self.db.commit()
 
     def _mark_latest_refresh_failed(self, channel_id: str, exc: Exception, completed: datetime) -> tuple[int, str]:
@@ -1756,6 +1790,9 @@ class CommerceHubService:
         safe_error = normalize_upstream_error(exc, source="woocommerce")
         job.status = status_value
         job.completed_at = completed
+        job.heartbeat_at = completed
+        job.lease_expires_at = None
+        job.recovery_reason = None
         job.error_message = str(safe_error["message"])[:500]
         job.meta = {
             **(job.meta or {}),

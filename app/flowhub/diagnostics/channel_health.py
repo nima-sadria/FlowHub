@@ -872,6 +872,16 @@ class ChannelHealthReporter:
                 is_actionable=True,
                 recommended_action="Refresh products.",
             )
+        if refresh.recovery_reason:
+            return _dimension(
+                DiagnosticState.WARNING,
+                "The product refresh was interrupted after its execution lease expired; cached data was preserved.",
+                reason_code="product_cache_refresh_recovery_required",
+                checked_at=_iso(refresh.heartbeat_at or refresh.started_at or refresh.created_at),
+                evidence_source="data_layer_refresh_job",
+                is_actionable=True,
+                recommended_action="Retry product refresh. A new job will be created.",
+            )
         if refresh.status == "completed":
             return _dimension(
                 DiagnosticState.HEALTHY,

@@ -100,4 +100,56 @@ describe('Channel detail Coming Soon presentation', () => {
     expect(container.textContent).not.toContain('Settings')
     expect(getChannelConfiguration).not.toHaveBeenCalled()
   })
+
+  it('shows recovery-required state without hiding persisted cache counts', async () => {
+    const recovered = {
+      ...digikala,
+      id: 'woocommerce:primary',
+      provider: 'woocommerce',
+      name: 'WooCommerce',
+      status: 'operational',
+      placeholder: false,
+      enabled: true,
+      credential_status: 'configured',
+      settings_available: true,
+      cached_products: 1452,
+      cache_refresh_status: 'stale',
+      cache_refresh_recovery_reason: 'execution_lease_expired',
+      cache_refresh_last_heartbeat: '2026-08-18T08:00:00Z',
+    }
+    const commerce = {
+      getChannels: vi.fn().mockResolvedValue({ items: [recovered] }),
+      getChannelConfiguration: vi.fn().mockResolvedValue({ secrets: {} }),
+    } as unknown as CommerceService
+    const services = {
+      commerce,
+      health: {},
+      products: {},
+      sources: {},
+      workspace: {},
+      settings: {},
+      activity: {},
+      writePipeline: {},
+      orders: undefined,
+    } as unknown as Services
+
+    await act(async () => {
+      root.render(
+        <AuthContext.Provider value={admin}>
+          <NotificationProvider>
+            <MemoryRouter initialEntries={['/channels/woocommerce:primary']}>
+              <ServiceProvider services={services}>
+                <Routes><Route path="/channels/:channelId" element={<ChannelDetail />} /></Routes>
+              </ServiceProvider>
+            </MemoryRouter>
+          </NotificationProvider>
+        </AuthContext.Provider>,
+      )
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(container.textContent).toContain('needs an explicit retry')
+    expect(container.textContent).toContain('1,452')
+  })
 })

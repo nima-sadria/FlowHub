@@ -10,6 +10,7 @@ import pytest
 _VALID_ENV_CONTENT = """\
 FLOWHUB_ENV=production
 FLOWHUB_DOMAIN=test.example.com
+FLOWHUB_PUBLIC_URL=https://test.example.com
 FLOWHUB_PORT=8080
 FLOWHUB_DATABASE_URL=postgresql://flowhub_test:test_pg_pass_secure@postgres:5432/flowhub_test
 FLOWHUB_POSTGRES_DB=flowhub_test
@@ -35,6 +36,7 @@ FLOWHUB_SSL_MODE=off
 _PRODUCTION_ENV_CONTENT = """\
 FLOWHUB_ENV=production
 FLOWHUB_DOMAIN=prod.example.com
+FLOWHUB_PUBLIC_URL=https://prod.example.com
 FLOWHUB_PORT=8080
 FLOWHUB_DATABASE_URL=postgresql://prod_user:prod_pass@postgres:5432/prod_db
 FLOWHUB_POSTGRES_DB=prod_db
