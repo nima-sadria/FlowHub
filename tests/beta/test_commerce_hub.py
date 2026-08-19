@@ -3493,6 +3493,81 @@ def test_woocommerce_cache_refresh_reports_full_failure_reason_after_reload(
     assert diagnostic["dimensions"]["productCache"]["state"] == "ERROR"
 
 
+def test_woocommerce_cache_refresh_bookkeeping_failure_after_successful_persist_is_not_reported_as_a_false_failure(
+    client, auth_headers, db, monkeypatch
+):
+    """A successful read/persist must not be overturned by a finalization bug.
+
+    Production regression: by the time `IncrementalReadEngine.run_manual()`
+    returns, the product cache rows are already committed and
+    `RefreshJobLifecycle.finish()` has already committed `DlRefreshJob.status
+    = "completed"`. Everything `refresh_channel_cache` does after that point
+    (upgrading the status to reflect warnings, recording the completion
+    event) is secondary bookkeeping. If that bookkeeping itself raises, it
+    must not be treated as though the refresh had failed -- and it must
+    never regress the job's terminal status back to "failed" over data that
+    is, in truth, correctly cached.
+    """
+
+    from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob
+
+    _configure_woocommerce_channel(client, auth_headers)
+
+    async def fake_list_products(_creds, *, page, **_kwargs):
+        return [{
+            "id": 101,
+            "name": "Cached product",
+            "type": "simple",
+            "regular_price": "10.00",
+            "price": "10.00",
+        }], 1, 1
+
+    monkeypatch.setattr("app.connectors.read.woocommerce.list_products_paged", fake_list_products)
+
+    def boom(self, *_args, **_kwargs):
+        raise RuntimeError("simulated finalization bookkeeping failure")
+
+    monkeypatch.setattr(
+        "app.flowhub.commerce.service.CommerceHubService._mark_latest_refresh_status", boom
+    )
+
+    response = client.post(
+        "/api/v2/commerce/channels/woocommerce:primary/refresh-cache",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is True
+    assert data["status"] in {"completed", "completed_with_warnings"}
+    # The read/persist genuinely happened and must not be discarded, hidden,
+    # or reported as though nothing was stored.
+    assert db.query(DlProductCache).count() == 1
+    refresh = (
+        db.query(DlRefreshJob)
+        .filter_by(connector_id="woocommerce:primary", entity_type="products")
+        .order_by(DlRefreshJob.id.desc())
+        .first()
+    )
+    assert refresh.status in {"completed", "completed_with_warnings"}
+
+    channel = client.get(
+        "/api/v2/commerce/channels/woocommerce:primary", headers=auth_headers
+    ).json()
+    assert channel["cache_refresh_status"] in {"completed", "completed_with_warnings"}
+
+    diagnostics = client.get(
+        "/api/v2/diagnostics/channels/health", headers=auth_headers
+    ).json()
+    diagnostic = next(
+        item
+        for item in diagnostics["items"]
+        if item["channelId"] == "woocommerce:primary"
+    )
+    assert diagnostic["productReadStatus"] != "failed"
+    assert diagnostic["dimensions"]["productCache"]["state"] != "ERROR"
+
+
 def test_recovered_stale_product_refresh_keeps_cache_count_and_projects_recovery_state(
     client, auth_headers, db
 ):

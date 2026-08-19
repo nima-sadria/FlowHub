@@ -761,6 +761,49 @@ def test_fresh_cache_is_preserved_when_the_latest_attempt_failed(db):
     assert channel["recommendedAction"]["code"] == "RETRY_RECONCILIATION"
 
 
+def test_latest_completed_job_wins_over_an_older_failed_attempt_and_a_stale_failure_event(db):
+    """A newer terminal success must not be shadowed by older failure evidence.
+
+    Mirrors `test_fresh_cache_is_preserved_when_the_latest_attempt_failed`
+    in the opposite direction: the most recent `DlRefreshJob` is the
+    authoritative terminal state, and a stale `product_cache_refresh_failed`
+    Business Event left over from an earlier, superseded attempt must not
+    pin the channel at NEEDS_ATTENTION once a newer refresh has genuinely
+    completed.
+    """
+
+    now = _now()
+    failed_at = now - timedelta(hours=2)
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_webhook_secret(db, "woocommerce:primary")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_webhook_receipt(db, "woocommerce:primary", now, state="processed")
+    _seed_product_cache(db, "woocommerce:primary", now)
+    _seed_refresh(db, "woocommerce:primary", failed_at, status="failed")
+    _seed_refresh(db, "woocommerce:primary", now, status="completed")
+    db.add(
+        IntegrationConnectorEvent(
+            connector_id="woocommerce:primary",
+            event_name="product_cache_refresh_failed",
+            severity="error",
+            message="WooCommerce product cache refresh failed.",
+            metadata_json={},
+            created_at=failed_at,
+        )
+    )
+    db.commit()
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+    cache = channel["capabilities"]["productCache"]
+    product = channel["capabilities"]["productSynchronization"]
+
+    assert cache["lastOutcome"] == "SUCCESSFUL"
+    assert product["lastOutcome"] == "SUCCESSFUL"
+    assert cache["freshness"] == "FRESH"
+    assert channel["reasonCode"] != "product_cache_refresh_failed"
+    assert channel["readiness"]["state"] == "READY"
+
+
 def test_unresolved_dead_letter_keeps_the_channel_needing_attention(db):
     now = _now()
     _seed_channel(db, "woocommerce:primary", "woocommerce")
