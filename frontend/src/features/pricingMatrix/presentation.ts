@@ -1,9 +1,9 @@
 /**
- * Pricing Matrix — pure presentation & validation helpers for the read-only
+ * Pricing Matrix â€” pure presentation  validation helpers for the read-only
  * surfaces (UI Stage 2). No React, no fetch: unit-testable logic only.
  *
  * Everything here is driven by the callable contract (FRONTEND_CONTRACT.md) and
- * its "Claude UI Phase 1 Decisions" (PM-1 … PM-7). Unknown enum values and
+ * its "Claude UI Phase 1 Decisions" (PM-1 â€¦ PM-7). Unknown enum values and
  * malformed shapes fail closed via {@link ContractMismatchError} rather than
  * being coerced into a healthy/valid state.
  */
@@ -81,6 +81,19 @@ export function channelStatusPresentation(status: ChannelStatus): DomainPresenta
   return status === 'active'
     ? { variant: 'success', labelKey: 'pricing:channelStatus.active', icon: 'success' }
     : { variant: 'neutral', labelKey: 'pricing:channelStatus.inactive', icon: 'info' }
+}
+
+export function channelPolicyStatePresentation(head: ChannelPolicyHead): DomainPresentation {
+  if (!head.policyRevisionId && !head.channelConfigRevisionId && !head.effectiveActivationId) {
+    return { variant: 'warning', labelKey: 'pricing:channels.head.policyState.noActive', icon: 'warning' }
+  }
+  if (head.status === 'inactive') {
+    return { variant: 'neutral', labelKey: 'pricing:channels.head.policyState.configured', icon: 'info' }
+  }
+  if (!head.policyRevisionId || !head.effectiveActivationId) {
+    return { variant: 'warning', labelKey: 'pricing:channels.head.policyState.staleOrInvalid', icon: 'warning' }
+  }
+  return { variant: 'success', labelKey: 'pricing:channels.head.policyState.active', icon: 'success' }
 }
 
 export function unitStatusPresentation(status: UnitStatus): DomainPresentation {
