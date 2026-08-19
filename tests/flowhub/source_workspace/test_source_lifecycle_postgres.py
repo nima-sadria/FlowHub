@@ -60,7 +60,11 @@ def test_postgresql_unused_source_is_physically_removed(
         assert result["tombstone"] is False
         assert db.get(SourceProfile, str(source["id"])) is None
         assert db.get(FlowHubSheet, sheet_id) is None
-        assert db.query(UnifiedAuditEntry).filter_by(event_type="source_deleted").one().metadata_json["tombstone"] is False
+        audits = db.query(UnifiedAuditEntry).filter_by(event_type="source_deleted").all()
+        audit = next(
+            entry for entry in audits if entry.metadata_json["sourceId"] == source["id"]
+        )
+        assert audit.metadata_json["tombstone"] is False
 
 
 def test_postgresql_delete_failure_rolls_back_all_source_changes(
@@ -271,6 +275,9 @@ def test_postgresql_archives_source_history_and_disables_only_bound_connector(
         assert db.query(CurrencyProfile).filter_by(
             scope="source", scope_reference=str(source["id"])
         ).count() == 1
-        audit = db.query(UnifiedAuditEntry).filter_by(event_type="source_deleted").one()
+        audits = db.query(UnifiedAuditEntry).filter_by(event_type="source_deleted").all()
+        audit = next(
+            entry for entry in audits if entry.metadata_json["sourceId"] == source["id"]
+        )
         assert audit.metadata_json["sourceId"] == source["id"]
         assert audit.metadata_json["tombstone"] is True
