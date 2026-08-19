@@ -195,6 +195,11 @@ class SourceLifecycleRequest(StrictModel):
     confirmation_name: str = Field(min_length=1, max_length=240)
 
 
+class SourcePermanentDeleteRequest(SourceLifecycleRequest):
+    confirm_permanent_delete: bool = False
+    confirm_history_policy: bool = False
+
+
 class MappingSaveRequest(StrictModel):
     expected_source_version: int = Field(ge=1)
     worksheet_mode: Literal["all", "selected"]
@@ -392,17 +397,34 @@ def get_source_lifecycle(
     return service.source_lifecycle(source_id, user)
 
 
-@router.delete("/sources/{source_id}")
-def delete_or_archive_source(
+@router.post("/sources/{source_id}/archive")
+def archive_source(
     source_id: str,
     body: SourceLifecycleRequest,
     user: FlowHubUser = Depends(require_workspace_permission("workspace.admin")),
     service: SourceWorkspaceService = Depends(_service),
 ) -> dict[str, Any]:
-    return service.delete_or_archive_source(
+    return service.archive_source(
         source_id=source_id,
         expected_source_version=body.expected_source_version,
         confirmation_name=body.confirmation_name,
+        user=user,
+    )
+
+
+@router.delete("/sources/{source_id}")
+def permanently_delete_source(
+    source_id: str,
+    body: SourcePermanentDeleteRequest,
+    user: FlowHubUser = Depends(require_workspace_permission("workspace.admin")),
+    service: SourceWorkspaceService = Depends(_service),
+) -> dict[str, Any]:
+    return service.permanently_delete_source(
+        source_id=source_id,
+        expected_source_version=body.expected_source_version,
+        confirmation_name=body.confirmation_name,
+        confirm_permanent_delete=body.confirm_permanent_delete,
+        confirm_history_policy=body.confirm_history_policy,
         user=user,
     )
 

@@ -441,6 +441,7 @@ export default function SourceConfiguration() {
   const [checkingRemoval, setCheckingRemoval] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmationName, setConfirmationName] = useState('')
+  const [confirmHistoryPolicy, setConfirmHistoryPolicy] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -1032,6 +1033,7 @@ export default function SourceConfiguration() {
     setRemovalOpen(true)
     setRemovalImpact(null)
     setConfirmationName('')
+    setConfirmHistoryPolicy(false)
     setCheckingRemoval(true)
     try {
       const impact = await sourceWorkspaceApi.sourceLifecycle(source.id)
@@ -1052,15 +1054,16 @@ export default function SourceConfiguration() {
     setRemovalOpen(false)
     setRemovalImpact(null)
     setConfirmationName('')
+    setConfirmHistoryPolicy(false)
   }
 
   async function removeSource() {
     if (
       !source
       || !removalImpact
-      || removalImpact.action === 'blocked'
-      || removalImpact.action === 'none'
+      || Object.keys(removalImpact.blockers).length > 0
       || confirmationName !== source.name
+      || !confirmHistoryPolicy
     ) return
     setDeleting(true)
     try {
@@ -1079,6 +1082,19 @@ export default function SourceConfiguration() {
         title: translate('sources:sourceCenter.sourceCouldNotBeRemoved'),
         description: localizedApiError(error, 'sources:sourceCenter.activeWorkspacePreventsRemoval'),
       })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function archiveCurrentSource() {
+    if (!source || !removalImpact || Object.keys(removalImpact.blockers).length > 0 || confirmationName !== source.name) return
+    setDeleting(true)
+    try {
+      await sourceWorkspaceApi.archiveSource(source, confirmationName)
+      navigate('/sources', { replace: true })
+    } catch (error) {
+      notify.error({ title: translate('sources:sourceCenter.sourceCouldNotBeRemoved'), description: localizedApiError(error, 'sources:sourceCenter.activeWorkspacePreventsRemoval') })
     } finally {
       setDeleting(false)
     }
@@ -2185,7 +2201,7 @@ export default function SourceConfiguration() {
           <h2 className="fh-section-title" id="source-danger-zone-title">{translate('sources:sourceConfiguration.dangerZone')}</h2>
           <p className="fh-text-caption mt-2">{translate('sources:sourceConfiguration.deleteSourceHelp')}</p>
           <button className="fh-button-danger mt-4" type="button" onClick={() => void openRemoval()}>
-            <Icon name="delete" /> {translate('sources:sourceCenter.deleteSource')}
+            <Icon name="delete" /> {translate('sources:sourceCenter.deleteSourcePermanently')}
           </button>
         </section>
       )}
@@ -2222,19 +2238,15 @@ export default function SourceConfiguration() {
       {removalOpen && source && (
         <div className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-delete-title" aria-describedby="source-delete-description">
           <div className="fh-card fh-card-pad w-full max-w-lg">
-            <h2 className="fh-page-title" id="source-delete-title">{translate('sources:sourceCenter.deleteSource')}</h2>
+            <h2 className="fh-page-title" id="source-delete-title">{translate('sources:sourceCenter.deleteSourcePermanently')}</h2>
             <p className="mt-3 text-text-base" id="source-delete-description">{translate('sources:sourceCenter.confirmSourceRemoval', { source: source.name })}</p>
             <div className="fh-alert-warning mt-4" role="note" aria-live="polite">
               <strong>{checkingRemoval
                 ? translate('sources:sourceCenter.checkingHistory')
-                : removalImpact?.action === 'blocked'
+                : removalImpact?.blockers && Object.keys(removalImpact.blockers).length > 0
                   ? translate('sources:sourceConfiguration.removalBlocked')
-                  : removalImpact?.action === 'archive'
-                    ? translate('sources:sourceCenter.archiveSource')
-                    : translate('sources:sourceCenter.deleteUnusedSource')}</strong>
-              <p className="mt-1">{removalImpact?.action === 'archive'
-                ? translate('sources:sourceCenter.archiveImpact')
-                : removalImpact?.action === 'blocked'
+                  : translate('sources:sourceCenter.deleteSourcePermanently')}</strong>
+              <p className="mt-1">{removalImpact?.blockers && Object.keys(removalImpact.blockers).length > 0
                   ? translate('sources:sourceConfiguration.removalBlockedHelp')
                   : translate('sources:sourceCenter.safeRemovalImpact')}</p>
               {removalImpact && Object.keys(removalImpact.protectedHistory).length > 0 && (
@@ -2253,19 +2265,22 @@ export default function SourceConfiguration() {
                 onChange={event => setConfirmationName(event.target.value)}
               />
             </label>
+            <label className="mt-3 flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={confirmHistoryPolicy} onChange={event => setConfirmHistoryPolicy(event.target.checked)} />
+              <span>{translate('sources:sourceCenter.confirmHistoryPolicy')}</span>
+            </label>
             <div className="mt-5 flex justify-end gap-2">
               <button className="fh-button-secondary" type="button" disabled={deleting} onClick={closeRemoval}>{translate('common:action.cancel')}</button>
+              <button className="fh-button-secondary" type="button" disabled={deleting || checkingRemoval || !removalImpact || Object.keys(removalImpact.blockers).length > 0 || confirmationName !== source.name} onClick={() => void archiveCurrentSource()}><Icon name="archive" /> {translate('sources:sourceCenter.archiveSource')}</button>
               <button
                 className="fh-button-danger"
                 type="button"
-                disabled={deleting || checkingRemoval || !removalImpact || removalImpact.action === 'blocked' || removalImpact.action === 'none' || confirmationName !== source.name}
+                disabled={deleting || checkingRemoval || !removalImpact || Object.keys(removalImpact.blockers).length > 0 || confirmationName !== source.name || !confirmHistoryPolicy}
                 onClick={() => void removeSource()}
               >
                 <Icon name="delete" /> {deleting
                   ? translate('sources:sourceCenter.checkingHistory')
-                  : removalImpact?.action === 'archive'
-                    ? translate('sources:sourceCenter.archiveSource')
-                    : translate('sources:sourceCenter.deleteSource')}
+                    : translate('sources:sourceCenter.deleteSourcePermanently')}
               </button>
             </div>
           </div>

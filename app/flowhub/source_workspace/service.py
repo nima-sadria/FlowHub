@@ -21,8 +21,33 @@ from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.business_observability.models import BusinessEvent
-from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+from app.flowhub.data_layer.models import (
+    DlConnectorHealth,
+    DlConnectorTelemetry,
+    DlInventoryCache,
+    DlInvalidationEvent,
+    DlProductCache,
+    DlRefreshJob,
+    DlSourceDiscoveryLock,
+    DlSourceDiscoveryReservation,
+    DlSourceReadLock,
+    DlSourceReadReservation,
+    DlSourceSnapshot,
+    DlWorksheetDiscoveryCache,
+    DlWorkspacePreview,
+)
+from app.flowhub.integration_platform.models import (
+    IntegrationConnectorDiagnostic,
+    IntegrationConnectorEvent,
+    IntegrationConnectorHealthSnapshot,
+    IntegrationConnectorInstance,
+    IntegrationConnectorSetting,
+    IntegrationConnectorTelemetry,
+    IntegrationPollingPolicy,
+    IntegrationWebhookEvent,
+)
 from app.flowhub.pricing_matrix.service import PricingMatrixService
+from app.flowhub.setup.models import FlowHubAppConfig
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.source_acquisition.models import (
     ACTIVE_RUN_STATUSES,
@@ -86,9 +111,11 @@ from app.flowhub.unified_workspace.models import (
     CurrencyProfile,
     Listing,
     Review,
+    UnifiedAuditEntry,
     UnifiedWorkspace,
     WorkspaceChannel,
     WorkspaceSnapshot,
+    WorkspaceSourceBinding,
 )
 
 MAX_SHEET_ROWS = 10_000
@@ -364,20 +391,13 @@ class SourceWorkspaceService:
         source = self._owned_source(source_id, user)
         return self._source_lifecycle_impact(source)
 
-    def delete_or_archive_source(
+    def _validate_lifecycle_confirmation(
         self,
         *,
-        source_id: str,
+        source: SourceProfile,
         expected_source_version: int,
         confirmation_name: str,
-        user: FlowHubUser,
-    ) -> dict[str, Any]:
-        """Delete a genuinely unused Source or archive it while preserving history.
-
-        The Source row is locked before the optimistic checks and stays locked
-        through the history decision, mutation, Audit append, and commit.
-        """
-        source = self._owned_source(source_id, user, lock=True)
+    ) -> None:
         if source.version != expected_source_version:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -394,43 +414,68 @@ class SourceWorkspaceService:
                     "message": "Enter the current Source name to confirm this action.",
                 },
             )
-        if source.status == "archived":
+        if source.status == "deleted":
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 {
-                    "code": "SOURCE_ALREADY_ARCHIVED",
-                    "message": "This Source is already archived.",
+                    "code": "SOURCE_ALREADY_DELETED",
+                    "message": "This Source has already been permanently deleted.",
                 },
+            )
+
+    @staticmethod
+    def _raise_if_lifecycle_blocked(impact: dict[str, Any], *, operation: str) -> None:
+        if not impact["blockers"]:
+            return
+        active_acquisition_count = impact["blockers"].get("activeAcquisitionRuns", 0)
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": (
+                    "SOURCE_ACTIVE_ACQUISITION"
+                    if active_acquisition_count
+                    else "SOURCE_ACTIVE_WORKSPACE"
+                ),
+                "message": (
+                    "Wait for active Source reads to finish before this lifecycle operation."
+                    if active_acquisition_count
+                    else (
+                        "Rebind or archive the active Workspace before permanently deleting this Source."
+                        if operation == "delete"
+                        else "Archive the active Workspace before archiving this Source."
+                    )
+                ),
+                "details": impact,
+            },
+        )
+
+    def archive_source(
+        self,
+        *,
+        source_id: str,
+        expected_source_version: int,
+        confirmation_name: str,
+        user: FlowHubUser,
+    ) -> dict[str, Any]:
+        """Archive only; this operation never permanently deletes a Source."""
+        source = self._owned_source(source_id, user, lock=True)
+        self._validate_lifecycle_confirmation(
+            source=source,
+            expected_source_version=expected_source_version,
+            confirmation_name=confirmation_name,
+        )
+        if source.status == "archived":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": "SOURCE_ALREADY_ARCHIVED", "message": "This Source is already archived."},
             )
         if source.status != "active":
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
-                {
-                    "code": "SOURCE_DISABLED",
-                    "message": "Enable this Source before removing it.",
-                },
+                {"code": "SOURCE_DISABLED", "message": "Only an active Source can be archived."},
             )
-
         impact = self._source_lifecycle_impact(source)
-        if impact["action"] == "blocked":
-            active_acquisition_count = impact["blockers"].get("activeAcquisitionRuns", 0)
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                {
-                    "code": (
-                        "SOURCE_ACTIVE_ACQUISITION"
-                        if active_acquisition_count
-                        else "SOURCE_ACTIVE_WORKSPACE"
-                    ),
-                    "message": (
-                        "Wait for active Source reads to finish before removing this Source."
-                        if active_acquisition_count
-                        else "Archive the active Workspace before removing this Source."
-                    ),
-                    "details": impact,
-                },
-            )
-
+        self._raise_if_lifecycle_blocked(impact, operation="archive")
         connector_disabled = self._disable_external_connector(source)
         source_metadata = {
             "sourceId": source.id,
@@ -440,47 +485,167 @@ class SourceWorkspaceService:
             "protectedHistory": impact["protectedHistory"],
             "connectorDisabled": connector_disabled,
         }
-        if impact["action"] == "archive":
-            source.status = "archived"
-            source.archived_at = utcnow()
-            source.version += 1
-            source.updated_at = source.archived_at
-            self._append_source_lifecycle_audit(
-                event_type="source_archived",
-                user=user,
-                reason="protected_source_history_preserved",
-                metadata=source_metadata,
-            )
-            self.db.commit()
-            return {
-                "outcome": "archived",
-                "sourceId": source.id,
-                "sourceName": source.name,
-                "source": self._source_shape(source),
-                "impact": impact,
-            }
-
-        sheet = self.sheets.for_source(source.id)
-        if sheet is not None:
-            self.db.delete(sheet)
-            self.db.flush()
-        deleted_id = source.id
-        deleted_name = source.name
-        self.db.delete(source)
+        source.status = "archived"
+        source.archived_at = utcnow()
+        source.version += 1
+        source.updated_at = source.archived_at
         self._append_source_lifecycle_audit(
-            event_type="source_deleted",
+            event_type="source_archived",
             user=user,
-            reason="unused_source_deleted",
+            reason="explicit_archive_requested",
             metadata=source_metadata,
         )
         self.db.commit()
         return {
-            "outcome": "deleted",
-            "sourceId": deleted_id,
-            "sourceName": deleted_name,
-            "source": None,
+            "outcome": "archived",
+            "sourceId": source.id,
+            "sourceName": source.name,
+            "source": self._source_shape(source),
             "impact": impact,
         }
+
+    def permanently_delete_source(
+        self,
+        *,
+        source_id: str,
+        expected_source_version: int,
+        confirmation_name: str,
+        confirm_permanent_delete: bool,
+        confirm_history_policy: bool,
+        user: FlowHubUser,
+    ) -> dict[str, Any]:
+        """Permanently remove operational Source state in one transaction.
+
+        Immutable acquisition, identity, and Workspace provenance is retained
+        behind a hidden deleted tombstone because those records are append-only
+        and use RESTRICT foreign keys. Sources with no such history are removed
+        physically. This method never silently falls back to Archive.
+        """
+        source = self._owned_source(source_id, user, lock=True)
+        self._validate_lifecycle_confirmation(
+            source=source,
+            expected_source_version=expected_source_version,
+            confirmation_name=confirmation_name,
+        )
+        if not confirm_permanent_delete or not confirm_history_policy:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {
+                    "code": "SOURCE_DESTRUCTIVE_CONFIRMATION_REQUIRED",
+                    "message": (
+                        "Permanent deletion requires explicit confirmation that "
+                        "operational data is removed and immutable history follows the stated policy."
+                    ),
+                },
+            )
+        impact = self._source_lifecycle_impact(source)
+        self._raise_if_lifecycle_blocked(impact, operation="delete")
+        source_id_value = source.id
+        source_name = source.name
+        connector_id = source.external_source_id
+        metadata = {
+            "sourceId": source_id_value,
+            "sourceName": source_name,
+            "sourceKind": source.source_kind,
+            "sourceVersion": source.version,
+            "protectedHistory": impact["protectedHistory"],
+            "historyPolicy": "immutable_history_tombstone",
+        }
+        self.db.query(WorkspaceSourceBinding).filter(
+            WorkspaceSourceBinding.source_id == source.id
+        ).delete(synchronize_session=False)
+        self._delete_operational_source_state(source, connector_id=connector_id)
+        if impact["protectedHistory"]:
+            source.status = "deleted"
+            source.deleted_at = utcnow()
+            source.archived_at = None
+            source.external_source_id = None
+            source.version += 1
+            source.updated_at = source.deleted_at
+            self._append_source_lifecycle_audit(
+                event_type="source_deleted",
+                user=user,
+                reason="permanent_delete_tombstone_required",
+                metadata={**metadata, "tombstone": True},
+            )
+            self.db.commit()
+            return {
+                "outcome": "deleted",
+                "sourceId": source_id_value,
+                "sourceName": source_name,
+                "source": None,
+                "tombstone": True,
+                "impact": impact,
+            }
+        sheet = self.sheets.for_source(source.id)
+        if sheet is not None:
+            self.db.delete(sheet)
+            self.db.flush()
+        self.db.delete(source)
+        self._append_source_lifecycle_audit(
+            event_type="source_deleted",
+            user=user,
+            reason="permanent_delete_no_history",
+            metadata={**metadata, "tombstone": False},
+        )
+        self.db.commit()
+        return {
+            "outcome": "deleted",
+            "sourceId": source_id_value,
+            "sourceName": source_name,
+            "source": None,
+            "tombstone": False,
+            "impact": impact,
+        }
+
+    def _delete_operational_source_state(
+        self, source: SourceProfile, *, connector_id: str | None
+    ) -> None:
+        """Delete classified operational projections, never immutable evidence."""
+        self.db.query(DlWorkspacePreview).filter(
+            DlWorkspacePreview.source_id == source.id
+        ).delete(synchronize_session=False)
+        for model in (
+            DlProductCache,
+            DlInventoryCache,
+            DlConnectorHealth,
+            DlConnectorTelemetry,
+            DlRefreshJob,
+            DlInvalidationEvent,
+            DlSourceReadLock,
+            DlSourceReadReservation,
+            DlSourceDiscoveryLock,
+            DlSourceDiscoveryReservation,
+            DlWorksheetDiscoveryCache,
+        ):
+            if hasattr(model, "source_id"):
+                self.db.query(model).filter(model.source_id == source.id).delete(
+                    synchronize_session=False
+                )
+            if connector_id and hasattr(model, "connector_id"):
+                self.db.query(model).filter(model.connector_id == connector_id).delete(
+                    synchronize_session=False
+                )
+        if not connector_id:
+            return
+        for model in (
+            IntegrationConnectorDiagnostic,
+            IntegrationConnectorEvent,
+            IntegrationConnectorHealthSnapshot,
+            IntegrationConnectorTelemetry,
+            IntegrationWebhookEvent,
+            IntegrationPollingPolicy,
+            IntegrationConnectorSetting,
+        ):
+            self.db.query(model).filter(model.connector_id == connector_id).delete(
+                synchronize_session=False
+            )
+        self.db.query(FlowHubAppConfig).filter(
+            FlowHubAppConfig.key.like(f"connector_secret.{connector_id}.%")
+        ).delete(synchronize_session=False)
+        connector = self.db.get(IntegrationConnectorInstance, connector_id)
+        if connector is not None:
+            self.db.delete(connector)
 
     def lock_source_for_workspace(
         self,
@@ -3257,7 +3422,11 @@ class SourceWorkspaceService:
         if lock:
             query = query.with_for_update()
         source = query.populate_existing().one_or_none()
-        if source is None or (source.owner_user_id != user.id and user.role != "admin"):
+        if (
+            source is None
+            or source.status == "deleted"
+            or (source.owner_user_id != user.id and user.role != "admin")
+        ):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Source not found.")
         if require_active and source.status == "archived":
             raise HTTPException(
@@ -3300,9 +3469,20 @@ class SourceWorkspaceService:
             for snapshot, workspace in workspace_rows
             if str((snapshot.source_metadata_json or {}).get("source_id") or "") == source.id
         ]
-        active_workspace_count = sum(
-            1 for _, workspace in matching_workspaces if workspace.status == "active"
+        workspace_binding_count = self.db.query(WorkspaceSourceBinding).filter(
+            WorkspaceSourceBinding.source_id == source.id
+        ).count()
+        bound_workspace_rows = (
+            self.db.query(WorkspaceSourceBinding.workspace_id, UnifiedWorkspace.status)
+            .join(UnifiedWorkspace, UnifiedWorkspace.id == WorkspaceSourceBinding.workspace_id)
+            .filter(WorkspaceSourceBinding.source_id == source.id)
+            .all()
         )
+        active_workspace_ids = {
+            workspace_id
+            for workspace_id, workspace_status in bound_workspace_rows
+            if workspace_status == "active"
+        }
         acquisition_runs = self.db.query(AcquisitionRun).filter(
             AcquisitionRun.source_id == source.id
         )
@@ -3322,6 +3502,16 @@ class SourceWorkspaceService:
             .filter(SourceDataQualityScanSource.source_id == source.id)
             .all()
         )
+        audit_history_count = sum(
+            1
+            for audit in self.db.query(UnifiedAuditEntry).all()
+            if str(
+                (audit.metadata_json or {}).get("sourceId")
+                or (audit.metadata_json or {}).get("source_id")
+                or ""
+            )
+            == source.id
+        )
         protected_counts = {
             "mappingRevisions": self.db.query(SourceMappingRevision)
             .filter(SourceMappingRevision.source_id == source.id)
@@ -3333,6 +3523,7 @@ class SourceWorkspaceService:
             .count(),
             "dataQualityScans": len(scan_ids),
             "workspaceSnapshots": len(matching_workspaces),
+            "workspaceBindings": workspace_binding_count,
             "acquisitionRuns": acquisition_runs.count(),
             "sourceObservationVersionHeads": self.db.query(SourceObservationVersionHead)
             .filter(SourceObservationVersionHead.source_id == source.id)
@@ -3361,12 +3552,20 @@ class SourceWorkspaceService:
                 BusinessEvent.primary_scope_id == source.id,
             )
             .count(),
+            "auditHistory": audit_history_count,
             "currencyProfiles": self.db.query(CurrencyProfile)
             .filter(
                 CurrencyProfile.scope == "source",
                 CurrencyProfile.scope_reference == source.id,
             )
             .count(),
+            "sourceSnapshots": (
+                self.db.query(DlSourceSnapshot)
+                .filter(DlSourceSnapshot.connector_id == source.external_source_id)
+                .count()
+                if source.external_source_id
+                else 0
+            ),
         }
         protected_history = {
             key: count for key, count in protected_counts.items() if count > 0
@@ -3374,7 +3573,14 @@ class SourceWorkspaceService:
         blockers = {
             key: count
             for key, count in {
-                "activeWorkspaces": active_workspace_count,
+                "activeWorkspaces": len(
+                    {
+                        workspace.id
+                        for _, workspace in matching_workspaces
+                        if workspace.status == "active"
+                    }
+                    | active_workspace_ids
+                ),
                 "activeAcquisitionRuns": active_acquisition_count,
             }.items()
             if count > 0
@@ -3396,6 +3602,9 @@ class SourceWorkspaceService:
             "action": action,
             "blockers": blockers,
             "protectedHistory": protected_history,
+            "archiveAllowed": source.status == "active" and not blockers,
+            "permanentDeleteAllowed": not blockers,
+            "permanentDeletePolicy": "immutable_history_tombstone",
         }
 
     def _disable_external_connector(self, source: SourceProfile) -> bool:

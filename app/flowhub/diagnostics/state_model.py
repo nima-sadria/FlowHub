@@ -1117,6 +1117,7 @@ class CanonicalDiagnosticsProjector:
         return [
             self._source(profile)
             for profile in self.db.query(SourceProfile)
+            .filter(SourceProfile.status != "deleted")
             .order_by(SourceProfile.name.asc(), SourceProfile.id.asc())
             .all()
         ]
@@ -1126,7 +1127,7 @@ class CanonicalDiagnosticsProjector:
         instance = self.db.get(IntegrationConnectorInstance, connector_id) if connector_id else None
         provider = instance.connector_type if instance else profile.source_kind
         lifecycle = profile.status.upper()
-        archived = profile.status == "archived"
+        archived = profile.status in {"archived", "deleted"}
         disabled = profile.status == "disabled"
         enabled = bool(profile.status == "active" and (instance is None or instance.enabled))
         configured = self._configured(instance, provider) if instance else profile.source_kind != "external"

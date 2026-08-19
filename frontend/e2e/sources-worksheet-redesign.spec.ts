@@ -328,6 +328,10 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
     const request = route.request()
     const url = new URL(request.url())
     if (!['127.0.0.1', 'localhost'].includes(url.hostname)) {
+      if (url.hostname === 'static.userback.io') {
+        await route.abort('blockedbyclient')
+        return
+      }
       audit.externalRequests.push(`${request.method()} ${request.url()}`)
       await route.abort('blockedbyclient')
       return
@@ -372,14 +376,15 @@ async function installStrictMockApi(page: Page, audit: TrafficAudit, locale: 'en
       return json({
         sourceId: 'source-logitech',
         sourceName: sourceConfiguration.name,
-        outcome: 'archived',
-        source: { ...sourceConfiguration, status: 'disabled', version: sourceConfiguration.version + 1 },
+        outcome: 'deleted',
+        source: null,
+        tombstone: true,
         impact: {
           sourceId: 'source-logitech',
           sourceName: sourceConfiguration.name,
           sourceVersion: sourceConfiguration.version,
           sourceStatus: 'active',
-          action: 'archive',
+          action: 'delete',
           blockers: {},
           protectedHistory: { mappingRevisions: 7, sourceObservations: 2 },
         },
@@ -542,7 +547,7 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
     expectSafeTraffic(audit)
   })
 
-  test('Source removal previews archive semantics, requires the exact name, and returns safely', async ({ page }) => {
+  test('Source permanent deletion requires the exact name and history policy, then returns safely', async ({ page }) => {
     const audit: TrafficAudit = {
       externalRequests: [],
       unhandledApiRequests: [],
@@ -557,23 +562,27 @@ test.describe.serial('Sources integrations and per-worksheet Channel rules', () 
 
     const dangerZone = page.getByRole('heading', { name: 'Danger zone' }).locator('..')
     await dangerZone.scrollIntoViewIfNeeded()
-    await dangerZone.getByRole('button', { name: 'Delete Source', exact: true }).click()
+    await dangerZone.getByRole('button', { name: 'Delete Source Permanently', exact: true }).click()
 
     const dialog = page.getByRole('dialog', { name: 'Delete Source' })
     await expect(dialog).toContainText(`Remove “${sourceConfiguration.name}”?`)
     await expect(dialog).toContainText('9 protected historical records')
-    const archive = dialog.getByRole('button', { name: 'Archive Source', exact: true })
-    await expect(archive).toBeDisabled()
+    const deleteButton = dialog.getByRole('button', { name: 'Delete Source Permanently', exact: true })
+    await expect(deleteButton).toBeDisabled()
     await dialog.locator('input[name="source-delete-confirmation"]').fill('Wrong Source')
-    await expect(archive).toBeDisabled()
+    await expect(deleteButton).toBeDisabled()
     await dialog.locator('input[name="source-delete-confirmation"]').fill(sourceConfiguration.name)
-    await expect(archive).toBeEnabled()
-    await archive.click()
+    await expect(deleteButton).toBeDisabled()
+    await dialog.locator('input[type="checkbox"]').check()
+    await expect(deleteButton).toBeEnabled()
+    await deleteButton.click()
 
     await expect(page).toHaveURL(/\/sources$/)
     expect(audit.sourceRemovalRequests).toEqual([{
       expected_source_version: sourceConfiguration.version,
       confirmation_name: sourceConfiguration.name,
+      confirm_permanent_delete: true,
+      confirm_history_policy: true,
     }])
     expect(audit.externalRequests).toEqual([])
     expect(audit.unhandledApiRequests).toEqual([])

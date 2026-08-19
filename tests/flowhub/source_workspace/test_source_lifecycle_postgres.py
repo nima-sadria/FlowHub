@@ -17,10 +17,106 @@ from app.flowhub.source_acquisition.models import (
     SourceObservation,
     SourceObservationVersionHead,
 )
-from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.source_workspace.models import FlowHubSheet, SourceProfile
 from app.flowhub.source_workspace.service import SourceWorkspaceService
 from app.flowhub.unified_workspace.domain import utcnow
 from app.flowhub.unified_workspace.models import CurrencyProfile, UnifiedAuditEntry
+
+
+def test_postgresql_unused_source_is_physically_removed(
+    postgres_engine: Engine,
+) -> None:
+    with Session(postgres_engine, expire_on_commit=False) as db:
+        user = FlowHubUser(
+            id=2,
+            username="source-lifecycle-postgres-unused",
+            hashed_password="x",
+            role="admin",
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        service = SourceWorkspaceService(db)
+        source = service.create_source(
+            name="PostgreSQL unused Source",
+            source_kind="flowhub_sheet",
+            external_source_id=None,
+            worksheet_mode="selected",
+            worksheet_name="Prices",
+            data_start_row=2,
+            user=user,
+        )
+        sheet_id = str(source["sheetId"])
+
+        result = service.permanently_delete_source(
+            source_id=str(source["id"]),
+            expected_source_version=int(source["version"]),
+            confirmation_name=str(source["name"]),
+            confirm_permanent_delete=True,
+            confirm_history_policy=True,
+            user=user,
+        )
+
+        assert result["tombstone"] is False
+        assert db.get(SourceProfile, str(source["id"])) is None
+        assert db.get(FlowHubSheet, sheet_id) is None
+        assert db.query(UnifiedAuditEntry).filter_by(event_type="source_deleted").one().metadata_json["tombstone"] is False
+
+
+def test_postgresql_delete_failure_rolls_back_all_source_changes(
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with Session(postgres_engine, expire_on_commit=False) as db:
+        user = FlowHubUser(
+            id=3,
+            username="source-lifecycle-postgres-rollback",
+            hashed_password="x",
+            role="admin",
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        service = SourceWorkspaceService(db)
+        source = service.create_source(
+            name="PostgreSQL rollback Source",
+            source_kind="external",
+            external_source_id="nextcloud:postgres-rollback",
+            worksheet_mode="all",
+            worksheet_name=None,
+            data_start_row=1,
+            user=user,
+        )
+        connector = IntegrationConnectorInstance(
+            id="nextcloud:postgres-rollback",
+            connector_type="nextcloud",
+            name="PostgreSQL rollback Source",
+            enabled=True,
+            read_only=True,
+            status="healthy",
+        )
+        db.add(connector)
+        db.commit()
+
+        def fail(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("simulated PostgreSQL delete failure")
+
+        monkeypatch.setattr(service, "_delete_operational_source_state", fail)
+        with pytest.raises(RuntimeError, match="simulated PostgreSQL delete failure"):
+            service.permanently_delete_source(
+                source_id=str(source["id"]),
+                expected_source_version=int(source["version"]),
+                confirmation_name=str(source["name"]),
+                confirm_permanent_delete=True,
+                confirm_history_policy=True,
+                user=user,
+            )
+        db.rollback()
+
+        persisted_source = db.get(SourceProfile, str(source["id"]))
+        assert persisted_source is not None
+        assert persisted_source.status == "active"
+        assert db.get(IntegrationConnectorInstance, connector.id) is not None
 
 
 @pytest.fixture(scope="module")  # type: ignore[untyped-decorator]
@@ -152,26 +248,29 @@ def test_postgresql_archives_source_history_and_disables_only_bound_connector(
         assert impact["protectedHistory"]["sourceObservations"] == 1
         assert impact["protectedHistory"]["currencyProfiles"] == 1
 
-        result = service.delete_or_archive_source(
+        result = service.permanently_delete_source(
             source_id=str(source["id"]),
             expected_source_version=int(source["version"]),
             confirmation_name=str(source["name"]),
+            confirm_permanent_delete=True,
+            confirm_history_policy=True,
             user=user,
         )
         db.expire_all()
 
-        assert result["outcome"] == "archived"
+        assert result["outcome"] == "deleted"
+        assert result["tombstone"] is True
         archived_source = db.get(SourceProfile, str(source["id"]))
-        assert archived_source.status == "archived"
-        assert archived_source.archived_at is not None
+        assert archived_source.status == "deleted"
+        assert archived_source.deleted_at is not None
         assert db.get(SourceProfile, str(unrelated_source["id"])).status == "active"
-        assert db.get(IntegrationConnectorInstance, target_connector.id).enabled is False
+        assert db.get(IntegrationConnectorInstance, target_connector.id) is None
         assert db.get(IntegrationConnectorInstance, unrelated_connector.id).enabled is True
         assert db.get(AcquisitionRun, run_id) is not None
         assert db.get(SourceObservation, observation_id) is not None
         assert db.query(CurrencyProfile).filter_by(
             scope="source", scope_reference=str(source["id"])
         ).count() == 1
-        audit = db.query(UnifiedAuditEntry).filter_by(event_type="source_archived").one()
+        audit = db.query(UnifiedAuditEntry).filter_by(event_type="source_deleted").one()
         assert audit.metadata_json["sourceId"] == source["id"]
-        assert audit.metadata_json["connectorDisabled"] is True
+        assert audit.metadata_json["tombstone"] is True

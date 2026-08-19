@@ -83,10 +83,15 @@ export const sourceWorkspaceApi = {
   previewImport: (payload: unknown) => apiFetch<Record<string, unknown>>('/api/v2/sheet-imports/preview', authFetch, json('POST', payload)),
   importSheet: (payload: unknown) => apiFetch<FlowHubSheetPage>('/api/v2/sheets/import', authFetch, json('POST', payload)),
   createWorkspace: (sourceId: string, name: string) => apiFetch<{ id: string }>('/api/v2/unified-workspaces/source', authFetch, json('POST', { source_id: sourceId, name })),
+  archiveSource: (source: SourceProfile, confirmationName = source.name) => apiFetch<SourceLifecycleResult>(`/api/v2/sources/${encodeURIComponent(source.id)}/archive`, authFetch, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expected_source_version: source.version, confirmation_name: confirmationName }),
+  }),
   deleteSource: (source: SourceProfile, confirmationName = source.name) => apiFetch<SourceLifecycleResult>(`/api/v2/sources/${encodeURIComponent(source.id)}`, authFetch, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ expected_source_version: source.version, confirmation_name: confirmationName }),
+    body: JSON.stringify({ expected_source_version: source.version, confirmation_name: confirmationName, confirm_permanent_delete: true, confirm_history_policy: true }),
   }),
   sourceLifecycle: (sourceId: string) => apiFetch<SourceLifecycleImpact>(`/api/v2/sources/${encodeURIComponent(sourceId)}/lifecycle`, authFetch),
   review: (workspaceId: string, reviewId: string) => apiFetch<ReviewResource>(`/api/v2/unified-workspaces/${encodeURIComponent(workspaceId)}/reviews/${encodeURIComponent(reviewId)}`, authFetch),

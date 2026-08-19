@@ -109,6 +109,7 @@ describe('SourceCenter safe lifecycle', () => {
     vi.spyOn(sourceWorkspaceApi, 'source').mockResolvedValue({ ...source, mapping: null })
     vi.spyOn(sourceWorkspaceApi, 'sourceLifecycle').mockResolvedValue({ sourceId: source.id, sourceName: source.name, sourceVersion: source.version, sourceStatus: 'active', action: 'archive', blockers: {}, protectedHistory: { mappingRevisions: 1 } })
     vi.spyOn(sourceWorkspaceApi, 'deleteSource').mockResolvedValue({ sourceId: source.id, sourceName: source.name, outcome: 'archived', source: { ...source, status: 'archived', archivedAt: '2026-08-13T08:30:00Z', version: 4 }, impact: { sourceId: source.id, sourceName: source.name, sourceVersion: source.version, sourceStatus: 'active', action: 'archive', blockers: {}, protectedHistory: { mappingRevisions: 1 } } })
+    vi.spyOn(sourceWorkspaceApi, 'archiveSource').mockResolvedValue({ sourceId: source.id, sourceName: source.name, outcome: 'archived', source: { ...source, status: 'archived', archivedAt: '2026-08-13T08:30:00Z', version: 4 }, impact: { sourceId: source.id, sourceName: source.name, sourceVersion: source.version, sourceStatus: 'active', action: 'archive', blockers: {}, protectedHistory: { mappingRevisions: 1 } } })
   })
   afterEach(() => { act(() => root.unmount()); container.remove(); vi.restoreAllMocks() })
 
@@ -124,6 +125,13 @@ describe('SourceCenter safe lifecycle', () => {
     await act(async () => menu.click())
     return Array.from(container.querySelectorAll(`[data-source-card="${sourceId}"] [role="menu"] button`))
       .find(item => item.textContent?.includes('Delete Source')) as HTMLButtonElement
+  }
+
+  async function archiveTrigger(sourceId = source.id): Promise<HTMLButtonElement> {
+    const menu = container.querySelector(`[data-source-menu-trigger="${sourceId}"]`) as HTMLButtonElement
+    await act(async () => menu.click())
+    return Array.from(container.querySelectorAll(`[data-source-card="${sourceId}"] [role="menu"] button`))
+      .find(item => item.textContent?.includes('Archive Source')) as HTMLButtonElement
   }
 
   it('requires explicit named confirmation and cancellation sends no request', async () => {
@@ -153,14 +161,20 @@ describe('SourceCenter safe lifecycle', () => {
     expect(sourceWorkspaceApi.deleteSource).not.toHaveBeenCalled()
   })
 
-  it('shows archive result while preserving the Source identity', async () => {
+  it('archives explicitly while preserving the Source identity', async () => {
     await render()
-    const trigger = await deleteTrigger()
+    const trigger = await archiveTrigger()
     await act(async () => { trigger.click(); await Promise.resolve(); await Promise.resolve() })
-    const confirm = Array.from(container.querySelectorAll('[role="dialog"] button')).find(item => item.textContent?.includes('Archive Source')) as HTMLButtonElement
+    const dialog = container.querySelector('[role="dialog"]') as HTMLElement
+    const confirmation = dialog.querySelector('input[name="source-delete-confirmation"]') as HTMLInputElement
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(confirmation, source.name)
+      confirmation.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    const confirm = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Archive Source')) as HTMLButtonElement
     await act(async () => { confirm.click(); await Promise.resolve(); await Promise.resolve() })
-    expect(sourceWorkspaceApi.deleteSource).toHaveBeenCalledWith(source)
-    expect(container.textContent).toContain('Disabled')
+    expect(sourceWorkspaceApi.archiveSource).toHaveBeenCalledWith(source, source.name)
+    expect(container.textContent).toContain('Archived')
     expect(container.textContent).toContain('Synthetic prices')
   })
 
@@ -195,14 +209,14 @@ describe('SourceCenter safe lifecycle', () => {
     const secondTrigger = await deleteTrigger('source-2')
     await act(async () => { secondTrigger.click(); await Promise.resolve(); await Promise.resolve() })
     expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Other prices')
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Delete unused Source')
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Delete Source Permanently')
 
     await act(async () => {
       resolveFirst({ sourceId: source.id, sourceName: source.name, sourceVersion: source.version, sourceStatus: 'active', action: 'archive', blockers: {}, protectedHistory: { mappingRevisions: 1 } })
       await Promise.resolve()
     })
     expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Other prices')
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Delete unused Source')
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain('Delete Source Permanently')
     expect(container.querySelector('[role="dialog"]')?.textContent).not.toContain('Archive Source')
   })
 
@@ -283,7 +297,7 @@ describe('SourceCenter safe lifecycle', () => {
     expect(archivedCard.textContent).toContain('Archived')
     expect(archivedCard.textContent).toContain('View Data Sheet')
     expect(archivedCard.textContent).not.toContain('Edit Source')
-    expect(archivedCard.querySelector('[data-source-menu-trigger]')).toBeNull()
+    expect(archivedCard.querySelector('[data-source-menu-trigger]')).not.toBeNull()
     expect(container.querySelector('.fh-kpi-card-value')?.textContent).toBe('2')
     expect(sections).not.toContain('comingSoon')
   })

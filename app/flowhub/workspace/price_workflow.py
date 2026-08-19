@@ -27,9 +27,11 @@ from app.flowhub.auth.models import FlowHubUser
 from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob, DlSourceSnapshot, DlWorkspacePreview
 from app.flowhub.integration_platform.contracts import WorkspacePreviewResponse
 from app.flowhub.integration_platform.service import IntegrationPlatformService
+from app.flowhub.integration_platform.models import IntegrationConnectorInstance
 from app.flowhub.product_media import primary_image_url
-from app.flowhub.setup.service import AppConfigService
 from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
+from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.setup.service import AppConfigService
 from app.flowhub.workspace.preview_store import WorkspacePreviewStore
 
 SOURCE_ID = "nextcloud:primary"
@@ -59,9 +61,20 @@ class WorkspacePriceWorkflowService:
         self.config = AppConfigService(db)
         self.source_reader = SpreadsheetSourceReadService(db)
         self.integration = IntegrationPlatformService(db)
+        self.workspace_source_id = SOURCE_ID
+        self.workspace_connector_id = SOURCE_ID
 
-    async def preview_from_nextcloud(self, user: FlowHubUser) -> WorkspacePreviewResponse:
-        lock_key = SOURCE_ID
+    async def preview_from_nextcloud(
+        self, user: FlowHubUser, source_profile_id: str | None = None
+    ) -> WorkspacePreviewResponse:
+        source = self._resolve_workspace_source(user, source_profile_id)
+        if source is not None:
+            self.workspace_source_id = source.id
+            self.workspace_connector_id = str(source.external_source_id)
+            self.source_reader = SpreadsheetSourceReadService(
+                self.db, connector_id=self.workspace_connector_id
+            )
+        lock_key = self.workspace_source_id
         async with _preview_execution_lock(self.db, lock_key):
             source_config_hash = self._source_config_hash()
             self._require_channel_config()
@@ -70,7 +83,7 @@ class WorkspacePriceWorkflowService:
             if not self._load_products():
                 raise HTTPException(status.HTTP_409_CONFLICT, "WooCommerce product cache is empty. Run a manual read first.")
             reusable = WorkspacePreviewStore(self.db).latest_reusable(
-                source_id=SOURCE_ID,
+                source_id=self.workspace_source_id,
                 owner=user,
                 source_config_hash=source_config_hash,
             )
@@ -79,6 +92,107 @@ class WorkspacePriceWorkflowService:
                     reusable = self._clone_reusable_preview(reusable, user)
                 return self._reused_preview_response(reusable, user)
             return await self._create_preview_from_nextcloud(user, source_config_hash=source_config_hash)
+
+    def _resolve_workspace_source(
+        self, user: FlowHubUser, source_profile_id: str | None
+    ) -> SourceProfile | None:
+        """Resolve an explicit active Source; never choose an archived profile."""
+        requested = str(source_profile_id or self.config.get("nextcloud.workspace_source_id") or "").strip()
+        if requested:
+            source = self.db.get(SourceProfile, requested)
+            if source is None or (source.owner_user_id != user.id and user.role != "admin"):
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Workspace Source binding not found.")
+            if source.status != "active":
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "SOURCE_WORKSPACE_REBIND_REQUIRED",
+                        "message": "Workspace is bound to an inactive Source. Bind an active Source before Preview.",
+                        "sourceId": source.id,
+                        "sourceStatus": source.status,
+                    },
+                )
+            connector = self.db.get(IntegrationConnectorInstance, source.external_source_id)
+            if connector is None or connector.connector_type != "nextcloud":
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "SOURCE_WORKSPACE_BINDING_INVALID",
+                        "message": "Workspace Source binding is not an active Nextcloud connector.",
+                    },
+                )
+            return source
+
+        profiles = (
+            self.db.query(SourceProfile)
+            .join(
+                IntegrationConnectorInstance,
+                IntegrationConnectorInstance.id == SourceProfile.external_source_id,
+            )
+            .filter(SourceProfile.owner_user_id == user.id)
+            .filter(IntegrationConnectorInstance.connector_type == "nextcloud")
+            .all()
+        )
+        if not profiles:
+            # Compatibility mode applies only when the v2 Source registry has
+            # never been established; it does not select among Source rows.
+            return None
+        legacy = next((item for item in profiles if item.external_source_id == SOURCE_ID), None)
+        candidates = [item for item in profiles if item.status == "active"]
+        if legacy is not None and legacy.status != "active":
+            bound_id = legacy.id
+        else:
+            bound_id = legacy.id if legacy is not None else None
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "SOURCE_WORKSPACE_REBIND_REQUIRED",
+                "message": "Select and bind the active Nextcloud Source before starting Preview.",
+                "boundSourceId": bound_id,
+                "boundSourceStatus": legacy.status if legacy is not None else None,
+                "candidates": [
+                    {"sourceId": item.id, "sourceName": item.name, "status": item.status}
+                    for item in candidates
+                ],
+            },
+        )
+
+    def bind_workspace_source(self, *, source_id: str, user: FlowHubUser) -> dict[str, Any]:
+        source = self.db.get(SourceProfile, source_id)
+        if source is None or (source.owner_user_id != user.id and user.role != "admin"):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Source not found.")
+        connector = self.db.get(IntegrationConnectorInstance, source.external_source_id)
+        if source.status != "active" or connector is None or connector.connector_type != "nextcloud":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": "SOURCE_WORKSPACE_BINDING_INVALID", "message": "Only an active Nextcloud Source can be bound."},
+            )
+        self.config.set("nextcloud.workspace_source_id", source.id, updated_by=user.username)
+        return {"sourceId": source.id, "sourceName": source.name, "status": source.status}
+
+    def workspace_source_binding(self, user: FlowHubUser) -> dict[str, Any]:
+        bound_id = self.config.get("nextcloud.workspace_source_id")
+        bound = self.db.get(SourceProfile, bound_id) if bound_id else None
+        candidates = (
+            self.db.query(SourceProfile)
+            .join(IntegrationConnectorInstance, IntegrationConnectorInstance.id == SourceProfile.external_source_id)
+            .filter(SourceProfile.owner_user_id == user.id)
+            .filter(SourceProfile.status == "active")
+            .filter(IntegrationConnectorInstance.connector_type == "nextcloud")
+            .order_by(SourceProfile.name, SourceProfile.id)
+            .all()
+        )
+        return {
+            "boundSource": (
+                {"sourceId": bound.id, "sourceName": bound.name, "status": bound.status}
+                if bound is not None and bound.status != "deleted"
+                else None
+            ),
+            "candidates": [
+                {"sourceId": item.id, "sourceName": item.name, "status": item.status}
+                for item in candidates
+            ],
+        }
 
     async def _create_preview_from_nextcloud(
         self,
@@ -119,20 +233,20 @@ class WorkspacePriceWorkflowService:
             )
         preview_snapshot = WorkspacePreviewStore(self.db).create(
             preview_id=preview_id,
-            source_id=SOURCE_ID,
+            source_id=self.workspace_source_id,
             source_snapshot=imported.snapshot,
             owner=user,
             rows=rows,
             summary=summary,
         )
         self.integration.record_event(
-            connector_id=SOURCE_ID,
+            connector_id=self.workspace_connector_id,
             event_name="preview_created",
             message="Immutable Workspace preview created from source rows.",
             metadata={
                 "preview_id": preview_id,
                 "preview_hash": preview_snapshot.preview_hash,
-                "source_id": SOURCE_ID,
+                "source_id": self.workspace_source_id,
                 "source_type": SOURCE_TYPE,
                 "source_file_path": imported.spreadsheet_path,
                 "row_count": summary["total_rows"],
@@ -144,7 +258,7 @@ class WorkspacePriceWorkflowService:
         )
         return WorkspacePreviewResponse(
             id=preview_id,
-            sourceId=SOURCE_ID,
+            sourceId=self.workspace_source_id,
             sourceName=f"Nextcloud Spreadsheet: {imported.spreadsheet_path}",
             state="preview_ready",
             totalChanges=len(eligible_changes),
@@ -191,19 +305,19 @@ class WorkspacePriceWorkflowService:
         if rows and isinstance(rows[0].get("source"), dict):
             source_path = str(rows[0]["source"].get("sourceFilePath") or "")
         self.integration.record_event(
-            connector_id=SOURCE_ID,
+            connector_id=self.workspace_connector_id,
             event_name="preview_reused",
             message="Recent immutable Workspace preview reused without another source read.",
             metadata={
                 "preview_id": preview.id,
-                "source_id": SOURCE_ID,
+                "source_id": self.workspace_source_id,
                 "actor": user.username,
                 "source_read_performed": False,
             },
         )
         return WorkspacePreviewResponse(
             id=preview.id,
-            sourceId=SOURCE_ID,
+            sourceId=self.workspace_source_id,
             sourceName=f"Nextcloud Spreadsheet: {source_path}" if source_path else "Nextcloud Spreadsheet",
             state="preview_ready",
             totalChanges=len(changes),
@@ -410,15 +524,21 @@ class WorkspacePriceWorkflowService:
                     "parentProductName": matched.parent_row.name if matched.parent_row is not None else None,
                     "variationId": matched.row.product_id if _item_type(matched.row) == "variation" else None,
                     "variationAttributes": matched.variation_attributes,
-                    "source": _source_payload(source_row, preview_id, snapshot, row_index, source_config_hash),
+                    "source": _source_payload(
+                        source_row, preview_id, snapshot, row_index, source_config_hash,
+                        source_id=self.workspace_source_id,
+                    ),
                     "validationWarnings": warnings,
                 }
 
             errors = list(dict.fromkeys(errors))
             warnings = list(dict.fromkeys(warnings))
-            source_payload = _source_payload(source_row, preview_id, snapshot, row_index, source_config_hash)
+            source_payload = _source_payload(
+                source_row, preview_id, snapshot, row_index, source_config_hash,
+                source_id=self.workspace_source_id,
+            )
             preview_rows.append({
-                "id": _preview_row_id(source_row, snapshot, row_index),
+                "id": _preview_row_id(source_row, snapshot, row_index, source_id=self.workspace_source_id),
                 "source": source_payload,
                 "matchedProduct": _matched_payload(matched),
                 "currentPrice": current_price,
@@ -587,10 +707,12 @@ def _source_payload(
     snapshot: DlSourceSnapshot,
     row_index: int | None = None,
     source_config_hash: str = "",
+    *,
+    source_id: str = SOURCE_ID,
 ) -> dict:
     return {
         "previewId": preview_id,
-        "sourceId": SOURCE_ID,
+        "sourceId": source_id,
         "sourceType": SOURCE_TYPE,
         "sourceSnapshotId": snapshot.id,
         "sourceSnapshotVersion": snapshot.version_seq,
@@ -610,7 +732,13 @@ def _source_payload(
     }
 
 
-def _preview_row_id(source_row: dict, snapshot: DlSourceSnapshot, row_index: int) -> str:
+def _preview_row_id(
+    source_row: dict,
+    snapshot: DlSourceSnapshot,
+    row_index: int,
+    *,
+    source_id: str = SOURCE_ID,
+) -> str:
     sheet = str(source_row.get("worksheet") or source_row.get("sheet_name") or "").strip()
     row_number = _positive_int(source_row.get("row_number"))
     if sheet and row_number is not None:
@@ -627,7 +755,7 @@ def _preview_row_id(source_row: dict, snapshot: DlSourceSnapshot, row_index: int
             },
         )
     payload = {
-        "source_id": SOURCE_ID,
+        "source_id": source_id,
         "source_type": SOURCE_TYPE,
         "source_snapshot_id": snapshot.id,
         "source_snapshot_version": snapshot.version_seq,

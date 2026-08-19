@@ -106,6 +106,9 @@ export interface SourceLifecycleImpact {
   action: 'none' | 'delete' | 'archive' | 'blocked'
   blockers: Record<string, number>
   protectedHistory: Record<string, number>
+  archiveAllowed?: boolean
+  permanentDeleteAllowed?: boolean
+  permanentDeletePolicy?: 'immutable_history_tombstone'
 }
 
 export interface SourceLifecycleResult {
@@ -114,6 +117,7 @@ export interface SourceLifecycleResult {
   outcome: 'deleted' | 'archived'
   source: SourceProfile | null
   impact: SourceLifecycleImpact
+  tombstone?: boolean
 }
 
 export type SourcePreviewValue = string | number | boolean | null

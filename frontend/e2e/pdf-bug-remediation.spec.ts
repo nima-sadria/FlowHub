@@ -193,6 +193,10 @@ async function installIsolatedMockApi(page: Page, state: MockState) {
     const url = new URL(request.url())
 
     if (!['127.0.0.1', 'localhost'].includes(url.hostname)) {
+      if (url.hostname === 'static.userback.io') {
+        await route.abort('blockedbyclient')
+        return
+      }
       state.externalRequests.push(`${request.method()} ${request.url()}`)
       await route.abort('blockedbyclient')
       return
@@ -263,11 +267,11 @@ async function installIsolatedMockApi(page: Page, state: MockState) {
     if (pathname === '/api/v2/sources/source-pdf-audit' && method === 'DELETE') {
       state.deletePayloads.push(JSON.parse(request.postData() ?? '{}'))
       return json({
-        outcome: 'archived', sourceId: 'source-pdf-audit', sourceName: 'Synthetic Daily Prices',
-        source: { ...sourceProfile(), status: 'disabled', version: 8 },
+        outcome: 'deleted', sourceId: 'source-pdf-audit', sourceName: 'Synthetic Daily Prices',
+        source: null, tombstone: true,
         impact: {
           sourceId: 'source-pdf-audit', sourceName: 'Synthetic Daily Prices', sourceVersion: 7,
-          sourceStatus: 'active', action: 'archive', blockers: {},
+          sourceStatus: 'active', action: 'delete', blockers: {},
           protectedHistory: { snapshots: 4, draftRevisions: 2, applyJobs: 1, auditEvents: 8 },
         },
       })
@@ -324,7 +328,7 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
     expect(state.unhandledApiRequests, 'Every application API request must be explicitly mocked').toEqual([])
   })
 
-  test('Sources list exposes a confirmation-first protected delete/archive flow', async ({ page }) => {
+  test('Sources list exposes a confirmation-first permanent delete flow', async ({ page }) => {
     for (const viewport of viewports) {
       await page.setViewportSize(viewport)
       await page.goto('/sources')
@@ -344,14 +348,12 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
     const dialog = page.getByRole('dialog', { name: 'Delete Source' })
     await expect(dialog).toBeVisible()
     await expect(dialog).toContainText('Synthetic Daily Prices')
-    await expect(dialog).toContainText('Archive Source')
+    await expect(dialog).toContainText('Delete Source Permanently')
     const cancelButton = dialog.getByRole('button', { name: 'Cancel' })
-    const archiveButton = dialog.getByRole('button', { name: 'Archive Source' })
+    const deleteButton = dialog.getByRole('button', { name: 'Delete Source Permanently' })
     await expect(cancelButton).toBeFocused()
     await page.keyboard.press('Tab')
-    await expect(archiveButton).toBeFocused()
-    await page.keyboard.press('Tab')
-    await expect(cancelButton).toBeFocused()
+    await expect(dialog.locator('input[name="source-delete-confirmation"]')).toBeFocused()
     await screenshot(page, 'source-delete-confirmation-en-1280x720')
 
     await page.keyboard.press('Escape')
@@ -362,24 +364,25 @@ test.describe.serial('PDF usability remediation with a fully isolated synthetic 
     state.lifecycleAction = 'blocked'
     await openDeleteDialog()
     await expect(dialog).toContainText('Cannot delete — active Workspace exists')
-    await expect(dialog.getByRole('button', { name: 'Delete Source' })).toBeDisabled()
+    await expect(dialog.getByRole('button', { name: 'Delete Source Permanently' })).toBeDisabled()
     await screenshot(page, 'source-delete-blocked-en-1280x720')
     await page.keyboard.press('Escape')
 
     state.lifecycleAction = 'delete'
     await openDeleteDialog()
-    await expect(dialog).toContainText('Delete unused Source')
+    await expect(dialog).toContainText('Permanent deletion removes operational configuration')
     await screenshot(page, 'source-delete-unused-en-1280x720')
     await page.keyboard.press('Escape')
 
-    state.lifecycleAction = 'archive'
+    state.lifecycleAction = 'delete'
     await openDeleteDialog()
-    await page.getByRole('button', { name: 'Archive Source' }).click()
+    await dialog.locator('input[name="source-delete-confirmation"]').fill('Synthetic Daily Prices')
+    await dialog.locator('input[type="checkbox"]').check()
+    await dialog.getByRole('button', { name: 'Delete Source Permanently' }).click()
     const archivedCard = page.locator('[data-source-card="source-pdf-audit"]')
-    await expect(archivedCard.getByRole('heading', { name: 'Synthetic Daily Prices' })).toBeVisible()
-    await expect(archivedCard.locator('.fh-badge').filter({ hasText: /^Disabled$/ })).toBeVisible()
-    expect(state.deletePayloads).toEqual([{ expected_source_version: 7, confirmation_name: 'Synthetic Daily Prices' }])
-    await screenshot(page, 'source-archived-result-en-1280x720')
+    await expect(archivedCard).toHaveCount(0)
+    expect(state.deletePayloads).toEqual([{ expected_source_version: 7, confirmation_name: 'Synthetic Daily Prices', confirm_permanent_delete: true, confirm_history_policy: true }])
+    await screenshot(page, 'source-deleted-result-en-1280x720')
   })
 
   test('Source configuration presents shared and independent worksheet rules with per-Channel columns', async ({ page }) => {

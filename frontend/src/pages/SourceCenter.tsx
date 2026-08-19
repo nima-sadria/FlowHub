@@ -242,6 +242,9 @@ export default function SourceCenter() {
   const [addPanelOpen, setAddPanelOpen] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<SourceProfile | null>(null)
+  const [pendingOperation, setPendingOperation] = useState<'archive' | 'delete'>('delete')
+  const [confirmationName, setConfirmationName] = useState('')
+  const [confirmHistoryPolicy, setConfirmHistoryPolicy] = useState(false)
   const [pendingImpact, setPendingImpact] = useState<SourceLifecycleImpact | null>(null)
   const [checkingImpact, setCheckingImpact] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -461,9 +464,12 @@ export default function SourceCenter() {
 
   async function removeSource() {
     if (!pendingDelete) return
+    if (confirmationName !== pendingDelete.name) return
     setDeleting(true)
     try {
-      const result = await sourceWorkspaceApi.deleteSource(pendingDelete)
+      const result = pendingOperation === 'archive'
+        ? await sourceWorkspaceApi.archiveSource(pendingDelete, confirmationName)
+        : await sourceWorkspaceApi.deleteSource(pendingDelete, confirmationName)
       setSources(current => result.outcome === 'deleted'
         ? current.filter(item => item.id !== pendingDelete.id)
         : current.map(item => item.id === pendingDelete.id ? result.source ?? item : item))
@@ -486,11 +492,14 @@ export default function SourceCenter() {
     }
   }
 
-  async function openRemoval(source: SourceProfile) {
+  async function openRemoval(source: SourceProfile, operation: 'archive' | 'delete' = 'delete') {
     const requestId = impactRequestRef.current + 1
     impactRequestRef.current = requestId
     setOpenMenuId(null)
     setPendingDelete(source)
+    setPendingOperation(operation)
+    setConfirmationName('')
+    setConfirmHistoryPolicy(false)
     setPendingImpact(null)
     setCheckingImpact(true)
     try {
@@ -647,7 +656,7 @@ export default function SourceCenter() {
             const integration = card.integration
             const state = operationalState(card, resource.tier)
             const statusPresentation = sourceSetupPresentation(card, resource.badge)
-            const showDelete = Boolean(state === 'connected' && canManageSources && source?.status === 'active')
+            const showDelete = Boolean(canManageSources && source && ['active', 'archived', 'disabled'].includes(source.status))
             const updatedAt = cardUpdatedAt(card)
             const worksheetsEnabled = worksheetsEnabledCount(card)
             const readStatus = integration?.read_status
@@ -757,8 +766,23 @@ export default function SourceCenter() {
                               void openRemoval(source)
                             }}
                           >
-                            <Icon name="delete" /> {translate('sources:sourceCenter.deleteSource')}
+                            <Icon name="delete" /> {translate('sources:sourceCenter.deleteSourcePermanently')}
                           </button>
+                          {source.status === 'active' && (
+                            <button
+                              className="fh-dropdown-item"
+                              type="button"
+                              role="menuitem"
+                              onClick={event => {
+                                removalTriggerRef.current = event.currentTarget
+                                  .closest('[data-source-card]')
+                                  ?.querySelector<HTMLButtonElement>('[data-source-menu-trigger]') ?? null
+                                void openRemoval(source, 'archive')
+                              }}
+                            >
+                              <Icon name="archive" /> {translate('sources:sourceCenter.archiveSource')}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -807,26 +831,34 @@ export default function SourceCenter() {
       {pendingDelete && (
         <div ref={removalOverlayRef} className="fh-overlay-backdrop fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="source-delete-title" aria-describedby="source-delete-description">
           <div className="fh-card fh-card-pad w-full max-w-lg">
-            <h2 className="fh-page-title" id="source-delete-title">{translate('sources:sourceCenter.deleteSource')}</h2>
+            <h2 className="fh-page-title" id="source-delete-title">{pendingOperation === 'archive' ? translate('sources:sourceCenter.archiveSource') : translate('sources:sourceCenter.deleteSourcePermanently')}</h2>
             <p className="mt-3 text-text-base" id="source-delete-description">{translate('sources:sourceCenter.confirmSourceRemoval', { source: pendingDelete.name })}</p>
             <div className="fh-alert-warning mt-4" role="note" aria-live="polite">
               <strong>{checkingImpact
                 ? translate('sources:sourceCenter.checkingHistory')
-                : pendingImpact?.action === 'blocked'
+                : pendingImpact?.blockers && Object.keys(pendingImpact.blockers).length > 0
                   ? translate('sources:sourceCenter.cannotDeleteActiveWorkspace')
-                  : pendingImpact?.action === 'archive'
+                  : pendingOperation === 'archive'
                     ? translate('sources:sourceCenter.archiveSource')
-                    : translate('sources:sourceCenter.deleteUnusedSource')}</strong>
-              <p className="mt-1">{pendingImpact?.action === 'archive'
+                    : translate('sources:sourceCenter.deleteSourcePermanently')}</strong>
+              <p className="mt-1">{pendingOperation === 'archive'
                 ? translate('sources:sourceCenter.archiveImpact')
-                : pendingImpact?.action === 'blocked'
+                : pendingImpact?.blockers && Object.keys(pendingImpact.blockers).length > 0
                   ? translate('sources:sourceCenter.activeWorkspacePreventsRemoval')
                   : translate('sources:sourceCenter.safeRemovalImpact')}</p>
               {pendingImpact && Object.keys(pendingImpact.protectedHistory).length > 0 && <p className="mt-2 fh-text-caption">{translate('sources:sourceCenter.protectedRecords', { value: formatNumber(Object.values(pendingImpact.protectedHistory).reduce((sum, count) => sum + count, 0)) })}</p>}
             </div>
+            <label className="mt-4 block text-sm font-medium" htmlFor="source-delete-confirmation">{translate('sources:sourceCenter.confirmSourceRemoval', { source: pendingDelete.name })}</label>
+            <input id="source-delete-confirmation" name="source-delete-confirmation" className="fh-input mt-2 w-full" value={confirmationName} onChange={event => setConfirmationName(event.target.value)} autoComplete="off" />
+            {pendingOperation === 'delete' && (
+              <label className="mt-3 flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={confirmHistoryPolicy} onChange={event => setConfirmHistoryPolicy(event.target.checked)} />
+                <span>{translate('sources:sourceCenter.confirmHistoryPolicy')}</span>
+              </label>
+            )}
             <div className="mt-5 flex justify-end gap-2">
-              <button ref={removalCancelRef} className="fh-button-secondary" type="button" disabled={deleting} onClick={() => { impactRequestRef.current += 1; setPendingDelete(null); setPendingImpact(null); setCheckingImpact(false) }}>{translate('common:action.cancel')}</button>
-              <button className="fh-button-danger" type="button" disabled={deleting || checkingImpact || !pendingImpact || pendingImpact.action === 'blocked' || pendingImpact.action === 'none'} onClick={() => void removeSource()}><Icon name="delete" /> {deleting ? translate('sources:sourceCenter.checkingHistory') : pendingImpact?.action === 'archive' ? translate('sources:sourceCenter.archiveSource') : translate('sources:sourceCenter.deleteSource')}</button>
+              <button ref={removalCancelRef} className="fh-button-secondary" type="button" disabled={deleting} onClick={() => { impactRequestRef.current += 1; setPendingDelete(null); setPendingImpact(null); setCheckingImpact(false); setConfirmationName(''); setConfirmHistoryPolicy(false) }}>{translate('common:action.cancel')}</button>
+              <button className="fh-button-danger" type="button" disabled={deleting || checkingImpact || !pendingImpact || Object.keys(pendingImpact?.blockers ?? {}).length > 0 || confirmationName !== pendingDelete.name || (pendingOperation === 'delete' && !confirmHistoryPolicy)} onClick={() => void removeSource()}><Icon name="delete" /> {deleting ? translate('sources:sourceCenter.checkingHistory') : pendingOperation === 'archive' ? translate('sources:sourceCenter.archiveSource') : translate('sources:sourceCenter.deleteSourcePermanently')}</button>
             </div>
           </div>
         </div>

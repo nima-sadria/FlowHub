@@ -33,7 +33,7 @@ class SourceProfile(FlowHubBase):
             name="ck_sc_source_kind",
         ),
         CheckConstraint(
-            "status IN ('active','disabled','archived')",
+            "status IN ('active','disabled','archived','deleted')",
             name="ck_sc_source_status",
         ),
     )
@@ -47,6 +47,7 @@ class SourceProfile(FlowHubBase):
     data_start_row: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", index=True)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     owner_user_id: Mapped[int] = mapped_column(
         ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=False, index=True

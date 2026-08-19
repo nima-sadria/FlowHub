@@ -1,6 +1,7 @@
 import type { HTMLAttributes } from 'react'
 import {
   Activity,
+  Archive,
   Bell,
   Calendar,
   ChartNoAxesCombined,
@@ -56,6 +57,7 @@ import {
 const ICONS = {
   add: Plus,
   activity: Activity,
+  archive: Archive,
   alert: CircleAlert,
   apply: CircleCheck,
   bell: Bell,

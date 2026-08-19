@@ -36,6 +36,8 @@ function previewErrorContent(error: unknown): { title: string; description: stri
       SOURCE_IDENTITY_VALIDATION_BLOCKED: 'workspace:workspace.sourceIdentityValidationBlocked',
       SOURCE_IDENTITY_AUTHORITY_REQUIRED: 'workspace:workspace.sourceIdentityAuthorityRequired',
       SOURCE_IDENTITY_POLICY_UPGRADE_REQUIRED: 'workspace:workspace.sourceIdentityPolicyUpgradeRequired',
+      SOURCE_WORKSPACE_REBIND_REQUIRED: 'workspace:workspace.sourceWorkspaceRebindRequired',
+      SOURCE_WORKSPACE_BINDING_INVALID: 'workspace:workspace.sourceWorkspaceBindingInvalid',
     }
     const messageKey = blockedMessages[error.code ?? '']
     if (messageKey) return { title: translate('workspace:workspace.previewUnavailable'), description: translate(messageKey) }

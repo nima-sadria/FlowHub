@@ -262,6 +262,8 @@
   "workspace.previewUnavailable": "پیش‌نمایش در دسترس نیست",
   "workspace.sourceIdentityValidationPending": "پیش‌نمایش در دسترس نیست — اعتبارسنجی هویت محصول منبع در انتظار است. کلید محصول منبع را تنظیم و از پیکربندی منبع اعتبارسنجی را اجرا کنید.",
   "workspace.sourceIdentityValidationBlocked": "پیش‌نمایش در دسترس نیست — هویت محصول منبع مسدود است. مشکلات کلید محصول یا نگاشت را برطرف و از پیکربندی منبع اعتبارسنجی را اجرا کنید.",
+  "workspace.sourceWorkspaceRebindRequired": "پیش‌نمایش در دسترس نیست — فضای کاری به منبعی غیرفعال متصل است. منبع فعال فعلی Nextcloud را در اتصال منبع فضای کاری انتخاب کنید و دوباره تلاش کنید.",
+  "workspace.sourceWorkspaceBindingInvalid": "پیش‌نمایش در دسترس نیست — اتصال منبع فضای کاری یک منبع فعال Nextcloud نیست. پیش از تلاش دوباره، یک منبع فعال را متصل کنید.",
   "workspace.sourceIdentityAuthorityRequired": "پیش‌نمایش در دسترس نیست — مرجع هویت و کلید محصول منبع را در پیکربندی منبع انتخاب کنید.",
   "workspace.sourceIdentityPolicyUpgradeRequired": "پیش‌نمایش در دسترس نیست — نگاشت منبع را با سیاست هویت فعلی ذخیره کنید.",
   "workspace.unmatchedProduct": "محصول تطبیق‌نیافته",
