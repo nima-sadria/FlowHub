@@ -213,6 +213,72 @@ export function reconciliationPresentation(
   }
 }
 
+// -- Observation Confidence ------------------------------------------------
+//
+// Distinct axis from diagnosticStatePresentation/FreshnessState above --
+// "do we currently trust this channel's cached prices" vs. "has any read
+// completed recently". See ADR_CHANNEL_READ_ARCHITECTURE.md. Owner-facing
+// language stays plain (never the raw enum, never PostgreSQL/queue/lease
+// terminology) per the Diagnostics UI contract.
+
+export type ObservationConfidenceValue = 'CONFIRMED' | 'LIKELY_FRESH' | 'STALE' | 'UNKNOWN' | 'RECOVERY_REQUIRED'
+
+export interface ObservationConfidenceLike {
+  value?: ObservationConfidenceValue | string | null
+  reasonCode?: string | null
+  recoveryRequiredCount?: number | null
+  computedAt?: string | null
+}
+
+const OBSERVATION_CONFIDENCE_PRESENTATION: Record<ObservationConfidenceValue, Omit<DiagnosticStatePresentation, 'state' | 'label'>> = {
+  // CONFIRMED and LIKELY_FRESH are both "trustworthy" from an owner's
+  // perspective; the resolver-internal distinction (a live targeted read
+  // vs. a still-within-TTL channel-scope read) is Advanced Evidence, not a
+  // separate owner-facing concept.
+  CONFIRMED: { variant: 'success', icon: 'success' },
+  LIKELY_FRESH: { variant: 'success', icon: 'success' },
+  STALE: { variant: 'warning', icon: 'warning' },
+  UNKNOWN: { variant: 'neutral', icon: 'diagnostics' },
+  RECOVERY_REQUIRED: { variant: 'error', icon: 'error' },
+}
+
+function resolveObservationConfidenceValue(
+  evidence: ObservationConfidenceLike | ObservationConfidenceValue | string | null | undefined,
+): ObservationConfidenceValue {
+  const raw = typeof evidence === 'object' && evidence !== null ? evidence.value : evidence
+  const normalized = String(raw ?? '').trim().toUpperCase()
+  if (normalized in OBSERVATION_CONFIDENCE_PRESENTATION) {
+    return normalized as ObservationConfidenceValue
+  }
+  return 'UNKNOWN'
+}
+
+export function observationConfidencePresentation(
+  evidence: ObservationConfidenceLike | ObservationConfidenceValue | string | null | undefined,
+): DiagnosticStatePresentation & { value: ObservationConfidenceValue } {
+  const value = resolveObservationConfidenceValue(evidence)
+  return {
+    state: value === 'RECOVERY_REQUIRED' ? 'ERROR' : value === 'STALE' ? 'WARNING' : value === 'UNKNOWN' ? 'NOT_CHECKED' : 'HEALTHY',
+    value,
+    label: translate(`diagnostics:observationConfidence.${value}`),
+    ...OBSERVATION_CONFIDENCE_PRESENTATION[value],
+  }
+}
+
+export function observationConfidenceDescription(evidence: ObservationConfidenceLike): string {
+  const value = resolveObservationConfidenceValue(evidence)
+  if (value === 'RECOVERY_REQUIRED' && evidence.recoveryRequiredCount) {
+    // `count` is intentionally avoided: i18next reserves it for plural-form
+    // selection (typed as a raw number), and this message has no plural
+    // variants -- a differently-named, pre-formatted interpolation value
+    // avoids fighting that typing for no behavioral benefit.
+    return translate('diagnostics:observationConfidenceDescription.RECOVERY_REQUIRED_WITH_COUNT', {
+      productCount: formatNumber(evidence.recoveryRequiredCount),
+    })
+  }
+  return translate(`diagnostics:observationConfidenceDescription.${value}`)
+}
+
 export function deriveOverallDiagnosticState(
   evidence: readonly DiagnosticEvidenceLike[],
   options: { disabled?: boolean; required?: readonly DiagnosticEvidenceLike[] } = {},

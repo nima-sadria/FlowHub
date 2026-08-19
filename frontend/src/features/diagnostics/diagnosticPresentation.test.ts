@@ -7,6 +7,8 @@ import {
   diagnosticRecommendedAction,
   diagnosticStatePresentation,
   isEventDrivenScheduleMode,
+  observationConfidenceDescription,
+  observationConfidencePresentation,
   reconciliationPresentation,
   resolveDiagnosticState,
 } from './diagnosticPresentation'
@@ -147,5 +149,73 @@ describe('diagnostic presentation semantics', () => {
     expect(reconciliationPresentation(undefined)).toEqual({
       mode: 'DISABLED', label: 'Disabled', nextReconciliationAt: null,
     })
+  })
+})
+
+describe('observation confidence presentation (distinct axis from freshness)', () => {
+  beforeEach(async () => { await changeLocale('en') })
+
+  it('presents CONFIRMED and LIKELY_FRESH both as the plain owner concept "Up to date"', () => {
+    expect(observationConfidencePresentation({ value: 'CONFIRMED' })).toMatchObject({
+      value: 'CONFIRMED', label: 'Up to date', variant: 'success', state: 'HEALTHY',
+    })
+    expect(observationConfidencePresentation({ value: 'LIKELY_FRESH' })).toMatchObject({
+      value: 'LIKELY_FRESH', label: 'Up to date', variant: 'success', state: 'HEALTHY',
+    })
+  })
+
+  it('presents STALE as "Delayed" with a warning variant', () => {
+    expect(observationConfidencePresentation({ value: 'STALE' })).toMatchObject({
+      value: 'STALE', label: 'Delayed', variant: 'warning', state: 'WARNING',
+    })
+  })
+
+  it('presents UNKNOWN as "Needs verification", never the raw enum', () => {
+    expect(observationConfidencePresentation({ value: 'UNKNOWN' })).toMatchObject({
+      value: 'UNKNOWN', label: 'Needs verification', variant: 'neutral', state: 'NOT_CHECKED',
+    })
+  })
+
+  it('presents RECOVERY_REQUIRED as an actionable error, the most severe owner concept', () => {
+    expect(observationConfidencePresentation({ value: 'RECOVERY_REQUIRED' })).toMatchObject({
+      value: 'RECOVERY_REQUIRED', label: 'Recovery required', variant: 'error', state: 'ERROR',
+    })
+  })
+
+  it('falls back to UNKNOWN for an unrecognized or missing value rather than throwing', () => {
+    expect(observationConfidencePresentation(undefined)).toMatchObject({ value: 'UNKNOWN' })
+    expect(observationConfidencePresentation({ value: 'SOMETHING_NEW' })).toMatchObject({ value: 'UNKNOWN' })
+  })
+
+  it('accepts a bare string, matching the other presentation helpers', () => {
+    expect(observationConfidencePresentation('STALE')).toMatchObject({ value: 'STALE', label: 'Delayed' })
+  })
+
+  it('describes RECOVERY_REQUIRED with the affected product count when known', () => {
+    expect(observationConfidenceDescription({ value: 'RECOVERY_REQUIRED', recoveryRequiredCount: 3 })).toBe(
+      'FlowHub tried and failed to confirm current prices for 3 product(s). Manual review is recommended.',
+    )
+  })
+
+  it('describes RECOVERY_REQUIRED generically when no count is known', () => {
+    expect(observationConfidenceDescription({ value: 'RECOVERY_REQUIRED', recoveryRequiredCount: 0 })).toBe(
+      'FlowHub tried and failed to confirm current prices for some products. Manual review is recommended.',
+    )
+  })
+
+  it('describes every value in plain language without PostgreSQL/queue/lease terminology', () => {
+    expect(observationConfidenceDescription({ value: 'CONFIRMED' })).toBe('Prices were confirmed by a live, targeted read.')
+    expect(observationConfidenceDescription({ value: 'STALE' })).toBe(
+      'The last confirmed read is older than the expected freshness window.',
+    )
+    for (const description of [
+      observationConfidenceDescription({ value: 'CONFIRMED' }),
+      observationConfidenceDescription({ value: 'LIKELY_FRESH' }),
+      observationConfidenceDescription({ value: 'STALE' }),
+      observationConfidenceDescription({ value: 'UNKNOWN' }),
+      observationConfidenceDescription({ value: 'RECOVERY_REQUIRED', recoveryRequiredCount: 1 }),
+    ]) {
+      expect(description.toLowerCase()).not.toMatch(/postgres|lease|queue|skip locked|dl_channel_entity_work/)
+    }
   })
 })

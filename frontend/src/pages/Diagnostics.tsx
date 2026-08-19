@@ -29,6 +29,8 @@ import {
   diagnosticEvidenceDescription,
   diagnosticRecommendedAction,
   diagnosticStatePresentation,
+  observationConfidenceDescription,
+  observationConfidencePresentation,
   reconciliationPresentation,
   resolveDiagnosticState,
   type DiagnosticEvidenceLike,
@@ -705,6 +707,23 @@ function CapabilityScheduleRows({
   )
 }
 
+function ObservationConfidenceTile({
+  observationConfidence,
+}: {
+  observationConfidence: CanonicalDiagnosticResource['observationConfidence']
+}) {
+  const presentation = observationConfidencePresentation(observationConfidence)
+  const description = observationConfidenceDescription(observationConfidence)
+  return (
+    <div data-testid="observation-confidence-tile" title={description}>
+      <p className="fh-text-caption">{translate('diagnostics:diagnostics.observationConfidence')}</p>
+      <p className="fh-text-body-sm font-semibold">
+        <Badge variant={presentation.variant}>{presentation.label}</Badge>
+      </p>
+    </div>
+  )
+}
+
 function CanonicalResourceCard({
   resource,
   canRefresh,
@@ -733,10 +752,11 @@ function CanonicalResourceCard({
         </div>
       </summary>
       <div className="border-t border-border p-4">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <div><p className="fh-text-caption">{translate('diagnostics:diagnostics.connectivity')}</p><p className="fh-text-body-sm font-semibold">{canonicalStateLabel(resource.connectivity.state)}</p></div>
           <div><p className="fh-text-caption">{translate('diagnostics:diagnostics.operationalReadiness')}</p><p className="fh-text-body-sm font-semibold">{canonicalStateLabel(resource.readiness.state)}</p></div>
           <div><p className="fh-text-caption">{translate('diagnostics:diagnostics.freshness')}</p><p className="fh-text-body-sm font-semibold">{canonicalStateLabel(resource.freshness.state)}</p></div>
+          <ObservationConfidenceTile observationConfidence={resource.observationConfidence} />
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {capabilities.map(([name, evidence]) => (

@@ -82,6 +82,13 @@ export interface ChannelHealthItem extends DiagnosticEvidence {
 export type ConnectivityState = 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'NOT_APPLICABLE'
 export type ReadinessState = 'READY' | 'NEEDS_ATTENTION' | 'BLOCKED' | 'DISABLED' | 'ARCHIVED' | 'COMING_SOON' | 'NOT_APPLICABLE'
 export type FreshnessState = 'FRESH' | 'STALE' | 'NEVER_RUN' | 'NOT_SCHEDULED' | 'NOT_ENABLED' | 'NOT_APPLICABLE'
+/**
+ * Distinct axis from FreshnessState above: "has any read completed
+ * recently" (channel-level, coarse) vs. "do we currently trust this
+ * channel's cached prices" (per-row evidence, worst-value-wins rollup).
+ * See ADR_CHANNEL_READ_ARCHITECTURE.md. Never derived from FreshnessState.
+ */
+export type ObservationConfidenceValue = 'CONFIRMED' | 'LIKELY_FRESH' | 'STALE' | 'UNKNOWN' | 'RECOVERY_REQUIRED'
 export type CanonicalOverallState = 'ERROR' | 'BLOCKED' | 'NEEDS_ATTENTION' | 'HEALTHY' | 'ARCHIVED' | 'COMING_SOON' | 'DISABLED'
 export type ScheduleMode =
   | 'SCHEDULED'
@@ -138,6 +145,7 @@ export interface CanonicalDiagnosticResource {
   connectivity: { state: ConnectivityState; freshness: FreshnessState; lastVerifiedAt: string | null; lastCheckedAt: string | null }
   readiness: { state: ReadinessState; reasonCode: string }
   freshness: { state: FreshnessState }
+  observationConfidence: { value: ObservationConfidenceValue; reasonCode: string; recoveryRequiredCount: number; computedAt: string | null }
   capabilities: Record<string, CanonicalCapabilityEvidence>
   overallState: CanonicalOverallState
   reasonCode: string
