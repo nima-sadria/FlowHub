@@ -17,6 +17,7 @@ TERMS = [
 TEST_ONLY_ALLOWED = {"mo" + "ck"}
 SKIP_PREFIXES = (
     "frontend/node_modules/",
+    "frontend/e2e/",
     "tests/",
     "docs/architecture/",
 )
