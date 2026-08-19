@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.flowhub.data_layer.models import DlProductCache
 
+_UPSERTABLE_COLUMNS = {
+    column.name for column in DlProductCache.__table__.columns if column.name not in ("id", "connector_id", "product_id")
+}
+
 
 class ProductReadModelService:
     def __init__(self, db: Session) -> None:
@@ -92,6 +96,87 @@ class ProductReadModelService:
         self._db.commit()
         self._db.refresh(row)
         return row
+
+    def bulk_upsert(
+        self,
+        connector_id: str,
+        items: list[tuple[str, dict]],
+        *,
+        freshness: str = "fresh",
+    ) -> int:
+        """Batch upsert for FULL/CHANNEL-scope page writes: one INSERT ...
+        ON CONFLICT DO UPDATE per page on PostgreSQL, instead of N per-row
+        commits. Fences on provider_observed_at (see model docstring) so a
+        slow FULL page can never overwrite a newer targeted observation.
+        Skips -- rather than aborting the whole page for -- any row whose
+        Listing is currently owned by an in-flight Apply job; the row is
+        simply left for a later pass instead of losing the rest of the
+        batch to one contended product.
+        """
+        from app.flowhub.unified_workspace.listing_guard import (
+            ListingGuardConflict,
+            acquire_external_listing_guard,
+        )
+
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        rows: list[dict] = []
+        for product_id, data in items:
+            try:
+                acquire_external_listing_guard(self._db, connector_id, product_id)
+            except ListingGuardConflict:
+                continue
+            row = {key: value for key, value in data.items() if key in _UPSERTABLE_COLUMNS}
+            row["connector_id"] = connector_id
+            row["product_id"] = product_id
+            row["freshness"] = freshness
+            row["last_fetched_at"] = now
+            rows.append(row)
+        if not rows:
+            return 0
+        if self._db.bind is not None and self._db.bind.dialect.name == "postgresql":
+            self._bulk_upsert_postgresql(rows)
+        else:
+            self._bulk_upsert_fallback(rows)
+        self._db.commit()
+        return len(rows)
+
+    def _bulk_upsert_postgresql(self, rows: list[dict]) -> None:
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        columns = [key for key in rows[0] if key not in ("connector_id", "product_id")]
+        statement = pg_insert(DlProductCache).values(rows)
+        statement = statement.on_conflict_do_update(
+            index_elements=["connector_id", "product_id"],
+            set_={column: getattr(statement.excluded, column) for column in columns},
+            # Newest external observation wins, regardless of which write
+            # commits last -- the FULL-vs-LIGHT fencing rule.
+            where=(
+                DlProductCache.provider_observed_at.is_(None)
+                | (statement.excluded.provider_observed_at >= DlProductCache.provider_observed_at)
+            ),
+        )
+        self._db.execute(statement)
+
+    def _bulk_upsert_fallback(self, rows: list[dict]) -> None:
+        # Correctness-preserving path for SQLite (unit tests) and any other
+        # non-PostgreSQL dialect. Not the performance path -- production
+        # runs PostgreSQL, where _bulk_upsert_postgresql does one statement
+        # instead of N per-row round trips.
+        for row in rows:
+            existing = (
+                self._db.query(DlProductCache)
+                .filter_by(connector_id=row["connector_id"], product_id=row["product_id"])
+                .first()
+            )
+            if existing is None:
+                self._db.add(DlProductCache(**row))
+                continue
+            if existing.provider_observed_at is not None:
+                incoming_observed = row.get("provider_observed_at")
+                if incoming_observed is None or incoming_observed < existing.provider_observed_at:
+                    continue  # a newer observation already exists; do not overwrite
+            for key, value in row.items():
+                setattr(existing, key, value)
 
     def mark_not_found(self, connector_id: str, product_id: str) -> None:
         """Narrow update for a targeted read that found the entity gone

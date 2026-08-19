@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from datetime import datetime
 from typing import Any
@@ -64,19 +65,33 @@ class WooCommerceProductReadAdapter:
             product_ids=ids or None,
             modified_since=modified_since,
         )
-        expanded: list[dict] = []
+        normalized: list[dict] = []
+        variable_products: list[dict] = []
         for raw in items:
             product = _normalize_product(raw)
             if product is None:
                 self.warnings.append("WooCommerce returned a product without an ID; the row was skipped.")
                 continue
-            expanded.append(product)
+            normalized.append(product)
             self.products_read += 1
-            if product["product_type"] != "variable":
-                continue
-            self.variable_products_read += 1
-            variations = await self._fetch_all_variations(product)
-            expanded.extend(variations)
+            if product["product_type"] == "variable":
+                variable_products.append(product)
+
+        expanded = list(normalized)
+        if variable_products:
+            # Bounded fan-out instead of sequential per-parent variation
+            # reads: recommended_concurrency is the connector's own advertised
+            # safe concurrency, not a magic number (Phase D, FULL performance).
+            semaphore = asyncio.Semaphore(max(1, self.capabilities.recommended_concurrency))
+
+            async def _bounded_variations(parent: dict) -> list[dict]:
+                async with semaphore:
+                    return await self._fetch_all_variations(parent)
+
+            variation_groups = await asyncio.gather(*(_bounded_variations(parent) for parent in variable_products))
+            self.variable_products_read += len(variable_products)
+            for group in variation_groups:
+                expanded.extend(group)
 
         latency_ms = (time.monotonic() - started) * 1000
         next_cursor = str(page + 1) if page < total_pages else None

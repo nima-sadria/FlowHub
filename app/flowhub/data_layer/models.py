@@ -87,7 +87,10 @@ class DlProductCache(FlowHubBase):
     """Product read model. One row per (connector_id, product_id)."""
 
     __tablename__ = "dl_product_cache"
-    __table_args__ = (UniqueConstraint("connector_id", "product_id", name="uq_dl_product"),)
+    __table_args__ = (
+        UniqueConstraint("connector_id", "product_id", name="uq_dl_product"),
+        Index("ix_dl_product_cache_connector_last_fetched", "connector_id", "last_fetched_at"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     connector_id = Column(String(255), nullable=False, index=True)
@@ -113,6 +116,12 @@ class DlProductCache(FlowHubBase):
     last_fetched_at = Column(DateTime, nullable=True)
     last_successful_read = Column(DateTime, nullable=True)
     last_modified = Column(String(100), nullable=True)
+    # Typed, parsed fencing timestamp (provider-reported modification time).
+    # Distinct from last_modified (raw string) -- see Phase D fencing rule
+    # in ADR_CHANNEL_READ_ARCHITECTURE.md. Every write path (FULL batch
+    # upsert, LIGHT targeted upsert) sets this; a write may never overwrite
+    # a row whose provider_observed_at is newer than its own.
+    provider_observed_at = Column(DateTime, nullable=True)
     exists = Column(Boolean, nullable=False, default=True)
     record_hash = Column(String(64), nullable=True)
     expires_at = Column(DateTime, nullable=True)

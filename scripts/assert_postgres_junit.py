@@ -83,6 +83,13 @@ REQUIRED_CHANNEL_ENTITY_WORK_TESTS = (
     "test_idempotent_replay_of_claim_and_complete_is_a_no_op",
     "test_concurrent_full_job_and_entity_work_lease_are_independent",
 )
+REQUIRED_FULL_LIGHT_FENCING_TESTS = (
+    "test_full_batch_upsert_never_overwrites_newer_targeted_observation",
+    "test_full_batch_upsert_allows_a_genuinely_newer_full_page",
+    "test_concurrent_full_and_targeted_writes_converge_on_the_newest_observation",
+    "test_full_unseen_sweep_preserves_concurrently_confirmed_product",
+    "test_full_lease_and_targeted_entity_lease_remain_independent_under_real_concurrency",
+)
 
 
 def main() -> int:
@@ -107,6 +114,7 @@ def main() -> int:
         "woocommerce-webhooks": REQUIRED_WOOCOMMERCE_WEBHOOK_TESTS,
         "tapsishop-webhooks": REQUIRED_TAPSISHOP_WEBHOOK_TESTS,
         "channel-entity-work": REQUIRED_CHANNEL_ENTITY_WORK_TESTS,
+        "full-light-fencing": REQUIRED_FULL_LIGHT_FENCING_TESTS,
     }.get(group, REQUIRED_017_TESTS)
     root = ET.parse(report).getroot()
     cases = list(root.iter("testcase"))
