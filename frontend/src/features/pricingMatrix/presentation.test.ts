@@ -3,6 +3,7 @@ import { ApiError } from '../../api/client'
 import {
   ContractMismatchError,
   channelStatusPresentation,
+  channelPolicyStatePresentation,
   classifyPricingError,
   derivePolicyChannelIds,
   formatExactInteger,
@@ -53,6 +54,24 @@ describe('domain presentation', () => {
   it('maps channel status to distinct variants and label keys', () => {
     expect(channelStatusPresentation('active')).toMatchObject({ variant: 'success', labelKey: 'pricing:channelStatus.active' })
     expect(channelStatusPresentation('inactive')).toMatchObject({ variant: 'neutral', labelKey: 'pricing:channelStatus.inactive' })
+  })
+  it('maps channel policy heads to clear policy states', () => {
+    expect(channelPolicyStatePresentation({
+      channelId: 'woocommerce:primary', headVersion: 0, currentEventId: null, effectiveActivationId: null,
+      status: 'inactive', policyRevisionId: null, channelConfigRevisionId: null, updatedAt: '',
+    })).toMatchObject({ variant: 'warning', labelKey: 'pricing:channels.head.policyState.noActive' })
+    expect(channelPolicyStatePresentation({
+      channelId: 'woocommerce:primary', headVersion: 1, currentEventId: 'evt', effectiveActivationId: null,
+      status: 'active', policyRevisionId: 'rev-1', channelConfigRevisionId: 'cfg-1', updatedAt: '',
+    })).toMatchObject({ variant: 'warning', labelKey: 'pricing:channels.head.policyState.staleOrInvalid' })
+    expect(channelPolicyStatePresentation({
+      channelId: 'woocommerce:primary', headVersion: 1, currentEventId: 'evt', effectiveActivationId: null,
+      status: 'inactive', policyRevisionId: 'rev-1', channelConfigRevisionId: 'cfg-1', updatedAt: '',
+    })).toMatchObject({ variant: 'neutral', labelKey: 'pricing:channels.head.policyState.configured' })
+    expect(channelPolicyStatePresentation({
+      channelId: 'woocommerce:primary', headVersion: 1, currentEventId: 'evt', effectiveActivationId: 'act-1',
+      status: 'active', policyRevisionId: 'rev-1', channelConfigRevisionId: 'cfg-1', updatedAt: '',
+    })).toMatchObject({ variant: 'success', labelKey: 'pricing:channels.head.policyState.active' })
   })
   it('flags an unresolved unit as a warning, not a success', () => {
     expect(unitStatusPresentation('unresolved').variant).toBe('warning')
