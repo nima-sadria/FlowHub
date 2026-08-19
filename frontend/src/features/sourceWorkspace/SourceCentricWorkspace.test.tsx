@@ -138,6 +138,24 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     expect(container.textContent).not.toContain('snappshop:main')
   })
 
+  it('portals the row Actions menu outside the clipping products table so it is never hard-clipped', async () => {
+    await renderWorkspace(container, root, service)
+    const trigger = container.querySelector<HTMLButtonElement>('[data-row-menu-trigger][data-listing-id="snap-black"]')
+    expect(trigger).toBeTruthy()
+
+    await act(async () => {
+      trigger?.click()
+      await Promise.resolve()
+    })
+
+    const menu = document.querySelector('[data-row-actions-portal]')
+    expect(menu).toBeTruthy()
+    // .fh-products-card clips overflow-y; the menu must not be its descendant.
+    expect(container.querySelector('[data-row-actions-portal]')).toBeNull()
+    expect(menu?.closest('[data-products-table]')).toBeNull()
+    expect((menu as HTMLElement).style.position).toBe('fixed')
+  })
+
   it('omits its PageShell when embedded in the Products page', async () => {
     await renderWorkspace(container, root, service, true)
 
@@ -200,6 +218,39 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     })]))
   })
 
+  it('flushes an in-progress edit before a filter change can unmount its row', async () => {
+    await renderWorkspace(container, root, service)
+    const targetPrice = container.querySelector<HTMLInputElement>('[data-listing-id="snap-black"][data-target-field="price"]')!
+
+    // Deliberately do not blur: the Owner is still mid-edit when they reach
+    // for a filter dropdown instead of clicking elsewhere first.
+    await act(async () => {
+      targetPrice.focus()
+      setInputValue(targetPrice, '125')
+    })
+
+    const channelSelect = container.querySelector<HTMLSelectElement>('select[name="channelId"]')!
+    await act(async () => {
+      channelSelect.value = 'tapsishop:main'
+      channelSelect.dispatchEvent(new Event('change', { bubbles: true }))
+      await Promise.resolve()
+    })
+
+    const saveButton = container.querySelector<HTMLButtonElement>('[data-products-save]')!
+    await act(async () => {
+      saveButton.click()
+      await Promise.resolve()
+    })
+
+    expect(service.saveDraft).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(service.saveDraft).mock.calls[0][2]).toEqual(expect.arrayContaining([expect.objectContaining({
+      listing_id: 'snap-black',
+      channel_id: 'snappshop:main',
+      field: 'price',
+      target_value: '125',
+    })]))
+  })
+
   it('renders the Settings display unit while persisting the exact native Listing value', async () => {
     await renderWorkspace(container, root, service, false, { currency: 'IRR', unit: 'TOMAN' })
     const targetPrice = container.querySelector<HTMLInputElement>('[data-listing-id="snap-black"][data-target-field="price"]')!
@@ -233,7 +284,10 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       trigger?.click()
       await Promise.resolve()
     })
-    const excludeAction = container.querySelector<HTMLButtonElement>('[data-row-menu-action="toggle-selection"]')
+    // The row-actions menu portals to document.body to escape the products
+    // table's clipping ancestor -- it is a sibling of container, not a
+    // descendant, so it must be queried from the document.
+    const excludeAction = document.querySelector<HTMLButtonElement>('[data-row-menu-action="toggle-selection"]')
     expect(excludeAction).toBeTruthy()
     expect(excludeAction?.disabled).toBe(false)
     await act(async () => {
@@ -261,6 +315,54 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       target_value: '110',
     }))
     expect(vi.mocked(service.saveDraft).mock.calls[0][3]).toBe('replace')
+  })
+
+  it('reconciles draftVersion after a successful Draft save even when a newer local edit invalidates the in-flight Review', async () => {
+    let resolveCreateReview!: (value: ReviewResource) => void
+    const pendingReview = new Promise<ReviewResource>(resolve => { resolveCreateReview = resolve })
+    const emptyReview: ReviewResource = {
+      id: 'review-1', workspaceId: WORKSPACE.id, snapshotId: WORKSPACE.snapshot.id,
+      draftRevisionId: 'revision-1', status: 'ready', checksum: 'review-checksum',
+      summary: { total: 0, eligible: 0, blocked: 0, warnings: 0 }, items: [], staleReason: null,
+    }
+    service.createReview = vi.fn().mockReturnValueOnce(pendingReview).mockResolvedValue(emptyReview)
+    await renderWorkspace(container, root, service)
+
+    const saveButton = container.querySelector<HTMLButtonElement>('[data-products-save]')!
+    await act(async () => {
+      saveButton.click()
+      await Promise.resolve()
+    })
+    // The Draft save itself already resolved (server draftVersion advanced to
+    // 1); createReview is still pending. expected_version on this first call
+    // was the pre-save value.
+    expect(service.saveDraft).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(service.saveDraft).mock.calls[0][1]).toBe(0)
+
+    // A newer local edit arrives while the Review round-trip is still in flight
+    // -- an entirely normal Owner interaction, not a conflicting concurrent session.
+    const targetPrice = container.querySelector<HTMLInputElement>('[data-listing-id="snap-black"][data-target-field="price"]')!
+    await act(async () => {
+      targetPrice.focus()
+      setInputValue(targetPrice, '130')
+      targetPrice.blur()
+    })
+
+    await act(async () => {
+      resolveCreateReview(emptyReview)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    // The next Save must use the server-confirmed version from the save that
+    // actually succeeded (1), not the stale pre-save value (0) -- otherwise
+    // it is rejected as DRAFT_VERSION_CONFLICT even though nothing is stale.
+    await act(async () => {
+      saveButton.click()
+      await Promise.resolve()
+    })
+    expect(service.saveDraft).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(service.saveDraft).mock.calls[1][1]).toBe(1)
   })
 })
 

@@ -90,6 +90,10 @@ REQUIRED_FULL_LIGHT_FENCING_TESTS = (
     "test_full_unseen_sweep_preserves_concurrently_confirmed_product",
     "test_full_lease_and_targeted_entity_lease_remain_independent_under_real_concurrency",
 )
+REQUIRED_UNIFIED_WORKSPACE_DRAFT_CAS_TESTS = (
+    "test_concurrent_draft_saves_with_the_same_expected_version_resolve_to_exactly_one_winner",
+    "test_targeted_light_style_cache_write_does_not_invalidate_a_concurrent_draft_save",
+)
 
 
 def main() -> int:
@@ -115,6 +119,7 @@ def main() -> int:
         "tapsishop-webhooks": REQUIRED_TAPSISHOP_WEBHOOK_TESTS,
         "channel-entity-work": REQUIRED_CHANNEL_ENTITY_WORK_TESTS,
         "full-light-fencing": REQUIRED_FULL_LIGHT_FENCING_TESTS,
+        "unified-workspace-draft-cas": REQUIRED_UNIFIED_WORKSPACE_DRAFT_CAS_TESTS,
     }.get(group, REQUIRED_017_TESTS)
     root = ET.parse(report).getroot()
     cases = list(root.iter("testcase"))

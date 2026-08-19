@@ -1,4 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import Badge from '../../components/Badge'
 import Empty from '../../components/Empty'
 import Icon from '../../components/Icon'
@@ -236,6 +237,16 @@ export default function DensePricingWorkspace({
     return nativeUnit ? formatPricingUnitLabel(currency, nativeUnit) : formatCurrencyLabel(currency)
   }, [displayProfile, visibleGrid])
 
+  // A filter/view change can immediately re-fetch and re-filter the grid,
+  // unmounting the row currently under edit before its onBlur commit fires --
+  // TargetInput only commits on blur, so an in-progress keystroke would be
+  // silently discarded along with the unmounted <input>. Flushing here forces
+  // that commit through the input's own existing blur handler first.
+  const flushPendingEdit = useCallback(() => {
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active.hasAttribute('data-target-field')) active.blur()
+  }, [])
+
   const mutatePricingState = useCallback((update: (current: PricingWorkspaceState) => PricingWorkspaceState) => {
     setPricingState(current => update(current))
     setReview(null)
@@ -283,6 +294,15 @@ export default function DensePricingWorkspace({
     setBusy(translate('workspace:sourceCentricWorkspace.savingDraft'))
     try {
       const revision = await service.saveDraft(workspace.id, draftVersion, [...selectedPricingDraftChanges(pricingState)], 'replace')
+      // The Draft save itself is now durably committed server-side (draft.version
+      // has advanced) regardless of whether Review/Selection below succeed or get
+      // superseded by a newer local edit. Reconciling here -- not only on the full
+      // success path -- keeps the CAS expected_version this component sends on the
+      // *next* Save attempt in sync with the server. Skipping this on an early
+      // return previously left draftVersion pointing at the pre-save value forever,
+      // so the next legitimate Save was rejected as DRAFT_VERSION_CONFLICT even
+      // though nothing was actually stale.
+      setDraftVersion(revision.draftVersion)
       const created = await service.createReview(workspace.id, revision.id)
       if (pricingStateRef.current.revision !== requestedRevision) {
         notify.error({ title: translate('workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted'), description: translate('workspace:sourceCentricWorkspace.generateAFreshReview') })
@@ -303,7 +323,6 @@ export default function DensePricingWorkspace({
       const selectedIdSet = new Set(selectedIds)
       setReview({ ...created, items: created.items.map(item => ({ ...item, selected: selectedIdSet.has(item.id) })) })
       setReviewContext({ reviewId: created.id, revisionId: revision.id, selectionChecksum: selection.selectionChecksum, selectedCount: selectedIds.length })
-      setDraftVersion(revision.draftVersion)
       setReviewOpen(true)
       notify.success({ title: translate('workspace:sourceCentricWorkspace.reviewAndDryRunComplete'), description: translate('workspace:densePricing.selectionBoundToReview', { count: selectedIds.length }) })
     } catch (error) {
@@ -345,7 +364,7 @@ export default function DensePricingWorkspace({
     if (!rowMenuFor && !filtersOpen) return
     const close = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null
-      if (target?.closest('[data-row-actions]') || target?.closest('[data-products-filters]')) return
+      if (target?.closest('[data-row-actions]') || target?.closest('[data-row-actions-portal]') || target?.closest('[data-products-filters]')) return
       setRowMenuFor(null)
       setFiltersOpen(false)
     }
@@ -412,7 +431,7 @@ export default function DensePricingWorkspace({
         </form>
         <label className="fh-chip-select">
           <span className="sr-only">{translate('products:products.allStatuses')}</span>
-          <select value={stockFilter} onChange={event => { setStockFilter(event.target.value as typeof stockFilter); setPage(1) }}>
+          <select value={stockFilter} onChange={event => { flushPendingEdit(); setStockFilter(event.target.value as typeof stockFilter); setPage(1) }}>
             <option value="">{translate('products:products.allStatuses')}</option>
             <option value="in_stock">{translate('products:products.inStock')}</option>
             <option value="out_of_stock">{translate('products:products.outOfStock')}</option>
@@ -421,7 +440,7 @@ export default function DensePricingWorkspace({
         </label>
         <label className="fh-chip-select">
           <span className="sr-only">{translate('products:products.allChannels')}</span>
-          <select name="channelId" value={channelFilter} onChange={event => { setChannelFilter(event.target.value); setPage(1) }}>
+          <select name="channelId" value={channelFilter} onChange={event => { flushPendingEdit(); setChannelFilter(event.target.value); setPage(1) }}>
             <option value="">{translate('products:products.allChannels')}</option>
             <ResourceOptionGroups resources={channelResources} isOptionDisabled={channel => channel.section !== 'active'} />
           </select>
@@ -429,7 +448,7 @@ export default function DensePricingWorkspace({
         </label>
         <label className="fh-chip-select">
           <span className="sr-only">{translate('products:products.savedViews')}</span>
-          <select value={view} onChange={event => { setView(event.target.value as View); setPage(1) }} data-products-view>
+          <select value={view} onChange={event => { flushPendingEdit(); setView(event.target.value as View); setPage(1) }} data-products-view>
             <option value="all" disabled hidden>{translate('products:products.savedViews')}</option>
             {VIEWS.map(value => <option key={value} value={value}>{translate(`workspace:densePricing.view.${value}`)}</option>)}
           </select>
@@ -447,14 +466,14 @@ export default function DensePricingWorkspace({
           {filtersOpen && <div className="fh-dropdown fh-products-filters-panel">
             <label className="fh-field">
               <span className="fh-label">{translate('products:column.categories')}</span>
-              <select className="fh-select" name="categoryId" value={categoryFilter} onChange={event => { setCategoryFilter(event.target.value); setPage(1) }}>
+              <select className="fh-select" name="categoryId" value={categoryFilter} onChange={event => { flushPendingEdit(); setCategoryFilter(event.target.value); setPage(1) }}>
                 <option value="">{translate('products:products.allCategories')}</option>
                 {categoryOptions.map(category => <option key={category.value} value={category.value}>{category.label}</option>)}
               </select>
             </label>
             <label className="fh-field">
               <span className="fh-label">{translate('products:column.type')}</span>
-              <select className="fh-select" name="productType" value={productTypeFilter} onChange={event => { setProductTypeFilter(event.target.value as typeof productTypeFilter); setPage(1) }}>
+              <select className="fh-select" name="productType" value={productTypeFilter} onChange={event => { flushPendingEdit(); setProductTypeFilter(event.target.value as typeof productTypeFilter); setPage(1) }}>
                 <option value="">{translate('products:products.allTypes')}</option>
                 {(['simple', 'variation', 'variable'] as const).map(type => <option key={type} value={type}>{translate(`products:productType.${type}`)}</option>)}
               </select>
@@ -549,6 +568,90 @@ interface ProductGroupProps {
   displayProfile: PricingDisplayProfile | null
 }
 
+const ROW_ACTIONS_MENU_MARGIN = 4
+const ROW_ACTIONS_MENU_VIEWPORT_PADDING = 8
+
+// The trigger lives inside .fh-products-card, which clips overflow-y for the
+// table's own scroll region. An absolutely-positioned menu there gets hard-
+// clipped for any row near the bottom (or the right edge, once the table's
+// horizontal scroll kicks in on narrow viewports). Portaling to document.body
+// with position: fixed escapes that ancestor entirely -- it reuses the same
+// .fh-dropdown class (and its --fh-z-dropdown token) for styling, it just no
+// longer inherits page-flow positioning from it.
+function RowActionsMenu({
+  listingId,
+  open,
+  onToggle,
+  ariaLabel,
+  children,
+}: {
+  listingId: string
+  open: boolean
+  onToggle: () => void
+  ariaLabel: string
+  children: ReactNode
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [style, setStyle] = useState<{ top: number; left: number; visible: boolean }>({ top: 0, left: 0, visible: false })
+
+  useLayoutEffect(() => {
+    if (!open) { setStyle(current => current.visible ? { ...current, visible: false } : current); return }
+    const reposition = () => {
+      const trigger = triggerRef.current
+      const menu = menuRef.current
+      if (!trigger || !menu) return
+      const triggerRect = trigger.getBoundingClientRect()
+      const menuRect = menu.getBoundingClientRect()
+      const rtl = document.documentElement.dir === 'rtl'
+      const spaceBelow = window.innerHeight - triggerRect.bottom
+      const openUpward = spaceBelow < menuRect.height + ROW_ACTIONS_MENU_MARGIN && triggerRect.top > menuRect.height + ROW_ACTIONS_MENU_MARGIN
+      const rawLeft = rtl ? triggerRect.right - menuRect.width : triggerRect.left
+      const maxLeft = window.innerWidth - menuRect.width - ROW_ACTIONS_MENU_VIEWPORT_PADDING
+      const left = Math.min(Math.max(rawLeft, ROW_ACTIONS_MENU_VIEWPORT_PADDING), Math.max(maxLeft, ROW_ACTIONS_MENU_VIEWPORT_PADDING))
+      const top = openUpward ? triggerRect.top - menuRect.height - ROW_ACTIONS_MENU_MARGIN : triggerRect.bottom + ROW_ACTIONS_MENU_MARGIN
+      setStyle({ top, left, visible: true })
+    }
+    reposition()
+    window.addEventListener('resize', reposition)
+    window.addEventListener('scroll', reposition, true)
+    return () => {
+      window.removeEventListener('resize', reposition)
+      window.removeEventListener('scroll', reposition, true)
+    }
+  }, [open])
+
+  return (
+    <div className="fh-row-actions" data-row-actions>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="fh-row-actions-trigger"
+        data-row-menu-trigger
+        data-listing-id={listingId}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={onToggle}
+      >
+        <Icon name="more" size="sm" />
+      </button>
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className="fh-dropdown fh-row-actions-menu"
+          role="menu"
+          data-row-actions-portal
+          style={{ position: 'fixed', top: style.top, left: style.left, insetInlineEnd: 'auto', visibility: style.visible ? 'visible' : 'hidden' }}
+        >
+          {children}
+        </div>,
+        document.body,
+      )}
+    </div>
+  )
+}
+
 const ProductGroup = memo(function ProductGroup({
   product,
   channelById,
@@ -630,31 +733,22 @@ const ProductGroup = memo(function ProductGroup({
             </td>
             <td className="fh-products-sync-cell">{formatStatus(listing.cacheFreshness)}</td>
             <td className="fh-products-actions-cell">
-              <div className="fh-row-actions" data-row-actions>
-                <button
-                  type="button"
-                  className="fh-row-actions-trigger"
-                  data-row-menu-trigger
-                  data-listing-id={listing.listingId}
-                  aria-haspopup="menu"
-                  aria-expanded={rowMenuFor === listing.listingId}
-                  aria-label={translate('products:products.rowActions', {
-                    product: product.name,
-                    channel: channelName,
-                  })}
-                  onClick={() => onToggleRowMenu(rowMenuFor === listing.listingId ? null : listing.listingId)}
-                >
-                  <Icon name="more" size="sm" />
+              <RowActionsMenu
+                listingId={listing.listingId}
+                open={rowMenuFor === listing.listingId}
+                onToggle={() => onToggleRowMenu(rowMenuFor === listing.listingId ? null : listing.listingId)}
+                ariaLabel={translate('products:products.rowActions', {
+                  product: product.name,
+                  channel: channelName,
+                })}
+              >
+                <button type="button" role="menuitem" className="fh-dropdown-item" data-row-menu-action="reset" disabled={!hasChanges} onClick={() => { onResetListing(listing, product); onToggleRowMenu(null) }}>
+                  {translate('products:products.resetRowChanges')}
                 </button>
-                {rowMenuFor === listing.listingId && <div className="fh-dropdown fh-row-actions-menu" role="menu">
-                  <button type="button" role="menuitem" className="fh-dropdown-item" data-row-menu-action="reset" disabled={!hasChanges} onClick={() => { onResetListing(listing, product); onToggleRowMenu(null) }}>
-                    {translate('products:products.resetRowChanges')}
-                  </button>
-                  <button type="button" role="menuitem" className="fh-dropdown-item" data-row-menu-action="toggle-selection" disabled={!hasChanges} onClick={() => { onSetListingSelected(listing, product, !allSelected); onToggleRowMenu(null) }}>
-                    {allSelected ? translate('products:products.excludeFromSave') : translate('products:products.includeInSave')}
-                  </button>
-                </div>}
-              </div>
+                <button type="button" role="menuitem" className="fh-dropdown-item" data-row-menu-action="toggle-selection" disabled={!hasChanges} onClick={() => { onSetListingSelected(listing, product, !allSelected); onToggleRowMenu(null) }}>
+                  {allSelected ? translate('products:products.excludeFromSave') : translate('products:products.includeInSave')}
+                </button>
+              </RowActionsMenu>
             </td>
           </tr>
         )

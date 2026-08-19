@@ -12,6 +12,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+os.environ.setdefault("FLOWHUB_DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("FLOWHUB_JWT_SECRET", "unified-workspace-test-secret-32-bytes-long")
 
 from app.flowhub.auth import models as _auth_models  # noqa: F401
@@ -20,6 +21,7 @@ from app.flowhub.integration_platform import models as _integration_models  # no
 from app.flowhub.pricing_matrix import models as _pricing_matrix_models  # noqa: F401
 from app.flowhub.product_pricing import models as _pricing_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.source_acquisition import models as _source_acquisition_models  # noqa: F401
 from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
 from app.flowhub.unified_workspace import models as _workspace_models  # noqa: F401
 from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
@@ -406,6 +408,62 @@ def test_draft_optimistic_concurrency_and_no_external_write(client, auth_headers
     )
     assert conflict.status_code == 409
     assert conflict.json()["detail"]["code"] == "DRAFT_VERSION_CONFLICT"
+
+
+def test_draft_save_race_that_slips_past_the_version_check_still_reports_a_clean_conflict(
+    client, auth_headers, db
+):
+    """Two sessions can both read draft.version before either commits under
+    ordinary READ COMMITTED concurrency, so both pass the application-level
+    `draft.version != expected_version` check above and both attempt to
+    insert revision_number = expected_version + 1. uq_uw_draft_revision_number
+    is the real backstop for that race -- this reproduces the loser's state
+    deterministically (a competing revision already occupies that slot while
+    draft.version itself has not advanced yet, exactly what a genuine
+    concurrent winner leaves behind) and asserts the loser still gets the
+    same DRAFT_VERSION_CONFLICT response, not a raw unhandled IntegrityError."""
+    from app.flowhub.unified_workspace.models import Draft, DraftRevision
+    from app.flowhub.unified_workspace.services import _id
+
+    _seed(db)
+    workspace = _create(client, auth_headers)
+    row = client.get(
+        f"/api/v2/unified-workspaces/{workspace['id']}/grid", headers=auth_headers
+    ).json()["items"][0]
+    draft = db.query(Draft).filter_by(workspace_id=workspace["id"]).one()
+    db.add(DraftRevision(
+        id=_id(),
+        draft_id=draft.id,
+        workspace_id=workspace["id"],
+        snapshot_id=draft.snapshot_id,
+        revision_number=draft.version + 1,
+        parent_revision_id=None,
+        restored_from_revision_id=None,
+        creator_user_id=draft.owner_user_id,
+        checksum="phantom-concurrent-winner",
+        metadata_json={},
+    ))
+    db.commit()
+
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/draft/revisions",
+        headers=auth_headers,
+        json={
+            "expected_version": 0,
+            "metadata": {},
+            "changes": [{
+                "canonical_product_id": row["canonicalProductId"],
+                "listing_id": row["listingId"],
+                "channel_id": row["channelId"],
+                "field": "price",
+                "target_value": "120",
+                "currency": "EUR",
+                "unit": "EUR",
+            }],
+        },
+    )
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["code"] == "DRAFT_VERSION_CONFLICT"
 
 
 def test_variable_parent_is_read_only(client, auth_headers, db):

@@ -1482,46 +1482,62 @@ class UnifiedWorkspaceService:
             metadata_json=dict(metadata),
         )
         self.db.add(revision)
-        # Request sessions use autoflush=False and Draft stores only the scalar
-        # current_revision_id. Persist the new revision before advancing that
-        # pointer so PostgreSQL never observes a Draft that references a
-        # revision row which has not been inserted yet.
-        self.db.flush()
-        for change in changes:
-            payload = change.as_dict()
-            self.db.add(
-                DraftRevisionChange(
-                    id=_id(),
-                    revision_id=revision.id,
-                    canonical_product_id=change.canonical_product_id,
-                    listing_id=change.listing_id,
-                    channel_id=change.channel_id,
-                    field=change.field,
-                    target_value=canonical_text(change.target_value),
-                    currency=change.currency,
-                    unit=change.unit,
-                    change_checksum=checksum(payload),
+        try:
+            # Request sessions use autoflush=False and Draft stores only the scalar
+            # current_revision_id. Persist the new revision before advancing that
+            # pointer so PostgreSQL never observes a Draft that references a
+            # revision row which has not been inserted yet.
+            self.db.flush()
+            for change in changes:
+                payload = change.as_dict()
+                self.db.add(
+                    DraftRevisionChange(
+                        id=_id(),
+                        revision_id=revision.id,
+                        canonical_product_id=change.canonical_product_id,
+                        listing_id=change.listing_id,
+                        channel_id=change.channel_id,
+                        field=change.field,
+                        target_value=canonical_text(change.target_value),
+                        currency=change.currency,
+                        unit=change.unit,
+                        change_checksum=checksum(payload),
+                    )
                 )
+            self.db.flush()
+            draft.current_revision_id = revision.id
+            draft.version += 1
+            draft.updated_at = utcnow()
+            self._audit(
+                "draft_revision_saved",
+                user,
+                correlation_id,
+                workspace_id=workspace.id,
+                snapshot_id=snapshot.id,
+                draft_id=draft.id,
+                draft_revision_id=revision.id,
+                metadata={
+                    "revision_number": revision.revision_number,
+                    "checksum": revision.checksum,
+                    "change_count": len(changes),
+                },
             )
-        self.db.flush()
-        draft.current_revision_id = revision.id
-        draft.version += 1
-        draft.updated_at = utcnow()
-        self._audit(
-            "draft_revision_saved",
-            user,
-            correlation_id,
-            workspace_id=workspace.id,
-            snapshot_id=snapshot.id,
-            draft_id=draft.id,
-            draft_revision_id=revision.id,
-            metadata={
-                "revision_number": revision.revision_number,
-                "checksum": revision.checksum,
-                "change_count": len(changes),
-            },
-        )
-        self.db.commit()
+            self.db.commit()
+        except IntegrityError:
+            # Two sessions can both read draft.version before either commits
+            # (ordinary READ COMMITTED behavior), both pass the version check
+            # above, and both build a revision_number = expected_version + 1.
+            # uq_uw_draft_revision_number is the actual backstop in that race;
+            # without this handler the loser's genuine version conflict would
+            # surface as a raw, unhandled IntegrityError instead of the same
+            # DRAFT_VERSION_CONFLICT the application-level check above raises.
+            self.db.rollback()
+            current_version = self.drafts.for_workspace(workspace.id).version
+            raise self._conflict(
+                "DRAFT_VERSION_CONFLICT",
+                "Draft was saved from an obsolete version.",
+                {"expected": expected_version, "actual": current_version},
+            ) from None
         return {**self._revision_shape(revision), "noOp": False, "draftVersion": draft.version}
 
     def revisions(

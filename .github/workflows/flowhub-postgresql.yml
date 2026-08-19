@@ -326,6 +326,22 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL Unified Workspace Draft CAS concurrency tests
+        id: postgres-unified-workspace-draft-cas-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-uw-draft-cas-junit.xml \
+            tests/flowhub/api/v2/test_unified_workspace_postgres.py 2>&1 | tee postgres-uw-draft-cas-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-uw-draft-cas-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-uw-draft-cas-junit.xml unified-workspace-draft-cas | tee postgres-uw-draft-cas-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-uw-draft-cas-junit.xml' | tee postgres-uw-draft-cas-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL TapsiShop webhook concurrency tests
         id: postgres-tapsishop-webhook-tests
         run: |
@@ -413,6 +429,9 @@ jobs:
             postgres-full-light-fencing-junit.xml
             postgres-full-light-fencing-output.log
             postgres-full-light-fencing-manifest.log
+            postgres-uw-draft-cas-junit.xml
+            postgres-uw-draft-cas-output.log
+            postgres-uw-draft-cas-manifest.log
             postgres-tapsi-webhooks-junit.xml
             postgres-tapsi-webhooks-output.log
             postgres-tapsi-webhooks-manifest.log
