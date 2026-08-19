@@ -7,6 +7,7 @@ executes external marketplace writes.
 
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from collections.abc import Callable
@@ -236,6 +237,8 @@ _SOURCES = [
     },
 ]
 
+logger = logging.getLogger(__name__)
+
 
 class CommerceHubService:
     def __init__(self, db: Session) -> None:
@@ -426,33 +429,6 @@ class CommerceHubService:
                 before_cache_write=before_cache_write,
                 job_type=job_type,
             )
-            warnings = list(adapter.warnings)
-            result_status = "completed_with_warnings" if warnings else "completed"
-            completed = datetime.now(timezone.utc).replace(tzinfo=None)
-            # Finalize the job that actually ran, by id. Selecting "the newest
-            # products job" instead let a concurrent evaluator tick's own
-            # (cancelled) job absorb this run's terminal status, which made
-            # refresh history and Diagnostics freshness non-deterministic.
-            self._mark_latest_refresh_status(
-                channel_id, result_status, completed, job_id=progress.job_id
-            )
-            result = self._cache_refresh_result(
-                adapter,
-                ok=True,
-                status_value=result_status,
-                cache_rows_upserted=progress.products_stored,
-                warnings=warnings,
-                errors=[],
-                started=started,
-                completed=completed,
-            )
-            self.integration.record_event(
-                connector_id=channel_id,
-                event_name="product_cache_refresh_completed",
-                message=f"{trigger_label} WooCommerce product cache refresh completed.",
-                metadata={**result, "actor": actor, "job_type": job_type, "external_write": False},
-            )
-            return result
 
         except RefreshJobAlreadyRunning as exc:
             # Not a failure, and emphatically not an upstream failure: another
@@ -536,6 +512,73 @@ class CommerceHubService:
                     "upstream_attributable": result.upstream_attributable,
                 },
             )
+            return result
+
+        else:
+            # `run_manual()` returned without raising: the product cache rows
+            # and `DlRefreshJob.status = "completed"` are already durably
+            # committed (`RefreshJobLifecycle.finish()`). Everything from here
+            # is bookkeeping layered on top of a real, already-true success --
+            # upgrading the status when there were warnings, and recording the
+            # completion event. A bug in that bookkeeping must never be
+            # reported to the Owner as though the refresh itself had failed,
+            # and must never regress the job's terminal status back to
+            # "failed" over data that is, in truth, correctly cached.
+            warnings = list(adapter.warnings)
+            result_status = "completed_with_warnings" if warnings else "completed"
+            completed = datetime.now(timezone.utc).replace(tzinfo=None)
+            result = self._cache_refresh_result(
+                adapter,
+                ok=True,
+                status_value=result_status,
+                cache_rows_upserted=progress.products_stored,
+                warnings=warnings,
+                errors=[],
+                started=started,
+                completed=completed,
+            )
+            try:
+                # Finalize the job that actually ran, by id. Selecting "the
+                # newest products job" instead let a concurrent evaluator
+                # tick's own (cancelled) job absorb this run's terminal
+                # status, which made refresh history and Diagnostics
+                # freshness non-deterministic.
+                self._mark_latest_refresh_status(
+                    channel_id, result_status, completed, job_id=progress.job_id
+                )
+                self.integration.record_event(
+                    connector_id=channel_id,
+                    event_name="product_cache_refresh_completed",
+                    message=f"{trigger_label} WooCommerce product cache refresh completed.",
+                    metadata={**result, "actor": actor, "job_type": job_type, "external_write": False},
+                )
+            except Exception:
+                logger.error(
+                    "product_cache_refresh_bookkeeping_failed",
+                    exc_info=True,
+                    extra={"channel_id": channel_id, "job_type": job_type, "job_id": progress.job_id},
+                )
+                # A failed commit leaves the session unable to accept further
+                # writes until it is rolled back -- the event below must not
+                # itself fail purely because of that leftover state.
+                self.db.rollback()
+                try:
+                    self.integration.record_event(
+                        connector_id=channel_id,
+                        event_name="product_cache_refresh_bookkeeping_failed",
+                        message=(
+                            f"{trigger_label} WooCommerce product cache refresh completed, "
+                            "but recording the result encountered an internal error."
+                        ),
+                        severity="warning",
+                        metadata={"actor": actor, "job_type": job_type, "external_write": False},
+                    )
+                except Exception:
+                    logger.error(
+                        "product_cache_refresh_bookkeeping_failure_event_also_failed",
+                        exc_info=True,
+                        extra={"channel_id": channel_id, "job_type": job_type},
+                    )
             return result
 
     async def _refresh_snappshop_channel_cache(self, channel_id: str, actor: str, *, job_type: str = "manual") -> dict:

@@ -1143,6 +1143,9 @@ describe('CommerceHub', () => {
     expect(c.textContent).toContain('The latest product information has been loaded.')
     expect(c.textContent).toContain('Cached products: 7')
     expect(c.textContent).toContain('Cached variations: 3')
+    // A successful refresh must never also surface the failure toast, even
+    // transiently -- the two are mutually exclusive branches on `result.ok`.
+    expect(c.textContent).not.toContain('Unable to refresh the product cache')
   })
 
   it('renders a safe cache refresh failure reason', async () => {
