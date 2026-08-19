@@ -38,6 +38,13 @@ from sqlalchemy import (
 
 from app.flowhub.database import FlowHubBase
 
+# DlChannelEntityWorkReceipt below has a ForeignKey into webhook_receipts.
+# SQLAlchemy resolves string FK targets against whatever tables happen to be
+# registered on FlowHubBase.metadata at DDL-compile time, which depends on
+# import order elsewhere -- so this module must import webhooks.models
+# itself rather than relying on some other caller having done so first.
+from app.flowhub.webhooks import models as _webhook_models  # noqa: E402, F401
+
 
 class DlConnectorHealth(FlowHubBase):
     """Per-connector health check result. One row per connector_id."""
