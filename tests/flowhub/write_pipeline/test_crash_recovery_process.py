@@ -179,6 +179,8 @@ def postgres_recovery_db():
     import app.flowhub.product_pricing.models  # noqa: F401
     import app.flowhub.setup.models  # noqa: F401
     import app.flowhub.unified_workspace.models  # noqa: F401
+    import app.flowhub.source_workspace.models  # noqa: F401
+    import app.flowhub.source_acquisition.models  # noqa: F401
     import app.flowhub.write_pipeline.models  # noqa: F401
     assert "bo_business_events" in FlowHubBase.metadata.tables
     FlowHubBase.metadata.create_all(engine)
