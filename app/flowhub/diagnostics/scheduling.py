@@ -6,6 +6,7 @@ evaluator from its established loop.  Diagnostics HTTP reads never call it.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -30,6 +31,20 @@ from app.flowhub.security.upstream_errors import (
 )
 from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.webhooks.service import WebhookIngestionService
+
+
+def _channel_read_targeted_light_enabled() -> bool:
+    """When on, ChannelEntityWorkRunner (entity_work_runner.py) owns
+    webhook-driven observation entirely, and a pending receipt must no
+    longer make this evaluator's full-channel refresh due -- that coupling
+    (channel-wide DlRefreshJob lease shared with webhook-driven work) is
+    the root cause ADR_CHANNEL_READ_ARCHITECTURE.md fixes. Off preserves
+    today's exact behavior unchanged; this is the rollback path, a config
+    flip rather than a revert-and-redeploy."""
+    value = os.environ.get("FLOWHUB_CHANNEL_READ_TARGETED_LIGHT_ENABLED")
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 class ScheduledDiagnosticsEvaluator:
@@ -92,17 +107,24 @@ class ScheduledDiagnosticsEvaluator:
                 and self._supports_products(instance)
                 and self._product_due(instance.id, product_policy.interval_seconds, now)
             )
-            # WooCommerce product webhooks are event-driven evidence, kept
-            # independent of the scheduled/manual polling policy above (the
-            # safety-net axis). A queued webhook receipt makes a refresh due
-            # right now regardless of the polling interval; the refresh
-            # itself still goes through the exact same
-            # CommerceHubService.refresh_channel_cache -> read adapter path
-            # the scheduled poll uses, so there is no parallel identity
-            # mapping. Receipts are only marked processed after that refresh
-            # actually completes.
+            # WooCommerce product webhooks were originally event-driven
+            # evidence handled right here: a queued receipt made a full
+            # channel refresh due immediately, sharing the same
+            # DlRefreshJob lease a full catalog scan uses. That coupling is
+            # exactly what let a long full-catalog job block webhook-driven
+            # observation (the 2026-08-18 dead-letter incident) -- see
+            # ADR_CHANNEL_READ_ARCHITECTURE.md. When the flag is enabled,
+            # ChannelEntityWorkRunner (entity_work_runner.py) owns this
+            # entirely through the independent per-entity lease, and a
+            # pending receipt must no longer influence this evaluator's
+            # full-refresh due-check. When the flag is off, behavior here
+            # is exactly what it always was -- unchanged.
             pending_woocommerce_receipt_ids: list[int] = []
-            if instance.connector_type == "woocommerce" and self._supports_products(instance):
+            if (
+                instance.connector_type == "woocommerce"
+                and self._supports_products(instance)
+                and not _channel_read_targeted_light_enabled()
+            ):
                 with self.session_factory() as db:
                     pending_woocommerce_receipt_ids = WebhookIngestionService(db).pending_woocommerce_receipt_ids(
                         instance.id

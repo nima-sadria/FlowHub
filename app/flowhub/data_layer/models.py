@@ -21,15 +21,19 @@ etc.) can populate the same tables without schema changes.
 from __future__ import annotations
 
 from sqlalchemy import (
+    JSON,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
+    ForeignKey,
+    Index,
     Integer,
-    JSON,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 
 from app.flowhub.database import FlowHubBase
@@ -300,3 +304,76 @@ class DlInvalidationEvent(FlowHubBase):
     connector_id = Column(String(255), nullable=True, index=True)
     reason = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, index=True)
+
+
+class DlChannelEntityWork(FlowHubBase):
+    """Per-entity Channel Read work queue -- LIGHT/PRODUCT targeted reads.
+
+    Independent lease scope from DlRefreshJob: DlRefreshJob stays
+    (connector_id, entity_type)-scoped for FULL/DEEP channel-wide work;
+    this table is (connector_id, entity_type, entity_id)-scoped, claimed by
+    workers via SELECT ... FOR UPDATE SKIP LOCKED. See entity_work.py and
+    ADR_CHANNEL_READ_ARCHITECTURE.md.
+    """
+
+    __tablename__ = "dl_channel_entity_work"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending','running','completed','failed','cancelled')",
+            name="ck_dl_channel_entity_work_status",
+        ),
+        CheckConstraint("strategy IN ('LIGHT','FULL','DEEP')", name="ck_dl_channel_entity_work_strategy"),
+        Index("ix_dl_channel_entity_work_claim", "status", "next_attempt_at", "latest_event_at"),
+        Index("ix_dl_channel_entity_work_connector_entity", "connector_id", "entity_type", "entity_id"),
+        # Exactly one active (pending|running) row per entity -- the
+        # coalescing target. Historical completed/failed rows are unlimited:
+        # they are evidence for Observation Confidence, not leases.
+        Index(
+            "uq_dl_channel_entity_work_active",
+            "connector_id",
+            "entity_type",
+            "entity_id",
+            unique=True,
+            sqlite_where=text("status IN ('pending', 'running')"),
+            postgresql_where=text("status IN ('pending', 'running')"),
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    connector_id = Column(String(255), nullable=False)
+    entity_type = Column(String(50), nullable=False, default="products")
+    entity_id = Column(String(255), nullable=False)
+    parent_entity_id = Column(String(255), nullable=True)
+    status = Column(String(20), nullable=False, default="pending")
+    strategy = Column(String(20), nullable=False, default="LIGHT")
+    reason = Column(String(50), nullable=False)
+    latest_reason = Column(String(50), nullable=False)
+    worker_id = Column(String(160), nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True)
+    heartbeat_at = Column(DateTime, nullable=True)
+    latest_event_at = Column(DateTime, nullable=False)
+    latest_provider_event_id = Column(String(160), nullable=True)
+    superseded_at = Column(DateTime, nullable=True)
+    next_attempt_at = Column(DateTime, nullable=True)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    max_attempts = Column(Integer, nullable=False, default=5)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    failed_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+    error_category = Column(String(80), nullable=True)
+    meta = Column(JSON, nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+
+class DlChannelEntityWorkReceipt(FlowHubBase):
+    """Links a webhook receipt to the DlChannelEntityWork execution that
+    covers it. Many receipts can map to one work item (coalescing); every
+    linked receipt transitions atomically when that work item completes."""
+
+    __tablename__ = "dl_channel_entity_work_receipts"
+
+    work_id = Column(Integer, ForeignKey("dl_channel_entity_work.id", ondelete="CASCADE"), primary_key=True)
+    receipt_id = Column(Integer, ForeignKey("webhook_receipts.id", ondelete="CASCADE"), primary_key=True, index=True)
+    linked_at = Column(DateTime, nullable=False)

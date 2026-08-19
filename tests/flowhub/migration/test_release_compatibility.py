@@ -61,6 +61,7 @@ def test_legacy_revision_and_core_tables_upgrade_without_data_loss(tmp_path, mon
                     "dl_source_discovery_",
                     "dl_worksheet_discovery_",
                     "dl_source_identity_",
+                    "dl_channel_entity_work",
                 )
             )
     ]

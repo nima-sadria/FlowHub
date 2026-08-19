@@ -124,13 +124,13 @@ class WooCommerceProductReadAdapter:
                 if exc.code is ConnectorErrorCode.NOT_FOUND:
                     return ReadPage(items=[{"product_id": entity_id, "exists": False}], next_cursor=None)
                 raise
-            parent_stub: dict[str, Any] = {
+            parent_reference: dict[str, Any] = {
                 "product_id": parent_id,
                 "name": None,
                 "categories": [],
                 "date_modified_gmt": None,
             }
-            variation = _normalize_variation(raw, parent_stub)
+            variation = _normalize_variation(raw, parent_reference)
             latency_ms = (time.monotonic() - started) * 1000
             if variation is None:
                 return ReadPage(items=[], next_cursor=None, latency_ms=latency_ms)

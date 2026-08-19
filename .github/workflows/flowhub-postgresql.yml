@@ -294,6 +294,22 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL Channel Read entity-work concurrency tests
+        id: postgres-channel-entity-work-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-channel-entity-work-junit.xml \
+            tests/flowhub/read_engine/test_channel_entity_work_postgres.py 2>&1 | tee postgres-channel-entity-work-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-channel-entity-work-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-channel-entity-work-junit.xml channel-entity-work | tee postgres-channel-entity-work-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-channel-entity-work-junit.xml' | tee postgres-channel-entity-work-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL TapsiShop webhook concurrency tests
         id: postgres-tapsishop-webhook-tests
         run: |
@@ -375,6 +391,9 @@ jobs:
             postgres-wc-webhooks-junit.xml
             postgres-wc-webhooks-output.log
             postgres-wc-webhooks-manifest.log
+            postgres-channel-entity-work-junit.xml
+            postgres-channel-entity-work-output.log
+            postgres-channel-entity-work-manifest.log
             postgres-tapsi-webhooks-junit.xml
             postgres-tapsi-webhooks-output.log
             postgres-tapsi-webhooks-manifest.log
