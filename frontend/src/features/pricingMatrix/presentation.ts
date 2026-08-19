@@ -83,6 +83,19 @@ export function channelStatusPresentation(status: ChannelStatus): DomainPresenta
     : { variant: 'neutral', labelKey: 'pricing:channelStatus.inactive', icon: 'info' }
 }
 
+export function channelPolicyStatePresentation(head: ChannelPolicyHead): DomainPresentation {
+  if (!head.policyRevisionId && !head.channelConfigRevisionId && !head.effectiveActivationId) {
+    return { variant: 'warning', labelKey: 'pricing:channels.head.policyState.noActive', icon: 'warning' }
+  }
+  if (head.status === 'inactive') {
+    return { variant: 'neutral', labelKey: 'pricing:channels.head.policyState.configured', icon: 'info' }
+  }
+  if (!head.policyRevisionId || !head.effectiveActivationId) {
+    return { variant: 'warning', labelKey: 'pricing:channels.head.policyState.staleOrInvalid', icon: 'warning' }
+  }
+  return { variant: 'success', labelKey: 'pricing:channels.head.policyState.active', icon: 'success' }
+}
+
 export function unitStatusPresentation(status: UnitStatus): DomainPresentation {
   return status === 'resolved'
     ? { variant: 'success', labelKey: 'pricing:unitStatus.resolved', icon: 'success' }
@@ -155,7 +168,7 @@ export function validatePolicySummary(value: unknown): PolicySummary {
     policyId: requireString(value.policyId, 'policy.policyId'),
     revisionNumber: optionalNumber(value.revisionNumber),
     name: requireString(value.name, 'policy.name'),
-    computationCurrency: requireString(value.computationCurrency, 'policy.computationCurrency'),
+    computationCurrency: requireString(value.computationCurrency, 'computationCurrency'),
     basisStrategy: optionalString(value.basisStrategy),
     roundOrder: value.roundOrder,
     maxQuoteAgeDays: optionalNumber(value.maxQuoteAgeDays),
@@ -197,7 +210,7 @@ export function validateChannelHead(value: unknown): ChannelPolicyHead {
   if (!isRecord(value)) return mismatch('head_not_object')
   if (!isChannelStatus(value.status)) return mismatch(`head.status:${String(value.status)}`)
   return {
-    channelId: requireString(value.channelId, 'head.channelId'),
+    channelId: requireString(value.channelId, 'channelId'),
     headVersion: exactOr(value.headVersion),
     currentEventId: nullableString(value.currentEventId),
     effectiveActivationId: nullableString(value.effectiveActivationId),
@@ -213,7 +226,7 @@ export function validateLifecycleEvent(value: unknown): LifecycleEvent {
   if (!isLifecycleEventKind(value.eventKind)) return mismatch(`event.eventKind:${String(value.eventKind)}`)
   return {
     id: requireString(value.id, 'event.id'),
-    channelId: requireString(value.channelId, 'event.channelId'),
+    channelId: requireString(value.channelId, 'channelId'),
     eventKind: value.eventKind,
     predecessorEventId: nullableString(value.predecessorEventId),
     effectiveActivationId: nullableString(value.effectiveActivationId),
