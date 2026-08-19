@@ -24,6 +24,10 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Mapped, Mapper, mapped_column, relationship
 
 from app.flowhub.database import FlowHubBase
+# Workspace source bindings reference ``sc_sources``.  Register the source
+# model whenever this metadata module is imported so isolated PostgreSQL test
+# schemas (and other direct ORM consumers) always have a complete FK graph.
+from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
 from app.flowhub.unified_workspace.domain import ImmutableRecordError, utcnow
 
 
