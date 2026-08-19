@@ -22,6 +22,21 @@ def _require_admin(user: FlowHubUser) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin permission required.")
 
 
+# Registered before the plain "/manual/{connector_id:path}" route below: the
+# ":path" converter matches "/" too, so if the greedy single-segment route
+# were registered first it would swallow "/entity/{entity_id}" as part of
+# connector_id and this route would never be reached.
+@router.post("/manual/{connector_id:path}/entity/{entity_id}")
+async def run_manual_entity_read(
+    connector_id: str,
+    entity_id: str,
+    user: FlowHubUser = Depends(get_current_user),
+    service: ManualReadService = Depends(_service),
+) -> dict:
+    _require_admin(user)
+    return await service.run_entity(connector_id, entity_id, triggered_by=user.username)
+
+
 @router.post("/manual/{connector_id:path}")
 async def run_manual_read(
     connector_id: str,

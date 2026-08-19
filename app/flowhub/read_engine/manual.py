@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.connectors.read import NextcloudSpreadsheetReadAdapter, WooCommerceProductReadAdapter
+from app.flowhub.data_layer.models import DlProductCache
 from app.flowhub.read_engine.contracts import ReadConnectorAdapter
 from app.flowhub.read_engine.exceptions import IncrementalReadUnsupported
 from app.flowhub.read_engine.service import IncrementalReadEngine
@@ -34,6 +35,29 @@ class ManualReadService:
             "scheduler_started": False,
             "automatic_sync": False,
         }
+
+    async def run_entity(self, connector_id: str, entity_id: str, *, triggered_by: str) -> dict:
+        """Owner-triggered single-product refresh (ReadReason.OWNER_REQUESTED)."""
+        adapter = self.adapter_for(connector_id)
+        parent_id = self._cached_parent_id(connector_id, entity_id)
+        try:
+            progress = await IncrementalReadEngine(self.db).run_entity(
+                adapter, entity_id=entity_id, parent_id=parent_id
+            )
+        except IncrementalReadUnsupported as exc:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": exc.code, "message": str(exc)},
+            ) from exc
+        return {**asdict(progress), "manual_triggered": True, "entity_id": entity_id}
+
+    def _cached_parent_id(self, connector_id: str, entity_id: str) -> str | None:
+        row = (
+            self.db.query(DlProductCache)
+            .filter_by(connector_id=connector_id, product_id=entity_id)
+            .first()
+        )
+        return row.parent_id if row else None
 
     def adapter_for(self, connector_id: str) -> ReadConnectorAdapter:
         if connector_id == "woocommerce:primary":

@@ -4,9 +4,16 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
+from typing import Any
 
+from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
 from app.connectors.destinations.woocommerce.auth import WooCommerceCredentials
-from app.connectors.destinations.woocommerce.rest_client import list_products_paged, list_variations
+from app.connectors.destinations.woocommerce.rest_client import (
+    get_product,
+    get_variation,
+    list_products_paged,
+    list_variations,
+)
 from app.flowhub.product_media import normalize_product_media, primary_image_url
 from app.flowhub.read_engine.contracts import ConnectorReadCapabilities, ReadPage
 
@@ -21,6 +28,12 @@ class WooCommerceProductReadAdapter:
         supports_updated_after=True,
         supports_pagination=True,
         supports_batch_read=True,
+        supports_entity_read=True,
+        supports_full_snapshot=True,
+        supports_deep_recovery=True,
+        max_page_size=100,
+        recommended_concurrency=4,
+        rate_limit_characteristics="http_boundary_managed",
     )
 
     def __init__(self, *, url: str, key: str, secret: str, per_page: int = 100) -> None:
@@ -90,6 +103,55 @@ class WooCommerceProductReadAdapter:
             if item.get("id")
         ]
         return ReadPage(items=metadata, next_cursor=next_cursor, latency_ms=latency_ms, metadata_only=True)
+
+    async def fetch_entity(self, *, entity_id: str, parent_id: str | None = None) -> ReadPage:
+        """LIGHT/PRODUCT scope: one product or variation, never a catalog page.
+
+        A WooCommerce webhook payload only ever carries the parent product's
+        id (WooCommerce does not fire a separate webhook per variation and
+        does not say which variation changed), so the webhook-driven caller
+        always omits parent_id and gets the parent plus every variation --
+        functionally what a full read does for one product, scoped to just
+        that product. parent_id is a fast path for callers that already know
+        entity_id is a specific variation (e.g. an owner-requested refresh
+        against a cached row whose parent_id is already known).
+        """
+        started = time.monotonic()
+        if parent_id is not None:
+            try:
+                raw = await get_variation(self._creds, int(parent_id), int(entity_id))
+            except ConnectorError as exc:
+                if exc.code is ConnectorErrorCode.NOT_FOUND:
+                    return ReadPage(items=[{"product_id": entity_id, "exists": False}], next_cursor=None)
+                raise
+            parent_stub: dict[str, Any] = {
+                "product_id": parent_id,
+                "name": None,
+                "categories": [],
+                "date_modified_gmt": None,
+            }
+            variation = _normalize_variation(raw, parent_stub)
+            latency_ms = (time.monotonic() - started) * 1000
+            if variation is None:
+                return ReadPage(items=[], next_cursor=None, latency_ms=latency_ms)
+            self.variations_read += 1
+            return ReadPage(items=[variation], next_cursor=None, latency_ms=latency_ms)
+
+        try:
+            raw = await get_product(self._creds, int(entity_id))
+        except ConnectorError as exc:
+            if exc.code is ConnectorErrorCode.NOT_FOUND:
+                return ReadPage(items=[{"product_id": entity_id, "exists": False}], next_cursor=None)
+            raise
+        product = _normalize_product(raw)
+        if product is None:
+            return ReadPage(items=[], next_cursor=None, latency_ms=(time.monotonic() - started) * 1000)
+        items = [product]
+        self.products_read += 1
+        if product["product_type"] == "variable":
+            self.variable_products_read += 1
+            items.extend(await self._fetch_all_variations(product))
+        return ReadPage(items=items, next_cursor=None, latency_ms=(time.monotonic() - started) * 1000)
 
     async def _fetch_all_variations(self, parent: dict) -> list[dict]:
         parent_id = int(parent["product_id"])

@@ -93,6 +93,23 @@ class ProductReadModelService:
         self._db.refresh(row)
         return row
 
+    def mark_not_found(self, connector_id: str, product_id: str) -> None:
+        """Narrow update for a targeted read that found the entity gone
+        upstream (404). Mirrors FULL's unseen-sweep semantics: only
+        exists/freshness/last_fetched_at change. Previously observed values
+        (name, price, ...) are preserved for audit/display rather than
+        clobbered with nulls. A no-op if the row was never cached."""
+        from app.flowhub.unified_workspace.listing_guard import (
+            acquire_external_listing_guard,
+        )
+
+        acquire_external_listing_guard(self._db, connector_id, product_id)
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        self._db.query(DlProductCache).filter_by(
+            connector_id=connector_id, product_id=product_id
+        ).update({"exists": False, "freshness": "stale", "last_fetched_at": now}, synchronize_session=False)
+        self._db.commit()
+
     def mark_stale(self, connector_id: str | None = None) -> int:
         """Mark product cache entries as stale. Returns count updated."""
         q = self._db.query(DlProductCache)

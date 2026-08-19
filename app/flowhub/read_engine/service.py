@@ -26,7 +26,7 @@ from app.flowhub.security.redaction import redact_sensitive
 
 @dataclass(frozen=True)
 class ReadProgress:
-    job_id: int
+    job_id: int | None
     connector_id: str
     strategy: str
     status: str
@@ -176,6 +176,49 @@ class IncrementalReadEngine:
             products_stored=products_stored,
             remaining_queue=remaining_queue,
             estimated_completion_seconds=estimated,
+        )
+
+    async def run_entity(
+        self,
+        adapter: ReadConnectorAdapter,
+        *,
+        entity_id: str,
+        parent_id: str | None = None,
+    ) -> ReadProgress:
+        """LIGHT/PRODUCT scope: one entity, never a catalog page.
+
+        Deliberately creates no ``DlRefreshJob`` row and never touches
+        ``RefreshJobLifecycle`` -- lease ownership for this read belongs to
+        the caller's ``dl_channel_entity_work`` row, an independent scope
+        from the channel-wide FULL/DEEP lease this method must never
+        compete for (ADR_CHANNEL_READ_ARCHITECTURE.md).
+        """
+        if not adapter.capabilities.supports_entity_read:
+            raise IncrementalReadUnsupported(
+                "incremental_read_unsupported: connector cannot target a single entity"
+            )
+        limiter_result = await self._acquire_read_limit_if_needed(adapter)
+        page = await adapter.fetch_entity(entity_id=entity_id, parent_id=parent_id)
+        stored = 0
+        for item in page.items:
+            product_id = self._product_id(item)
+            if not product_id:
+                continue
+            if item.get("exists") is False:
+                self.products.mark_not_found(adapter.connector_id, product_id)
+            else:
+                self._store_product(adapter.connector_id, item)
+            stored += 1
+        return ReadProgress(
+            job_id=None,
+            connector_id=adapter.connector_id,
+            strategy="entity_read",
+            status="completed",
+            requests_completed=1,
+            requests_delayed=1 if (limiter_result is not None and limiter_result.delayed) else 0,
+            products_stored=stored,
+            remaining_queue=0,
+            estimated_completion_seconds=None,
         )
 
     async def _fetch_page(

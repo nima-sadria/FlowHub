@@ -23,6 +23,7 @@ class NextcloudSpreadsheetReadAdapter:
         supports_updated_after=False,
         supports_pagination=False,
         supports_batch_read=False,
+        supports_entity_read=False,
     )
 
     def __init__(self, *, url: str = "", username: str = "", password: str = "", spreadsheet_path: str = "") -> None:
@@ -47,4 +48,10 @@ class NextcloudSpreadsheetReadAdapter:
         _ = cursor
         raise IncrementalReadUnsupported(
             "incremental_read_unsupported: nextcloud spreadsheet metadata is file-level, not product-level"
+        )
+
+    async def fetch_entity(self, *, entity_id: str, parent_id: str | None = None) -> ReadPage:
+        _ = (entity_id, parent_id)
+        raise IncrementalReadUnsupported(
+            "incremental_read_unsupported: nextcloud spreadsheet cannot target a single entity"
         )
