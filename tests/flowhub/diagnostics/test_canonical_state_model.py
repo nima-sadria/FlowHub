@@ -31,7 +31,8 @@ from app.flowhub.orders import models as _order_models  # noqa: F401
 from app.flowhub.orders.models import OrderSyncCheckpoint
 from app.flowhub.source_acquisition import models as _acquisition_models  # noqa: F401
 from app.flowhub.source_workspace import models as _source_models  # noqa: F401
-from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.source_workspace.models import SourceMappingRevision, SourceProfile
+from app.flowhub.source_workspace.service import SourceWorkspaceService
 from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 from app.flowhub.webhooks import models as _webhook_models  # noqa: F401
 from app.flowhub.webhooks.models import WebhookDeadLetter, WebhookReceipt
@@ -104,6 +105,41 @@ def test_archived_source_is_historical_and_excluded_from_active_denominator(db):
     assert archived["displayName"] == "Nextcloud — Legacy"
     assert archived["readiness"]["state"] == "ARCHIVED"
     assert archived["denominatorEligible"] is False
+
+
+def test_healthy_source_connection_does_not_override_blocked_identity(db, monkeypatch):
+    now = _now()
+    _seed_source(db, "source-identity-blocked", "Nextcloud — Identity blocked", "nextcloud:identity-blocked", "active")
+    _seed_source_connector(db, "nextcloud:identity-blocked", enabled=True)
+    _seed_health(db, "nextcloud:identity-blocked", now)
+    db.add(
+        SourceMappingRevision(
+            id="mapping-identity-blocked",
+            source_id="source-identity-blocked",
+            version=1,
+            checksum="a" * 64,
+            worksheet_mode="selected",
+            worksheet_name="Prices",
+            data_start_row=2,
+            value_policy_json={},
+            identity_authority_json={"type": "internal_sku"},
+            identity_policy_version=2,
+            created_by_user_id=1,
+        )
+    )
+    db.commit()
+    monkeypatch.setattr(
+        SourceWorkspaceService,
+        "_mapping_identity_validation_shape",
+        lambda self, mapping: {"status": "blocked", "missingKeyCount": 1},
+    )
+
+    source = _resource(_project(db, now), "source-identity-blocked")
+
+    assert source["connectivity"]["state"] == "HEALTHY"
+    assert source["readiness"]["state"] == "BLOCKED"
+    assert source["reasonCode"] == "identity_validation_blocked"
+    assert source["overallState"] == "BLOCKED"
 
 
 def test_disabled_resource_is_not_counted_as_failed_operational_resource(db):
