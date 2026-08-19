@@ -30,6 +30,16 @@ function previewErrorContent(error: unknown): { title: string; description: stri
         : translate('workspace:workspace.tryAgainAfterAllowanceReset')
     return { title: translate('workspace:workspace.sourceReadLimitReached'), description: translate('workspace:workspace.sourceReadRecovery', { allowance, recovery }) }
   }
+  if (error instanceof ApiError) {
+    const blockedMessages: Record<string, string> = {
+      SOURCE_IDENTITY_VALIDATION_PENDING: 'workspace:workspace.sourceIdentityValidationPending',
+      SOURCE_IDENTITY_VALIDATION_BLOCKED: 'workspace:workspace.sourceIdentityValidationBlocked',
+      SOURCE_IDENTITY_AUTHORITY_REQUIRED: 'workspace:workspace.sourceIdentityAuthorityRequired',
+      SOURCE_IDENTITY_POLICY_UPGRADE_REQUIRED: 'workspace:workspace.sourceIdentityPolicyUpgradeRequired',
+    }
+    const messageKey = blockedMessages[error.code ?? '']
+    if (messageKey) return { title: translate('workspace:workspace.previewUnavailable'), description: translate(messageKey) }
+  }
   return { title: translate('workspace:workspace.unableToStartPreview'), description: workspaceErrorMessage(error, 'errors:codes.UNKNOWN') }
 }
 

@@ -35,6 +35,7 @@ from app.flowhub.orders.models import OrderSyncCheckpoint
 from app.flowhub.read_engine.observation_confidence import ObservationConfidence
 from app.flowhub.source_acquisition.models import AcquisitionRun
 from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.source_workspace.service import SourceWorkspaceService
 from app.flowhub.webhooks.models import WebhookDeadLetter, WebhookReceipt
 
 
@@ -1148,6 +1149,15 @@ class CanonicalDiagnosticsProjector:
             policy=connection_policy,
         )
         acquisition = self._source_acquisition(profile)
+        # A healthy provider is not sufficient for operational readiness.
+        # Reuse the Source-owned identity projection so all consumers observe
+        # the same persisted Mapping/evidence decision.
+        identity_validation: dict[str, Any] | None = None
+        if not archived and not disabled:
+            source_service = SourceWorkspaceService(self.db)
+            mapping = source_service.sources.latest_mapping(profile.id)
+            if mapping is not None:
+                identity_validation = source_service._mapping_identity_validation_shape(mapping)
         if archived:
             readiness = ReadinessState.ARCHIVED
             reason = "source_archived"
@@ -1166,6 +1176,9 @@ class CanonicalDiagnosticsProjector:
         }:
             readiness = ReadinessState.NEEDS_ATTENTION
             reason = "source_connection_needs_attention"
+        elif identity_validation is not None and identity_validation["status"] != "pass":
+            readiness = ReadinessState.BLOCKED
+            reason = f"identity_validation_{identity_validation['status']}"
         else:
             readiness = ReadinessState.READY
             reason = "source_ready"
@@ -1202,6 +1215,7 @@ class CanonicalDiagnosticsProjector:
             "denominatorEligible": enabled,
             "connectivity": connectivity,
             "readiness": {"state": readiness.value, "reasonCode": reason},
+            "identityValidation": identity_validation,
             "freshness": {
                 "state": self._resource_freshness(capabilities.values()).value
             },

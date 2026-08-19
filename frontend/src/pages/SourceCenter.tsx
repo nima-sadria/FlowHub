@@ -569,7 +569,7 @@ export default function SourceCenter() {
         </div>
         <div className="fh-kpi-card">
           <div className="fh-kpi-card-head">
-            <span className="fh-kpi-card-label">{translate('sources:sourceCenter.productsImported')}</span>
+            <span className="fh-kpi-card-label">{translate('sources:sourceCenter.productsInCatalog')}</span>
             <span className="fh-kpi-card-icon"><Icon name="products" size="sm" /></span>
           </div>
           <div className="fh-kpi-card-value">{totalProducts !== null ? formatNumber(totalProducts) : '—'}</div>
