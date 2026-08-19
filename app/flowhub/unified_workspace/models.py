@@ -111,6 +111,29 @@ class WorkspaceSnapshot(FlowHubBase):
     )
 
 
+class WorkspaceSourceBinding(FlowHubBase):
+    """Mutable operational Source binding for a Workspace.
+
+    Historical WorkspaceSnapshot provenance remains immutable. This table is
+    the only binding used for new operational resolution and can be explicitly
+    rebound or removed before a Source tombstone is created.
+    """
+
+    __tablename__ = "uw_workspace_source_bindings"
+
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_workspaces.id", ondelete="RESTRICT"), primary_key=True
+    )
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sc_sources.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    source_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    bound_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    bound_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
 class CanonicalProduct(FlowHubBase):
     __tablename__ = "uw_canonical_products"
     __table_args__ = (

@@ -87,7 +87,8 @@ async def diagnostics_status(
     source_profiles = {
         profile.external_source_id: profile
         for profile in db.query(SourceProfile).filter(
-            SourceProfile.external_source_id.is_not(None)
+            SourceProfile.external_source_id.is_not(None),
+            SourceProfile.status != "deleted",
         ).all()
         if profile.external_source_id
     }

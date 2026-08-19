@@ -68,11 +68,12 @@ export class ApiWorkspaceService implements WorkspaceService {
     return data.state
   }
 
-  async startPreview(_sourceId: string): Promise<WorkspacePreview> {
+  async startPreview(sourceId: string): Promise<WorkspacePreview> {
+    const body = sourceId ? JSON.stringify({ source_id: sourceId }) : undefined
     const data = await apiFetch<RawPreview>(
       '/api/v2/workspace/preview',
       authFetch,
-      { method: 'POST' },
+      { method: 'POST', ...(body ? { body, headers: { 'Content-Type': 'application/json' } } : {}) },
     )
     return {
       id: data.id,

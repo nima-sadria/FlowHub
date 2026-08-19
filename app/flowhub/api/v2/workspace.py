@@ -9,6 +9,7 @@ Nextcloud writes are exposed here.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.dependencies import get_current_user
@@ -21,6 +22,18 @@ from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
 from app.flowhub.workspace.preview_store import PreviewValidationError
 
 router = APIRouter(prefix="/workspace", tags=["workspace"])
+
+
+class WorkspacePreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str | None = Field(default=None, min_length=1, max_length=36)
+
+
+class WorkspaceSourceBindingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str = Field(min_length=1, max_length=36)
 
 
 @router.get("", response_model=WorkspaceIntegrationSummary)
@@ -40,10 +53,32 @@ async def get_state(
 
 @router.post("/preview", response_model=WorkspacePreviewResponse)
 async def start_preview(
+    body: WorkspacePreviewRequest | None = None,
     user: FlowHubUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> WorkspacePreviewResponse:
     try:
-        return await WorkspacePriceWorkflowService(db).preview_from_nextcloud(user)
+        return await WorkspacePriceWorkflowService(db).preview_from_nextcloud(
+            user, body.source_id if body else None
+        )
     except PreviewValidationError as exc:
         raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, **(exc.detail or {})}) from exc
+
+
+@router.get("/source-binding")
+def get_source_binding(
+    user: FlowHubUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    return WorkspacePriceWorkflowService(db).workspace_source_binding(user)
+
+
+@router.put("/source-binding")
+def bind_source(
+    body: WorkspaceSourceBindingRequest,
+    user: FlowHubUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    return WorkspacePriceWorkflowService(db).bind_workspace_source(
+        source_id=body.source_id, user=user
+    )

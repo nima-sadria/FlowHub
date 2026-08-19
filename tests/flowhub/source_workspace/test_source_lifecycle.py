@@ -30,6 +30,7 @@ from app.flowhub.unified_workspace.models import (
     UnifiedAuditEntry,
     UnifiedWorkspace,
     WorkspaceSnapshot,
+    WorkspaceSourceBinding,
 )
 
 
@@ -111,7 +112,17 @@ def _workspace_snapshot(
         source_metadata_json={"source_id": source_id},
         acquisition_metadata_json={"read_once": True},
     )
-    db.add_all([currency, workspace, snapshot])
+    db.add_all([
+        currency,
+        workspace,
+        snapshot,
+        WorkspaceSourceBinding(
+            workspace_id=workspace.id,
+            source_id=source_id,
+            source_version=1,
+            bound_by_user_id=user.id,
+        ),
+    ])
     db.commit()
 
 
@@ -157,10 +168,12 @@ def test_unused_source_and_empty_internal_sheet_are_deleted_with_immutable_audit
     assert impact["action"] == "delete"
     assert impact["protectedHistory"] == {}
 
-    result = service.delete_or_archive_source(
+    result = service.permanently_delete_source(
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         confirmation_name=str(source["name"]),
+        confirm_permanent_delete=True,
+        confirm_history_policy=True,
         user=user,
     )
 
@@ -184,7 +197,7 @@ def test_protected_source_is_archived_and_history_remains_readable_but_not_mutab
     source = service.get_source(str(sheet["sourceId"]), user)
     revision_id = str(sheet["revisionId"])
 
-    result = service.delete_or_archive_source(
+    result = service.archive_source(
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         confirmation_name=str(source["name"]),
@@ -312,17 +325,65 @@ def test_acquisition_observation_history_causes_archive_and_remains_intact() -> 
     assert impact["protectedHistory"]["acquisitionRuns"] == 1
     assert impact["protectedHistory"]["sourceObservations"] == 1
 
-    result = service.delete_or_archive_source(
+    result = service.permanently_delete_source(
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         confirmation_name=str(source["name"]),
+        confirm_permanent_delete=True,
+        confirm_history_policy=True,
         user=user,
     )
 
-    assert result["outcome"] == "archived"
+    assert result["outcome"] == "deleted"
+    assert result["tombstone"] is True
+    assert db.get(SourceProfile, str(source["id"])).status == "deleted"
     assert db.get(AcquisitionRun, run.id) is not None
     assert db.get(SourceObservation, observation.id) is not None
     assert db.get(SourceObservationVersionHead, (str(source["id"]), "source")) is not None
+    assert service.list_sources(user)["items"] == []
+
+
+def test_permanent_delete_failure_rolls_back_connector_and_tombstone_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    source = service.create_source(
+        name="Rollback source",
+        source_kind="external",
+        external_source_id="nextcloud:rollback",
+        worksheet_mode="all",
+        worksheet_name=None,
+        data_start_row=2,
+        user=user,
+    )
+    connector = IntegrationConnectorInstance(
+        id="nextcloud:rollback",
+        connector_type="nextcloud",
+        name="Rollback source",
+        enabled=True,
+        status="healthy",
+    )
+    db.add(connector)
+    db.commit()
+
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("simulated delete failure")
+
+    monkeypatch.setattr(service, "_delete_operational_source_state", fail)
+    with pytest.raises(RuntimeError, match="simulated delete failure"):
+        service.permanently_delete_source(
+            source_id=str(source["id"]),
+            expected_source_version=int(source["version"]),
+            confirmation_name=str(source["name"]),
+            confirm_permanent_delete=True,
+            confirm_history_policy=True,
+            user=user,
+        )
+    db.rollback()
+    assert db.get(SourceProfile, str(source["id"])).status == "active"
+    assert db.get(IntegrationConnectorInstance, connector.id) is not None
 
 
 def test_active_acquisition_blocks_source_lifecycle_change() -> None:
@@ -337,10 +398,12 @@ def test_active_acquisition_blocks_source_lifecycle_change() -> None:
     assert impact["blockers"] == {"activeAcquisitionRuns": 1}
 
     with pytest.raises(HTTPException) as blocked:
-        service.delete_or_archive_source(
+        service.permanently_delete_source(
             source_id=str(source["id"]),
             expected_source_version=int(source["version"]),
             confirmation_name=str(source["name"]),
+            confirm_permanent_delete=True,
+            confirm_history_policy=True,
             user=user,
         )
     assert blocked.value.status_code == 409
@@ -369,6 +432,34 @@ def test_source_currency_declarations_are_protected_history() -> None:
 
     assert impact["action"] == "archive"
     assert impact["protectedHistory"]["currencyProfiles"] == 1
+
+
+def test_source_audit_history_requires_tombstone_policy() -> None:
+    db = _session()
+    user = _user(db)
+    service = SourceWorkspaceService(db)
+    source = _empty_source(service, user, "Audited source")
+    service._append_source_lifecycle_audit(
+        event_type="source_configuration_saved",
+        user=user,
+        reason="test_history",
+        metadata={"sourceId": source["id"]},
+    )
+    db.flush()
+
+    impact = service.source_lifecycle(str(source["id"]), user)
+    assert impact["protectedHistory"]["auditHistory"] == 1
+
+    result = service.permanently_delete_source(
+        source_id=str(source["id"]),
+        expected_source_version=int(source["version"]),
+        confirmation_name=str(source["name"]),
+        confirm_permanent_delete=True,
+        confirm_history_policy=True,
+        user=user,
+    )
+    assert result["tombstone"] is True
+    assert db.get(SourceProfile, str(source["id"])).status == "deleted"
 
 
 def test_external_source_lifecycle_disables_only_its_connector() -> None:
@@ -403,19 +494,20 @@ def test_external_source_lifecycle_disables_only_its_connector() -> None:
     db.add_all([target, unrelated])
     db.commit()
 
-    result = service.delete_or_archive_source(
+    result = service.permanently_delete_source(
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         confirmation_name=str(source["name"]),
+        confirm_permanent_delete=True,
+        confirm_history_policy=True,
         user=user,
     )
 
     assert result["outcome"] == "deleted"
-    assert db.get(IntegrationConnectorInstance, target.id).enabled is False
-    assert db.get(IntegrationConnectorInstance, target.id).status == "disabled"
+    assert db.get(IntegrationConnectorInstance, target.id) is None
     assert db.get(IntegrationConnectorInstance, unrelated.id).enabled is True
     audit = db.query(UnifiedAuditEntry).filter_by(event_type="source_deleted").one()
-    assert audit.metadata_json["connectorDisabled"] is True
+    assert audit.metadata_json["tombstone"] is False
 
 
 def test_active_workspace_blocks_source_deletion_or_archival() -> None:
@@ -430,10 +522,12 @@ def test_active_workspace_blocks_source_deletion_or_archival() -> None:
     assert impact["blockers"] == {"activeWorkspaces": 1}
 
     with pytest.raises(HTTPException) as blocked:
-        service.delete_or_archive_source(
+        service.permanently_delete_source(
             source_id=str(source["id"]),
             expected_source_version=int(source["version"]),
             confirmation_name=str(source["name"]),
+            confirm_permanent_delete=True,
+            confirm_history_policy=True,
             user=user,
         )
     assert blocked.value.status_code == 409
@@ -453,14 +547,17 @@ def test_historical_snapshot_causes_archive_without_deleting_history() -> None:
     source = _empty_source(service, user, "Historical snapshot source")
     _workspace_snapshot(db, source_id=str(source["id"]), user=user, workspace_status="archived")
 
-    result = service.delete_or_archive_source(
+    result = service.permanently_delete_source(
         source_id=str(source["id"]),
         expected_source_version=int(source["version"]),
         confirmation_name=str(source["name"]),
+        confirm_permanent_delete=True,
+        confirm_history_policy=True,
         user=user,
     )
 
-    assert result["outcome"] == "archived"
+    assert result["outcome"] == "deleted"
+    assert result["tombstone"] is True
     assert result["impact"]["protectedHistory"]["workspaceSnapshots"] == 1
     assert db.get(WorkspaceSnapshot, f"snapshot-{source['id']}") is not None
 
@@ -472,20 +569,24 @@ def test_confirmation_name_and_version_are_required_before_lifecycle_change() ->
     source = _empty_source(service, user, "Confirmed source name")
 
     with pytest.raises(HTTPException) as name_error:
-        service.delete_or_archive_source(
+        service.permanently_delete_source(
             source_id=str(source["id"]),
             expected_source_version=int(source["version"]),
             confirmation_name="A different source",
+            confirm_permanent_delete=True,
+            confirm_history_policy=True,
             user=user,
         )
     assert name_error.value.status_code == 409
     assert cast(dict[str, Any], name_error.value.detail)["code"] == "SOURCE_CONFIRMATION_MISMATCH"
 
     with pytest.raises(HTTPException) as version_error:
-        service.delete_or_archive_source(
+        service.permanently_delete_source(
             source_id=str(source["id"]),
             expected_source_version=999,
             confirmation_name=str(source["name"]),
+            confirm_permanent_delete=True,
+            confirm_history_policy=True,
             user=user,
         )
     assert version_error.value.status_code == 409
@@ -525,16 +626,21 @@ def test_source_lifecycle_api_requires_workspace_admin_permission(
     app.dependency_overrides[get_db] = override_get_db
     token = create_access_token(viewer.id, viewer.username, viewer.role)
     try:
-        with TestClient(app, raise_server_exceptions=True) as client:
-            response = client.request(
-                "DELETE",
-                f"/api/v2/sources/{source['id']}",
-                headers={"Authorization": f"Bearer {token}"},
-                json={
-                    "expected_source_version": source["version"],
-                    "confirmation_name": source["name"],
-                },
-            )
+        # This isolated in-memory test overrides request-time DB access. A
+        # lifespan context would also run the production startup recovery job,
+        # which intentionally requires FLOWHUB_DATABASE_URL and is unrelated
+        # to the authorization assertion.
+        client = TestClient(app, raise_server_exceptions=True)
+        response = client.request(
+            "DELETE",
+            f"/api/v2/sources/{source['id']}",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "expected_source_version": source["version"],
+                "confirmation_name": source["name"],
+            },
+        )
+        client.close()
         assert response.status_code == 403
         assert response.json()["detail"]["code"] == "WORKSPACE_PERMISSION_DENIED"
     finally:

@@ -38,6 +38,7 @@ class SourceRepository:
         return (
             self.db.query(SourceProfile)
             .filter(SourceProfile.owner_user_id == user_id)
+            .filter(SourceProfile.status != "deleted")
             .order_by(SourceProfile.created_at.desc(), SourceProfile.id)
             .all()
         )

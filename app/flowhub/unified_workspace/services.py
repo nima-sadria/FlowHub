@@ -79,6 +79,7 @@ from app.flowhub.unified_workspace.models import (
     WorkspaceChannel,
     WorkspaceLock,
     WorkspaceSnapshot,
+    WorkspaceSourceBinding,
 )
 from app.flowhub.unified_workspace.repositories import (
     ApplyRepository,
@@ -591,6 +592,14 @@ class UnifiedWorkspaceService:
         )
         self.db.add(workspace)
         self.db.flush()
+        self.db.add(
+            WorkspaceSourceBinding(
+                workspace_id=workspace_id,
+                source_id=source_id,
+                source_version=int(analysis["source"]["version"]),
+                bound_by_user_id=user.id,
+            )
+        )
         staged_rows: list[SnapshotRow] = []
         snapshot_document: list[dict[str, Any]] = []
         draft_changes: list[dict[str, Any]] = []

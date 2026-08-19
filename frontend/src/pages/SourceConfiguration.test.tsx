@@ -941,27 +941,28 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(channelPriceReference.value).toBe('C')
   })
 
-  it('requires explicit confirmation and returns safely after archiving a Source with history', async () => {
+  it('requires explicit confirmation and returns safely after permanently deleting a history-bearing Source', async () => {
     const lifecycle = vi.spyOn(sourceWorkspaceApi, 'sourceLifecycle').mockResolvedValue({
       sourceId: source.id,
       sourceName: source.name,
       sourceVersion: source.version,
       sourceStatus: 'active',
-      action: 'archive',
+      action: 'delete',
       blockers: {},
       protectedHistory: { mappingRevisions: 1, sourceObservations: 2 },
     })
     const remove = vi.spyOn(sourceWorkspaceApi, 'deleteSource').mockResolvedValue({
       sourceId: source.id,
       sourceName: source.name,
-      outcome: 'archived',
-      source: { ...source, status: 'archived', archivedAt: '2026-08-13T08:30:00Z', version: source.version + 1 },
+      outcome: 'deleted',
+      source: null,
+      tombstone: true,
       impact: {
         sourceId: source.id,
         sourceName: source.name,
         sourceVersion: source.version,
         sourceStatus: 'active',
-        action: 'archive',
+        action: 'delete',
         blockers: {},
         protectedHistory: { mappingRevisions: 1, sourceObservations: 2 },
       },
@@ -976,20 +977,24 @@ describe('SourceConfiguration per-Channel mappings', () => {
 
     const dialog = container.querySelector('[role="dialog"]') as HTMLElement
     const confirmation = dialog.querySelector('input[name="source-delete-confirmation"]') as HTMLInputElement
-    const archive = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Archive Source')) as HTMLButtonElement
+    const deleteButton = Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Delete Source Permanently')) as HTMLButtonElement
     expect(lifecycle).toHaveBeenCalledWith(source.id)
     expect(dialog.textContent).toContain(`Remove “${source.name}”?`)
     expect(dialog.textContent).toContain('protected historical records')
-    expect(archive.disabled).toBe(true)
+    expect(deleteButton.disabled).toBe(true)
 
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(confirmation, source.name)
       confirmation.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    expect(archive.disabled).toBe(false)
+    expect(deleteButton.disabled).toBe(true)
+
+    const historyPolicy = dialog.querySelector('input[type="checkbox"]') as HTMLInputElement
+    await act(async () => historyPolicy.click())
+    expect(deleteButton.disabled).toBe(false)
 
     await act(async () => {
-      archive.click()
+      deleteButton.click()
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -1020,6 +1025,8 @@ describe('SourceConfiguration per-Channel mappings', () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(confirmation, source.name)
       confirmation.dispatchEvent(new Event('input', { bubbles: true }))
     })
+    const historyPolicy = dialog.querySelector('input[type="checkbox"]') as HTMLInputElement
+    act(() => historyPolicy.click())
 
     await act(async () => {
       Array.from(dialog.querySelectorAll('button')).find(item => item.textContent?.includes('Delete Source'))?.click()

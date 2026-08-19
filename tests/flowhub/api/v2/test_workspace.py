@@ -185,6 +185,68 @@ class TestWorkspacePreview:
         assert exc_info.value.status_code == 403
         assert exc_info.value.detail == FLOWHUB_WRITE_BLOCKED
 
+    def test_workspace_resolver_rejects_archived_legacy_profile_and_accepts_explicit_active_replacement(
+        self, db, auth_headers
+    ):
+        from app.flowhub.auth.models import FlowHubUser
+        from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+        from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
+        from app.flowhub.source_workspace.models import SourceProfile
+
+        user = db.query(FlowHubUser).filter_by(username="testadmin").one()
+        db.add_all(
+            [
+                IntegrationConnectorInstance(
+                    id="nextcloud:primary",
+                    connector_type="nextcloud",
+                    name="Archived Nextcloud",
+                    enabled=False,
+                    status="disabled",
+                ),
+                IntegrationConnectorInstance(
+                    id="nextcloud:replacement",
+                    connector_type="nextcloud",
+                    name="Active Nextcloud",
+                    enabled=True,
+                    status="healthy",
+                ),
+            ]
+        )
+        db.flush()
+        db.add_all(
+            [
+                SourceProfile(
+                    id="source-archived-nextcloud",
+                    name="Archived Nextcloud",
+                    source_kind="external",
+                    external_source_id="nextcloud:primary",
+                    worksheet_mode="all",
+                    data_start_row=2,
+                    status="archived",
+                    version=2,
+                    owner_user_id=user.id,
+                ),
+                SourceProfile(
+                    id="source-active-nextcloud",
+                    name="Active Nextcloud",
+                    source_kind="external",
+                    external_source_id="nextcloud:replacement",
+                    worksheet_mode="all",
+                    data_start_row=2,
+                    status="active",
+                    version=1,
+                    owner_user_id=user.id,
+                ),
+            ]
+        )
+        db.commit()
+        service = WorkspacePriceWorkflowService(db)
+        with pytest.raises(Exception) as blocked:
+            service._resolve_workspace_source(user, None)
+        assert getattr(blocked.value, "detail", {}).get("code") == "SOURCE_WORKSPACE_REBIND_REQUIRED"
+        resolved = service._resolve_workspace_source(user, "source-active-nextcloud")
+        assert resolved.id == "source-active-nextcloud"
+
 
 def _xlsx(rows: list[list[object]]) -> bytes:
     import openpyxl

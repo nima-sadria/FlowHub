@@ -262,6 +262,8 @@
   "workspace.previewUnavailable": "Preview unavailable",
   "workspace.sourceIdentityValidationPending": "Preview unavailable — Source Product Identity is pending validation. Configure the Source Product Key and run validation from the Source configuration.",
   "workspace.sourceIdentityValidationBlocked": "Preview unavailable — Source Product Identity is blocked. Fix the Source Product Key or mapping issues, then run validation from the Source configuration.",
+  "workspace.sourceWorkspaceRebindRequired": "Preview unavailable — Workspace is bound to an inactive Source. Bind the current active Nextcloud Source in Workspace Source binding, then try again.",
+  "workspace.sourceWorkspaceBindingInvalid": "Preview unavailable — Workspace Source binding is not an active Nextcloud Source. Bind an active Source before trying again.",
   "workspace.sourceIdentityAuthorityRequired": "Preview unavailable — choose an Identity Authority and Source Product Key in the Source configuration.",
   "workspace.sourceIdentityPolicyUpgradeRequired": "Preview unavailable — save the Source mapping with the current identity policy before opening a Workspace.",
   "workspace.unmatchedProduct": "Unmatched product",
