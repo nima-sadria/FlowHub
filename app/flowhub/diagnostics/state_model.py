@@ -20,6 +20,7 @@ from app.flowhub.channels.registry import default_marketplace_registry
 from app.flowhub.config.values import parse_config_bool
 from app.flowhub.data_layer.job_lifecycle import RefreshJobLifecycle
 from app.flowhub.data_layer.models import (
+    DlChannelEntityWork,
     DlConnectorHealth,
     DlProductCache,
     DlRefreshJob,
@@ -31,6 +32,7 @@ from app.flowhub.integration_platform.models import (
     IntegrationConnectorSetting,
 )
 from app.flowhub.orders.models import OrderSyncCheckpoint
+from app.flowhub.read_engine.observation_confidence import ObservationConfidence
 from app.flowhub.source_acquisition.models import AcquisitionRun
 from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.webhooks.models import WebhookDeadLetter, WebhookReceipt
@@ -463,6 +465,14 @@ class CanonicalDiagnosticsProjector:
             configured=configured,
             coming_soon=coming_soon,
         )
+        observation_confidence = self._observation_confidence_summary(
+            channel_id,
+            provider,
+            supported=product_supported,
+            enabled=enabled,
+            configured=configured,
+            coming_soon=coming_soon,
+        )
         order_sync = self._order_sync_capability(
             channel_id,
             provider,
@@ -522,12 +532,19 @@ class CanonicalDiagnosticsProjector:
             "readiness": {"state": readiness.value, "reasonCode": reason},
             "freshness": {"state": freshness.value},
             "capabilities": capability_model,
+            # Distinct axis from "freshness" above -- freshness answers "has
+            # any read completed recently" (channel-level, coarse);
+            # observationConfidence answers "do we currently trust this
+            # channel's cached prices" (per-row evidence, worst-value-wins
+            # rollup, evidence-driven -- never a sticky flag). See
+            # ADR_CHANNEL_READ_ARCHITECTURE.md.
+            "observationConfidence": observation_confidence,
             "overallState": overall.value,
             "reasonCode": reason,
             "recommendedAction": action,
             "latestRelevantAt": latest,
             "advancedEvidence": self._channel_advanced_evidence(
-                channel_id, health, product_sync, order_sync
+                channel_id, health, product_sync, order_sync, observation_confidence
             ),
         }
 
@@ -797,6 +814,113 @@ class CanonicalDiagnosticsProjector:
         )
         result["cachedItemCount"] = count
         return result
+
+    def _observation_confidence_summary(
+        self,
+        channel_id: str,
+        provider: str,
+        *,
+        supported: bool,
+        enabled: bool,
+        configured: bool,
+        coming_soon: bool,
+    ) -> dict[str, Any]:
+        """Channel-level, worst-value-wins rollup of per-row Observation
+        Confidence. Recomputed live every projection (not trusted purely
+        from the stored per-row snapshot, which decays silently) --
+        RECOVERY_REQUIRED in particular can only be known by checking
+        DlChannelEntityWork's current retry-exhaustion state, since a
+        write-time snapshot has no entity-work context to consult."""
+        if coming_soon or not supported or not enabled or not configured:
+            return {
+                "value": ObservationConfidence.UNKNOWN.value,
+                "reasonCode": "not_applicable",
+                "recoveryRequiredCount": 0,
+                "computedAt": _iso(self.now),
+            }
+
+        total = self.db.query(DlProductCache).filter_by(connector_id=channel_id).count()
+        if total == 0:
+            return {
+                "value": ObservationConfidence.UNKNOWN.value,
+                "reasonCode": "never_observed",
+                "recoveryRequiredCount": 0,
+                "computedAt": _iso(self.now),
+            }
+
+        recovery_required_count = 0
+        if self._table_exists(DlChannelEntityWork):
+            recovery_required_count = (
+                self.db.query(DlChannelEntityWork)
+                .filter(
+                    DlChannelEntityWork.connector_id == channel_id,
+                    DlChannelEntityWork.status == "failed",
+                    DlChannelEntityWork.attempt_count >= DlChannelEntityWork.max_attempts,
+                )
+                .count()
+            )
+        if recovery_required_count > 0:
+            return {
+                "value": ObservationConfidence.RECOVERY_REQUIRED.value,
+                "reasonCode": "entity_work_exhausted_retries",
+                "recoveryRequiredCount": recovery_required_count,
+                "computedAt": _iso(self.now),
+            }
+
+        never_observed = (
+            self.db.query(DlProductCache)
+            .filter_by(connector_id=channel_id, observation_confidence=ObservationConfidence.UNKNOWN.value)
+            .count()
+        )
+        if never_observed > 0:
+            return {
+                "value": ObservationConfidence.UNKNOWN.value,
+                "reasonCode": "never_observed",
+                "recoveryRequiredCount": 0,
+                "computedAt": _iso(self.now),
+            }
+
+        ttl_seconds = self.policies.product_cache(provider).freshness_ttl_seconds or 86_400
+        stale_cutoff = self.now - timedelta(seconds=ttl_seconds)
+        decaying_values = (ObservationConfidence.LIKELY_FRESH.value, ObservationConfidence.CONFIRMED.value)
+        stale_or_decayed = (
+            self.db.query(DlProductCache)
+            .filter(
+                DlProductCache.connector_id == channel_id,
+                (DlProductCache.observation_confidence == ObservationConfidence.STALE.value)
+                | (
+                    DlProductCache.observation_confidence.in_(decaying_values)
+                    & ((DlProductCache.last_fetched_at.is_(None)) | (DlProductCache.last_fetched_at < stale_cutoff))
+                ),
+            )
+            .count()
+        )
+        if stale_or_decayed > 0:
+            return {
+                "value": ObservationConfidence.STALE.value,
+                "reasonCode": "beyond_channel_ttl",
+                "recoveryRequiredCount": 0,
+                "computedAt": _iso(self.now),
+            }
+
+        confirmed_count = (
+            self.db.query(DlProductCache)
+            .filter_by(connector_id=channel_id, observation_confidence=ObservationConfidence.CONFIRMED.value)
+            .count()
+        )
+        if confirmed_count == total:
+            return {
+                "value": ObservationConfidence.CONFIRMED.value,
+                "reasonCode": "zero_staleness_read",
+                "recoveryRequiredCount": 0,
+                "computedAt": _iso(self.now),
+            }
+        return {
+            "value": ObservationConfidence.LIKELY_FRESH.value,
+            "reasonCode": "within_channel_ttl",
+            "recoveryRequiredCount": 0,
+            "computedAt": _iso(self.now),
+        }
 
     def _order_sync_capability(
         self,
@@ -1082,6 +1206,16 @@ class CanonicalDiagnosticsProjector:
                 "state": self._resource_freshness(capabilities.values()).value
             },
             "capabilities": capabilities,
+            # Channel Read concept only -- Sources have no product cache to
+            # hold confidence about. Present with a fixed NOT_APPLICABLE
+            # shape (like productCache above) so consumers can read this key
+            # uniformly across both resource kinds.
+            "observationConfidence": {
+                "value": ObservationConfidence.UNKNOWN.value,
+                "reasonCode": "not_applicable",
+                "recoveryRequiredCount": 0,
+                "computedAt": _iso(self.now),
+            },
             "overallState": overall.value,
             "reasonCode": reason,
             "recommendedAction": action,
@@ -1935,8 +2069,9 @@ class CanonicalDiagnosticsProjector:
         health: DlConnectorHealth | None,
         product_sync: dict[str, Any],
         order_sync: dict[str, Any],
+        observation_confidence: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
-        return [
+        evidence = [
             {
                 "key": "data_layer_health",
                 "label": "Connection health record",
@@ -1968,6 +2103,16 @@ class CanonicalDiagnosticsProjector:
                 "recordedAt": None,
             },
         ]
+        if observation_confidence is not None:
+            evidence.append(
+                {
+                    "key": "observation_confidence",
+                    "label": "Observation confidence",
+                    "value": observation_confidence["value"],
+                    "recordedAt": observation_confidence["computedAt"],
+                }
+            )
+        return evidence
 
     def _table_exists(self, model: Any) -> bool:
         return bool(inspect(self.db.get_bind()).has_table(model.__tablename__))

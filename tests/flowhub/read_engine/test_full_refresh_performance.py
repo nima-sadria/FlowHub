@@ -273,6 +273,12 @@ async def test_run_manual_checkpoint_does_not_grow_with_catalog_size(db):
     assert progress.status == "completed"
     assert progress.products_stored == 250
     assert db.query(DlProductCache).count() == 250
+    # A CHANNEL/FULL-scope read is not zero-staleness (unlike a targeted
+    # LIGHT read) but a row just successfully written is trivially within
+    # its own TTL -- LIKELY_FRESH, never STALE at write time.
+    sample_row = db.query(DlProductCache).filter_by(product_id="0").one()
+    assert sample_row.observation_confidence == "LIKELY_FRESH"
+    assert sample_row.observation_confidence_reason == "within_channel_ttl"
     job = db.query(DlRefreshJob).one()
     assert "seen_product_ids" not in (job.meta or {})
 

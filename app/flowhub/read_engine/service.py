@@ -22,6 +22,7 @@ from app.flowhub.data_layer.telemetry_service import ConnectorTelemetryService
 from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.read_engine.contracts import ReadConnectorAdapter, ReadPage
 from app.flowhub.read_engine.exceptions import IncrementalReadUnsupported
+from app.flowhub.read_engine.observation_confidence import ConfidenceEvidence, compute as compute_confidence
 from app.flowhub.security.redaction import redact_sensitive
 
 
@@ -126,7 +127,7 @@ class IncrementalReadEngine:
                     seen_product_ids.add(product_id)
                     if before_cache_write is not None:
                         before_cache_write(adapter.connector_id, product_id)
-                    page_items.append((product_id, _shape_product(adapter.connector_id, item)))
+                    page_items.append((product_id, _shape_product(adapter.connector_id, item, mechanism=strategy)))
                 products_stored += self.products.bulk_upsert(adapter.connector_id, page_items)
 
                 cursor = page.next_cursor
@@ -383,22 +384,39 @@ class IncrementalReadEngine:
         product_id = self._product_id(item)
         if not product_id:
             return
-        self.products.upsert(connector_id, product_id, _shape_product(connector_id, item), freshness="fresh")
+        # The only caller is run_entity (LIGHT/PRODUCT scope) -- always a
+        # zero-staleness targeted read.
+        shaped = _shape_product(connector_id, item, mechanism="entity_read")
+        self.products.upsert(connector_id, product_id, shaped, freshness="fresh")
 
     def _product_id(self, item: dict[str, Any]) -> str:
         return str(item.get("product_id") or item.get("id") or "").strip()
 
 
-def _shape_product(connector_id: str, item: dict[str, Any]) -> dict[str, Any]:
+def _shape_product(connector_id: str, item: dict[str, Any], *, mechanism: str) -> dict[str, Any]:
     """Pure normalization shared by the single-item path (_store_product,
     used by run_entity) and the batched path (bulk_upsert, used by
     run_manual's page loop) -- one mapping from provider payload fields to
-    DlProductCache columns, not two independently-correct copies."""
+    DlProductCache columns, not two independently-correct copies.
+
+    `mechanism` is the read strategy that produced this observation
+    ("entity_read" | "initial_full_read" | "modified_since" |
+    "metadata_filter") -- write-time evidence for Observation Confidence.
+    A row that was just successfully written always evaluates to CONFIRMED
+    (entity_read: zero staleness) or LIKELY_FRESH (a FULL/CHANNEL-scope
+    read, age=0 at write time); STALE/RECOVERY_REQUIRED only arise later,
+    from Diagnostics' live recompute against entity-work evidence and TTL
+    decay -- this write-time value is a snapshot, not the final word.
+    """
     price = item.get("last_price", item.get("price"))
     if price in (None, ""):
         price = item.get("sale_price") or item.get("regular_price")
     raw_data = _safe_item(item)
     last_modified_raw = item.get("last_modified") or item.get("date_modified_gmt") or item.get("updated_at")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    confidence, confidence_reason = compute_confidence(
+        ConfidenceEvidence(last_fetched_at=now, read_mechanism=mechanism), now=now
+    )
     return {
         "sku": item.get("sku"),
         "name": item.get("name"),
@@ -417,9 +435,12 @@ def _shape_product(connector_id: str, item: dict[str, Any]) -> dict[str, Any]:
         "categories": item.get("categories") if isinstance(item.get("categories"), list) else [],
         "images": item.get("media") if isinstance(item.get("media"), list) else [],
         "channel_id": connector_id,
-        "last_successful_read": datetime.now(timezone.utc).replace(tzinfo=None),
+        "last_successful_read": now,
         "last_modified": last_modified_raw,
         "provider_observed_at": _parse_modified(last_modified_raw),
+        "observation_confidence": confidence.value,
+        "observation_confidence_reason": confidence_reason,
+        "observation_confidence_computed_at": now,
         "exists": bool(item.get("exists", True)),
         "record_hash": _hash(raw_data),
         "raw_data": raw_data,

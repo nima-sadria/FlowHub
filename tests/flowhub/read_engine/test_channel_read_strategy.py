@@ -227,6 +227,10 @@ async def test_run_entity_upserts_a_single_product_and_creates_no_refresh_job(db
     row = db.query(DlProductCache).filter_by(connector_id="woocommerce:primary", product_id="57926").one()
     assert row.name == "Widget"
     assert row.freshness == "fresh"
+    # A targeted (LIGHT/PRODUCT) read is zero-staleness by construction --
+    # distinct axis from freshness, see ADR_CHANNEL_READ_ARCHITECTURE.md.
+    assert row.observation_confidence == "CONFIRMED"
+    assert row.observation_confidence_reason == "zero_staleness_read"
     # The channel-wide lease table must stay untouched by a targeted read.
     assert db.query(DlRefreshJob).count() == 0
 

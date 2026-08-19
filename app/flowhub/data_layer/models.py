@@ -90,6 +90,7 @@ class DlProductCache(FlowHubBase):
     __table_args__ = (
         UniqueConstraint("connector_id", "product_id", name="uq_dl_product"),
         Index("ix_dl_product_cache_connector_last_fetched", "connector_id", "last_fetched_at"),
+        Index("ix_dl_product_cache_observation_confidence", "connector_id", "observation_confidence"),
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -122,6 +123,14 @@ class DlProductCache(FlowHubBase):
     # upsert, LIGHT targeted upsert) sets this; a write may never overwrite
     # a row whose provider_observed_at is newer than its own.
     provider_observed_at = Column(DateTime, nullable=True)
+    # Distinct axis from freshness (untouched, still fresh|stale|error):
+    # CONFIRMED | LIKELY_FRESH | STALE | UNKNOWN | RECOVERY_REQUIRED. A
+    # write-time snapshot (read_engine.observation_confidence.compute());
+    # Diagnostics recomputes live for decay/RECOVERY_REQUIRED escalation
+    # rather than trusting this column as the sole source of truth.
+    observation_confidence = Column(String(20), default="UNKNOWN")
+    observation_confidence_reason = Column(String(50), nullable=True)
+    observation_confidence_computed_at = Column(DateTime, nullable=True)
     exists = Column(Boolean, nullable=False, default=True)
     record_hash = Column(String(64), nullable=True)
     expires_at = Column(DateTime, nullable=True)
