@@ -17,6 +17,7 @@ persisted record into a new framework.
 | Subsystem | Class | Reason and action |
 | --- | --- | --- |
 | WooCommerce product-cache refresh | A. Persisted run with active ownership | `DlRefreshJob`; managed by `RefreshJobLifecycle`. |
+| WooCommerce targeted (LIGHT/PRODUCT) entity reads | A. Persisted run with active ownership | `DlChannelEntityWork`; managed by `entity_work.py`, an **independent** lease scope from `DlRefreshJob` -- a channel-wide FULL/DEEP lease and a per-entity LIGHT lease never block each other. See `ADR_CHANNEL_READ_ARCHITECTURE.md`. |
 | TapsiShop/Technolife marketplace product sync | A. Persisted run with active ownership | `DlRefreshJob`; managed by `RefreshJobLifecycle`. |
 | SnappShop product sync | A. Persisted run with active ownership | `DlRefreshJob`; managed by `RefreshJobLifecycle`. |
 | Source acquisition / Read Now | A. Persisted run with active ownership | `AcquisitionRun` already has worker ID, lease, heartbeat (`updated_at`) and `abandon_expired_runs`; it remains its own lifecycle. |
@@ -59,12 +60,37 @@ For an additive upgrade, a legacy running `DlRefreshJob` that has no lease is
 treated as stale only after the policy window measured from its last available
 heartbeat, start, or creation timestamp.
 
+## `DlChannelEntityWork` lifecycle
+
+A second, independent lease table for LIGHT/PRODUCT-scoped targeted reads
+(webhook-driven and Owner-requested single-entity refreshes). Scoped to
+`(connector_id, entity_type, entity_id)` rather than `DlRefreshJob`'s
+`(connector_id, entity_type)`, so a long-running FULL/DEEP job never blocks,
+and is never blocked by, a targeted read for one product. Workers claim due
+rows via `SELECT ... FOR UPDATE SKIP LOCKED` (`entity_work.py`), so multiple
+workers process independent entities concurrently without contending on
+unrelated rows. The lease defaults to 120 seconds
+(`FLOWHUB_CHANNEL_ENTITY_WORK_LEASE_SECONDS`) -- short by design, since a
+single-entity read is cheap to simply retry rather than needing the longer
+policy windows a full catalog scan requires.
+
+Bounded per-item retry (`attempt_count` / `max_attempts`, default 5) governs
+whether an expired lease or a failed read requeues the row (`pending`, with
+backoff on failure) or reaches a terminal `failed` state. Terminal outcomes
+flip every webhook receipt linked to that execution through the existing
+`WebhookIngestionService` state machine -- no second receipt subsystem.
+`recover_expired_entity_work()` mirrors `RefreshJobLifecycle.recover_expired()`
+for this table: bounded scan, no replayed provider I/O beyond what an
+at-least-once retry already implies.
+
 ## Recovery and retry
 
 Recovery preserves the existing counters, `meta`, correlation evidence, cache
 rows and timestamps. It clears only the expired lease and records a safe error
-and recovery reason. A valid active lease blocks another refresh for the same
-channel/entity. A completed or recovered job no longer owns a lease, so an
+and recovery reason. A valid active `DlRefreshJob` lease blocks another
+full-channel refresh for the same `(connector_id, entity_type)`; it has no
+bearing on `DlChannelEntityWork`, which is a fully independent lease scope
+(see above). A completed or recovered job no longer owns a lease, so an
 explicit Owner retry creates a new `DlRefreshJob` identity; the old record is
 not changed back to running.
 

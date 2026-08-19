@@ -18,15 +18,17 @@ from sqlalchemy.orm import Session
 from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob
 from app.flowhub.data_layer.job_lifecycle import RefreshJobLifecycle
 from app.flowhub.data_layer.product_service import ProductReadModelService
+from app.flowhub.data_layer.telemetry_service import ConnectorTelemetryService
 from app.flowhub.rate_limit.service import RateLimitService
 from app.flowhub.read_engine.contracts import ReadConnectorAdapter, ReadPage
 from app.flowhub.read_engine.exceptions import IncrementalReadUnsupported
+from app.flowhub.read_engine.observation_confidence import ConfidenceEvidence, compute as compute_confidence
 from app.flowhub.security.redaction import redact_sensitive
 
 
 @dataclass(frozen=True)
 class ReadProgress:
-    job_id: int
+    job_id: int | None
     connector_id: str
     strategy: str
     status: str
@@ -93,7 +95,15 @@ class IncrementalReadEngine:
         requests_completed = int(meta.get("requests_completed") or 0)
         requests_delayed = int(meta.get("requests_delayed") or 0)
         products_stored = int(meta.get("products_stored") or 0)
-        seen_product_ids = {str(item) for item in (meta.get("seen_product_ids") or [])}
+        # Within-this-execution dedup only (a page appearing twice, or one
+        # item duplicated within a page). Deliberately NOT persisted in
+        # job.meta -- serializing every seen id on every page made the
+        # checkpoint payload grow without bound across a ~7,600-row catalog.
+        # On resume after a crash the last partially-processed page may be
+        # re-upserted once more; that is harmless (bulk_upsert is
+        # idempotent and fencing-safe) and bounded to one page's worth of
+        # redundant work, not the whole catalog.
+        seen_product_ids: set[str] = set()
         modified_since = self._modified_since(adapter.connector_id) if strategy == "modified_since" else None
         product_ids = meta.get("product_ids") if strategy == "metadata_filter" else None
         if strategy == "metadata_filter" and product_ids is None:
@@ -109,15 +119,16 @@ class IncrementalReadEngine:
                     requests_delayed += 1
 
                 page = await self._fetch_page(adapter, strategy, cursor, modified_since, product_ids)
+                page_items: list[tuple[str, dict[str, Any]]] = []
                 for item in page.items:
                     product_id = self._product_id(item)
                     if not product_id or product_id in seen_product_ids:
                         continue
+                    seen_product_ids.add(product_id)
                     if before_cache_write is not None:
                         before_cache_write(adapter.connector_id, product_id)
-                    self._store_product(adapter.connector_id, item)
-                    seen_product_ids.add(product_id)
-                    products_stored += 1
+                    page_items.append((product_id, _shape_product(adapter.connector_id, item, mechanism=strategy)))
+                products_stored += self.products.bulk_upsert(adapter.connector_id, page_items)
 
                 cursor = page.next_cursor
                 self._save_job_meta(
@@ -128,7 +139,6 @@ class IncrementalReadEngine:
                         "requests_completed": requests_completed,
                         "requests_delayed": requests_delayed,
                         "products_stored": products_stored,
-                        "seen_product_ids": sorted(seen_product_ids),
                         "product_ids": product_ids if strategy == "metadata_filter" else None,
                         "queue_survives_interruption": True,
                         "scheduler_started": False,
@@ -153,12 +163,20 @@ class IncrementalReadEngine:
             raise
 
         if force_full:
-            unseen = self.db.query(DlProductCache).filter(DlProductCache.connector_id == adapter.connector_id)
-            if seen_product_ids:
-                unseen = unseen.filter(DlProductCache.product_id.notin_(seen_product_ids))
+            # Keyed off last_fetched_at rather than seen_product_ids: a
+            # product touched by a concurrent targeted (LIGHT) read
+            # mid-FULL-scan naturally has last_fetched_at bumped to "now"
+            # (>= job.started_at, preserved across resumes), so it can
+            # never be incorrectly swept just because this run's own pages
+            # didn't happen to include it.
+            unseen = self.db.query(DlProductCache).filter(
+                DlProductCache.connector_id == adapter.connector_id,
+                (DlProductCache.last_fetched_at.is_(None)) | (DlProductCache.last_fetched_at < job.started_at),
+            )
             unseen.update({"exists": False, "freshness": "stale"}, synchronize_session=False)
 
         lifecycle.finish(job)
+        self._record_telemetry(adapter, requests_completed, products_stored, job.duration_ms)
 
         remaining_queue = 0 if cursor is None else 1
         estimated = (
@@ -176,6 +194,49 @@ class IncrementalReadEngine:
             products_stored=products_stored,
             remaining_queue=remaining_queue,
             estimated_completion_seconds=estimated,
+        )
+
+    async def run_entity(
+        self,
+        adapter: ReadConnectorAdapter,
+        *,
+        entity_id: str,
+        parent_id: str | None = None,
+    ) -> ReadProgress:
+        """LIGHT/PRODUCT scope: one entity, never a catalog page.
+
+        Deliberately creates no ``DlRefreshJob`` row and never touches
+        ``RefreshJobLifecycle`` -- lease ownership for this read belongs to
+        the caller's ``dl_channel_entity_work`` row, an independent scope
+        from the channel-wide FULL/DEEP lease this method must never
+        compete for (ADR_CHANNEL_READ_ARCHITECTURE.md).
+        """
+        if not adapter.capabilities.supports_entity_read:
+            raise IncrementalReadUnsupported(
+                "incremental_read_unsupported: connector cannot target a single entity"
+            )
+        limiter_result = await self._acquire_read_limit_if_needed(adapter)
+        page = await adapter.fetch_entity(entity_id=entity_id, parent_id=parent_id)
+        stored = 0
+        for item in page.items:
+            product_id = self._product_id(item)
+            if not product_id:
+                continue
+            if item.get("exists") is False:
+                self.products.mark_not_found(adapter.connector_id, product_id)
+            else:
+                self._store_product(adapter.connector_id, item)
+            stored += 1
+        return ReadProgress(
+            job_id=None,
+            connector_id=adapter.connector_id,
+            strategy="entity_read",
+            status="completed",
+            requests_completed=1,
+            requests_delayed=1 if (limiter_result is not None and limiter_result.delayed) else 0,
+            products_stored=stored,
+            remaining_queue=0,
+            estimated_completion_seconds=None,
         )
 
     async def _fetch_page(
@@ -275,6 +336,37 @@ class IncrementalReadEngine:
         self.db.refresh(job)
         return job
 
+    def _record_telemetry(
+        self,
+        adapter: ReadConnectorAdapter,
+        requests_completed: int,
+        products_stored: int,
+        duration_ms: float | None,
+    ) -> None:
+        """Durable evidence for "why is this FULL refresh slow?" -- request
+        count, rows stored, and duration per completed run, reusing the
+        existing DlConnectorTelemetry the write path already populates
+        rather than a second metrics table (ADR_CHANNEL_READ_ARCHITECTURE.md
+        Phase D benchmarking requirement).
+
+        request_count specifically is only added here for connectors that
+        bypass the standard limiter (uses_http_boundary_limiter, e.g.
+        WooCommerce) -- RateLimitService.record_acquire() already
+        increments it once per _acquire_read_limit_if_needed() call for
+        every other connector, and adding it again here would double-count.
+        """
+        telemetry = ConnectorTelemetryService(self.db)
+        requests = requests_completed if bool(getattr(adapter, "uses_http_boundary_limiter", False)) else 0
+        telemetry.increment(
+            adapter.connector_id,
+            adapter.connector_type,
+            requests=requests,
+            products_fetched=products_stored,
+            rows_parsed=products_stored,
+        )
+        if duration_ms is not None:
+            telemetry.set_refresh_duration(adapter.connector_id, duration_ms)
+
     def _save_job_meta(self, job: DlRefreshJob, meta: dict) -> None:
         job.meta = meta
         self.db.commit()
@@ -292,43 +384,67 @@ class IncrementalReadEngine:
         product_id = self._product_id(item)
         if not product_id:
             return
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        price = item.get("last_price", item.get("price"))
-        if price in (None, ""):
-            price = item.get("sale_price") or item.get("regular_price")
-        raw_data = _safe_item(item)
-        self.products.upsert(
-            connector_id,
-            product_id,
-            {
-                "sku": item.get("sku"),
-                "name": item.get("name"),
-                "external_id": _int_or_none(item.get("external_id", item.get("id"))),
-                "product_type": item.get("product_type") or item.get("type"),
-                "parent_id": str(item.get("parent_id")) if item.get("parent_id") not in (None, "") else None,
-                "status": item.get("status"),
-                "price": str(price) if price is not None else None,
-                "last_price": str(price) if price is not None else None,
-                "regular_price": _text_or_none(item.get("regular_price")),
-                "sale_price": _text_or_none(item.get("sale_price")),
-                "stock_qty": _int_or_none(item.get("stock_quantity", item.get("stock_qty"))),
-                "stock_status": item.get("stock_status"),
-                "manage_stock": _bool_or_none(item.get("manage_stock")),
-                "backorders_allowed": str(item.get("backorders") or "").lower() in {"yes", "notify", "true", "1"},
-                "categories": item.get("categories") if isinstance(item.get("categories"), list) else [],
-                "images": item.get("media") if isinstance(item.get("media"), list) else [],
-                "channel_id": connector_id,
-                "last_successful_read": now,
-                "last_modified": item.get("last_modified") or item.get("date_modified_gmt") or item.get("updated_at"),
-                "exists": bool(item.get("exists", True)),
-                "record_hash": _hash(raw_data),
-                "raw_data": raw_data,
-            },
-            freshness="fresh",
-        )
+        # The only caller is run_entity (LIGHT/PRODUCT scope) -- always a
+        # zero-staleness targeted read.
+        shaped = _shape_product(connector_id, item, mechanism="entity_read")
+        self.products.upsert(connector_id, product_id, shaped, freshness="fresh")
 
     def _product_id(self, item: dict[str, Any]) -> str:
         return str(item.get("product_id") or item.get("id") or "").strip()
+
+
+def _shape_product(connector_id: str, item: dict[str, Any], *, mechanism: str) -> dict[str, Any]:
+    """Pure normalization shared by the single-item path (_store_product,
+    used by run_entity) and the batched path (bulk_upsert, used by
+    run_manual's page loop) -- one mapping from provider payload fields to
+    DlProductCache columns, not two independently-correct copies.
+
+    `mechanism` is the read strategy that produced this observation
+    ("entity_read" | "initial_full_read" | "modified_since" |
+    "metadata_filter") -- write-time evidence for Observation Confidence.
+    A row that was just successfully written always evaluates to CONFIRMED
+    (entity_read: zero staleness) or LIKELY_FRESH (a FULL/CHANNEL-scope
+    read, age=0 at write time); STALE/RECOVERY_REQUIRED only arise later,
+    from Diagnostics' live recompute against entity-work evidence and TTL
+    decay -- this write-time value is a snapshot, not the final word.
+    """
+    price = item.get("last_price", item.get("price"))
+    if price in (None, ""):
+        price = item.get("sale_price") or item.get("regular_price")
+    raw_data = _safe_item(item)
+    last_modified_raw = item.get("last_modified") or item.get("date_modified_gmt") or item.get("updated_at")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    confidence, confidence_reason = compute_confidence(
+        ConfidenceEvidence(last_fetched_at=now, read_mechanism=mechanism), now=now
+    )
+    return {
+        "sku": item.get("sku"),
+        "name": item.get("name"),
+        "external_id": _int_or_none(item.get("external_id", item.get("id"))),
+        "product_type": item.get("product_type") or item.get("type"),
+        "parent_id": str(item.get("parent_id")) if item.get("parent_id") not in (None, "") else None,
+        "status": item.get("status"),
+        "price": str(price) if price is not None else None,
+        "last_price": str(price) if price is not None else None,
+        "regular_price": _text_or_none(item.get("regular_price")),
+        "sale_price": _text_or_none(item.get("sale_price")),
+        "stock_qty": _int_or_none(item.get("stock_quantity", item.get("stock_qty"))),
+        "stock_status": item.get("stock_status"),
+        "manage_stock": _bool_or_none(item.get("manage_stock")),
+        "backorders_allowed": str(item.get("backorders") or "").lower() in {"yes", "notify", "true", "1"},
+        "categories": item.get("categories") if isinstance(item.get("categories"), list) else [],
+        "images": item.get("media") if isinstance(item.get("media"), list) else [],
+        "channel_id": connector_id,
+        "last_successful_read": now,
+        "last_modified": last_modified_raw,
+        "provider_observed_at": _parse_modified(last_modified_raw),
+        "observation_confidence": confidence.value,
+        "observation_confidence_reason": confidence_reason,
+        "observation_confidence_computed_at": now,
+        "exists": bool(item.get("exists", True)),
+        "record_hash": _hash(raw_data),
+        "raw_data": raw_data,
+    }
 
 
 def _has_valid_price(row: DlProductCache) -> bool:

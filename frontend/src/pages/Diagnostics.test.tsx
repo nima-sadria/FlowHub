@@ -153,6 +153,7 @@ function canonicalStateModel() {
     connectivity: { state: 'HEALTHY', freshness: 'FRESH', lastVerifiedAt: now, lastCheckedAt: now },
     readiness: { state: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale' }, freshness: { state: 'STALE' }, overallState: 'NEEDS_ATTENTION', reasonCode: 'product_sync_stale',
     recommendedAction: { code: 'NEXT_PRODUCT_SYNC_SCHEDULED', scheduledAt: now, actionable: true }, latestRelevantAt: now,
+    observationConfidence: { value: 'STALE', reasonCode: 'beyond_channel_ttl', recoveryRequiredCount: 0, computedAt: now },
     capabilities: {
       connectionVerification: capability('FRESH'),
       productSynchronization: {
@@ -1157,5 +1158,27 @@ describe('Diagnostics', () => {
     expect(c.textContent).toContain('Queue depth: 12')
     // Abandoned records stay visible as evidence rather than being hidden.
     expect(c.textContent).toContain('Abandoned records: 4')
+  })
+
+  it('renders the observation-confidence tile, distinct from freshness, as its own owner-facing fact', async () => {
+    const model = canonicalStateModel()
+
+    const c = await renderCanonical(model)
+    const tile = c.querySelector('[data-testid="observation-confidence-tile"]')
+
+    expect(tile?.textContent).toContain('Delayed')
+    expect(tile?.getAttribute('title')).toBe('The last confirmed read is older than the expected freshness window.')
+  })
+
+  it('flips the observation-confidence tile to Recovery required with the affected product count', async () => {
+    const model = canonicalStateModel()
+    const channel = model.resources[0]
+    channel.observationConfidence = { value: 'RECOVERY_REQUIRED', reasonCode: 'entity_work_exhausted', recoveryRequiredCount: 3, computedAt: model.generatedAt }
+
+    const c = await renderCanonical(model)
+    const tile = c.querySelector('[data-testid="observation-confidence-tile"]')
+
+    expect(tile?.textContent).toContain('Recovery required')
+    expect(tile?.getAttribute('title')).toBe('FlowHub tried and failed to confirm current prices for 3 product(s). Manual review is recommended.')
   })
 })

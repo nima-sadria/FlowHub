@@ -72,6 +72,24 @@ REQUIRED_TAPSISHOP_WEBHOOK_TESTS = (
     "test_concurrent_duplicate_delivery_resolves_to_exactly_one_receipt",
     "test_concurrent_deliveries_for_different_channels_are_fully_independent",
 )
+REQUIRED_CHANNEL_ENTITY_WORK_TESTS = (
+    "test_concurrent_claim_has_no_double_processing",
+    "test_concurrent_enqueue_coalesces_to_one_pending_row",
+    "test_supersede_during_running_requeues_instead_of_completing",
+    "test_terminal_completion_flips_exactly_linked_receipts",
+    "test_failure_below_max_attempts_requeues_with_backoff",
+    "test_failure_at_max_attempts_dead_letters_linked_receipts",
+    "test_lease_expiry_recovery_respects_max_attempts",
+    "test_idempotent_replay_of_claim_and_complete_is_a_no_op",
+    "test_concurrent_full_job_and_entity_work_lease_are_independent",
+)
+REQUIRED_FULL_LIGHT_FENCING_TESTS = (
+    "test_full_batch_upsert_never_overwrites_newer_targeted_observation",
+    "test_full_batch_upsert_allows_a_genuinely_newer_full_page",
+    "test_concurrent_full_and_targeted_writes_converge_on_the_newest_observation",
+    "test_full_unseen_sweep_preserves_concurrently_confirmed_product",
+    "test_full_lease_and_targeted_entity_lease_remain_independent_under_real_concurrency",
+)
 
 
 def main() -> int:
@@ -95,6 +113,8 @@ def main() -> int:
         "crash": REQUIRED_CRASH_TESTS,
         "woocommerce-webhooks": REQUIRED_WOOCOMMERCE_WEBHOOK_TESTS,
         "tapsishop-webhooks": REQUIRED_TAPSISHOP_WEBHOOK_TESTS,
+        "channel-entity-work": REQUIRED_CHANNEL_ENTITY_WORK_TESTS,
+        "full-light-fencing": REQUIRED_FULL_LIGHT_FENCING_TESTS,
     }.get(group, REQUIRED_017_TESTS)
     root = ET.parse(report).getroot()
     cases = list(root.iter("testcase"))

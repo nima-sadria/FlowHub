@@ -13,7 +13,12 @@ os.environ.setdefault("FLOWHUB_DATABASE_URL", "sqlite:///:memory:")
 
 from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
-from app.flowhub.data_layer.models import DlConnectorHealth, DlProductCache, DlRefreshJob
+from app.flowhub.data_layer.models import (
+    DlChannelEntityWork,
+    DlConnectorHealth,
+    DlProductCache,
+    DlRefreshJob,
+)
 from app.flowhub.database import FlowHubBase
 from app.flowhub.diagnostics.state_model import CanonicalDiagnosticsProjector
 from app.flowhub.integration_platform import models as _integration_models  # noqa: F401
@@ -344,6 +349,187 @@ def test_successful_cache_outcome_can_be_stale(db):
 
     assert cache["lastOutcome"] == "SUCCESSFUL"
     assert cache["freshness"] == "STALE"
+
+
+# ---------------------------------------------------------------------------
+# Observation Confidence: distinct axis from freshness above, see
+# ADR_CHANNEL_READ_ARCHITECTURE.md.
+# ---------------------------------------------------------------------------
+
+
+def test_observation_confidence_is_unknown_with_no_cache_rows(db):
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_health(db, "woocommerce:primary", now)
+
+    confidence = _resource(_project(db, now), "woocommerce:primary")["observationConfidence"]
+
+    assert confidence["value"] == "UNKNOWN"
+    assert confidence["reasonCode"] == "never_observed"
+    assert confidence["recoveryRequiredCount"] == 0
+
+
+def test_observation_confidence_is_confirmed_when_every_row_is_confirmed(db):
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_health(db, "woocommerce:primary", now)
+    for product_id in ("1", "2"):
+        db.add(
+            DlProductCache(
+                connector_id="woocommerce:primary", product_id=product_id, name=f"Product {product_id}",
+                freshness="fresh", last_fetched_at=now, observation_confidence="CONFIRMED",
+            )
+        )
+    db.commit()
+
+    confidence = _resource(_project(db, now), "woocommerce:primary")["observationConfidence"]
+
+    assert confidence["value"] == "CONFIRMED"
+    assert confidence["reasonCode"] == "zero_staleness_read"
+
+
+def test_observation_confidence_rolls_up_to_worst_stored_value(db):
+    """A mix of CONFIRMED and STALE rows must roll up to STALE -- worst
+    value wins, a single good row cannot mask a bad one."""
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_health(db, "woocommerce:primary", now)
+    db.add(
+        DlProductCache(
+            connector_id="woocommerce:primary", product_id="1", name="Confirmed",
+            freshness="fresh", last_fetched_at=now, observation_confidence="CONFIRMED",
+        )
+    )
+    db.add(
+        DlProductCache(
+            connector_id="woocommerce:primary", product_id="2", name="Stale",
+            freshness="stale", last_fetched_at=now - timedelta(days=2), observation_confidence="STALE",
+        )
+    )
+    db.commit()
+
+    confidence = _resource(_project(db, now), "woocommerce:primary")["observationConfidence"]
+
+    assert confidence["value"] == "STALE"
+    assert confidence["reasonCode"] == "beyond_channel_ttl"
+
+
+def test_observation_confidence_decays_past_ttl_even_with_a_likely_fresh_stored_value(db):
+    """Diagnostics must recompute live rather than trust a write-time
+    snapshot that has since aged past the channel's TTL."""
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_health(db, "woocommerce:primary", now)
+    db.add(
+        DlProductCache(
+            connector_id="woocommerce:primary", product_id="1", name="Aged",
+            freshness="fresh",
+            # Written as LIKELY_FRESH at the time, but that was 2 days ago --
+            # well beyond the default 24h product-cache TTL.
+            last_fetched_at=now - timedelta(days=2),
+            observation_confidence="LIKELY_FRESH",
+        )
+    )
+    db.commit()
+
+    confidence = _resource(_project(db, now), "woocommerce:primary")["observationConfidence"]
+
+    assert confidence["value"] == "STALE"
+
+
+def test_observation_confidence_is_recovery_required_when_entity_work_exhausts_retries(db):
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_health(db, "woocommerce:primary", now)
+    db.add(
+        DlProductCache(
+            connector_id="woocommerce:primary", product_id="1", name="Confirmed",
+            freshness="fresh", last_fetched_at=now, observation_confidence="CONFIRMED",
+        )
+    )
+    db.add(
+        DlChannelEntityWork(
+            connector_id="woocommerce:primary", entity_type="products", entity_id="57926",
+            status="failed", strategy="LIGHT", reason="WEBHOOK_PRODUCT_UPDATED",
+            latest_reason="WEBHOOK_PRODUCT_UPDATED", latest_event_at=now,
+            attempt_count=5, max_attempts=5, created_at=now, updated_at=now,
+        )
+    )
+    db.commit()
+
+    confidence = _resource(_project(db, now), "woocommerce:primary")["observationConfidence"]
+
+    # Even one exhausted entity-work row overrides an otherwise-CONFIRMED
+    # channel -- FlowHub tried and failed to observe a real change, and that
+    # must not be silently masked by unrelated healthy rows.
+    assert confidence["value"] == "RECOVERY_REQUIRED"
+    assert confidence["reasonCode"] == "entity_work_exhausted_retries"
+    assert confidence["recoveryRequiredCount"] == 1
+
+
+def test_observation_confidence_ignores_entity_work_still_retrying(db):
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_health(db, "woocommerce:primary", now)
+    db.add(
+        DlProductCache(
+            connector_id="woocommerce:primary", product_id="1", name="Confirmed",
+            freshness="fresh", last_fetched_at=now, observation_confidence="CONFIRMED",
+        )
+    )
+    db.add(
+        DlChannelEntityWork(
+            connector_id="woocommerce:primary", entity_type="products", entity_id="57926",
+            status="failed", strategy="LIGHT", reason="WEBHOOK_PRODUCT_UPDATED",
+            latest_reason="WEBHOOK_PRODUCT_UPDATED", latest_event_at=now,
+            attempt_count=2, max_attempts=5, created_at=now, updated_at=now,
+        )
+    )
+    db.commit()
+
+    confidence = _resource(_project(db, now), "woocommerce:primary")["observationConfidence"]
+
+    assert confidence["value"] != "RECOVERY_REQUIRED"
+
+
+def test_observation_confidence_is_not_applicable_for_disabled_channel(db):
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce", enabled=False)
+
+    confidence = _resource(_project(db, now), "woocommerce:primary")["observationConfidence"]
+
+    assert confidence["value"] == "UNKNOWN"
+    assert confidence["reasonCode"] == "not_applicable"
+
+
+def test_observation_confidence_is_a_distinct_axis_from_freshness(db):
+    """The existing freshness axis and the new confidence axis must be able
+    to disagree -- neither is derived from the other."""
+    now = _now()
+    _seed_channel(db, "woocommerce:primary", "woocommerce")
+    _seed_health(db, "woocommerce:primary", now)
+    _seed_product_cache(db, "woocommerce:primary", now)
+    _seed_refresh(db, "woocommerce:primary", now, status="completed")
+    db.query(DlProductCache).filter_by(connector_id="woocommerce:primary").update(
+        {"observation_confidence": "STALE"}
+    )
+    db.commit()
+
+    channel = _resource(_project(db, now), "woocommerce:primary")
+
+    assert channel["capabilities"]["productCache"]["freshness"] == "FRESH"
+    assert channel["observationConfidence"]["value"] == "STALE"
+
+
+def test_source_resources_report_observation_confidence_as_not_applicable(db):
+    now = _now()
+    _seed_source_connector(db, "nextcloud:primary", enabled=True)
+    _seed_source(db, "src-1", "Primary Sheet", "nextcloud:primary", "active")
+
+    confidence = _resource(_project(db, now), "src-1")["observationConfidence"]
+
+    assert confidence["value"] == "UNKNOWN"
+    assert confidence["reasonCode"] == "not_applicable"
 
 
 def test_live_idle_runner_is_healthy_not_unknown(db):

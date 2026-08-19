@@ -224,6 +224,45 @@ defects produced that, and both are now closed:
 only as Advanced Evidence/refresh-job metadata and are consumed in-process by
 the evaluator; they are not added to public error objects.
 
+## Amendment (2026-08-19): narrowed to targeted per-product reads
+
+This ADR's Decision section named the exact tradeoff being made and the
+exact condition for revisiting it: "a single webhook triggers a full
+incremental poll-and-upsert of the channel rather than a single-row
+write... it can be narrowed to a per-product REST fetch in a later phase
+**without changing the receipt/idempotency contract**." That phase has now
+landed; see `ADR_CHANNEL_READ_ARCHITECTURE.md` for the full architecture.
+
+Behind a new rollout flag (`FLOWHUB_CHANNEL_READ_TARGETED_LIGHT_ENABLED`,
+**default off** -- this amendment ships the capability, enabling it live is
+a separate operational decision this task does not make), the webhook path
+changes as follows:
+
+* `ScheduledDiagnosticsEvaluator` no longer treats a pending WooCommerce
+  receipt as making the full-channel job due. A new sibling runner,
+  `ChannelEntityWorkRunner` (`entity_work_runner.py`), links each pending
+  receipt to a `DlChannelEntityWork` row and processes it with
+  `WooCommerceProductReadAdapter.fetch_entity()` -- one `GET /products/{id}`
+  (plus its variations, if any) instead of a full catalog poll.
+* This targeted read owns **no** `DlRefreshJob` row and never contends with
+  `RefreshJobLifecycle`'s channel-wide lease -- the structural fix for the
+  2026-08-18 incident (Amendment above): a full-catalog job can no longer
+  hold the only lease a webhook-driven refresh needs.
+* **Invariant 6 still holds, strengthened.** Work that was never attempted
+  still must not consume an attempt -- now enforced per targeted read
+  (`entity_work.py`'s bounded `attempt_count`/`max_attempts`) rather than by
+  detecting a deferred full-channel refresh.
+* **The receipt/idempotency contract is exactly as promised: unchanged.**
+  `webhook_receipts`, `provider_event_id` dedup, HMAC verification, and the
+  `queued` -> `processed`/`retry_scheduled`/`dead_letter` state machine are
+  untouched. Receipts are linked to whichever `DlChannelEntityWork`
+  execution covers them (`dl_channel_entity_work_receipts`) and transition
+  through the exact same `WebhookIngestionService.mark_woocommerce_receipt_processed`
+  / `_failed` methods this ADR already specified -- entity_work.py is simply
+  a new caller of the same state machine, not a second one.
+* When the flag is off, behavior is exactly what this ADR originally
+  specified -- unchanged.
+
 ## Explicitly out of scope this phase
 
 Orders, customers, remote WooCommerce webhook management via the REST API,

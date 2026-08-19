@@ -26,6 +26,7 @@ from app.flowhub.pricing_authority.contracts import PricingAuthority, PricingOri
 from app.flowhub.pricing_authority.errors import PricingAuthorityError
 from app.flowhub.pricing_authority.service import ChannelPricingAuthorityService
 from app.flowhub.rate_limit.service import RateLimitService
+from app.flowhub.read_engine.observation_confidence import ObservationConfidence
 from app.flowhub.security.redaction import redact_sensitive
 from app.flowhub.setup.service import AppConfigService
 from app.flowhub.workspace.preview_store import PreviewValidationError, WorkspacePreviewStore
@@ -1017,7 +1018,15 @@ class WritePipelineService:
             typed_cache.regular_price = stored_price
             typed_cache.price = stored_price
             typed_cache.freshness = "fresh"
-            typed_cache.last_successful_read = datetime.now(timezone.utc).replace(tzinfo=None)
+            verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            typed_cache.last_successful_read = verified_at
+            # Highest-trust evidence available: a live, deliberately-fetched,
+            # zero-staleness read, not a cache assumption. Distinct axis from
+            # freshness above -- see ADR_CHANNEL_READ_ARCHITECTURE.md.
+            typed_cache.observation_confidence = ObservationConfidence.CONFIRMED.value
+            typed_cache.observation_confidence_reason = "post_apply_verification"
+            typed_cache.observation_confidence_computed_at = verified_at
+            typed_cache.provider_observed_at = verified_at
             typed_cache.record_hash = sha256(
                 "|".join(
                     str(value or "")

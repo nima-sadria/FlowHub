@@ -528,12 +528,29 @@ def make_session_factory() -> sessionmaker:
 
 async def main_async() -> None:
     logging.basicConfig(level=os.environ.get("FLOWHUB_LOG_LEVEL", "INFO"))
-    runner = OrderSyncRunner(make_session_factory())
+    from app.flowhub.read_engine.entity_work_runner import ChannelEntityWorkRunner
+
+    session_factory = make_session_factory()
+    runner = OrderSyncRunner(session_factory)
+    # A sibling runner, not nested inside OrderSyncRunner: it ticks on its
+    # own, much shorter interval (default 5s vs. the ~30s full-channel-due
+    # check) so webhook-driven targeted reads converge in seconds without
+    # waiting for the slower loop. Independent lease table, independent
+    # failure domain -- one runner's exception never blocks the other.
+    entity_work_runner = ChannelEntityWorkRunner(session_factory)
+
+    def _stop_both() -> None:
+        runner.stop()
+        entity_work_runner.stop()
+
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         with suppress(NotImplementedError):
-            loop.add_signal_handler(sig, runner.stop)
-    await runner.serve_forever()
+            # add_signal_handler replaces any previous handler for the same
+            # signal -- registering two separate .stop() calls here would
+            # silently drop the first, so both are combined into one.
+            loop.add_signal_handler(sig, _stop_both)
+    await asyncio.gather(runner.serve_forever(), entity_work_runner.serve_forever())
 
 
 def main() -> None:
