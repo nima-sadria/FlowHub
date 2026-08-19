@@ -3,6 +3,7 @@
   "codes.CACHE_STALE": "Channel data is stale. Refresh it and create a new Review.",
   "codes.CAPABILITY_CHANGED": "Channel capabilities changed. Create a new Review.",
   "codes.CURRENCY_CONFIGURATION_CHANGED": "Currency configuration changed. Create a new Review.",
+  "codes.DRAFT_VERSION_CONFLICT": "Another change was saved to this Draft. Reopen it and reapply your edit.",
   "codes.MAPPING_CHANGED": "Product Mapping changed. Create a new Review.",
   "codes.PERMISSION_DENIED": "You do not have permission to perform this action.",
   "codes.REVIEW_REQUIRED": "A fresh Review is required before Apply.",
