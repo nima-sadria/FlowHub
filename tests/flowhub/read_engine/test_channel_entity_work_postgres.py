@@ -159,7 +159,13 @@ def test_concurrent_claim_has_no_double_processing(pg_sessions):
     def claim(worker_index: int) -> list[int]:
         with pg_sessions() as db:
             barrier.wait(timeout=10)
-            claimed = claim_entity_work(db, worker_id=f"worker-{worker_index}", limit=10, lease_seconds=120)
+            # limit=2 with 6 rows across 3 single-call workers is deliberate:
+            # since the assertions below require all 6 claimed and no worker
+            # can exceed 2, pigeonhole forces every worker to claim exactly
+            # 2 -- a deterministic spread, not a scheduling-order coin flip
+            # (limit=10 let one fast worker legitimately claim all 6 under
+            # SKIP LOCKED, which is correct but exercises no real contention).
+            claimed = claim_entity_work(db, worker_id=f"worker-{worker_index}", limit=2, lease_seconds=120)
             return [work.id for work in claimed]
 
     with ThreadPoolExecutor(max_workers=3) as pool:
@@ -357,9 +363,14 @@ def test_lease_expiry_recovery_respects_max_attempts(pg_sessions):
 def test_idempotent_replay_of_claim_and_complete_is_a_no_op(pg_sessions):
     """Two concurrent completions of the same work item (e.g. a false-
     positive lease-recovery race with a still-alive worker's own
-    completion) must not double-mutate state or crash -- flip_linked_receipts
-    calling mark_woocommerce_receipt_processed twice on an already-processed
-    receipt is a safe no-op in the existing receipt state machine."""
+    completion) must not double-mutate state or crash. flip_linked_receipts
+    calls the existing WebhookIngestionService.mark_woocommerce_receipt_processed
+    for both racers, but that method's own SELECT ... FOR UPDATE on the
+    receipt row (webhooks/service.py's _process_receipt) already serializes
+    them: exactly one racer observes the not-yet-processed row and records
+    the one real attempt: the other unblocks afterward, observes
+    processing_state == "processed", and returns without incrementing
+    attempt_count a second time."""
     with pg_sessions() as db:
         _seed_channel(db, "woocommerce:contended")
         work_id = _work(db, status="running")
@@ -386,7 +397,11 @@ def test_idempotent_replay_of_claim_and_complete_is_a_no_op(pg_sessions):
         assert work.status == "completed"
         receipts = db.query(WebhookReceipt).filter(WebhookReceipt.id.in_(receipt_ids)).all()
         assert all(receipt.processing_state == "processed" for receipt in receipts)
-        assert all(receipt.attempt_count == 0 for receipt in receipts), "success never increments attempt_count"
+        assert all(receipt.attempt_count == 1 for receipt in receipts), (
+            "exactly one real attempt despite two racing completions -- not 0 (a"
+            " successful transition still counts as an attempt) and not 2 (the"
+            " second racer's flip must be serialized into a no-op, not a double-count)"
+        )
         # Exactly one join row per (work, receipt) -- no duplicate linking.
         assert db.query(DlChannelEntityWorkReceipt).filter_by(work_id=work_id).count() == 2
 
