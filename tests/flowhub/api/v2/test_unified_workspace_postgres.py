@@ -30,6 +30,14 @@ from sqlalchemy.orm import sessionmaker
 os.environ.setdefault("FLOWHUB_DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("FLOWHUB_JWT_SECRET", "unified-workspace-postgres-test-secret-32b")
 
+# The `client` fixture below imports app.flowhub.app on its first call (inside
+# a fixture function, i.e. after postgres_engine's module-scoped create_all()
+# has already run). Importing it here first ensures every router's models
+# (e.g. orders' channel_inventory_effects) are registered on FlowHubBase
+# metadata before create_all() builds the schema -- otherwise later fixtures'
+# TRUNCATE (which reflects current, now-larger metadata) fails with
+# UndefinedTable for tables that were never created.
+from app.flowhub.app import app as _app  # noqa: E402, F401
 from app.flowhub.auth import models as _auth_models  # noqa: E402, F401
 from app.flowhub.data_layer import models as _data_models  # noqa: E402, F401
 from app.flowhub.integration_platform import models as _integration_models  # noqa: E402, F401
