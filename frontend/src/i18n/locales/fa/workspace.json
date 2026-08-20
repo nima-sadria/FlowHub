@@ -273,4 +273,13 @@
   "workspace.woocommerce": "ووکامرس",
   "workspace.workflowGuardrails": "محدودیت‌های ایمنی فرایند",
   "workspace.workspace": "فضای کاری"
+  ,"workspace.sourceBindingRequired": "اتصال منبع فضای کاری لازم است",
+  "workspace.sourceRebindRequired": "اتصال مجدد منبع لازم است",
+  "workspace.sourceBindingDescription": "پیش از شروع پیش‌نمایش، منبع فعال Nextcloud موردنظر را انتخاب کنید.",
+  "workspace.sourceBindingInactive": "منبع فعلی فضای کاری غیرفعال است. پیش از شروع پیش‌نمایش، یک منبع فعال را انتخاب و متصل کنید.",
+  "workspace.workspaceSource": "منبع فضای کاری",
+  "workspace.selectActiveSource": "انتخاب منبع فعال",
+  "workspace.bindSource": "اتصال منبع",
+  "workspace.rebindSource": "اتصال مجدد منبع",
+  "workspace.noActiveSourceCandidate": "منبع فعال Nextcloud موجود نیست. ابتدا یک منبع فعال پیکربندی کنید."
 }

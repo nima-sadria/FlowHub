@@ -1,4 +1,4 @@
-import type { WorkspaceState, WorkspacePreview, PriceChange } from '../types'
+import type { WorkspaceSourceBinding, WorkspaceSourceReference, WorkspaceState, WorkspacePreview, PriceChange } from '../types'
 import type { WorkspaceService } from './WorkspaceService'
 import { apiFetch } from '../../api/client'
 import { authFetch } from '../../api/authFetch'
@@ -66,6 +66,18 @@ export class ApiWorkspaceService implements WorkspaceService {
   async getState(): Promise<WorkspaceState> {
     const data = await apiFetch<{ state: WorkspaceState }>('/api/v2/workspace/state', authFetch)
     return data.state
+  }
+
+  async getSourceBinding(): Promise<WorkspaceSourceBinding> {
+    return apiFetch<WorkspaceSourceBinding>('/api/v2/workspace/source-binding', authFetch)
+  }
+
+  async bindSource(sourceId: string): Promise<WorkspaceSourceReference> {
+    return apiFetch<WorkspaceSourceReference>('/api/v2/workspace/source-binding', authFetch, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_id: sourceId }),
+    })
   }
 
   async startPreview(sourceId: string): Promise<WorkspacePreview> {

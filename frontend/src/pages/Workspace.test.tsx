@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
-import type { WorkspacePreview, WritePipelineBatch } from '../services/types'
+import type { WorkspacePreview, WorkspaceSourceBinding, WorkspaceSourceReference, WritePipelineBatch } from '../services/types'
 import Workspace from './Workspace'
 import { ApiError } from '../api/client'
 
@@ -26,6 +26,59 @@ afterEach(() => {
 })
 
 describe('Workspace source-driven preview', () => {
+  it('requires an explicit Source bind before Preview when no binding exists', async () => {
+    const preview = makePreview({ withError: false })
+    const startPreview = vi.fn(async (_sourceId: string) => preview)
+    const bindSource = vi.fn(async (sourceId: string) => ({
+      sourceId,
+      sourceName: 'Current Nextcloud',
+      status: 'active',
+    }))
+    const binding: WorkspaceSourceBinding = {
+      boundSource: null,
+      candidates: [{ sourceId: 'source-active', sourceName: 'Current Nextcloud', status: 'active' }],
+    }
+    await renderWorkspace(preview, vi.fn(), startPreview, binding, bindSource)
+
+    expect(select('Workspace Source')?.value).toBe('')
+    expect(button('Start Preview')?.disabled).toBe(true)
+
+    await selectOption('Workspace Source', 'source-active')
+    await click('Bind Source')
+
+    expect(bindSource).toHaveBeenCalledWith('source-active')
+    expect(button('Start Preview')?.disabled).toBe(false)
+    await click('Start Preview')
+    expect(startPreview).toHaveBeenCalledWith('source-active')
+  })
+
+  it('does not auto-select a candidate or send nextcloud:primary implicitly', async () => {
+    const preview = makePreview({ withError: false })
+    const startPreview = vi.fn(async (_sourceId: string) => preview)
+    const binding: WorkspaceSourceBinding = {
+      boundSource: null,
+      candidates: [{ sourceId: 'source-active', sourceName: 'Current Nextcloud', status: 'active' }],
+    }
+    await renderWorkspace(preview, vi.fn(), startPreview, binding)
+
+    expect(select('Workspace Source')?.value).toBe('')
+    expect(startPreview).not.toHaveBeenCalled()
+    expect(startPreview).not.toHaveBeenCalledWith('nextcloud:primary')
+  })
+
+  it('shows rebind-required state and blocks Preview for an inactive bound Source', async () => {
+    const startPreview = vi.fn(async (_sourceId: string) => makePreview({ withError: false }))
+    const binding: WorkspaceSourceBinding = {
+      boundSource: { sourceId: 'source-archived', sourceName: 'Archived Nextcloud', status: 'archived' },
+      candidates: [{ sourceId: 'source-active', sourceName: 'Current Nextcloud', status: 'active' }],
+    }
+    await renderWorkspace(makePreview({ withError: false }), vi.fn(), startPreview, binding)
+
+    expect(container.textContent).toContain('Source rebind required')
+    expect(button('Start Preview')?.disabled).toBe(true)
+    expect(startPreview).not.toHaveBeenCalled()
+  })
+
   it('prevents duplicate preview submissions before React rerenders', async () => {
     const preview = makePreview({ withError: false })
     let resolvePreview: (value: WorkspacePreview) => void = () => {}
@@ -220,7 +273,13 @@ describe('Workspace source-driven preview', () => {
 async function renderWorkspace(
   preview: WorkspacePreview,
   createDryRun: ReturnType<typeof vi.fn>,
-  startPreview: () => Promise<WorkspacePreview> = async () => preview,
+  startPreview: (sourceId: string) => Promise<WorkspacePreview> = async () => preview,
+  sourceBinding: WorkspaceSourceBinding = activeSourceBinding(),
+  bindSource: (sourceId: string) => Promise<WorkspaceSourceReference> = async sourceId => ({
+    sourceId,
+    sourceName: 'Active Source',
+    status: 'active',
+  }),
 ) {
   const services = {
     settings: {
@@ -239,6 +298,8 @@ async function renderWorkspace(
     },
     workspace: {
       async getState() { return 'idle' as const },
+      async getSourceBinding() { return sourceBinding },
+      bindSource,
       startPreview,
       async cancelPreview() {},
     },
@@ -285,7 +346,9 @@ async function renderWorkspaceWithPreviewError(error: Error) {
     },
     workspace: {
       async getState() { return 'idle' as const },
-      async startPreview() { throw error },
+      async getSourceBinding() { return activeSourceBinding() },
+      async bindSource(sourceId: string) { return { sourceId, sourceName: 'Active Source', status: 'active' } },
+      async startPreview(_sourceId: string) { throw error },
       async cancelPreview() {},
     },
     writePipeline: {},
@@ -308,6 +371,13 @@ async function renderWorkspaceWithPreviewError(error: Error) {
   await flush()
 }
 
+function activeSourceBinding(): WorkspaceSourceBinding {
+  return {
+    boundSource: { sourceId: 'source-active', sourceName: 'Active Source', status: 'active' },
+    candidates: [{ sourceId: 'source-active', sourceName: 'Active Source', status: 'active' }],
+  }
+}
+
 async function click(label: string) {
   const el = button(label)
   expect(el).toBeTruthy()
@@ -319,6 +389,20 @@ async function click(label: string) {
 
 function button(label: string): HTMLButtonElement | null {
   return Array.from(container.querySelectorAll('button')).find(item => item.textContent?.includes(label)) ?? null
+}
+
+function select(label: string): HTMLSelectElement | null {
+  return container.querySelector(`select[aria-label="${label}"]`)
+}
+
+async function selectOption(label: string, value: string) {
+  const el = select(label)
+  expect(el).toBeTruthy()
+  await act(async () => {
+    el!.value = value
+    el!.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+  await flush()
 }
 
 function checkbox(label: string): HTMLInputElement | null {

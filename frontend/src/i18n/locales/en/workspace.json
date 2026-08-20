@@ -272,5 +272,14 @@
   "workspace.verifiedAt": "Verified at {{value1}}",
   "workspace.woocommerce": "WooCommerce",
   "workspace.workflowGuardrails": "Workflow Guardrails",
-  "workspace.workspace": "Workspace"
+  "workspace.workspace": "Workspace",
+  "workspace.sourceBindingRequired": "Source binding required",
+  "workspace.sourceRebindRequired": "Source rebind required",
+  "workspace.sourceBindingDescription": "Select the intended active Nextcloud Source before starting Preview.",
+  "workspace.sourceBindingInactive": "The current Workspace Source is inactive. Select and bind an active Source before starting Preview.",
+  "workspace.workspaceSource": "Workspace Source",
+  "workspace.selectActiveSource": "Select an active Source",
+  "workspace.bindSource": "Bind Source",
+  "workspace.rebindSource": "Rebind Source",
+  "workspace.noActiveSourceCandidate": "No active Nextcloud Source is available. Configure an active Source first."
 }

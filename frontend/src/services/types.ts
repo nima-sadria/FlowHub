@@ -468,6 +468,17 @@ export interface WorkspacePreview {
   duplicateWarnings?: string[]
 }
 
+export interface WorkspaceSourceReference {
+  sourceId: string
+  sourceName: string
+  status: string
+}
+
+export interface WorkspaceSourceBinding {
+  boundSource: WorkspaceSourceReference | null
+  candidates: WorkspaceSourceReference[]
+}
+
 // -- Write Pipeline ------------------------------------------------------------
 
 export type WritePipelineStatus =
