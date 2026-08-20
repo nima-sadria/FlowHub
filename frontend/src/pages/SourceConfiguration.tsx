@@ -1899,20 +1899,11 @@ export default function SourceConfiguration() {
                 />
                 {translate('commerce:commerceHub.manualReadNowAllowed')}
               </label>
-              <label className="fh-field max-w-xs">
+              <div className="fh-field max-w-xs">
                 <span className="fh-help-text">{translate('sources:sourceConfiguration.maxAcquisitionsPer24Hours')}</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={1000}
-                  value={readPolicy.max_reads_per_24h}
-                  onChange={event => setReadPolicy(current => ({
-                    ...current,
-                    max_reads_per_24h: Number(event.target.value || DEFAULT_READ_POLICY.max_reads_per_24h),
-                  }))}
-                  className="fh-input"
-                />
-              </label>
+                <output className="fh-input" aria-live="polite">{readQuota?.limit ?? readPolicy.max_reads_per_24h}</output>
+                <span className="fh-text-caption">{translate('sources:sourceConfiguration.sourceReadLimitManagedInRateLimits')}</span>
+              </div>
               <p className="fh-text-caption">{translate('sources:sourceConfiguration.readPolicyAcquisitionHelp')}</p>
               <p className="fh-text-caption">{translate('sources:sourceConfiguration.remoteReadsActionHelp')}</p>
               <p className="fh-text-caption">{translate('sources:sourceConfiguration.readPolicyQuotaScope')}</p>
