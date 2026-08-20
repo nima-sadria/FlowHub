@@ -32,7 +32,13 @@ def _user(db: Session) -> FlowHubUser:
     return user
 
 
-def _connector(db: Session, connector_id: str, *, enabled: bool = True) -> None:
+def _connector(
+    db: Session,
+    connector_id: str,
+    *,
+    enabled: bool = True,
+    status: str | None = None,
+) -> None:
     db.add(
         IntegrationConnectorInstance(
             id=connector_id,
@@ -40,7 +46,7 @@ def _connector(db: Session, connector_id: str, *, enabled: bool = True) -> None:
             name=connector_id,
             enabled=enabled,
             read_only=True,
-            status="configured" if enabled else "disabled",
+            status=status or ("configured" if enabled else "disabled"),
         )
     )
     db.commit()
@@ -97,7 +103,7 @@ def test_multiple_active_nextcloud_connectors_require_explicit_rebind() -> None:
 def test_commerce_projection_hides_only_unmanaged_retired_primary() -> None:
     db = _session()
     user = _user(db)
-    _connector(db, "nextcloud:primary", enabled=False)
+    _connector(db, "nextcloud:primary", enabled=True, status="disabled")
     _connector(db, "nextcloud:replacement")
 
     listed = CommerceHubService(db).list_sources()
@@ -124,3 +130,34 @@ def test_commerce_projection_hides_only_unmanaged_retired_primary() -> None:
     assert {"nextcloud:primary", "nextcloud:replacement"}.issubset(
         {item["id"] for item in listed["items"]}
     )
+    primary = next(item for item in listed["items"] if item["id"] == "nextcloud:primary")
+    assert primary["status"] == "archived"
+    assert primary["enabled"] is False
+
+
+def test_commerce_projection_keeps_active_managed_disabled_primary_visible() -> None:
+    db = _session()
+    user = _user(db)
+    _connector(db, "nextcloud:primary", enabled=True, status="disabled")
+    _connector(db, "nextcloud:replacement")
+    db.add(
+        SourceProfile(
+            id="active-primary",
+            name="Active legacy Source",
+            source_kind="external",
+            external_source_id="nextcloud:primary",
+            worksheet_mode="all",
+            worksheet_name=None,
+            data_start_row=2,
+            status="active",
+            version=1,
+            owner_user_id=user.id,
+        )
+    )
+    db.commit()
+
+    listed = CommerceHubService(db).list_sources()
+
+    primary = next(item for item in listed["items"] if item["id"] == "nextcloud:primary")
+    assert primary["status"] == "disabled"
+    assert primary["enabled"] is False

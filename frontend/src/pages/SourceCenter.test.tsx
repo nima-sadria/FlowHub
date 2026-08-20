@@ -358,6 +358,27 @@ describe('SourceCenter safe lifecycle', () => {
     expect(container.querySelectorAll('[data-source-card]')).toHaveLength(2)
   })
 
+  it('renders one managed Nextcloud card when the retired primary is excluded by the backend', async () => {
+    const linked: SourceProfile = {
+      ...source,
+      name: 'Current Nextcloud prices',
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:generated-connector-id',
+      sheetId: null,
+    }
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [linked] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [commerceSource('nextcloud:generated-connector-id', 'Current Nextcloud', { healthy: true })],
+    })
+
+    await render()
+
+    expect(container.querySelectorAll('[data-source-card]')).toHaveLength(1)
+    expect(container.querySelector('[data-source-card="source-1"]')).not.toBeNull()
+    expect(container.querySelector('[data-source-card="integration:nextcloud:primary"]')).toBeNull()
+  })
+
   it('shows persisted Source setup states as Add now, connected incomplete, and configured', async () => {
     vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
     vi.mocked(commerce.getSources).mockResolvedValueOnce({

@@ -481,8 +481,85 @@ def test_sources_route_reads_integration_platform_and_data_layer(client, auth_he
     assert response.status_code == 200
     item = response.json()["items"][0]
     assert item["connector_id"] == "nextcloud:primary"
-    assert item["status"] == "active"
+    assert item["status"] == "disabled"
     assert item["lastSynced"] is not None
+
+
+def _seed_nextcloud_connector(db, connector_id: str, *, enabled: bool, status: str) -> None:
+    from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+
+    db.add(
+        IntegrationConnectorInstance(
+            id=connector_id,
+            connector_type="nextcloud",
+            name=connector_id,
+            enabled=enabled,
+            read_only=True,
+            status=status,
+        )
+    )
+    db.commit()
+
+
+def test_sources_route_excludes_enabled_but_disabled_retired_primary(client, auth_headers, db):
+    _seed_nextcloud_connector(db, "nextcloud:primary", enabled=True, status="disabled")
+    _seed_nextcloud_connector(db, "nextcloud:generated", enabled=True, status="configured")
+
+    response = client.get("/api/v2/sources", headers=auth_headers)
+
+    assert response.status_code == 200
+    items = {item["connector_id"]: item for item in response.json()["items"]}
+    assert "nextcloud:primary" not in items
+    assert items["nextcloud:generated"]["status"] == "active"
+
+
+def test_sources_route_keeps_disabled_primary_without_replacement(client, auth_headers, db):
+    _seed_nextcloud_connector(db, "nextcloud:primary", enabled=True, status="disabled")
+
+    response = client.get("/api/v2/sources", headers=auth_headers)
+
+    assert response.status_code == 200
+    item = next(item for item in response.json()["items"] if item["connector_id"] == "nextcloud:primary")
+    assert item["status"] == "disabled"
+
+
+def test_sources_route_keeps_managed_disabled_primary_visible(client, auth_headers, db):
+    from app.flowhub.source_workspace.models import SourceProfile
+
+    _seed_nextcloud_connector(db, "nextcloud:primary", enabled=True, status="disabled")
+    _seed_nextcloud_connector(db, "nextcloud:generated", enabled=True, status="configured")
+    db.add(
+        SourceProfile(
+            id="managed-primary",
+            name="Managed legacy Source",
+            source_kind="external",
+            external_source_id="nextcloud:primary",
+            worksheet_mode="all",
+            data_start_row=2,
+            status="active",
+            version=1,
+            owner_user_id=1,
+        )
+    )
+    db.commit()
+
+    response = client.get("/api/v2/sources", headers=auth_headers)
+
+    assert response.status_code == 200
+    items = {item["connector_id"]: item for item in response.json()["items"]}
+    assert items["nextcloud:primary"]["status"] == "disabled"
+    assert items["nextcloud:generated"]["status"] == "active"
+
+
+def test_sources_route_keeps_multiple_generated_nextcloud_connectors_distinct(client, auth_headers, db):
+    _seed_nextcloud_connector(db, "nextcloud:generated-a", enabled=True, status="configured")
+    _seed_nextcloud_connector(db, "nextcloud:generated-b", enabled=True, status="configured")
+
+    response = client.get("/api/v2/sources", headers=auth_headers)
+
+    assert response.status_code == 200
+    ids = [item["connector_id"] for item in response.json()["items"]]
+    assert {"nextcloud:generated-a", "nextcloud:generated-b"}.issubset(ids)
 
 
 def test_workspace_routes_are_read_only(client, auth_headers, db):

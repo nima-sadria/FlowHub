@@ -7,6 +7,8 @@ they are never used to select a connector when the choice is ambiguous.
 
 from __future__ import annotations
 
+from collections.abc import Collection
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -116,3 +118,23 @@ def has_active_replacement(db: Session) -> bool:
 
     return bool(_active_candidates(db))
 
+
+def is_retired_legacy_nextcloud_primary(
+    connector_id: str,
+    *,
+    connector_status: str,
+    has_generated_active_replacement: bool,
+    managed_source_ids: Collection[str],
+) -> bool:
+    """Whether the legacy primary is only an unmanaged compatibility row.
+
+    Lifecycle status is authoritative because legacy rows can contain the
+    contradictory state ``enabled=true, status=disabled``.
+    """
+
+    return (
+        connector_id == LEGACY_NEXTCLOUD_PRIMARY_ID
+        and connector_status == "disabled"
+        and has_generated_active_replacement
+        and connector_id not in managed_source_ids
+    )
