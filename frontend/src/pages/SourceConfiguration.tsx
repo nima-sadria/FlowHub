@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../api/client'
 import Icon from '../components/Icon'
 import BrandIcon from '../components/BrandIcon'
@@ -51,7 +51,7 @@ import { WORKSPACE_PERMISSION } from '../utils/workspacePermissions'
 import { useOptionalServices } from '../services/ServiceContext'
 import type { CommerceTypeOption } from '../services/types'
 import type { CommerceSourceConfiguration } from '../services/commerce/CommerceService'
-import { ConfigPanel, DEFAULT_READ_POLICY, type ReadPolicyDraft } from './CommerceHub'
+import { ConfigPanel } from './CommerceHub'
 
 interface PendingWorksheetCopy {
   intent: WorksheetCopyIntent
@@ -143,6 +143,12 @@ function sourceReadQuota(source: SourceProfile | null): RemoteReadQuota | null {
     resetAt: quota.reset_at,
     exhausted: quota.exhausted,
   }
+}
+
+function manualSourceReadAllowed(configuration: CommerceSourceConfiguration | null): boolean {
+  const policy = configuration?.settings.source_read_policy
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) return true
+  return (policy as { manual_read_allowed?: unknown }).manual_read_allowed !== false
 }
 
 function sourceWorksheetDiscovery(source: SourceProfile | null): WorksheetDiscoveryState | null {
@@ -431,8 +437,6 @@ export default function SourceConfiguration() {
   const [readQuota, setReadQuota] = useState<RemoteReadQuota | null>(null)
   const [discoveryQuota, setDiscoveryQuota] = useState<RemoteReadQuota | null>(null)
   const [worksheetDiscovery, setWorksheetDiscovery] = useState<WorksheetDiscoveryState | null>(null)
-  const [readPolicy, setReadPolicy] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
-  const [readPolicyBaseline, setReadPolicyBaseline] = useState<ReadPolicyDraft>(DEFAULT_READ_POLICY)
   const [reading, setReading] = useState(false)
   const [activeNavId, setActiveNavId] = useState('overview')
   const [sectionSignal, setSectionSignal] = useState<SectionOpenSignal | null>(null)
@@ -543,17 +547,12 @@ export default function SourceConfiguration() {
     commerce.getSourceConfiguration(source.externalSourceId).then(configuration => {
       if (!active) return
       setExternalConfig(configuration)
-      const loadedPolicy = configuration.settings.source_read_policy
-      const policy = loadedPolicy && typeof loadedPolicy === 'object' && !Array.isArray(loadedPolicy)
-        ? { ...DEFAULT_READ_POLICY, ...(loadedPolicy as Partial<ReadPolicyDraft>) }
-        : DEFAULT_READ_POLICY
-      setReadPolicy(policy)
-      setReadPolicyBaseline(policy)
     }).catch(() => {})
     return () => { active = false }
   }, [commerce, source?.externalSourceId, source?.sourceKind, reloadToken])
 
-  const hasReadPolicySection = Boolean(source && source.sourceKind === 'external' && source.externalSourceId)
+  const hasReadQuotaSection = Boolean(source && source.sourceKind === 'external' && source.externalSourceId)
+  const sourceManualReadAllowed = manualSourceReadAllowed(externalConfig)
   const externalSourceDisabled = Boolean(
     source?.sourceKind === 'external'
     && source.externalSourceId
@@ -594,7 +593,6 @@ export default function SourceConfiguration() {
     valuePolicy,
   }), [channelEnabled, channelFields, channelWorksheets, configuredChannelIds, dataStartRow, duplicateProductPolicy, identityAuthority, selectedWorksheetNames, sourceFields, valuePolicy, worksheetMode, worksheetName, worksheetRuleMode, worksheetRules])
   const dirty = baselineFingerprint !== null && baselineFingerprint !== configurationFingerprint
-  const readPolicyDirty = JSON.stringify(readPolicy) !== JSON.stringify(readPolicyBaseline)
   const savedParticipatingWorksheetNames = worksheetRules.filter(rule => rule.enabled).map(rule => rule.worksheetName)
   const participatingWorksheetNames = worksheetMode === 'all'
     ? (detectedWorksheets.length > 0 ? detectedWorksheets.map(item => item.name) : savedParticipatingWorksheetNames)
@@ -663,14 +661,14 @@ export default function SourceConfiguration() {
           { id: 'channel-columns-pw', labelKey: 'sources:sourceConfiguration.section.channelColumns', unsaved: dirty },
           { id: 'worksheet-columns', labelKey: 'sources:sourceConfiguration.section.worksheetColumns', unsaved: dirty },
         ]),
-    ...(hasReadPolicySection
-      ? [{ id: 'read-policy', labelKey: 'sources:sourceConfiguration.section.readPolicy', unsaved: readPolicyDirty }]
+    ...(hasReadQuotaSection
+      ? [{ id: 'read-quota', labelKey: 'sources:sourceConfiguration.section.readQuota', unsaved: false }]
       : []),
     { id: 'validation', labelKey: 'sources:sourceConfiguration.sourcePreview', unsaved: false },
     { id: 'snapshots', labelKey: 'sources:sourceConfiguration.detail.snapshots', unsaved: false },
     { id: 'activity', labelKey: 'sources:sourceConfiguration.detail.activity', unsaved: false },
     { id: 'diagnostics', labelKey: 'sources:sourceConfiguration.detail.diagnostics', unsaved: false },
-  ], [dirty, hasReadPolicySection, participatingWorksheetCount, readPolicyDirty, renderedWorksheetRuleMode])
+  ], [dirty, hasReadQuotaSection, participatingWorksheetCount, renderedWorksheetRuleMode])
 
   function retainQuotaLimit(error: unknown) {
     if (!(error instanceof ApiError) || error.code !== 'SOURCE_READ_LIMIT_REACHED') return false
@@ -1330,29 +1328,6 @@ export default function SourceConfiguration() {
     }
   }
 
-  async function saveReadPolicy() {
-    if (!source?.externalSourceId || !commerce || !externalConfig) return
-    if (JSON.stringify(readPolicy) === JSON.stringify(readPolicyBaseline)) return
-    try {
-      await commerce.saveSource(source.externalSourceId, {
-        display_name: externalConfig.display_name,
-        ...(typeof externalConfig.enabled === 'boolean' ? { enabled: externalConfig.enabled } : {}),
-        access_mode: externalConfig.access_mode,
-        description: '',
-        settings: { ...externalConfig.settings, source_read_policy: readPolicy },
-        secrets: {},
-        currency: externalConfig.currency_profile?.currency || 'IRR',
-        currency_unit: externalConfig.currency_profile?.status === 'resolved' ? externalConfig.currency_profile.unit || '' : '',
-      })
-      setReadPolicyBaseline(readPolicy)
-    } catch {
-      notify.error({
-        title: translate('sources:sourceConfiguration.readPolicyNotSaved'),
-        description: translate('sources:sourceConfiguration.tryAgain'),
-      })
-    }
-  }
-
   async function save() {
     if (!canEditSource) return
     if (!source) return
@@ -1371,7 +1346,6 @@ export default function SourceConfiguration() {
       // The backend derives identity readiness only from existing FlowHub
       // evidence and returns PASS, BLOCKED, or PENDING with this revision.
       const savedMapping = await sourceWorkspaceApi.saveMapping(source.id, payload)
-      await saveReadPolicy()
       notify.success({
         title: translate('sources:sourceConfiguration.sourceMappingSaved'),
         description: translate(savedMapping.mappingReadiness === 'identity_validation_pending'
@@ -1869,7 +1843,7 @@ export default function SourceConfiguration() {
 
       {source.sourceKind === 'external' && source.externalSourceId && (
         <div className="mt-3">
-          <ConfigurationSection id="read-policy" openSignal={sectionSignal} unsaved={readPolicyDirty} title={translate('sources:sourceConfiguration.section.readPolicy')} description={translate('sources:sourceConfiguration.section.readPolicyHelp')}>
+          <ConfigurationSection id="read-quota" openSignal={sectionSignal} title={translate('sources:sourceConfiguration.section.readQuota')} description={translate('sources:sourceConfiguration.section.readQuotaHelp')}>
             <div className="flex flex-col gap-3">
               {readQuota && (
                 <div className="rounded-lg border border-border bg-surface-subtle p-3" data-testid="remote-read-allowance" role="status">
@@ -1883,30 +1857,10 @@ export default function SourceConfiguration() {
                   <p className="text-sm text-text-muted">{translate('sources:sourceConfiguration.remoteReadsReset', { reset: formatQuotaReset(readQuota.resetAt) })}</p>
                 </div>
               )}
-              <label className="fh-inline-check">
-                <input
-                  type="checkbox"
-                  checked={readPolicy.enabled}
-                  onChange={event => setReadPolicy(current => ({ ...current, enabled: event.target.checked }))}
-                />
-                {translate('commerce:commerceHub.limitSourceReads')}
-              </label>
-              <label className="fh-inline-check">
-                <input
-                  type="checkbox"
-                  checked={readPolicy.manual_read_allowed}
-                  onChange={event => setReadPolicy(current => ({ ...current, manual_read_allowed: event.target.checked }))}
-                />
-                {translate('commerce:commerceHub.manualReadNowAllowed')}
-              </label>
-              <div className="fh-field max-w-xs">
-                <span className="fh-help-text">{translate('sources:sourceConfiguration.maxAcquisitionsPer24Hours')}</span>
-                <output className="fh-input" aria-live="polite">{readQuota?.limit ?? readPolicy.max_reads_per_24h}</output>
-                <span className="fh-text-caption">{translate('sources:sourceConfiguration.sourceReadLimitManagedInRateLimits')}</span>
-              </div>
-              <p className="fh-text-caption">{translate('sources:sourceConfiguration.readPolicyAcquisitionHelp')}</p>
-              <p className="fh-text-caption">{translate('sources:sourceConfiguration.remoteReadsActionHelp')}</p>
-              <p className="fh-text-caption">{translate('sources:sourceConfiguration.readPolicyQuotaScope')}</p>
+              <p className="fh-text-caption">
+                {translate('sources:sourceConfiguration.sourceReadLimitManagedInRateLimitsPrefix')}{' '}
+                <Link className="fh-link" to="/settings/rate-limits">{translate('sources:sourceConfiguration.sourceReadLimitManagedInRateLimitsLink')}</Link>
+              </p>
             </div>
           </ConfigurationSection>
         </div>
@@ -2096,7 +2050,7 @@ export default function SourceConfiguration() {
           </dl>
           {identityPreview.status === 'pending' && <div className="mt-3 space-y-2">
             <p>{translate('sources:sourceConfiguration.noLocalIdentityData')}</p>
-            {source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && <button className="fh-button-secondary fh-button-sm" type="button" disabled={reading || externalSourceDisabled || remoteReadQuotaExhausted} title={remoteReadQuotaExhausted ? quotaLimitDescription() : translate('sources:sourceConfiguration.readSourceConsumesAllowance')} onClick={() => void readNow()}><Icon name="refresh" /> {translate('sources:sourceConfiguration.readSource')}</button>}
+            {source.sourceKind === 'external' && source.externalSourceId && sourceManualReadAllowed && <button className="fh-button-secondary fh-button-sm" type="button" disabled={reading || externalSourceDisabled || remoteReadQuotaExhausted} title={remoteReadQuotaExhausted ? quotaLimitDescription() : translate('sources:sourceConfiguration.readSourceConsumesAllowance')} onClick={() => void readNow()}><Icon name="refresh" /> {translate('sources:sourceConfiguration.readSource')}</button>}
             {remoteReadQuotaExhausted && <p className="fh-text-caption text-danger">{translate('sources:sourceConfiguration.readSourceQuotaExhausted')}</p>}
           </div>}
           {identityPreview.status === 'blocked' && <div className="mt-3 space-y-2">
@@ -2211,7 +2165,7 @@ export default function SourceConfiguration() {
         <span className="fh-text-caption hidden sm:inline">{translate('sources:sourceConfiguration.savedAsImmutableRevision')}</span>
         <div className="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:ms-auto sm:flex sm:w-auto sm:flex-wrap">
           {canMutateSource && source.sourceKind === 'external' && <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={connectionChecking || externalSourceDisabled} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : undefined} onClick={() => void validateConfiguration()}><Icon name="testConnection" /> {connectionChecking ? translate('sources:sourceConfiguration.checkingConnection') : translate('commerce:commerceHub.testConnection')}</button>}
-          {canMutateSource && source.sourceKind === 'external' && source.externalSourceId && readPolicy.manual_read_allowed && (
+          {canMutateSource && source.sourceKind === 'external' && source.externalSourceId && sourceManualReadAllowed && (
             <button className="fh-button-secondary fh-button-sm w-full sm:w-auto" type="button" disabled={reading || externalSourceDisabled || remoteReadQuotaExhausted} title={externalSourceDisabled ? translate('sources:sourceCenter.setupReasonDisabled') : remoteReadQuotaExhausted ? quotaLimitDescription() : undefined} onClick={() => void readNow()}><Icon name="refresh" /> {reading ? translate('commerce:commerceHub.reading') : translate('commerce:commerceHub.readNow')}</button>
           )}
           {canMutateSource && <button

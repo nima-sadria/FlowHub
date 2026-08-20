@@ -436,6 +436,32 @@ describe('SourceConfiguration per-Channel mappings', () => {
     expect(container.textContent).toContain('Detect worksheets stays local. Refresh from Nextcloud uses the separate metadata allowance.')
   })
 
+  it('shows Source quota status with canonical Rate Limits navigation but no quota configuration controls', async () => {
+    vi.mocked(sourceWorkspaceApi.source).mockResolvedValueOnce({
+      ...source,
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:primary',
+      readQuota: { enabled: true, limit: 60, usage: 8, remaining: 52, reset_at: '2030-08-14T00:00:00Z', exhausted: false },
+    })
+    const getSourceConfiguration = vi.fn().mockResolvedValue({
+      source_id: 'nextcloud:primary', provider: 'nextcloud', display_name: 'Nextcloud', configured: true, enabled: true,
+      access_mode: 'read_only', settings: { source_read_policy: { enabled: true, max_reads_per_24h: 60, manual_read_allowed: true } }, secrets: {}, settings_schema: [], credentials_returned: false,
+    })
+    const services = {
+      commerce: { getSourceConfiguration } as unknown as CommerceService,
+      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+    } as Services
+
+    await renderPage(editorAuth, '/sources/source-1', services)
+
+    expect(container.querySelector('[data-testid="remote-read-allowance"]')?.textContent).toContain('8 / 60 used in the last 24 hours')
+    expect(container.querySelector('[data-testid="remote-read-allowance"]')?.textContent).toContain('52 remaining')
+    expect(container.querySelector('#read-quota a[href="/settings/rate-limits"]')?.textContent).toContain('Settings → Rate Limits')
+    expect(container.textContent).not.toContain('Limit source reads')
+    expect(container.textContent).not.toContain('Maximum acquisitions per 24 hours')
+    expect(container.querySelector('#read-quota input, #read-quota output')).toBeNull()
+  })
+
   it('keeps local detection available while an exhausted discovery allowance blocks only remote refresh', async () => {
     vi.mocked(sourceWorkspaceApi.source).mockResolvedValue({
       ...source,
