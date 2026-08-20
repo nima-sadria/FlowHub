@@ -343,7 +343,7 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
-      - name: PostgreSQL Unified Workspace Draft CAS concurrency tests
+      - name: PostgreSQL Unified Workspace Draft CAS and Apply Manifest concurrency tests
         id: postgres-unified-workspace-draft-cas-tests
         run: |
           set +e

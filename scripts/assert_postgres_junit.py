@@ -96,6 +96,7 @@ REQUIRED_FULL_LIGHT_FENCING_TESTS = (
 REQUIRED_UNIFIED_WORKSPACE_DRAFT_CAS_TESTS = (
     "test_concurrent_draft_saves_with_the_same_expected_version_resolve_to_exactly_one_winner",
     "test_targeted_light_style_cache_write_does_not_invalidate_a_concurrent_draft_save",
+    "test_two_concurrent_applies_racing_the_same_manifest_resolve_to_exactly_one_winner",
 )
 
 
