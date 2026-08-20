@@ -28,8 +28,6 @@ may be implemented and committed immediately.
 loading/error handling, and permission presentation defects can be repaired
 when they do not alter the approved architecture.
 
-## Decisions Required
-
 ### OD-004: Canonical Workspace entry point
 
 FlowHub currently has:
@@ -37,12 +35,24 @@ FlowHub currently has:
 - `/workspace`, the legacy Preview/Dry Run/Approval workflow; and
 - `/workspace/:workspaceId`, the immutable Snapshot/Draft/Review unified flow.
 
-**Decision needed:** Choose the canonical navigation entry, compatibility
-period, redirect behavior, and deprecation plan. This affects routes, user
-education, saved links, and test ownership.
+**Decision:** Unified Workspace is canonical going forward. Legacy `/workspace`
+remains available and is deprecated on a timeline to be set separately; it is
+not removed or redirected by this decision alone.
 
-**Safe interim:** Keep both routes, apply the same capability contract, and do
-not merge their business logic.
+**Implementation consequence:** Verified during implementation that the
+*reachable* Unified Workspace UI is `/products`
+(`frontend/src/features/sourceWorkspace/DensePricingWorkspace.tsx`), which
+already calls the Unified Workspace backend
+(`POST /api/v2/unified-workspaces/{id}/apply`) — not
+`/workspace/:workspaceId` (`frontend/src/pages/UnifiedWorkspace.tsx`), whose
+Handsontable grid is dead code: `entryPoint` only ever resolves to `'manual'`
+or `'source'`, and both values redirect to `/products` before the grid
+renders. New canonical-Workspace work targets `DensePricingWorkspace.tsx`.
+Full route consolidation (redirecting or removing `/workspace` and the dead
+`/workspace/:id` grid) is a separate future decision, not resolved here.
+
+**Safe interim:** Keep both routes; do not merge their business logic beyond
+what an individual approved change requires.
 
 ### OD-005: Unified Apply confirmation and operation evidence
 
@@ -50,9 +60,9 @@ The unified UI currently saves selected Review items and immediately submits
 Apply with `confirmed: true`. The reference model requires a separate user
 confirmation bound to exact approved operations.
 
-**Decision needed:** Approve an API/persistence evolution that exposes an exact
-pre-Apply operation manifest or formally designate immutable Review items plus
-selection checksum as FlowHub's equivalent confirmation object.
+**Decision:** Approved. Build an immutable, checksummed pre-Apply operation
+manifest now (tracked as the Apply Manifest feature; see
+`WORKSPACE_IMPLEMENTATION_PHASES.md` Phase 3).
 
 **Required acceptance criteria:**
 
@@ -63,6 +73,26 @@ selection checksum as FlowHub's equivalent confirmation object.
 - The dialog shows exact selected operations and affected Channels.
 - No visible-grid recomputation can add or remove operations.
 
+**Implementation consequence:** A new persisted, immutable `ApplyManifest` /
+`ApplyManifestOperation` pair is generated when a Review selection is saved,
+checksummed over the actual write payload (not just which fields were
+selected), returned to the frontend for display before any write, and
+re-verified fresh by the server both before Apply job creation and again
+immediately before dispatch. `POST /{workspace_id}/apply` requires
+`manifest_id` and `expected_manifest_checksum` in addition to the existing
+`expected_selection_checksum`.
+
+### OD-007: Reference specification publication
+
+The reference files were available as untracked Owner-provided documents in a
+separate checkout during this audit.
+
+**Decision:** The reference specification documents are not committed to
+FlowHub. They remain Owner-controlled and outside the repository; FlowHub's
+own architecture documents describe adopted behavior in FlowHub's terms.
+
+## Decisions Required
+
 ### OD-006: Legacy permission alias retirement
 
 **Decision needed:** Select a release for removing `can_fetch`, `can_apply`,
@@ -71,14 +101,6 @@ permissions.
 
 **Safe interim:** Keep aliases in `/api/auth/me` and test that their existing
 values do not regress.
-
-### OD-007: Reference specification publication
-
-The reference files were available as untracked Owner-provided documents in a
-separate checkout during this audit.
-
-**Decision needed:** Confirm whether those source documents should be committed
-to FlowHub. This audit will not copy or modify the Owner's untracked files.
 
 ## Decision Log Rules
 
@@ -94,10 +116,13 @@ New decisions must identify:
 ## Audit Disposition
 
 The authorization contract and all small/medium integration findings are
-resolved. Implementation must now stop at OD-004 and OD-005. Until those
-decisions are approved:
+resolved. OD-004, OD-005, and OD-007 are approved; implementation of the
+Apply Manifest feature (OD-005) is now in progress against the canonical
+Unified Workspace surface identified under OD-004. Until OD-006 is decided:
 
-- keep both Workspace routes;
-- do not alter Apply payloads or persistence;
-- do not represent the current immediate unified Apply action as canonical;
-- do not release, deploy, or execute provider writes before owner approval.
+- keep legacy permission aliases in `/api/auth/me`;
+- do not remove `can_fetch`/`can_apply`/related aliases.
+
+Regardless of OD-006's outcome, provider writes remain gated by existing
+Apply safety checks; do not release, deploy, or execute provider writes
+outside those checks before owner approval of the specific change.
