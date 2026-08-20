@@ -11,6 +11,7 @@ import openpyxl
 import pytest
 
 from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_price_list, parse_source_price_rows, _normalize_price_text
+from app.flowhub.sources.spreadsheet_source import resolve_participating_worksheet_scope
 
 
 # -- _normalize_price_text -----------------------------------------------------
@@ -172,6 +173,107 @@ class TestParsePriceList:
 
 
 class TestParseSourcePriceRows:
+    @staticmethod
+    def _workbook_with_sheets(*names: str):
+        workbook = openpyxl.Workbook()
+        workbook.active.title = names[0]
+        for name in names[1:]:
+            workbook.create_sheet(name)
+        for worksheet in workbook.worksheets:
+            worksheet.append(["Name", "Product ID", "Price", "SKU"])
+            worksheet.append(["", "", "", ""])
+            worksheet.append([f"{worksheet.title} product", 101, "110", f"{worksheet.title}-SKU"])
+        return workbook
+
+    def test_selected_scope_reads_only_one_worksheet(self):
+        rows, _ = parse_source_price_rows(
+            self._workbook_with_sheets("UGREEN", "Surface", "Mac"),
+            worksheet_mode="selected",
+            selected_worksheet_names=["UGREEN"],
+        )
+        assert {row["worksheet"] for row in rows} == {"UGREEN"}
+
+    def test_selected_scope_reads_only_the_requested_worksheets(self):
+        rows, _ = parse_source_price_rows(
+            self._workbook_with_sheets("UGREEN", "Surface", "Mac"),
+            worksheet_mode="selected",
+            selected_worksheet_names=["UGREEN", "Surface"],
+        )
+        assert {row["worksheet"] for row in rows} == {"UGREEN", "Surface"}
+
+    def test_all_scope_reads_all_worksheets(self):
+        rows, _ = parse_source_price_rows(
+            self._workbook_with_sheets("UGREEN", "Surface", "Mac"),
+            worksheet_mode="all",
+        )
+        assert {row["worksheet"] for row in rows} == {"UGREEN", "Surface", "Mac"}
+
+    def test_explicit_selected_scope_does_not_fall_back_to_all(self):
+        with pytest.raises(ValueError, match="Selected worksheet not found"):
+            parse_source_price_rows(
+                self._workbook_with_sheets("UGREEN", "Surface"),
+                worksheet_mode="selected",
+                selected_worksheet_names=["Missing"],
+            )
+
+    def test_duplicate_detection_is_limited_to_selected_worksheets(self):
+        workbook = self._workbook_with_sheets("UGREEN", "Surface")
+        workbook["Surface"].cell(row=3, column=2).value = 101
+        rows, duplicates = parse_source_price_rows(
+            workbook,
+            worksheet_mode="selected",
+            selected_worksheet_names=["UGREEN"],
+        )
+        assert {row["worksheet"] for row in rows} == {"UGREEN"}
+        assert duplicates == {"duplicate_product_ids": [], "duplicate_skus": []}
+
+    def test_scope_resolver_uses_enabled_worksheet_rules(self):
+        scope = resolve_participating_worksheet_scope(
+            mapping_mode="selected",
+            mapping_name=None,
+            enabled_rule_names=["UGREEN", "Surface", "*", "Surface"],
+        )
+        assert scope == {"mode": "selected", "name": "", "names": ["UGREEN", "Surface"]}
+
+    def test_scope_resolver_preserves_all_and_legacy_compatibility(self):
+        assert resolve_participating_worksheet_scope(
+            mapping_mode="all", mapping_name=None, enabled_rule_names=[]
+        ) == {"mode": "all", "name": "", "names": []}
+        assert resolve_participating_worksheet_scope(
+            mapping_mode="all",
+            mapping_name=None,
+            rule_mode="per_worksheet",
+            enabled_rule_names=["UGREEN", "Surface"],
+        ) == {"mode": "selected", "name": "", "names": ["UGREEN", "Surface"]}
+        assert resolve_participating_worksheet_scope(
+            mapping_mode=None, mapping_name=None, legacy_mode="selected", legacy_name="UGREEN"
+        ) == {"mode": "selected", "name": "UGREEN", "names": []}
+
+    def test_preview_fingerprint_changes_when_participating_scope_changes(self):
+        from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
+
+        class Config:
+            def get(self, key):
+                return "/prices.xlsx" if key == "nextcloud.spreadsheet_path" else None
+
+        class Reader:
+            def __init__(self, names):
+                self.names = names
+
+            def mapping(self):
+                return {"id": {"enabled": True, "column": "B"}}
+
+            def worksheet_scope(self, *, source_profile_id=None):
+                return {"mode": "selected", "name": "", "names": self.names}
+
+        service = object.__new__(WorkspacePriceWorkflowService)
+        service.config = Config()
+        service.source_reader = Reader(["UGREEN"])
+        first = service._source_config_hash("source-1")
+        service.source_reader.names = ["UGREEN", "Surface"]
+        second = service._source_config_hash("source-1")
+        assert first != second
+
     def test_sku_only_rows_keep_physical_row_numbers_in_read_only_workbook(self):
         wb = openpyxl.Workbook()
         ws = wb.active

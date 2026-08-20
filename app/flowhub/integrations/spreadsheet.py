@@ -250,6 +250,7 @@ def parse_source_price_rows(
     mapping: dict[str, dict[str, object]] | None = None,
     worksheet_mode: str = "all",
     worksheet_name: str | None = None,
+    selected_worksheet_names: list[str] | None = None,
 ) -> tuple[list[dict], dict]:
     """Parse worksheets into normalized source-row candidates for Workspace.
 
@@ -265,7 +266,9 @@ def parse_source_price_rows(
         "price": {"enabled": True, "column": "C"},
         "stock": {"enabled": False, "column": "D"},
     }
-    sheet_names = _selected_sheet_names(wb, worksheet_mode, worksheet_name)
+    sheet_names = _selected_sheet_names(
+        wb, worksheet_mode, worksheet_name, selected_worksheet_names
+    )
     rows: list[dict] = []
     for sheet_name in sheet_names:
         ws = wb[sheet_name]
@@ -409,9 +412,23 @@ def parse_source_price_rows(
     }
 
 
-def _selected_sheet_names(wb: "openpyxl.Workbook", mode: str, name: str | None) -> list[str]:
+def _selected_sheet_names(
+    wb: "openpyxl.Workbook",
+    mode: str,
+    name: str | None,
+    selected_names: list[str] | None = None,
+) -> list[str]:
     if str(mode or "all").strip().lower() != "selected":
         return list(wb.sheetnames)
+    if selected_names is not None:
+        requested = list(dict.fromkeys(str(item).strip() for item in selected_names if str(item).strip()))
+        if not requested:
+            raise ValueError("Selected worksheet names are required.")
+        missing = [item for item in requested if item not in wb.sheetnames]
+        if missing:
+            raise ValueError(f"Selected worksheet not found: {', '.join(missing)}")
+        # Preserve the configured order; worksheet names are matched exactly.
+        return requested
     requested = str(name or "").strip()
     if not requested:
         raise ValueError("Selected worksheet name is required.")

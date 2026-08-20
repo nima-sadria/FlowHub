@@ -76,7 +76,7 @@ class WorkspacePriceWorkflowService:
             )
         lock_key = self.workspace_source_id
         async with _preview_execution_lock(self.db, lock_key):
-            source_config_hash = self._source_config_hash()
+            source_config_hash = self._source_config_hash(self.workspace_source_id)
             self._require_channel_config()
             latest_refresh = self._latest_cache_refresh()
             self._ensure_cache_refresh_ready(latest_refresh)
@@ -214,6 +214,7 @@ class WorkspacePriceWorkflowService:
             triggered_by=user.username,
             triggered_by_id=user.id,
             manual=False,
+            source_profile_id=self.workspace_source_id,
         )
         rows = self._build_preview_rows(
             imported.rows,
@@ -221,7 +222,7 @@ class WorkspacePriceWorkflowService:
             products,
             preview_id,
             imported.snapshot,
-            source_config_hash or self._source_config_hash(),
+            source_config_hash or self._source_config_hash(self.workspace_source_id),
         )
         summary = _summary(rows)
         eligible_changes = [row["dry_run_change"] for row in rows if row["eligible_for_dry_run"]]
@@ -348,11 +349,14 @@ class WorkspacePriceWorkflowService:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Missing required setting: {key}")
         return value
 
-    def _source_config_hash(self) -> str:
+    def _source_config_hash(self, source_profile_id: str | None = None) -> str:
+        worksheet_scope = self.source_reader.worksheet_scope(
+            source_profile_id=source_profile_id
+        )
         payload = {
             "spreadsheet_path": self._required_config("nextcloud.spreadsheet_path"),
             "mapping": self.source_reader.mapping(),
-            "worksheet": self.source_reader.worksheet_selection(),
+            "worksheet": worksheet_scope,
         }
         return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
 
