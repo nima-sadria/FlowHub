@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Badge from '../components/Badge'
 import Alert from '../components/Alert'
 import { useServices } from '../services/ServiceContext'
-import type { WorkspacePreview, PriceChange, WorkspacePreviewRow, WritePipelineBatch, WritePipelineItem } from '../services/types'
+import type { WorkspacePreview, PriceChange, WorkspacePreviewRow, WorkspaceSourceBinding, WritePipelineBatch, WritePipelineItem } from '../services/types'
 import { useNotification } from '../notifications/NotificationProvider'
 import Spinner from '../components/loading/Spinner'
 import Empty from '../components/Empty'
@@ -275,6 +275,13 @@ export default function Workspace() {
   const [wcConfigured, setWcConfigured] = useState<boolean | null>(null)
   const [ncConfigured, setNcConfigured] = useState<boolean | null>(null)
   const [configLoading, setConfigLoading] = useState(true)
+  const [sourceBinding, setSourceBinding] = useState<WorkspaceSourceBinding | null>(null)
+  const [sourceBindingLoading, setSourceBindingLoading] = useState(true)
+  const [sourceBindingError, setSourceBindingError] = useState<string | null>(null)
+  const [selectedSourceId, setSelectedSourceId] = useState('')
+  const [bindingSaving, setBindingSaving] = useState(false)
+  const [sourceRebindRequired, setSourceRebindRequired] = useState(false)
+  const previousBoundSourceId = useRef<string | null>(null)
   const previewRequestInFlight = useRef(false)
 
   useEffect(() => {
@@ -290,15 +297,66 @@ export default function Workspace() {
       .finally(() => setConfigLoading(false))
   }, [settings])
 
+  const loadSourceBinding = useCallback(async () => {
+    setSourceBindingLoading(true)
+    setSourceBindingError(null)
+    try {
+      const binding = await workspace.getSourceBinding()
+      setSourceBinding(binding)
+      setSelectedSourceId(binding.boundSource?.status === 'active' ? binding.boundSource.sourceId : '')
+      if (binding.boundSource) {
+        previousBoundSourceId.current = binding.boundSource.sourceId
+        setSourceRebindRequired(binding.boundSource.status !== 'active')
+      } else {
+        setSourceRebindRequired(previousBoundSourceId.current !== null)
+      }
+    } catch (error) {
+      setSourceBinding(null)
+      setSelectedSourceId('')
+      setSourceBindingError(localizedApiError(error, 'errors:codes.UNKNOWN'))
+    } finally {
+      setSourceBindingLoading(false)
+    }
+  }, [workspace])
+
+  useEffect(() => {
+    void loadSourceBinding()
+  }, [loadSourceBinding])
+
+  const bindSource = useCallback(async () => {
+    if (!selectedSourceId || bindingSaving) return
+    setBindingSaving(true)
+    setSourceBindingError(null)
+    try {
+      const boundSource = await workspace.bindSource(selectedSourceId)
+      setSourceBinding(current => ({
+        boundSource,
+        candidates: current?.candidates ?? [],
+      }))
+      previousBoundSourceId.current = boundSource.sourceId
+      setSourceRebindRequired(false)
+      setSelectedSourceId(boundSource.sourceId)
+    } catch (error) {
+      setSourceBindingError(localizedApiError(error, 'errors:codes.UNKNOWN'))
+    } finally {
+      setBindingSaving(false)
+    }
+  }, [bindingSaving, selectedSourceId, workspace])
+
+  const activeBoundSource = sourceBinding?.boundSource?.status === 'active'
+    ? sourceBinding.boundSource
+    : null
+  const bindingReady = activeBoundSource !== null
+
   const startPreview = useCallback(async () => {
-    if (previewRequestInFlight.current) return
+    if (previewRequestInFlight.current || !activeBoundSource) return
     previewRequestInFlight.current = true
     setPhase('previewing')
     setErrorTitle(null)
     setErrorMsg(null)
     setCacheEmptyError(false)
     try {
-      const p = await workspace.startPreview('')
+      const p = await workspace.startPreview(activeBoundSource.sourceId)
       setPreview(p)
       setSelectedRowIds(new Set(p.rows.filter(row => row.eligible_for_dry_run).map(row => row.id)))
       setBatch(null)
@@ -316,11 +374,20 @@ export default function Workspace() {
         // i18n-ignore -- legacy diagnostic fallback until this endpoint emits CACHE_EMPTY.
         || e.message.includes('WooCommerce product cache is empty')
       ))
-      setPhase('error')
+      if (e instanceof ApiError && (
+        e.code === 'SOURCE_WORKSPACE_REBIND_REQUIRED'
+        || e.code === 'SOURCE_WORKSPACE_BINDING_INVALID'
+      )) {
+        setSourceRebindRequired(true)
+        await loadSourceBinding()
+        setPhase('idle')
+      } else {
+        setPhase('error')
+      }
     } finally {
       previewRequestInFlight.current = false
     }
-  }, [workspace, info])
+  }, [activeBoundSource, info, loadSourceBinding, workspace])
 
   const createDryRun = useCallback(async () => {
     if (!preview) return
@@ -388,6 +455,7 @@ export default function Workspace() {
   }, [workspace, preview])
 
   const bothConfigured = wcConfigured === true && ncConfigured === true
+  const pageLoading = configLoading || sourceBindingLoading
   const eligibleRows = preview?.rows.filter(row => row.eligible_for_dry_run) ?? []
   const blockedRows = preview?.rows.filter(row => row.errors.length > 0).length ?? 0
   const stockOnlyRows = preview?.rows.filter(row => row.status === 'stock_changed').length ?? 0
@@ -410,7 +478,7 @@ export default function Workspace() {
       </div>
 
       {/* Config loading */}
-      {configLoading && (
+      {pageLoading && (
         <div className="fh-card fh-card-pad flex items-center gap-2 fh-text-body-sm">
           <Spinner size="sm" />
           {translate('workspace:workspace.loadingConfiguration')}
@@ -418,7 +486,7 @@ export default function Workspace() {
       )}
 
       {/* Not configured */}
-      {!configLoading && !bothConfigured && phase === "idle" && (
+      {!pageLoading && !bothConfigured && phase === "idle" && (
         <div className="fh-card">
           {!wcConfigured && (
             <Empty
@@ -438,17 +506,67 @@ export default function Workspace() {
       )}
 
       {/* Idle - start button */}
-      {!configLoading && bothConfigured && phase === "idle" && (
+      {!pageLoading && bothConfigured && phase === "idle" && (
         <div className="fh-card fh-card-pad flex flex-col gap-5">
-          <div>
-            <p className="fh-section-title">{translate('workspace:statusDisplay.ready')}</p>
-            <p className="fh-section-subtitle mt-1">
-              {translate('workspace:workspace.flowhubWillFetchProductsFromTheConnected')}
-            </p>
+          {!bindingReady && (
+            <Alert
+              variant="warning"
+              title={sourceRebindRequired || sourceBinding?.boundSource ? translate('workspace:workspace.sourceRebindRequired') : translate('workspace:workspace.sourceBindingRequired')}
+              message={sourceRebindRequired || sourceBinding?.boundSource
+                ? translate('workspace:workspace.sourceBindingInactive')
+                : translate('workspace:workspace.sourceBindingDescription')}
+            />
+          )}
+          {bindingReady && (
+            <div>
+              <p className="fh-section-title">{translate('workspace:statusDisplay.ready')}</p>
+              <p className="fh-section-subtitle mt-1">
+                {translate('workspace:workspace.flowhubWillFetchProductsFromTheConnected')}
+              </p>
+            </div>
+          )}
+          <div className="flex flex-col gap-3">
+            <label className="fh-field-label" htmlFor="workspace-source-binding">
+              {translate('workspace:workspace.workspaceSource')}
+              <select
+                id="workspace-source-binding"
+                aria-label={translate('workspace:workspace.workspaceSource')}
+                className="fh-input mt-1"
+                value={selectedSourceId}
+                onChange={event => setSelectedSourceId(event.target.value)}
+                disabled={bindingSaving}
+              >
+                <option value="">{translate('workspace:workspace.selectActiveSource')}</option>
+                {(sourceBinding?.candidates ?? []).map(candidate => (
+                  <option key={candidate.sourceId} value={candidate.sourceId}>
+                    {candidate.sourceName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {sourceBindingError && (
+              <Alert
+                variant="error"
+                title={translate('workspace:workspace.previewUnavailable')}
+                message={sourceBindingError}
+              />
+            )}
+            {!sourceBindingError && (sourceBinding?.candidates.length ?? 0) === 0 && !bindingReady && (
+              <p className="fh-text-caption">{translate('workspace:workspace.noActiveSourceCandidate')}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => void bindSource()}
+              disabled={!selectedSourceId || bindingSaving}
+              className="fh-button-secondary self-start disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {bindingReady ? translate('workspace:workspace.rebindSource') : translate('workspace:workspace.bindSource')}
+            </button>
           </div>
           <button
             onClick={() => void startPreview()}
-            className="fh-button-primary w-full"
+            disabled={!bindingReady}
+            className="fh-button-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Icon name="preview" />
             {translate('workspace:workspace.startPreview')}
