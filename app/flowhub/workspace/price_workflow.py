@@ -76,7 +76,13 @@ class WorkspacePriceWorkflowService:
             )
         lock_key = self.workspace_source_id
         async with _preview_execution_lock(self.db, lock_key):
-            source_config_hash = self._source_config_hash(self.workspace_source_id)
+            worksheet_scope = self.source_reader.worksheet_scope(
+                source_profile_id=self.workspace_source_id if source is not None else None
+            )
+            source_config_hash = self._source_config_hash(
+                self.workspace_source_id,
+                worksheet_scope=worksheet_scope,
+            )
             self._require_channel_config()
             latest_refresh = self._latest_cache_refresh()
             self._ensure_cache_refresh_ready(latest_refresh)
@@ -91,7 +97,11 @@ class WorkspacePriceWorkflowService:
                 if int(reusable.owner_user_id) != int(user.id):
                     reusable = self._clone_reusable_preview(reusable, user)
                 return self._reused_preview_response(reusable, user)
-            return await self._create_preview_from_nextcloud(user, source_config_hash=source_config_hash)
+            return await self._create_preview_from_nextcloud(
+                user,
+                source_config_hash=source_config_hash,
+                worksheet_scope=worksheet_scope,
+            )
 
     def _resolve_workspace_source(
         self, user: FlowHubUser, source_profile_id: str | None
@@ -199,6 +209,7 @@ class WorkspacePriceWorkflowService:
         user: FlowHubUser,
         *,
         source_config_hash: str | None = None,
+        worksheet_scope: dict[str, object] | None = None,
     ) -> WorkspacePreviewResponse:
         started = datetime.now(timezone.utc).replace(tzinfo=None)
         preview_id = f"wp_{uuid.uuid4().hex[:16]}"
@@ -210,7 +221,7 @@ class WorkspacePriceWorkflowService:
         if not products:
             raise HTTPException(status.HTTP_409_CONFLICT, "WooCommerce product cache is empty. Run a manual read first.")
 
-        worksheet_scope = self.source_reader.worksheet_scope(
+        worksheet_scope = worksheet_scope or self.source_reader.worksheet_scope(
             source_profile_id=self.workspace_source_id
         )
         imported = await self.source_reader.read_nextcloud_spreadsheet(
@@ -227,6 +238,7 @@ class WorkspacePriceWorkflowService:
             preview_id,
             imported.snapshot,
             source_config_hash or self._source_config_hash(self.workspace_source_id),
+            mapping_revision=worksheet_scope.get("mapping_revision"),
         )
         summary = _summary(rows)
         eligible_changes = [row["dry_run_change"] for row in rows if row["eligible_for_dry_run"]]
@@ -274,9 +286,9 @@ class WorkspacePriceWorkflowService:
             duplicateWarnings=duplicate_warnings,
             sourceContext={
                 "filePath": imported.spreadsheet_path,
-                "worksheet": self.source_reader.worksheet_selection().get("name") or None,
+                "worksheet": worksheet_scope.get("name") or None,
                 "rowsRead": summary["total_rows"],
-                "mappingRevision": None,
+                "mappingRevision": worksheet_scope.get("mapping_revision"),
             },
             runtime_write_blocked=True,
             external_call_performed=True,
@@ -307,6 +319,11 @@ class WorkspacePriceWorkflowService:
     def _reused_preview_response(self, preview: DlWorkspacePreview, user: FlowHubUser) -> WorkspacePreviewResponse:
         rows = preview.rows_json if isinstance(preview.rows_json, list) else []
         summary = preview.summary_json if isinstance(preview.summary_json, dict) else {}
+        mapping_revision = (
+            rows[0].get("source", {}).get("mappingRevision")
+            if rows and isinstance(rows[0].get("source"), dict)
+            else None
+        )
         changes = [
             row["dry_run_change"]
             for row in rows
@@ -341,7 +358,7 @@ class WorkspacePriceWorkflowService:
                 "filePath": source_path or None,
                 "worksheet": rows[0].get("source", {}).get("worksheet") if rows else None,
                 "rowsRead": summary.get("total_rows", len(rows)),
-                "mappingRevision": None,
+                "mappingRevision": mapping_revision,
             },
             runtime_write_blocked=True,
             external_call_performed=False,
@@ -353,8 +370,13 @@ class WorkspacePriceWorkflowService:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Missing required setting: {key}")
         return value
 
-    def _source_config_hash(self, source_profile_id: str | None = None) -> str:
-        worksheet_scope = self.source_reader.worksheet_scope(
+    def _source_config_hash(
+        self,
+        source_profile_id: str | None = None,
+        *,
+        worksheet_scope: dict[str, object] | None = None,
+    ) -> str:
+        worksheet_scope = worksheet_scope or self.source_reader.worksheet_scope(
             source_profile_id=source_profile_id
         )
         payload = {
@@ -411,6 +433,7 @@ class WorkspacePriceWorkflowService:
         preview_id: str,
         snapshot: DlSourceSnapshot,
         source_config_hash: str,
+        mapping_revision: object | None = None,
     ) -> list[dict]:
         by_product_id = {row.product_id: row for row in products if row.product_id}
         by_sku: dict[str, list[DlProductCache]] = {}
@@ -547,6 +570,7 @@ class WorkspacePriceWorkflowService:
                     "source": _source_payload(
                         source_row, preview_id, snapshot, row_index, source_config_hash,
                         source_id=self.workspace_source_id,
+                        mapping_revision=mapping_revision,
                     ),
                     "validationWarnings": warnings,
                 }
@@ -556,6 +580,7 @@ class WorkspacePriceWorkflowService:
             source_payload = _source_payload(
                 source_row, preview_id, snapshot, row_index, source_config_hash,
                 source_id=self.workspace_source_id,
+                mapping_revision=mapping_revision,
             )
             preview_rows.append({
                 "id": _preview_row_id(source_row, snapshot, row_index, source_id=self.workspace_source_id),
@@ -729,6 +754,7 @@ def _source_payload(
     source_config_hash: str = "",
     *,
     source_id: str = SOURCE_ID,
+    mapping_revision: object | None = None,
 ) -> dict:
     return {
         "previewId": preview_id,
@@ -737,6 +763,7 @@ def _source_payload(
         "sourceSnapshotId": snapshot.id,
         "sourceSnapshotVersion": snapshot.version_seq,
         "sourceConfigHash": source_config_hash,
+        "mappingRevision": mapping_revision,
         "sourceFilePath": snapshot.file_path,
         "worksheet": source_row.get("worksheet"),
         "rowNumber": source_row.get("row_number"),

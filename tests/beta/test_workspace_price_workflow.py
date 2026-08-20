@@ -191,6 +191,7 @@ def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
     assert preview_event.metadata_json["preview_id"] == data["id"]
     assert preview_event.metadata_json["preview_hash"] == stored_preview.preview_hash
     assert data["external_call_performed"] is True
+    assert data["sourceContext"]["mappingRevision"] is None
     assert data["summary"]["total_rows"] == 1
     assert data["summary"]["valid_changes"] == 1
     row = data["rows"][0]
@@ -230,6 +231,97 @@ def test_nextcloud_spreadsheet_import_success_generates_preview_and_dry_run(
     execute = client.post(f"/api/v2/write-pipeline/batches/{batch['id']}/execute", headers=auth_headers)
     assert execute.status_code == 409
     assert "approved Dry Run" in execute.text
+
+
+@pytest.mark.asyncio
+async def test_v2_source_mapping_revision_is_reported_for_fresh_reused_and_changed_previews(
+    configured_db, auth_headers, monkeypatch
+):
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+    from app.flowhub.source_workspace.models import SourceMappingRevision, SourceProfile
+    from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
+
+    owner = configured_db.query(FlowHubUser).one()
+    configured_db.add(
+        IntegrationConnectorInstance(
+            id="nextcloud:primary",
+            connector_type="nextcloud",
+            name="Nextcloud",
+            enabled=True,
+            read_only=True,
+            status="connected",
+        )
+    )
+    source = SourceProfile(
+        id="source-v2-mapping-context",
+        name="Nextcloud",
+        source_kind="external",
+        external_source_id="nextcloud:primary",
+        worksheet_mode="selected",
+        worksheet_name="UGREEN",
+        data_start_row=3,
+        status="active",
+        version=1,
+        owner_user_id=owner.id,
+    )
+    mapping = SourceMappingRevision(
+        id="mapping-v2-context-4",
+        source_id=source.id,
+        version=4,
+        checksum="4" * 64,
+        worksheet_mode="selected",
+        worksheet_name="UGREEN",
+        data_start_row=3,
+        value_policy_json={},
+        identity_authority_json={},
+        created_by_user_id=owner.id,
+    )
+    configured_db.add_all([source, mapping])
+    configured_db.commit()
+    _cache_product(configured_db, "101", "Test Product", "SKU-101", "100.00")
+
+    calls = 0
+
+    async def fake_download(self, path):
+        nonlocal calls
+        calls += 1
+        return _xlsx([["Test Product", 101, "110.00", "SKU-101"]], sheet_name="UGREEN"), {"etag": "etag-v2"}
+
+    install_nextcloud_download(monkeypatch, fake_download)
+    service = WorkspacePriceWorkflowService(configured_db)
+
+    fresh = await service.preview_from_nextcloud(owner, source.id)
+    assert fresh.sourceContext["worksheet"] == "UGREEN"
+    assert fresh.sourceContext["mappingRevision"] == 4
+    assert fresh.rows[0]["source"]["mappingRevision"] == 4
+
+    reused = await service.preview_from_nextcloud(owner, source.id)
+    assert reused.id == fresh.id
+    assert reused.external_call_performed is False
+    assert reused.sourceContext["mappingRevision"] == 4
+    assert calls == 1
+
+    newer_mapping = SourceMappingRevision(
+        id="mapping-v2-context-5",
+        source_id=source.id,
+        version=5,
+        checksum="5" * 64,
+        worksheet_mode="selected",
+        worksheet_name="UGREEN",
+        data_start_row=3,
+        value_policy_json={},
+        identity_authority_json={},
+        created_by_user_id=owner.id,
+    )
+    configured_db.add(newer_mapping)
+    configured_db.commit()
+
+    changed = await service.preview_from_nextcloud(owner, source.id)
+    assert changed.id != fresh.id
+    assert changed.sourceContext["mappingRevision"] == 5
+    assert changed.rows[0]["source"]["mappingRevision"] == 5
+    assert calls == 2
 
 
 @pytest.mark.asyncio
@@ -1343,12 +1435,12 @@ def _cache_product(
     db.commit()
 
 
-def _xlsx(rows: list[list[object]]) -> bytes:
+def _xlsx(rows: list[list[object]], *, sheet_name: str = "Sheet1") -> bytes:
     import openpyxl
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Sheet1"
+    ws.title = sheet_name
     ws.append(["Name", "Product ID", "Price", "SKU"])
     ws.append(["", "", "", ""])
     for row in rows:

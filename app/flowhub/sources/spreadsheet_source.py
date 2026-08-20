@@ -360,7 +360,7 @@ class SpreadsheetSourceReadService:
                         status.HTTP_422_UNPROCESSABLE_ENTITY,
                         {"code": "WORKSHEET_SCOPE_INVALID", "message": str(exc)},
                     ) from exc
-            if not rows and not capture_raw_worksheets and source_profile_id is None:
+            if not rows and not capture_raw_worksheets:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Spreadsheet contains no importable source rows.")
             persisted_row_count = (
                 sum(len(sheet_rows) for sheet_rows in raw_worksheets.values())
@@ -665,12 +665,16 @@ class SpreadsheetSourceReadService:
         )
         if mapping is None:
             legacy = self.worksheet_selection(source_profile_id=source_profile_id)
-            return resolve_participating_worksheet_scope(
+            scope = resolve_participating_worksheet_scope(
                 mapping_mode=None,
                 mapping_name=None,
                 legacy_mode=legacy["mode"],
                 legacy_name=legacy["name"],
             )
+            if scope["mode"] == "selected" and scope["name"]:
+                scope["names"] = [scope["name"]]
+            scope["mapping_revision"] = None
+            return scope
 
         repository = SourceRepository(self.db)
         rule_set = repository.worksheet_rule_set(mapping.id)
@@ -683,12 +687,14 @@ class SpreadsheetSourceReadService:
             if rule_set is not None
             else []
         )
-        return resolve_participating_worksheet_scope(
+        scope = resolve_participating_worksheet_scope(
             mapping_mode=mapping.worksheet_mode,
             mapping_name=mapping.worksheet_name,
             enabled_rule_names=enabled_rule_names,
             rule_mode=rule_set.mode if rule_set is not None else None,
         )
+        scope["mapping_revision"] = mapping.version
+        return scope
 
     def read_status(self, *, source_id: str | None = None) -> dict:
         return {
