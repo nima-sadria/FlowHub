@@ -1,5 +1,5 @@
 import { translate } from '../i18n'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Badge from '../components/Badge'
 import Alert from '../components/Alert'
 import { useServices } from '../services/ServiceContext'
@@ -192,6 +192,49 @@ function PreviewRow({ row, selected, onToggle }: {
   )
 }
 
+const validationLabels: Record<string, string> = {
+  duplicate_sku: 'Duplicate SKU in Source', duplicate_product_id: 'Duplicate Source Product Key',
+  missing_product: 'Product not found in WooCommerce', invalid_product_id: 'Source Product Key is missing or invalid',
+  missing_product_identifier: 'No usable product identifier', invalid_price: 'Source price is invalid',
+  invalid_or_missing_price: 'Price is missing or invalid', missing_price: 'Source price is missing',
+  product_name_mismatch: 'Product name differs', missing_current_price: 'WooCommerce has no current price',
+  missing_variation_parent: 'Variation parent metadata is missing', missing_variation_parent_id: 'Variation parent metadata is missing',
+  unsupported_product_type: 'This WooCommerce product type cannot be updated', suspiciously_high_price: 'Price looks unusually high',
+  active_sale_price_not_modified: 'Active sale price will not be modified', large_price_change: 'Price change is unusually large',
+  large_price_change_blocked: 'Price change is too large to apply', zero_or_negative_price: 'Price must be greater than zero',
+  stale_product_cache: 'WooCommerce product data may be stale',
+}
+
+void PreviewRow
+function validationLabel(code: string): string { return validationLabels[code] ?? code.replace(/_/g, ' ').replace(/^./, (value: string) => value.toUpperCase()) }
+function ownerAction(code: string): string | null {
+  if (code === 'missing_product') return 'Create or map this product in WooCommerce, then run Preview again.'
+  if (code === 'duplicate_sku') return 'Keep one authoritative row in the selected worksheet or correct the SKU.'
+  if (code === 'invalid_product_id' || code === 'missing_product_identifier') return 'Fill the mapped Source Product Key or SKU column for this row.'
+  if (code.includes('price')) return 'Enter a valid source price or exclude the row from the pricing workflow.'
+  return null
+}
+
+function OwnerPreviewRow({ row, selected, onToggle }: { row: WorkspacePreviewRow; selected: boolean; onToggle: (rowId: string, selected: boolean) => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const sourceName = row.source.sourceDisplayName || row.source.productName || translate('workspace:workspace.unmatchedProduct')
+  const channelName = row.matchedProduct?.name || '-'
+  const sku = row.source.sku || row.matchedProduct?.sku || '-'
+  const attrs = attributeText(row.matchedProduct?.variationAttributes)
+  const issues = [...row.errors, ...row.warnings]
+  const status = row.errors.length ? 'Blocked' : row.warnings.length ? 'Warning' : row.status === 'unchanged' ? 'Unchanged' : 'Ready'
+  return <Fragment>
+    <tr className="border-b border-border hover:bg-bg-base/60 transition-colors align-top">
+      <td className="px-4 py-3 text-center"><input type="checkbox" aria-label={translate('workspace:workspace.selectProduct', { product: sourceName })} checked={selected} disabled={!row.eligible_for_dry_run} onChange={event => onToggle(row.id, event.target.checked)} /></td>
+      <td className="px-4 py-3 min-w-0 max-w-[300px]"><div className="flex items-start gap-2">{row.matchedProduct?.imageUrl ? <img loading="lazy" src={row.matchedProduct.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover bg-bg-subtle" /> : <div aria-hidden="true" className="h-10 w-10 shrink-0 rounded bg-bg-subtle" />}<div className="min-w-0"><div className="fh-text-caption text-text-muted">SOURCE</div><LocalizedText className="block truncate fh-text-body font-medium text-text-base" text={sourceName} /><div className="fh-text-caption fh-text-mono mt-0.5">SKU: {sku} · {row.source.worksheet}:{row.source.rowNumber}</div>{(row.source.sourceProductKey || row.source.productId) && <div className="fh-text-caption fh-text-mono">Source Product Key: {row.source.sourceProductKey || row.source.productId}</div>}</div></div>{row.matchedProduct?.itemType === 'variation' && <div className="fh-text-caption mt-1 truncate">Variation · <LocalizedText text={attrs || '-'} /> · Parent {row.matchedProduct.parentProductId || row.matchedProduct.parentId || '-'}{row.matchedProduct.parentProductName ? <> · <LocalizedText text={row.matchedProduct.parentProductName} /></> : null}</div>}</td>
+      <td className="px-4 py-3 min-w-[220px]"><div className="fh-text-caption text-text-muted">CURRENT WOOCOMMERCE</div><LocalizedText className="block truncate fh-text-body-sm font-medium" text={channelName} /><div className="fh-text-caption fh-text-mono">Product ID: {row.matchedProduct?.productId || '-'} · SKU: {row.matchedProduct?.sku || '-'}</div>{row.currentPrice == null ? '-' : fmtPrice(row.currentPrice, 'EUR')}</td>
+      <td className="px-4 py-3 min-w-[150px]"><div className="fh-text-caption text-text-muted">SOURCE / CHANGE</div>{row.proposedPrice == null ? row.source.rawPrice || '-' : fmtPrice(row.proposedPrice, 'EUR')}<div>{row.changePct == null ? '-' : <ChangePct pct={row.changePct} />}</div>{row.status === 'stock_changed' && <div className="fh-text-caption">Stock only · {row.currentStock ?? '-'} → {row.sourceStock ?? row.source.rawStock ?? '-'} ({row.stockDifference != null ? formatNumber(row.stockDifference, { signDisplay: 'always' }) : '-'})</div>}</td>
+      <td className="px-4 py-3 min-w-[140px]"><div className="fh-text-caption text-text-muted">STATUS</div><Badge variant={status === 'Ready' ? 'success' : status === 'Warning' ? 'warning' : status === 'Unchanged' ? 'neutral' : 'danger'}>{status}{issues.length ? ` · ${issues.length} issue${issues.length === 1 ? '' : 's'}` : ''}</Badge><button type="button" className="mt-2 block fh-text-caption underline" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? 'Hide details' : 'View details'}</button><span className="sr-only">{issues.join(', ')}</span></td>
+    </tr>
+    {expanded && <tr className="border-b border-border bg-bg-subtle"><td colSpan={5} className="px-6 py-4"><div className="grid gap-4 md:grid-cols-3 fh-text-caption"><div><p className="font-semibold text-text-base">Blocking issues</p>{row.errors.length ? row.errors.map(code => <p key={code} className="mt-1">{validationLabel(code)}{ownerAction(code) && <span className="block text-text-muted">Action: {ownerAction(code)}</span>}</p>) : <p className="mt-1 text-text-muted">None</p>}</div><div><p className="font-semibold text-text-base">Warnings</p>{row.warnings.length ? row.warnings.map(code => <p key={code} className="mt-1">{validationLabel(code)}{code === 'product_name_mismatch' && <span className="block text-text-muted">Source: {sourceName}<br />WooCommerce: {channelName}</span>}</p>) : <p className="mt-1 text-text-muted">None</p>}</div><details><summary className="font-semibold cursor-pointer text-text-base">Technical details</summary><p className="mt-1 font-mono break-all">Codes: {issues.join(', ') || 'none'}<br />Source row: {row.source.worksheet}:{row.source.rowNumber}<br />Snapshot: {row.source.sourceSnapshotId}</p></details></div></td></tr>}
+  </Fragment>
+}
+
 function WorkflowSteps({ phase }: { phase: Phase }) {
   const order = ['preview_ready', 'dry_run_ready', 'approved', 'result']
   const idx = phase === 'dry_running' ? 1 : phase === 'approving' ? 2 : phase === 'applying' ? 3 : order.indexOf(phase)
@@ -270,6 +313,9 @@ export default function Workspace() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [cacheEmptyError, setCacheEmptyError] = useState(false)
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
+  const [previewSearch, setPreviewSearch] = useState('')
+  const [previewFilter, setPreviewFilter] = useState('all')
+  const [previewPage, setPreviewPage] = useState(1)
 
   // Check if both product and source connectors are configured.
   const [wcConfigured, setWcConfigured] = useState<boolean | null>(null)
@@ -459,6 +505,18 @@ export default function Workspace() {
   const eligibleRows = preview?.rows.filter(row => row.eligible_for_dry_run) ?? []
   const blockedRows = preview?.rows.filter(row => row.errors.length > 0).length ?? 0
   const stockOnlyRows = preview?.rows.filter(row => row.status === 'stock_changed').length ?? 0
+  const filteredPreviewRows = useMemo(() => {
+    if (!preview) return []
+    const query = previewSearch.trim().toLocaleLowerCase()
+    return preview.rows.filter(row => {
+      const haystack = [row.source.sourceDisplayName, row.source.productName, row.source.sku, row.source.productId, row.matchedProduct?.name, row.matchedProduct?.productId, row.matchedProduct?.sku].filter(Boolean).join(' ').toLocaleLowerCase()
+      const matchesSearch = !query || haystack.includes(query)
+      const matchesFilter = previewFilter === 'all' || (previewFilter === 'ready' && row.eligible_for_dry_run && !row.errors.length && !row.warnings.length) || (previewFilter === 'blocked' && row.errors.length > 0) || (previewFilter === 'warnings' && row.warnings.length > 0) || (previewFilter === 'unchanged' && row.status === 'unchanged') || (previewFilter === 'missing_product' && row.errors.includes('missing_product')) || (previewFilter === 'duplicate_sku' && row.errors.includes('duplicate_sku')) || (previewFilter === 'price' && row.errors.some(code => code.includes('price'))) || (previewFilter === 'mismatch' && [...row.errors, ...row.warnings].includes('product_name_mismatch')) || (previewFilter === 'variation' && row.matchedProduct?.itemType === 'variation')
+      return matchesSearch && matchesFilter
+    })
+  }, [preview, previewFilter, previewSearch])
+  const previewPageSize = 50
+  const visiblePreviewRows = filteredPreviewRows.slice((previewPage - 1) * previewPageSize, previewPage * previewPageSize)
   const toggleRow = useCallback((rowId: string, selected: boolean) => {
     setSelectedRowIds(current => {
       const next = new Set(current)
@@ -629,14 +687,14 @@ export default function Workspace() {
           </div>
           <div className="fh-stat-grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
             {[
-              [translate('sources:sourceConfiguration.productsFound'), preview.summary.total_rows],
-              [translate('sources:sourceConfiguration.productsReady'), preview.summary.valid_changes],
-              [translate('dataQuality:dataQuality.warnings'), preview.summary.warning_rows],
-              [translate('sources:sourceConfiguration.unchangedProducts'), preview.summary.unchanged_rows],
-              [translate('dataQuality:dataQuality.blockingIssues'), preview.summary.error_rows],
-              [translate('dataQuality:category.duplicate_rows'), preview.summary.duplicate_rows],
-              [translate('workspace:workspace.productsMissingFromChannel'), preview.summary.missing_products],
-              [translate('workspace:workspace.largePriceChanges'), preview.summary.large_changes],
+              ['Source rows', preview.summary.total_rows],
+              ['Ready to Dry Run', preview.summary.valid_changes],
+              ['Blocked rows', preview.summary.blocked_rows ?? preview.summary.error_rows],
+              ['Blocking issues', preview.rows.reduce((count, row) => count + row.errors.length, 0)],
+              ['Warnings', preview.summary.warning_rows],
+              ['Products not found', preview.summary.missing_products],
+              ['Duplicate source identifiers', preview.summary.duplicate_rows],
+              ['Unchanged', preview.summary.unchanged_rows],
             ].map(([label, value]) => (
               <div key={label} className="fh-stat-tile">
                 <p className="fh-stat-tile-label">{label}</p>
@@ -764,13 +822,14 @@ export default function Workspace() {
                 <span className="fh-section-title">
                 {translate('workspace:workspace.preview2')} {preview.summary.total_rows} {translate('workspace:workspace.sourceRows')}
                 </span>
-                <p className="fh-text-caption mt-1">{translate('workspace:workspace.denseValidationRowsRemainScrollableButNow')}</p>
+                <p className="fh-text-caption mt-1">Owner view: source identity, current WooCommerce value, proposed change, and next action.</p>
               </div>
               <div className="flex flex-wrap items-center gap-3 fh-text-caption">
                 <span>
                   <span className="font-mono">{translate('workspace:workspace.source')} </span>
                   <LocalizedText text={preview.sourceName} />
                 </span>
+                <span className="fh-text-caption">File: {preview.sourceContext?.filePath || preview.rows[0]?.source.sourceFilePath || '-'} · Worksheet: {preview.sourceContext?.worksheet || preview.rows[0]?.source.worksheet || '-'} · Rows read: {preview.sourceContext?.rowsRead ?? preview.summary.total_rows} · Mapping revision: {preview.sourceContext?.mappingRevision ?? 'unavailable'}</span>
                 <button type="button" onClick={() => setSelectedRowIds(new Set(eligibleRows.map(row => row.id)))} className="fh-button-secondary px-2 py-1">
                   <Icon name="apply" />
                   {translate('workspace:workspace.selectAllEligible')}
@@ -782,6 +841,12 @@ export default function Workspace() {
               </div>
             </div>
 
+            <div className="grid gap-3 border-b border-border bg-bg-subtle px-4 py-3 md:grid-cols-[minmax(220px,1fr)_180px_auto]">
+              <input className="fh-input" aria-label="Search preview rows" placeholder="Search source name, WooCommerce name, SKU, ID…" value={previewSearch} onChange={event => { setPreviewSearch(event.target.value); setPreviewPage(1) }} />
+              <select className="fh-input" aria-label="Preview filter" value={previewFilter} onChange={event => { setPreviewFilter(event.target.value); setPreviewPage(1) }}><option value="all">All rows</option><option value="ready">Ready</option><option value="blocked">Blocked</option><option value="warnings">Warnings</option><option value="unchanged">Unchanged</option><option value="missing_product">Product not found</option><option value="duplicate_sku">Duplicate SKU</option><option value="price">Invalid/missing price</option><option value="mismatch">Name mismatch</option><option value="variation">Variations</option></select>
+              <span className="self-center fh-text-caption">Showing {visiblePreviewRows.length} of {filteredPreviewRows.length}</span>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 px-4 py-3 border-b border-border bg-bg-subtle fh-text-caption">
               <span>{translate('workspace:workspace.selected')} <strong>{selectedRowIds.size}</strong></span>
               <span>{translate('workspace:workspace.eligible')} <strong>{eligibleRows.length}</strong></span>
@@ -790,19 +855,21 @@ export default function Workspace() {
               <span>{translate('workspace:workspace.estimatedWoocommerceCalls')} <strong>{selectedRowIds.size}</strong></span>
             </div>
 
+            {filteredPreviewRows.length > previewPageSize && <div className="fh-panel-footer !justify-center gap-3"><button type="button" className="fh-button-secondary" disabled={previewPage === 1} onClick={() => setPreviewPage(page => page - 1)}>Previous</button><span className="fh-text-caption">Page {previewPage} of {Math.ceil(filteredPreviewRows.length / previewPageSize)}</span><button type="button" className="fh-button-secondary" disabled={previewPage >= Math.ceil(filteredPreviewRows.length / previewPageSize)} onClick={() => setPreviewPage(page => page + 1)}>Next</button></div>}
+
             <div className="overflow-x-auto">
-              <table className="fh-table fh-table-compact min-w-[1120px]">
+              <table className="fh-table fh-table-compact min-w-[920px]">
                 <thead>
                   <tr>
-                    {["Select", "Product", "Current Price", "New Price", "Change", "Current Stock", "Source Stock", "Stock Change", "Status", "Validation"].map(h => (
+                    {["Select", "Product / Identity", "Current WooCommerce", "Source / Change", "Status"].map(h => (
                       <th key={h}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {preview.rows.length > 0
-                    ? preview.rows.map(row => (
-                        <PreviewRow key={row.id} row={row} selected={selectedRowIds.has(row.id)} onToggle={toggleRow} />
+                    ? visiblePreviewRows.map(row => (
+                        <OwnerPreviewRow key={row.id} row={row} selected={selectedRowIds.has(row.id)} onToggle={toggleRow} />
                       ))
                     : preview.changes.map(c => <PriceChangeRow key={c.productId} change={c} />)}
                 </tbody>

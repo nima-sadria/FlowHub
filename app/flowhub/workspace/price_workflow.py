@@ -267,6 +267,12 @@ class WorkspacePriceWorkflowService:
             summary=summary,
             startedAt=started.isoformat(),
             duplicateWarnings=duplicate_warnings,
+            sourceContext={
+                "filePath": imported.spreadsheet_path,
+                "worksheet": self.source_reader.worksheet_selection().get("name") or None,
+                "rowsRead": summary["total_rows"],
+                "mappingRevision": None,
+            },
             runtime_write_blocked=True,
             external_call_performed=True,
         )
@@ -326,6 +332,12 @@ class WorkspacePriceWorkflowService:
             summary=summary,
             startedAt=preview.created_at.isoformat(),
             duplicateWarnings=[],
+            sourceContext={
+                "filePath": source_path or None,
+                "worksheet": rows[0].get("source", {}).get("worksheet") if rows else None,
+                "rowsRead": summary.get("total_rows", len(rows)),
+                "mappingRevision": None,
+            },
             runtime_write_blocked=True,
             external_call_performed=False,
         )
@@ -722,6 +734,10 @@ def _source_payload(
         "rowNumber": source_row.get("row_number"),
         "sourceRowIndex": row_index,
         "productId": source_row.get("product_id"),
+        "sourceDisplayName": source_row.get("product_name") or "",
+        "sourceProductKey": source_row.get("product_id"),
+        "sourceRowNumber": source_row.get("row_number"),
+        "sourceLocation": f"{source_row.get('worksheet')}:{source_row.get('row_number')}" if source_row.get("worksheet") and source_row.get("row_number") else None,
         "sku": source_row.get("sku") or "",
         "productName": source_row.get("product_name") or "",
         "rawPrice": source_row.get("raw_price") or "",

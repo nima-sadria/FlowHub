@@ -36,6 +36,7 @@ interface RawPreview {
   summary?: WorkspacePreview['summary']
   startedAt: string
   duplicateWarnings?: string[]
+  sourceContext?: WorkspacePreview['sourceContext']
 }
 
 function mapChange(r: RawChange): PriceChange {
@@ -107,6 +108,7 @@ export class ApiWorkspaceService implements WorkspaceService {
       },
       startedAt: new Date(data.startedAt),
       duplicateWarnings: data.duplicateWarnings,
+      sourceContext: data.sourceContext,
     }
   }
 

@@ -199,6 +199,7 @@ class WorkspacePreviewResponse(BaseModel):
     summary: dict = Field(default_factory=dict)
     startedAt: str
     duplicateWarnings: list[str] = Field(default_factory=list)
+    sourceContext: dict = Field(default_factory=dict)
     runtime_write_blocked: bool = True
     external_call_performed: bool = False
 
