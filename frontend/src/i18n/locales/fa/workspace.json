@@ -20,6 +20,8 @@
   "densePricing.field": "فیلد",
   "densePricing.increasePriceFixed": "افزایش قیمت به مقدار ثابت",
   "densePricing.increasePricePercent": "افزایش درصدی قیمت",
+  "densePricing.manifestAffectedChannels_one": "{{count}} کانال تحت تأثیر قرار می‌گیرد.",
+  "densePricing.manifestAffectedChannels_other": "{{count}} کانال تحت تأثیر قرار می‌گیرند.",
   "densePricing.noEligibleSelectedChanges": "هیچ تغییر انتخاب‌شده و واجد شرایطی برای بازبینی وجود ندارد.",
   "densePricing.pendingChanges_one": "{{count}} تغییر در انتظار",
   "densePricing.pendingChanges_other": "{{count}} تغییر در انتظار",

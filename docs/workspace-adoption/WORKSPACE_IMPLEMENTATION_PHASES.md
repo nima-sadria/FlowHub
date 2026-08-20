@@ -93,19 +93,27 @@ Validation:
 
 ## Phase 3: Canonical Workspace UX
 
-**Status:** Blocked on OD-004 and OD-005.
+**Status:** In progress. OD-004 and OD-005 are approved (Unified Workspace,
+reachable at `/products` via `DensePricingWorkspace.tsx`, is canonical; a
+real pre-Apply operation manifest is being built).
 
-Potential work after approval:
+Current work item: **Apply Manifest feature** — an immutable, checksummed
+`ApplyManifest`/`ApplyManifestOperation` pair generated when a Review
+selection is saved, displayed in the existing confirmation dialog before any
+write, and re-verified fresh by the server before Apply job creation and
+again immediately before dispatch. Closes WS-002 and WS-003.
 
-- Establish one canonical Workspace entry point.
-- Add exact operation evidence before Apply.
-- Add an accessible, invalidation-aware confirmation.
-- Align stale, cancelled, blocked, partial, and reconciliation states.
-- Preserve Source and Channel identity boundaries.
+Remaining potential work after this item:
+
+- Route consolidation mechanics for WS-001 (redirect/deprecation timeline for
+  legacy `/workspace` and the dead `/workspace/:id` Handsontable grid).
+- Align stale, cancelled, blocked, partial, and reconciliation state naming
+  across entry points (WS-004).
 
 Safety gate:
 
-- No Apply behavior changes until exact-scope and confirmation tests pass.
+- No Apply behavior changes ship until exact-scope and confirmation tests
+  pass.
 
 ## Phase 4: Contract Convergence
 

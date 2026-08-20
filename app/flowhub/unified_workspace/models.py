@@ -539,6 +539,10 @@ class ApplyJob(FlowHubBase):
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
     recovery_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     operation_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    apply_manifest_id: Mapped[str | None] = mapped_column(
+        ForeignKey("uw_apply_manifests.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    manifest_checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
@@ -576,6 +580,72 @@ class ApplyJobItem(FlowHubBase):
     cache_sync_status: Mapped[str | None] = mapped_column(String(40), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class ApplyManifest(FlowHubBase):
+    """Immutable, checksummed statement of the exact operations a Review
+    selection would write, generated eagerly at selection-save time so it can
+    be shown to the user before Apply confirmation (see OD-005)."""
+
+    __tablename__ = "uw_apply_manifests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_workspaces.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    snapshot_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_workspace_snapshots.id", ondelete="RESTRICT"), nullable=False
+    )
+    draft_revision_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_draft_revisions.id", ondelete="RESTRICT"), nullable=False
+    )
+    review_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_reviews.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    selection_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    selection_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    manifest_checksum: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    operation_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    channel_ids_json: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    schema_version: Mapped[str] = mapped_column(String(40), nullable=False, default="uw-manifest-1")
+    created_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class ApplyManifestOperation(FlowHubBase):
+    """One field-level write operation within an ApplyManifest, at the same
+    granularity as ReviewItem so the frontend can render it directly."""
+
+    __tablename__ = "uw_apply_manifest_operations"
+    __table_args__ = (
+        UniqueConstraint("manifest_id", "review_item_id", name="uq_uw_manifest_review_item"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    manifest_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_apply_manifests.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    review_item_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_review_items.id", ondelete="RESTRICT"), nullable=False
+    )
+    canonical_product_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_canonical_products.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    listing_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    channel_id: Mapped[str] = mapped_column(
+        ForeignKey("uw_channels.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    field: Mapped[str] = mapped_column(String(20), nullable=False)
+    current_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_value: Mapped[str] = mapped_column(Text, nullable=False)
+    currency: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    unit: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    listing_payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    listing_payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class ValidationIssue(FlowHubBase):
@@ -744,6 +814,8 @@ _IMMUTABLE_MODELS = (
     UnifiedAuditEntry,
     ApplyAttempt,
     ApplyAttemptEvent,
+    ApplyManifest,
+    ApplyManifestOperation,
 )
 
 

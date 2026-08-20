@@ -21,9 +21,9 @@
 
 | ID | Severity | Current behavior | Target behavior | Disposition |
 | --- | --- | --- | --- | --- |
-| WS-001 | P1 | Legacy `/workspace` and unified `/workspace/:id` coexist as separate user workflows | One canonical Workspace entry and lifecycle | Owner decision required |
-| WS-002 | P0 | Unified Apply button saves selection and immediately sends `confirmed: true` | Separate confirmation bound to exact approved Review/operation scope | Owner decision required |
-| WS-003 | P1 | Unified Review is the approval boundary, but no presentation contract identifies an exact operation manifest for confirmation | Persist or expose exact intended operations and checksum before confirmation | Owner decision required |
+| WS-001 | P1 | Legacy `/workspace` and unified `/workspace/:id` coexist as separate user workflows | One canonical Workspace entry and lifecycle | Owner decided (OD-004): Unified Workspace is canonical; legacy `/workspace` deprecated on a later timeline. Route consolidation itself not yet implemented. |
+| WS-002 | P0 | Unified Apply button saves selection and immediately sends `confirmed: true` | Separate confirmation bound to exact approved Review/operation scope | Owner approved (OD-005): in progress, see Apply Manifest feature in `WORKSPACE_IMPLEMENTATION_PHASES.md` Phase 3 |
+| WS-003 | P1 | Unified Review is the approval boundary, but no presentation contract identifies an exact operation manifest for confirmation | Persist or expose exact intended operations and checksum before confirmation | Owner approved (OD-005): resolved by the same Apply Manifest feature as WS-002 |
 | WS-004 | P1 | Legacy Workspace uses a separate Preview/Dry Run/Approval/Write Pipeline facade | Canonical state names and recovery behavior across entry points | Owner decision required |
 | WS-005 | P2 | Presentation preferences use `workspace.read` for writes | Decide whether preferences are presentation-only read capability or need a dedicated permission | Keep current behavior pending evidence |
 
@@ -61,6 +61,8 @@
 ## Integration Audit Status
 
 The authorization-contract HOLD is resolved. The page-by-page audit is
-complete and all non-architectural findings above are committed. Overall
-Workspace adoption remains HOLD on WS-001 through WS-003 and must not be
-silently patched as UI-only behavior.
+complete and all non-architectural findings above are committed. WS-001
+through WS-003 are no longer HOLD: OD-004/OD-005 record the Owner's
+architecture decisions, and WS-002/WS-003 are being implemented as the Apply
+Manifest feature. WS-001's route-consolidation mechanics remain future work.
+WS-004 and WS-005 remain open.

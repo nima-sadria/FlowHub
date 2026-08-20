@@ -162,8 +162,16 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
         review.id,
         review.draftRevisionId,
         selection.selectionChecksum,
+        selection.manifestChecksum,
       )
-      const applied = await service.applySelected(workspace.id, review.id, selection.selectionChecksum, idempotencyKey)
+      const applied = await service.applySelected(
+        workspace.id,
+        review.id,
+        selection.selectionChecksum,
+        selection.manifestId,
+        selection.manifestChecksum,
+        idempotencyKey,
+      )
       const refreshed = await service.getGrid(workspace.id, page, 500, gridQuery)
       if (generation !== reviewGeneration.current) return
       setApplyResult(applied)
@@ -175,6 +183,9 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
         'REVIEW_NOT_READY',
         'APPLY_SELECTION_CHECKSUM_MISMATCH',
         'APPLY_REVISION_MISMATCH',
+        'STALE_APPLY_MANIFEST',
+        'APPLY_MANIFEST_NOT_FOUND',
+        'APPLY_MANIFEST_CHECKSUM_MISMATCH',
       ].includes(cause.code ?? '')) {
         setReview(null)
       }
@@ -270,10 +281,12 @@ export async function workspaceApplyIdempotencyKey(
   reviewId: string,
   draftRevisionId: string,
   selectionChecksum: string,
+  manifestChecksum: string,
 ): Promise<string> {
   const canonical = JSON.stringify({
     draftRevisionId,
-    operationVersion: 'workspace-apply-v2',
+    manifestChecksum,
+    operationVersion: 'workspace-apply-v3',
     reviewId,
     selectionChecksum,
     workspaceId,

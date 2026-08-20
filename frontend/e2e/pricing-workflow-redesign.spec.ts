@@ -37,6 +37,7 @@ interface Audit {
   dryRunCalls: number
   applyCalls: number
   catalogBootstrapCalls: number
+  manifestChecksum: string
 }
 
 interface MockOptions {
@@ -456,11 +457,27 @@ async function installMocks(page: Page, options: MockOptions, audit: Audit) {
     if (url.pathname === `/api/v2/unified-workspaces/${options.workspaceId}/reviews/review-${options.workspaceId}/selection` && method === 'PUT') {
       const body = JSON.parse(request.postData() ?? '{}') as { review_item_ids?: string[] }
       audit.selectedItemIds = body.review_item_ids ?? []
+      const selectedChanges = audit.draftChanges.filter(change => audit.selectedItemIds.includes(reviewItemId(change)))
       return json(route, {
         reviewId: `review-${options.workspaceId}`,
         selectedItemIds: audit.selectedItemIds,
         selectionChecksum: 'selection-checksum',
         selectionVersion: 2,
+        manifestId: `manifest-${options.workspaceId}`,
+        manifestChecksum: audit.manifestChecksum,
+        affectedChannelIds: Array.from(new Set(selectedChanges.map(change => change.channel_id))),
+        operations: selectedChanges.map((change, index) => ({
+          id: `manifest-op-${index + 1}`,
+          reviewItemId: reviewItemId(change),
+          canonicalProductId: change.canonical_product_id,
+          listingId: change.listing_id,
+          channelId: change.channel_id,
+          field: change.field,
+          current: null,
+          target: change.target_value,
+          currency: change.currency,
+          unit: change.unit,
+        })),
       })
     }
     if (url.pathname === `/api/v2/unified-workspaces/${options.workspaceId}/apply` && method === 'POST') {
@@ -496,6 +513,7 @@ function createAudit(): Audit {
     dryRunCalls: 0,
     applyCalls: 0,
     catalogBootstrapCalls: 0,
+    manifestChecksum: 'm'.repeat(64),
   }
 }
 
@@ -675,7 +693,13 @@ test('matches Wanted Model with direct field editing, availability changes, bulk
   const applyButton = page.locator('[data-pricing-apply]')
   await expect(applyButton).toBeEnabled()
   await applyButton.click()
-  await expect(page.getByRole('dialog', { name: 'Apply confirmation' })).toBeVisible()
+  const confirmDialog = page.getByRole('dialog', { name: 'Apply confirmation' })
+  await expect(confirmDialog).toBeVisible()
+  // The dialog must show the exact persisted manifest operations, not a
+  // recomputation from currently visible/filtered grid rows.
+  await expect(confirmDialog).toContainText('Synthetic Product 00001')
+  await expect(confirmDialog).toContainText('20100')
+  expect(audit.applyCalls).toBe(0)
   await page.getByRole('button', { name: 'Confirm Apply' }).click()
   await expect(page.getByText('Apply — Partially Applied')).toBeVisible()
   await expect(page.getByText('Reconciliation Required')).toBeVisible()
@@ -724,4 +748,64 @@ test('renders critical Products controls before deferred Grid startup', async ({
   }
   expect(audit.external).toEqual([])
   console.log(`PRODUCTS_CRITICAL_CONTROLS ${JSON.stringify(metrics)}`)
+})
+
+async function openApplyConfirmation(page: Page, audit: Audit) {
+  await page.goto('/products', { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('[data-products-table]')).toBeVisible({ timeout: 30_000 })
+  await editField(page, 'listing-1-1', 'price', '20100')
+  await expect(page.locator('[data-products-save]')).toBeEnabled()
+  await page.locator('[data-products-save]').click()
+  await expect(page.getByRole('heading', { name: 'Review Changes' })).toBeVisible()
+  await expect.poll(() => audit.reviewCalls).toBe(1)
+  const applyButton = page.locator('[data-pricing-apply]')
+  await expect(applyButton).toBeEnabled()
+  await applyButton.click()
+  const confirmDialog = page.getByRole('dialog', { name: 'Apply confirmation' })
+  await expect(confirmDialog).toBeVisible()
+  return confirmDialog
+}
+
+test('Escape closes the Apply confirmation dialog without sending an Apply request', async ({ page }) => {
+  const audit = createAudit()
+  const options: MockOptions = {
+    workspaceId: 'pricing-escape-confirmation',
+    workspaceName: 'Escape Confirmation',
+    totalProducts: 3,
+    channelIds: acceptanceChannels,
+    defaultPageSize: 100,
+  }
+  await installMocks(page, options, audit)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const confirmDialog = await openApplyConfirmation(page, audit)
+
+  await page.keyboard.press('Escape')
+  await expect(confirmDialog).not.toBeVisible()
+  expect(audit.applyCalls).toBe(0)
+})
+
+test('a rapid double-click on Confirm Apply results in exactly one Apply request', async ({ page }) => {
+  const audit = createAudit()
+  const options: MockOptions = {
+    workspaceId: 'pricing-double-click-apply',
+    workspaceName: 'Double Click Apply',
+    totalProducts: 3,
+    channelIds: acceptanceChannels,
+    defaultPageSize: 100,
+  }
+  await installMocks(page, options, audit)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openApplyConfirmation(page, audit)
+
+  // Playwright's own .click() waits for actionability between calls, which
+  // cannot reproduce a genuine same-tick double-click race; dispatch two
+  // native click events back-to-back instead, exercising the disabled={busy
+  // !== null} guard directly against a true race.
+  const confirmButton = page.getByRole('button', { name: 'Confirm Apply' })
+  await confirmButton.evaluate(button => {
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  })
+  await expect(page.getByText('Apply — Partially Applied')).toBeVisible()
+  expect(audit.applyCalls).toBe(1)
 })

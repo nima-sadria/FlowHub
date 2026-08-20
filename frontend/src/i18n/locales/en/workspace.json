@@ -20,6 +20,8 @@
   "densePricing.field": "Field",
   "densePricing.increasePriceFixed": "Increase price by fixed amount",
   "densePricing.increasePricePercent": "Increase price by percentage",
+  "densePricing.manifestAffectedChannels_one": "{{count}} Channel is affected.",
+  "densePricing.manifestAffectedChannels_other": "{{count}} Channels are affected.",
   "densePricing.noEligibleSelectedChanges": "No eligible selected changes are available for Review.",
   "densePricing.pendingChanges_one": "{{count}} pending change",
   "densePricing.pendingChanges_other": "{{count}} pending changes",

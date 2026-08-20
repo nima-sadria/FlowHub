@@ -7,7 +7,13 @@ describe('bounded Apply identity', () => {
       'SHA-256',
       new TextEncoder().encode(Array.from({ length: count }, (_, index) => `item-${index}`).join(',')),
     ).then(value => Array.from(new Uint8Array(value), byte => byte.toString(16).padStart(2, '0')).join(''))
-    const key = await workspaceApplyIdempotencyKey('workspace', 'review', 'revision', selectionChecksum)
+    const key = await workspaceApplyIdempotencyKey('workspace', 'review', 'revision', selectionChecksum, 'a'.repeat(64))
     expect(key).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('changes when only the manifest checksum changes, holding everything else constant', async () => {
+    const keyA = await workspaceApplyIdempotencyKey('workspace', 'review', 'revision', 'b'.repeat(64), 'a'.repeat(64))
+    const keyB = await workspaceApplyIdempotencyKey('workspace', 'review', 'revision', 'b'.repeat(64), 'c'.repeat(64))
+    expect(keyA).not.toBe(keyB)
   })
 })
