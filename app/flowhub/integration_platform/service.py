@@ -65,7 +65,10 @@ from app.flowhub.integration_platform.registry import registry
 from app.flowhub.product_media import primary_image_url
 from app.flowhub.security.redaction import is_sensitive_key, redact_sensitive
 from app.flowhub.setup.service import AppConfigService
-from app.flowhub.source_workspace.identity import has_active_replacement
+from app.flowhub.source_workspace.identity import (
+    has_active_replacement,
+    is_retired_legacy_nextcloud_primary,
+)
 from app.flowhub.source_workspace.models import SourceProfile
 
 _SECRET_KEYS = {
@@ -703,12 +706,11 @@ class IntegrationPlatformService:
             # A retired legacy bootstrap connector is not an unmanaged Source
             # once a generated replacement exists. Archived Source profiles
             # remain visible through their exact managed connector id.
-            if (
-                instance.id == "nextcloud:primary"
-                and not instance.enabled
-                and instance.status == "disabled"
-                and has_generated_active_nextcloud
-                and instance.id not in managed_source_ids
+            if is_retired_legacy_nextcloud_primary(
+                instance.id,
+                connector_status=instance.status,
+                has_generated_active_replacement=has_generated_active_nextcloud,
+                managed_source_ids=managed_source_ids,
             ):
                 continue
             snapshot = source_by_connector.get(instance.id)
@@ -1543,6 +1545,8 @@ class IntegrationPlatformService:
         return None
 
     def _source_status(self, row: IntegrationConnectorInstance, snapshot: DlSourceSnapshot | None) -> str:
+        if row.status == "disabled":
+            return "disabled"
         if not row.enabled:
             return "unconfigured"
         health = self._health_status_for(row)

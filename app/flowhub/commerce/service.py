@@ -83,6 +83,7 @@ from app.flowhub.source_acquisition.nextcloud_provider import NextcloudWebDavAcq
 from app.flowhub.source_workspace.identity import (
     canonical_nextcloud_connector_id,
     has_active_replacement,
+    is_retired_legacy_nextcloud_primary,
 )
 from app.flowhub.source_workspace.models import SourceMappingRevision, SourceProfile
 from app.flowhub.sources.spreadsheet_source import (
@@ -276,12 +277,11 @@ class CommerceHubService:
         generated_replacement_exists = has_active_replacement(self.db)
         instance_providers = {row.connector_type for row in instances}
         for row in instances:
-            if (
-                row.id == "nextcloud:primary"
-                and not row.enabled
-                and row.status == "disabled"
-                and generated_replacement_exists
-                and row.id not in managed_source_ids
+            if is_retired_legacy_nextcloud_primary(
+                row.id,
+                connector_status=row.status,
+                has_generated_active_replacement=generated_replacement_exists,
+                managed_source_ids=managed_source_ids,
             ):
                 continue
             template = source_templates[row.connector_type]
@@ -1159,7 +1159,7 @@ class CommerceHubService:
         if instance is None or (not instance.enabled and not connection_configured):
             source_enabled = None
         else:
-            source_enabled = bool(instance.enabled)
+            source_enabled = bool(instance.enabled and instance.status != "disabled")
         setup_configured = self._source_setup_configured(
             source_id, str(meta["provider"]), instance
         )
@@ -1352,7 +1352,7 @@ class CommerceHubService:
         if instance is None or (not instance.enabled and not connection_configured):
             source_enabled = None
         else:
-            source_enabled = bool(instance.enabled)
+            source_enabled = bool(instance.enabled and instance.status != "disabled")
         secret_status = self._secret_status(instance)
         setup_configured = self._source_setup_configured(
             str(meta["id"]), provider, instance
@@ -3919,6 +3919,8 @@ class CommerceHubService:
             return "not_configured"
         if instance is None:
             return "not_configured"
+        if instance.status == "disabled":
+            return "disabled"
         # Nextcloud has a two-layer setup: its connection can be saved and
         # verified before a spreadsheet, worksheet mapping, and monetary
         # declaration are complete.  Treat that saved connection as
