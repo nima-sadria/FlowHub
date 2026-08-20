@@ -240,6 +240,23 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL FLOWHUB_042 canonical Source connector identity migration test
+        id: postgres-042-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-042-junit.xml \
+            tests/flowhub/migration/test_source_connector_identity_042.py::test_postgresql_041_to_042_canonicalizes_only_unambiguous_active_identity \
+            2>&1 | tee postgres-042-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-042-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-042-junit.xml 042 | tee postgres-042-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-042-junit.xml' | tee postgres-042-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL Workspace snapshot persistence tests
         id: postgres-workspace-persistence-tests
         run: |

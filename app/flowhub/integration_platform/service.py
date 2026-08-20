@@ -65,6 +65,8 @@ from app.flowhub.integration_platform.registry import registry
 from app.flowhub.product_media import primary_image_url
 from app.flowhub.security.redaction import is_sensitive_key, redact_sensitive
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.source_workspace.identity import has_active_replacement
+from app.flowhub.source_workspace.models import SourceProfile
 
 _SECRET_KEYS = {
     "password",
@@ -507,7 +509,11 @@ class IntegrationPlatformService:
             "password": self.config.get("nextcloud.password"),
             "spreadsheet_path": self.config.get("nextcloud.spreadsheet_path"),
         }
-        if any(nc_values.values()):
+        # A generated connector instance is the canonical identity for a new
+        # Source. Legacy AppConfig bootstrap must not create or re-enable the
+        # singleton primary alongside that replacement.
+        generated_nextcloud_exists = has_active_replacement(self.db)
+        if any(nc_values.values()) and not generated_nextcloud_exists:
             connector = self.ensure_connector_from_settings(
                 connector_type="nextcloud",
                 connector_id="nextcloud:primary",
@@ -682,9 +688,28 @@ class IntegrationPlatformService:
         source_rows = self.db.query(DlSourceSnapshot).all()
         source_by_connector = {row.connector_id: row for row in source_rows}
         product_counts = self._product_counts_by_connector()
+        managed_source_ids = {
+            item.external_source_id
+            for item in self.db.query(SourceProfile)
+            .filter(SourceProfile.status != "deleted")
+            .all()
+            if item.external_source_id
+        }
+        has_generated_active_nextcloud = has_active_replacement(self.db)
         items: list[ConnectorSourceShape] = []
         for instance in instances:
             if instance.connector_type not in {"nextcloud", "woocommerce"}:
+                continue
+            # A retired legacy bootstrap connector is not an unmanaged Source
+            # once a generated replacement exists. Archived Source profiles
+            # remain visible through their exact managed connector id.
+            if (
+                instance.id == "nextcloud:primary"
+                and not instance.enabled
+                and instance.status == "disabled"
+                and has_generated_active_nextcloud
+                and instance.id not in managed_source_ids
+            ):
                 continue
             snapshot = source_by_connector.get(instance.id)
             display = self._display_url(instance)
