@@ -114,6 +114,13 @@ export default function DensePricingWorkspace({
   const pricingStateRef = useRef(pricingState)
   const [draftVersion, setDraftVersion] = useState(workspace.draft.version)
   const [busy, setBusy] = useState<string | null>(null)
+  // React's `disabled` attribute only takes effect after the next render, so
+  // two click events dispatched in the same tick (a genuine double-click,
+  // not just a fast double `.click()` call) both fire before `busy` state
+  // updates the DOM. This ref is checked and set synchronously, so it
+  // actually blocks a same-tick double Apply where `disabled={busy !== null}`
+  // alone cannot.
+  const applyInFlightRef = useRef(false)
   const [review, setReview] = useState<ReviewResource | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewContext, setReviewContext] = useState<ReviewContext | null>(null)
@@ -346,6 +353,8 @@ export default function DensePricingWorkspace({
 
   async function apply() {
     if (!reviewContext) return
+    if (applyInFlightRef.current) return
+    applyInFlightRef.current = true
     setBusy(translate('workspace:sourceCentricWorkspace.applyingSelectedListings'))
     try {
       const key = await workspaceApplyIdempotencyKey(
@@ -380,7 +389,7 @@ export default function DensePricingWorkspace({
         setReview(null)
       }
       notify.error({ title: translate('workspace:sourceCentricWorkspace.applyWasBlocked'), description: localizedApiError(error, 'workspace:sourceCentricWorkspace.generateAFreshReview') })
-    } finally { setBusy(null) }
+    } finally { applyInFlightRef.current = false; setBusy(null) }
   }
 
   const undo = useCallback(() => mutatePricingState(undoPricingWorkspace), [mutatePricingState])
