@@ -210,11 +210,15 @@ class WorkspacePriceWorkflowService:
         if not products:
             raise HTTPException(status.HTTP_409_CONFLICT, "WooCommerce product cache is empty. Run a manual read first.")
 
+        worksheet_scope = self.source_reader.worksheet_scope(
+            source_profile_id=self.workspace_source_id
+        )
         imported = await self.source_reader.read_nextcloud_spreadsheet(
             triggered_by=user.username,
             triggered_by_id=user.id,
             manual=False,
             source_profile_id=self.workspace_source_id,
+            worksheet_scope=worksheet_scope,
         )
         rows = self._build_preview_rows(
             imported.rows,

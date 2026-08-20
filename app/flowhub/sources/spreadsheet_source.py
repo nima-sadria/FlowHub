@@ -202,12 +202,15 @@ class SpreadsheetSourceReadService:
         manual: bool,
         capture_raw_worksheets: bool = False,
         source_profile_id: str | None = None,
+        worksheet_scope: dict[str, object] | None = None,
         idempotency_key: str | None = None,
     ) -> SourceImportResult:
         spreadsheet_path = self._required_connector_setting("spreadsheet_path")
         mapping = None if capture_raw_worksheets else self.mapping()
         worksheet = self.worksheet_selection(source_profile_id=source_profile_id)
-        worksheet_scope = self.worksheet_scope(source_profile_id=source_profile_id)
+        resolved_worksheet_scope = worksheet_scope or self.worksheet_scope(
+            source_profile_id=source_profile_id
+        )
         try:
             normalize_nextcloud_url(
                 self._connector_setting("url"),
@@ -246,9 +249,9 @@ class SpreadsheetSourceReadService:
                 "source_id": quota_source_id,
                 "source_type": SOURCE_TYPE,
                 "spreadsheet_path": spreadsheet_path,
-                "worksheet_mode": worksheet_scope["mode"],
-                "worksheet_name": worksheet_scope["name"],
-                "worksheet_names": worksheet_scope["names"],
+                "worksheet_mode": resolved_worksheet_scope["mode"],
+                "worksheet_name": resolved_worksheet_scope["name"],
+                "worksheet_names": resolved_worksheet_scope["names"],
                 "reservation_id": reservation.id if reservation else None,
                 "reservation_status": reservation.status if reservation else None,
                 "read_only": True,
@@ -344,13 +347,19 @@ class SpreadsheetSourceReadService:
             else:
                 if mapping is None:
                     raise RuntimeError("Legacy Source mapping was not loaded.")
-                rows, duplicate_info = parse_source_price_rows(
-                    workbook,
-                    mapping=mapping,
-                    worksheet_mode=worksheet_scope["mode"],
-                    worksheet_name=worksheet_scope["name"],
-                    selected_worksheet_names=worksheet_scope["names"],
-                )
+                try:
+                    rows, duplicate_info = parse_source_price_rows(
+                        workbook,
+                        mapping=mapping,
+                        worksheet_mode=resolved_worksheet_scope["mode"],
+                        worksheet_name=resolved_worksheet_scope["name"],
+                        selected_worksheet_names=resolved_worksheet_scope["names"],
+                    )
+                except ValueError as exc:
+                    raise HTTPException(
+                        status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        {"code": "WORKSHEET_SCOPE_INVALID", "message": str(exc)},
+                    ) from exc
             if not rows and not capture_raw_worksheets and source_profile_id is None:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Spreadsheet contains no importable source rows.")
             persisted_row_count = (
