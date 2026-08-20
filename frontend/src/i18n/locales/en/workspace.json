@@ -314,7 +314,7 @@
   "workspace.preview.sourceRow": "Source row",
   "workspace.preview.snapshot": "Snapshot",
   "workspace.preview.searchLabel": "Search preview rows",
-  "workspace.preview.searchPlaceholder": "Search source name, WooCommerce name, SKU, ID…",
+  "workspace.preview.searchPrompt": "Search source name, WooCommerce name, SKU, ID…",
   "workspace.preview.filterLabel": "Preview filter",
   "workspace.preview.showing": "Showing {{visible}} of {{total}}",
   "workspace.preview.previous": "Previous",
