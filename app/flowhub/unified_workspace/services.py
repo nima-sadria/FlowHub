@@ -1722,8 +1722,15 @@ class UnifiedWorkspaceService:
                     errors.append("channel_unavailable")
                 if listing.mapping_state != MappingState.RESOLVED:
                     errors.append("mapping_unresolved")
-                if cache.freshness != "fresh" or cache.fetch_status != "success":
-                    errors.append("channel_cache_not_fresh")
+                # A failed fetch leaves no trustworthy Channel baseline to compare
+                # against and must block. Staleness alone is only a caveat -- the
+                # Apply pipeline re-verifies the live cache version/checksum before
+                # writing (see ReviewCacheVersion), so a merely-stale read is safe
+                # to select and only needs to surface as a Warning to the Owner.
+                if cache.fetch_status != "success":
+                    errors.append("channel_cache_unavailable")
+                elif cache.freshness != "fresh":
+                    item_warnings.append("channel_cache_not_fresh")
                 try:
                     validate_product_editable(product.product_type)
                 except WorkspaceDomainError:
@@ -1914,6 +1921,8 @@ class UnifiedWorkspaceService:
                 if item["errors"]
                 else "unchanged"
                 if not item["eligible"]
+                else "warning"
+                if item["warnings"]
                 else "ready",
                 warnings_json=item["warnings"],
                 errors_json=item["errors"],

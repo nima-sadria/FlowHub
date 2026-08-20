@@ -742,6 +742,217 @@ def test_replace_draft_mode_drops_changes_omitted_from_the_new_revision(
     assert omitted_listing_id not in {item["listingId"] for item in result["items"]}
 
 
+def test_stale_channel_cache_is_a_warning_and_remains_auto_selectable(
+    client, auth_headers, db
+):
+    """A merely-stale (but successfully fetched) Channel Cache is a caveat, not
+    a blocker: the Apply pipeline re-verifies the live cache version/checksum
+    before writing, so a stale read is still safe to auto-select. Blocking it
+    here broke automatic selection for the common case of a Channel Cache that
+    has not been re-read in the last cycle."""
+    from app.flowhub.unified_workspace.models import ChannelCache
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    assert review["items"][0]["eligible"] is True
+    assert review["items"][0]["warnings"] == []
+
+    cache = db.query(ChannelCache).filter_by(listing_id=review["items"][0]["listingId"]).one()
+    cache.freshness = "stale"
+    db.commit()
+
+    restale = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": review["draftRevisionId"]},
+    )
+    assert restale.status_code == 201, restale.text
+    item = restale.json()["items"][0]
+    assert item["eligible"] is True
+    assert item["errors"] == []
+    assert item["warnings"] == ["channel_cache_not_fresh"]
+    assert item["validationState"] == "warning"
+
+    selection = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{restale.json()['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    assert selection.status_code == 200, selection.text
+
+
+def test_failed_channel_cache_fetch_still_blocks_review(client, auth_headers, db):
+    """Unlike mere staleness, a failed fetch leaves no trustworthy Channel
+    baseline to compare against -- this must remain a hard block."""
+    from app.flowhub.unified_workspace.models import ChannelCache
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    cache = db.query(ChannelCache).filter_by(listing_id=review["items"][0]["listingId"]).one()
+    cache.fetch_status = "failed"
+    db.commit()
+
+    refreshed = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": review["draftRevisionId"]},
+    )
+    assert refreshed.status_code == 201, refreshed.text
+    item = refreshed.json()["items"][0]
+    assert item["eligible"] is False
+    assert "channel_cache_unavailable" in item["errors"]
+    assert item["validationState"] == "error"
+
+
+def test_generate_review_auto_selects_both_price_increases_and_decreases(
+    client, auth_headers, db
+):
+    workspace, review = _saved_review(client, auth_headers, db, second_product=True)
+    increase, decrease = review["items"]
+    assert float(increase["target"]) > float(increase["current"])
+    # _saved_review only writes increases; flip the second product's target
+    # below its current price to cover a genuine decrease too.
+    lowered = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/draft/revisions",
+        headers=auth_headers,
+        json={
+            "expected_version": 1,
+            "mode": "merge",
+            "metadata": {},
+            "changes": [
+                {
+                    "canonical_product_id": decrease["canonicalProductId"],
+                    "listing_id": decrease["listingId"],
+                    "channel_id": decrease["channelId"],
+                    "field": "price",
+                    "target_value": "80",
+                    "currency": "EUR",
+                    "unit": "EUR",
+                }
+            ],
+        },
+    )
+    assert lowered.status_code == 201, lowered.text
+    reviewed = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": lowered.json()["id"]},
+    )
+    assert reviewed.status_code == 201, reviewed.text
+    by_listing = {item["listingId"]: item for item in reviewed.json()["items"]}
+    assert by_listing[increase["listingId"]]["eligible"] is True
+    assert float(by_listing[increase["listingId"]]["target"]) > float(by_listing[increase["listingId"]]["current"])
+    assert by_listing[decrease["listingId"]]["eligible"] is True
+    assert float(by_listing[decrease["listingId"]]["target"]) < float(by_listing[decrease["listingId"]]["current"])
+
+
+def test_formatting_only_price_difference_is_not_a_change(client, auth_headers, db):
+    """Canonical pricing semantics: "100", "100.0", and "100.00" are the same
+    value. A formatting-only difference must never be treated as a change."""
+    _seed(db)
+    workspace = _create(client, auth_headers)
+    row = client.get(
+        f"/api/v2/unified-workspaces/{workspace['id']}/grid", headers=auth_headers
+    ).json()["items"][0]
+    assert row["fields"]["price"]["current"] == "100"
+
+    revision = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/draft/revisions",
+        headers=auth_headers,
+        json={
+            "expected_version": 0,
+            "metadata": {},
+            "changes": [
+                {
+                    "canonical_product_id": row["canonicalProductId"],
+                    "listing_id": row["listingId"],
+                    "channel_id": row["channelId"],
+                    "field": "price",
+                    "target_value": "100.00",
+                    "currency": "EUR",
+                    "unit": "EUR",
+                }
+            ],
+        },
+    )
+    assert revision.status_code == 201, revision.text
+
+    regrid = client.get(
+        f"/api/v2/unified-workspaces/{workspace['id']}/grid", headers=auth_headers
+    ).json()["items"][0]
+    assert regrid["fields"]["price"]["current"] == "100"
+    assert regrid["fields"]["price"]["target"] == "100"
+
+    review = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": revision.json()["id"]},
+    )
+    assert review.status_code == 422, review.text
+    assert review.json()["detail"]["code"] == "REVIEW_EMPTY"
+
+
+def test_preview_and_review_generation_perform_zero_channel_writes(
+    client, auth_headers, db, monkeypatch
+):
+    """Preview (grid/grouped-grid), Draft save, and Review generation must
+    never reach an outbound Channel write adapter -- only an explicit,
+    confirmed Apply may write."""
+    _seed(db)
+    workspace = _create(client, auth_headers)
+
+    def fail(*_args, **_kwargs):
+        pytest.fail("Preview/Review must never call an outbound Channel write adapter")
+
+    monkeypatch.setattr(
+        "app.connectors.destinations.woocommerce.write_adapter.WooCommercePriceWriteAdapter.execute_item",
+        fail,
+    )
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates",
+        fail,
+    )
+
+    row = client.get(
+        f"/api/v2/unified-workspaces/{workspace['id']}/grid", headers=auth_headers
+    ).json()["items"][0]
+    client.get(
+        f"/api/v2/unified-workspaces/{workspace['id']}/grouped-grid?page=1&pageSize=100&view=all",
+        headers=auth_headers,
+    )
+    revision = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/draft/revisions",
+        headers=auth_headers,
+        json={
+            "expected_version": 0,
+            "metadata": {},
+            "changes": [
+                {
+                    "canonical_product_id": row["canonicalProductId"],
+                    "listing_id": row["listingId"],
+                    "channel_id": row["channelId"],
+                    "field": "price",
+                    "target_value": "125",
+                    "currency": "EUR",
+                    "unit": "EUR",
+                }
+            ],
+        },
+    )
+    assert revision.status_code == 201
+    review = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": revision.json()["id"]},
+    )
+    assert review.status_code == 201
+    assert review.json()["items"][0]["eligible"] is True
+    selection = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review.json()['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [review.json()["items"][0]["id"]]},
+    )
+    assert selection.status_code == 200
+
+
 def test_apply_is_selected_only_idempotent_and_patches_verified_cache(
     client, auth_headers, db, monkeypatch
 ):

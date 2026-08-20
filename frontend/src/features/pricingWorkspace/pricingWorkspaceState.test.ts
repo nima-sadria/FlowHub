@@ -20,6 +20,7 @@ import {
   selectedPricingDraftChanges,
   serializePricingWorkspaceState,
   setPricingFieldSelected,
+  setPricingFieldsSelectedByKey,
   undoPricingWorkspace,
   type PricingField,
   type PricingFieldDescriptor,
@@ -162,6 +163,73 @@ describe('immediate field-level selection', () => {
     expect(selectedPricingDraftChanges(state)).toEqual([
       expect.objectContaining({ listing_id: 'listing-ready', channel_id: 'woocommerce:primary', field: 'price', target_value: '120' }),
     ])
+  })
+
+  it('auto-selects both a Source price increase and a Source price decrease from a fresh descriptor set', () => {
+    const increase = field('listing-a', 'woocommerce:primary', 'price', '965000', '1015000')
+    const decrease = field('listing-b', 'woocommerce:primary', 'price', '1015000', '965000')
+    const state = createPricingWorkspaceState('workspace-1', [increase, decrease])
+
+    expect(selectedPricingChanges(state).map(change => change.identity.listingId).sort()).toEqual(['listing-a', 'listing-b'])
+    expect(pricingWorkspaceSummary(state)).toMatchObject({ changed: 2, selected: 2, blocked: 0 })
+  })
+
+  it('never treats a formatting-only Price difference as a change', () => {
+    const trailingZero = field('listing-a', 'woocommerce:primary', 'price', '100', '100.00')
+    const wholeNumber = field('listing-b', 'woocommerce:primary', 'price', '100.0', '100')
+    const genuineChange = field('listing-c', 'woocommerce:primary', 'price', '100', '100.01')
+    const state = createPricingWorkspaceState('workspace-1', [trailingZero, wholeNumber, genuineChange])
+
+    expect(pricingWorkspaceSummary(state).changed).toBe(1)
+    expect(selectedPricingChanges(state).map(change => change.identity.listingId)).toEqual(['listing-c'])
+  })
+
+  it('selects a Stock formatting difference the same way as Price', () => {
+    const trailingZero = field('listing-a', 'woocommerce:primary', 'stock', '5', '5')
+    const edited = editPricingField(createPricingWorkspaceState('workspace-1', [trailingZero]), trailingZero, '05')
+
+    // "05" normalizes to the same Stock quantity as "5" -- no genuine change.
+    expect(pricingWorkspaceSummary(edited).changed).toBe(0)
+  })
+
+  it('selects a Listing variation independently of its sibling variation under the same parent product', () => {
+    const variationOne = field('variation-1', 'woocommerce:primary', 'price', '100', '110', ELIGIBLE, 'product-parent')
+    const variationTwo = field('variation-2', 'woocommerce:primary', 'price', '200', '200', ELIGIBLE, 'product-parent')
+    const state = createPricingWorkspaceState('workspace-1', [variationOne, variationTwo])
+
+    expect(selectedPricingChanges(state).map(change => change.identity.listingId)).toEqual(['variation-1'])
+    expect(pricingWorkspaceSummary(state)).toMatchObject({ changed: 1, selected: 1, products: 1, listings: 1 })
+  })
+
+  it('provides Select all eligible and Deselect all over an explicit visible key set, skipping blocked rows', () => {
+    const eligibleA = field('listing-a', 'woocommerce:primary', 'price', '100', '110')
+    const eligibleB = field('listing-b', 'woocommerce:primary', 'price', '100', '90')
+    const blocked = field('listing-c', 'snappshop:main', 'price', '100', '150', { ...ELIGIBLE, valid: false, blockedReason: 'invalid_value' })
+    let state = createPricingWorkspaceState('workspace-1', [eligibleA, eligibleB, blocked])
+    const visibleKeys = new Set([eligibleA, eligibleB, blocked].map(descriptor => pricingFieldKey(descriptor.identity)))
+
+    state = setPricingFieldsSelectedByKey(state, visibleKeys, false)
+    expect(selectedPricingChanges(state)).toEqual([])
+    expect(pricingWorkspaceSummary(state)).toMatchObject({ changed: 3, selected: 0, blocked: 1 })
+
+    state = setPricingFieldsSelectedByKey(state, visibleKeys, true)
+    // The blocked row never becomes selectable, even though it was included
+    // in the same visible key set passed to "Select all eligible".
+    expect(selectedPricingChanges(state).map(change => change.identity.listingId).sort()).toEqual(['listing-a', 'listing-b'])
+    expect(pricingWorkspaceSummary(state)).toMatchObject({ changed: 3, selected: 2, blocked: 1 })
+  })
+
+  it('leaves filtering and pagination-scope key sets unable to alter selection outside their own identities', () => {
+    const pageOne = field('listing-a', 'woocommerce:primary', 'price', '100', '110')
+    const pageTwo = field('listing-b', 'woocommerce:primary', 'price', '100', '90')
+    const state = createPricingWorkspaceState('workspace-1', [pageOne, pageTwo])
+
+    // "Deselect all" scoped to only the currently visible (page one) key must
+    // never reach into an identity outside that set.
+    const pageOneKeys = new Set([pricingFieldKey(pageOne.identity)])
+    const deselected = setPricingFieldsSelectedByKey(state, pageOneKeys, false)
+
+    expect(selectedPricingChanges(deselected).map(change => change.identity.listingId)).toEqual(['listing-b'])
   })
 })
 
