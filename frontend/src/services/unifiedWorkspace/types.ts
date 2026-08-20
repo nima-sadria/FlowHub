@@ -147,11 +147,28 @@ export interface ApplyResource {
   }>
 }
 
+export interface ManifestOperationResource {
+  id: string
+  reviewItemId: string
+  canonicalProductId: string
+  listingId: string
+  channelId: string
+  field: 'price' | 'stock' | 'status'
+  current: string | null
+  target: string
+  currency: string | null
+  unit: string | null
+}
+
 export interface ReviewSelectionResource {
   reviewId: string
   selectedItemIds: string[]
   selectionChecksum: string
   selectionVersion: number
+  manifestId: string
+  manifestChecksum: string
+  operations: ManifestOperationResource[]
+  affectedChannelIds: string[]
 }
 
 export interface WorkspaceGridQuery {

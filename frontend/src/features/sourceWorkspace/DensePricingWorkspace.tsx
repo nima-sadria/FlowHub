@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { ApiError } from '../../api/client'
 import Badge from '../../components/Badge'
 import Empty from '../../components/Empty'
 import Icon from '../../components/Icon'
@@ -11,7 +12,7 @@ import { localizedApiError } from '../../i18n/errors'
 import { formatCurrencyLabel, formatNumber } from '../../i18n/format'
 import { useNotification } from '../../notifications/NotificationProvider'
 import type { UnifiedWorkspaceService } from '../../services/unifiedWorkspace/UnifiedWorkspaceService'
-import type { ApplyResource, ReviewItemResource, ReviewResource, UnifiedWorkspaceResource } from '../../services/unifiedWorkspace/types'
+import type { ApplyResource, ManifestOperationResource, ReviewItemResource, ReviewResource, UnifiedWorkspaceResource } from '../../services/unifiedWorkspace/types'
 import {
   applyBulkTransformation,
   createPricingWorkspaceState,
@@ -61,6 +62,10 @@ interface ReviewContext {
   revisionId: string
   selectionChecksum: string
   selectedCount: number
+  manifestId: string
+  manifestChecksum: string
+  operations: ManifestOperationResource[]
+  affectedChannelIds: string[]
 }
 
 export interface DensePricingWorkspaceProps {
@@ -322,7 +327,16 @@ export default function DensePricingWorkspace({
       }
       const selectedIdSet = new Set(selectedIds)
       setReview({ ...created, items: created.items.map(item => ({ ...item, selected: selectedIdSet.has(item.id) })) })
-      setReviewContext({ reviewId: created.id, revisionId: revision.id, selectionChecksum: selection.selectionChecksum, selectedCount: selectedIds.length })
+      setReviewContext({
+        reviewId: created.id,
+        revisionId: revision.id,
+        selectionChecksum: selection.selectionChecksum,
+        selectedCount: selectedIds.length,
+        manifestId: selection.manifestId,
+        manifestChecksum: selection.manifestChecksum,
+        operations: selection.operations,
+        affectedChannelIds: selection.affectedChannelIds,
+      })
       setReviewOpen(true)
       notify.success({ title: translate('workspace:sourceCentricWorkspace.reviewAndDryRunComplete'), description: translate('workspace:densePricing.selectionBoundToReview', { count: selectedIds.length }) })
     } catch (error) {
@@ -334,14 +348,37 @@ export default function DensePricingWorkspace({
     if (!reviewContext) return
     setBusy(translate('workspace:sourceCentricWorkspace.applyingSelectedListings'))
     try {
-      const key = await workspaceApplyIdempotencyKey(workspace.id, reviewContext.reviewId, reviewContext.revisionId, reviewContext.selectionChecksum)
-      const result = await service.applySelected(workspace.id, reviewContext.reviewId, reviewContext.selectionChecksum, key)
+      const key = await workspaceApplyIdempotencyKey(
+        workspace.id,
+        reviewContext.reviewId,
+        reviewContext.revisionId,
+        reviewContext.selectionChecksum,
+        reviewContext.manifestChecksum,
+      )
+      const result = await service.applySelected(
+        workspace.id,
+        reviewContext.reviewId,
+        reviewContext.selectionChecksum,
+        reviewContext.manifestId,
+        reviewContext.manifestChecksum,
+        key,
+      )
       setApplyResult(result)
       setReviewContext(null)
       setConfirming(false)
       setReviewOpen(false)
       await load()
     } catch (error) {
+      if (error instanceof ApiError && [
+        'STALE_APPLY_MANIFEST',
+        'APPLY_MANIFEST_NOT_FOUND',
+        'APPLY_MANIFEST_CHECKSUM_MISMATCH',
+      ].includes(error.code ?? '')) {
+        setConfirming(false)
+        setReviewOpen(false)
+        setReviewContext(null)
+        setReview(null)
+      }
       notify.error({ title: translate('workspace:sourceCentricWorkspace.applyWasBlocked'), description: localizedApiError(error, 'workspace:sourceCentricWorkspace.generateAFreshReview') })
     } finally { setBusy(null) }
   }
@@ -360,6 +397,16 @@ export default function DensePricingWorkspace({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [redo, undo])
+  useEffect(() => {
+    if (!confirming) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.stopPropagation()
+      setConfirming(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [confirming])
   useEffect(() => {
     if (!rowMenuFor && !filtersOpen) return
     const close = (event: MouseEvent) => {
@@ -549,7 +596,38 @@ export default function DensePricingWorkspace({
       onApply={() => setConfirming(true)}
       onClose={() => setReviewOpen(false)}
     />}
-    {confirming && reviewContext && <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:sourceCentricWorkspace.applyConfirmation')}><div className="fh-card fh-card-pad max-w-lg"><h2 className="fh-page-title">{translate('workspace:sourceCentricWorkspace.confirmSelectedApply')}</h2><p className="fh-text-caption mt-2">{translate('workspace:densePricing.confirmApplyScope', { count: reviewContext.selectedCount })}</p>{/* i18n-ignore: utility classes, not user-facing copy */}<div className="mt-5 flex justify-end gap-2"><button className="fh-button-secondary" type="button" onClick={() => setConfirming(false)}>{translate('workspace:sourceCentricWorkspace.cancel')}</button><button className="fh-button-primary" type="button" onClick={() => void apply()}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.confirmApply')}</button></div></div></div>}
+    {confirming && reviewContext && grid && <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:sourceCentricWorkspace.applyConfirmation')}><div className="fh-card fh-card-pad max-w-3xl">
+      <h2 className="fh-page-title">{translate('workspace:sourceCentricWorkspace.confirmSelectedApply')}</h2>
+      <p className="fh-text-caption mt-2">{translate('workspace:densePricing.confirmApplyScope', { count: reviewContext.selectedCount })}</p>
+      {/* i18n-ignore: utility classes, not user-facing copy */}
+      <div className="mt-4 max-h-[50vh] overflow-auto">
+        <table className="fh-table min-w-[640px]">
+          <thead><tr>
+            <th>{translate('workspace:gridModel.product')}</th>
+            <th>{translate('workspace:unifiedWorkspace.channel')}</th>
+            <th>{translate('workspace:densePricing.field')}</th>
+            <th>{translate('workspace:densePricing.previousValue')}</th>
+            <th>{translate('workspace:gridModel.targetField', { field: '' })}</th>
+          </tr></thead>
+          <tbody>{reviewContext.operations.map(operation => {
+            const product = grid.items.find(row => row.children.some(child => child.listingId === operation.listingId))
+            return <tr key={operation.id}>
+              <td>{product?.name ?? operation.canonicalProductId}</td>
+              <td>{sourceChannelDisplayName(operation.channelId, channelById)}</td>
+              <td>{formatField(operation.field)}</td>
+              <td>{operation.current ?? '—'}</td>
+              <td>{operation.target}</td>
+            </tr>
+          })}</tbody>
+        </table>
+      </div>
+      <p className="fh-text-caption mt-3">{translate('workspace:densePricing.manifestAffectedChannels', { count: reviewContext.affectedChannelIds.length })}</p>
+      {/* i18n-ignore: utility classes, not user-facing copy */}
+      <div className="mt-5 flex justify-end gap-2">
+        <button className="fh-button-secondary" type="button" disabled={busy !== null} onClick={() => setConfirming(false)}>{translate('workspace:sourceCentricWorkspace.cancel')}</button>
+        <button className="fh-button-primary" type="button" disabled={busy !== null} onClick={() => void apply()}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.confirmApply')}</button>
+      </div>
+    </div></div>}
     {applyResult && <ApplyResults result={applyResult} channelById={channelById} />}
   </>
   return embedded ? content : <PageShell>{content}</PageShell>

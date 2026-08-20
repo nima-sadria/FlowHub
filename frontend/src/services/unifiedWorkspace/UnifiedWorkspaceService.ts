@@ -18,7 +18,14 @@ export interface UnifiedWorkspaceService {
   saveDraft(id: string, version: number, changes: DraftChangeInput[], mode?: DraftSaveMode): Promise<DraftRevisionResource>
   createReview(id: string, revisionId: string): Promise<ReviewResource>
   saveSelection(id: string, reviewId: string, itemIds: string[]): Promise<ReviewSelectionResource>
-  applySelected(id: string, reviewId: string, selectionChecksum: string, idempotencyKey: string): Promise<ApplyResource>
+  applySelected(
+    id: string,
+    reviewId: string,
+    selectionChecksum: string,
+    manifestId: string,
+    manifestChecksum: string,
+    idempotencyKey: string,
+  ): Promise<ApplyResource>
   getApply(id: string, jobId: string): Promise<ApplyResource>
   reconcileApply(id: string, jobId: string): Promise<ApplyResource>
   getPreferences(): Promise<WorkspacePreferences>

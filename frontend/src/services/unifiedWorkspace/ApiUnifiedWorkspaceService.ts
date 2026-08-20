@@ -50,8 +50,21 @@ export class ApiUnifiedWorkspaceService implements UnifiedWorkspaceService {
     return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/reviews/${encodeURIComponent(reviewId)}/selection`, authFetch, json('PUT', { review_item_ids: itemIds }))
   }
 
-  applySelected(id: string, reviewId: string, selectionChecksum: string, idempotencyKey: string): Promise<ApplyResource> {
-    return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/apply`, authFetch, json('POST', { review_id: reviewId, expected_selection_checksum: selectionChecksum, confirmed: true }, { 'Idempotency-Key': idempotencyKey }))
+  applySelected(
+    id: string,
+    reviewId: string,
+    selectionChecksum: string,
+    manifestId: string,
+    manifestChecksum: string,
+    idempotencyKey: string,
+  ): Promise<ApplyResource> {
+    return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/apply`, authFetch, json('POST', {
+      review_id: reviewId,
+      expected_selection_checksum: selectionChecksum,
+      manifest_id: manifestId,
+      expected_manifest_checksum: manifestChecksum,
+      confirmed: true,
+    }, { 'Idempotency-Key': idempotencyKey }))
   }
 
   getApply(id: string, jobId: string): Promise<ApplyResource> {
