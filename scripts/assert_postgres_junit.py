@@ -51,6 +51,9 @@ REQUIRED_035_TESTS = (
 REQUIRED_036_TESTS = (
     "test_postgresql_035_to_036_preserves_mapping_and_enforces_identity_policy",
 )
+REQUIRED_042_TESTS = (
+    "test_postgresql_041_to_042_canonicalizes_only_unambiguous_active_identity",
+)
 REQUIRED_WORKSPACE_PERSISTENCE_TESTS = (
     "test_postgresql_manual_workspace_persists_snapshot_before_draft",
     "test_postgresql_catalog_workspace_persists_snapshot_before_draft",
@@ -111,6 +114,7 @@ def main() -> int:
         "034": REQUIRED_034_TESTS,
         "035": REQUIRED_035_TESTS,
         "036": REQUIRED_036_TESTS,
+        "042": REQUIRED_042_TESTS,
         "workspace-persistence": REQUIRED_WORKSPACE_PERSISTENCE_TESTS,
         "source-lifecycle": REQUIRED_SOURCE_LIFECYCLE_TESTS,
         "orders": REQUIRED_ORDER_TESTS,

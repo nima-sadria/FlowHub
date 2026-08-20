@@ -65,6 +65,7 @@ from app.flowhub.source_workspace.formula import (
     calculate_sheet,
     column_name,
 )
+from app.flowhub.source_workspace.identity import canonical_nextcloud_connector_id
 from app.flowhub.source_workspace.models import (
     FlowHubSheet,
     SheetCell,
@@ -300,6 +301,27 @@ class SourceWorkspaceService:
                 "EXTERNAL_SOURCE_REQUIRED", "External Sources require an existing Source identity."
             )
         if source_kind == "external" and external_source_id:
+            requested_binding = (
+                self.db.query(SourceProfile)
+                .filter(SourceProfile.external_source_id == str(external_source_id).strip())
+                .one_or_none()
+            )
+            if requested_binding is not None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "SOURCE_CONNECTOR_ALREADY_BOUND",
+                        "message": (
+                            "This connector already belongs to a Source. "
+                            "Create a fresh connector for a replacement Source."
+                        ),
+                        "lifecycle_status": requested_binding.status,
+                    },
+                )
+            if str(external_source_id).strip() in {"nextcloud", "nextcloud:primary"}:
+                external_source_id = canonical_nextcloud_connector_id(
+                    self.db, str(external_source_id), allow_unresolved_legacy=True
+                )
             existing_binding = (
                 self.db.query(SourceProfile)
                 .filter(SourceProfile.external_source_id == external_source_id)

@@ -80,6 +80,10 @@ from app.flowhub.security.upstream_errors import (
     normalize_upstream_error,
 )
 from app.flowhub.source_acquisition.nextcloud_provider import NextcloudWebDavAcquisitionProvider
+from app.flowhub.source_workspace.identity import (
+    canonical_nextcloud_connector_id,
+    has_active_replacement,
+)
 from app.flowhub.source_workspace.models import SourceMappingRevision, SourceProfile
 from app.flowhub.sources.spreadsheet_source import (
     SpreadsheetSourceReadService,
@@ -262,8 +266,24 @@ class CommerceHubService:
             )
             .all()
         )
+        managed_source_ids = {
+            item.external_source_id
+            for item in self.db.query(SourceProfile)
+            .filter(SourceProfile.status != "deleted")
+            .all()
+            if item.external_source_id
+        }
+        generated_replacement_exists = has_active_replacement(self.db)
         instance_providers = {row.connector_type for row in instances}
         for row in instances:
+            if (
+                row.id == "nextcloud:primary"
+                and not row.enabled
+                and row.status == "disabled"
+                and generated_replacement_exists
+                and row.id not in managed_source_ids
+            ):
+                continue
             template = source_templates[row.connector_type]
             items.append(
                 self._source_contract(
@@ -3810,8 +3830,12 @@ class CommerceHubService:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel not found.")
 
     def _source_meta(self, source_id: str) -> dict:
+        if source_id == "nextcloud":
+            source_id = canonical_nextcloud_connector_id(
+                self.db, source_id, allow_unresolved_legacy=False
+            )
         for item in _SOURCES:
-            if item["id"] == source_id or item["provider"] == source_id:
+            if item["id"] == source_id:
                 return item
         instance = self.db.get(IntegrationConnectorInstance, source_id)
         if instance is not None:

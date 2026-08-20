@@ -333,6 +333,31 @@ describe('SourceCenter safe lifecycle', () => {
     expect(container.querySelector('[data-testid="source-card-groups"] .fh-sources-grid')).not.toBeNull()
   })
 
+  it('links a managed Source only to its exact connector instance id', async () => {
+    const linked: SourceProfile = {
+      ...source,
+      name: 'Current Nextcloud prices',
+      sourceKind: 'external',
+      externalSourceId: 'nextcloud:d4f7ec1561b9',
+      sheetId: null,
+    }
+    vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [linked] })
+    vi.mocked(commerce.getSources).mockResolvedValueOnce({
+      ...emptyCommerceSources,
+      items: [
+        commerceSource('nextcloud:d4f7ec1561b9', 'Current Nextcloud', { healthy: true }),
+        commerceSource('nextcloud:other', 'Independent Nextcloud', { healthy: true }),
+      ],
+    })
+
+    await render()
+
+    expect(container.querySelector('[data-source-card="source-1"]')).not.toBeNull()
+    expect(container.querySelector('[data-source-card="integration:nextcloud:d4f7ec1561b9"]')).toBeNull()
+    expect(container.querySelector('[data-source-card="integration:nextcloud:other"]')).not.toBeNull()
+    expect(container.querySelectorAll('[data-source-card]')).toHaveLength(2)
+  })
+
   it('shows persisted Source setup states as Add now, connected incomplete, and configured', async () => {
     vi.mocked(sourceWorkspaceApi.listSources).mockResolvedValueOnce({ items: [] })
     vi.mocked(commerce.getSources).mockResolvedValueOnce({
