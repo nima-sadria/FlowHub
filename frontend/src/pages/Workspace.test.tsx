@@ -79,6 +79,19 @@ describe('Workspace source-driven preview', () => {
     expect(startPreview).not.toHaveBeenCalled()
   })
 
+  it('shows rebind-required state when the previously bound Source is deleted', async () => {
+    const startPreview = vi.fn(async (_sourceId: string) => makePreview({ withError: false }))
+    const binding: WorkspaceSourceBinding = {
+      boundSource: { sourceId: 'source-deleted', sourceName: 'Deleted Nextcloud', status: 'deleted' },
+      candidates: [{ sourceId: 'source-active', sourceName: 'Current Nextcloud', status: 'active' }],
+    }
+    await renderWorkspace(makePreview({ withError: false }), vi.fn(), startPreview, binding)
+
+    expect(container.textContent).toContain('Source rebind required')
+    expect(button('Start Preview')?.disabled).toBe(true)
+    expect(startPreview).not.toHaveBeenCalled()
+  })
+
   it('prevents duplicate preview submissions before React rerenders', async () => {
     const preview = makePreview({ withError: false })
     let resolvePreview: (value: WorkspacePreview) => void = () => {}

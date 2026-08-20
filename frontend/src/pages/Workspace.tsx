@@ -280,6 +280,8 @@ export default function Workspace() {
   const [sourceBindingError, setSourceBindingError] = useState<string | null>(null)
   const [selectedSourceId, setSelectedSourceId] = useState('')
   const [bindingSaving, setBindingSaving] = useState(false)
+  const [sourceRebindRequired, setSourceRebindRequired] = useState(false)
+  const previousBoundSourceId = useRef<string | null>(null)
   const previewRequestInFlight = useRef(false)
 
   useEffect(() => {
@@ -302,6 +304,12 @@ export default function Workspace() {
       const binding = await workspace.getSourceBinding()
       setSourceBinding(binding)
       setSelectedSourceId(binding.boundSource?.status === 'active' ? binding.boundSource.sourceId : '')
+      if (binding.boundSource) {
+        previousBoundSourceId.current = binding.boundSource.sourceId
+        setSourceRebindRequired(binding.boundSource.status !== 'active')
+      } else {
+        setSourceRebindRequired(previousBoundSourceId.current !== null)
+      }
     } catch (error) {
       setSourceBinding(null)
       setSelectedSourceId('')
@@ -325,6 +333,8 @@ export default function Workspace() {
         boundSource,
         candidates: current?.candidates ?? [],
       }))
+      previousBoundSourceId.current = boundSource.sourceId
+      setSourceRebindRequired(false)
       setSelectedSourceId(boundSource.sourceId)
     } catch (error) {
       setSourceBindingError(localizedApiError(error, 'errors:codes.UNKNOWN'))
@@ -368,6 +378,7 @@ export default function Workspace() {
         e.code === 'SOURCE_WORKSPACE_REBIND_REQUIRED'
         || e.code === 'SOURCE_WORKSPACE_BINDING_INVALID'
       )) {
+        setSourceRebindRequired(true)
         await loadSourceBinding()
         setPhase('idle')
       } else {
@@ -500,8 +511,8 @@ export default function Workspace() {
           {!bindingReady && (
             <Alert
               variant="warning"
-              title={sourceBinding?.boundSource ? translate('workspace:workspace.sourceRebindRequired') : translate('workspace:workspace.sourceBindingRequired')}
-              message={sourceBinding?.boundSource
+              title={sourceRebindRequired || sourceBinding?.boundSource ? translate('workspace:workspace.sourceRebindRequired') : translate('workspace:workspace.sourceBindingRequired')}
+              message={sourceRebindRequired || sourceBinding?.boundSource
                 ? translate('workspace:workspace.sourceBindingInactive')
                 : translate('workspace:workspace.sourceBindingDescription')}
             />
