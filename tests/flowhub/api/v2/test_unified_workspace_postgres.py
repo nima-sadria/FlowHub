@@ -174,6 +174,75 @@ def _seed(db) -> None:
     db.commit()
 
 
+def _activate_pricing_policy(db) -> None:
+    """Review generation requires an active Pricing Matrix policy bound to
+    PRICING_MATRIX authority, or the Review is created `blocked` rather than
+    `ready` and selection is rejected with REVIEW_NOT_READY. The Draft-CAS
+    tests above never reach Review generation, so this was never needed
+    until the Apply Manifest test below; mirrors
+    tests/flowhub/api/v2/test_unified_workspace.py's `_seed_pricing_policy`."""
+    from app.flowhub.auth.models import FlowHubUser
+    from app.flowhub.pricing_authority.contracts import PricingAuthority
+    from app.flowhub.pricing_authority.service import ChannelPricingAuthorityService
+    from app.flowhub.pricing_matrix.service import PricingMatrixService
+    from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
+
+    user = db.query(FlowHubUser).first()
+    assert user is not None
+    UnifiedWorkspaceService(db)._seed_channels()
+    pricing = PricingMatrixService(db)
+    pricing.declare_unit(
+        scope="channel",
+        scope_reference="woocommerce:primary",
+        currency="EUR",
+        unit="EUR",
+        user=user,
+    )
+    policy = pricing.create_policy_revision(
+        payload={
+            "name": "Postgres Concurrency Test Policy",
+            "computation_currency": "EUR",
+            "round_order": "surcharge_then_round",
+            "max_quote_age_days": 30,
+            "min_quote_count": 1,
+            "evaluation_timezone": "UTC",
+            "rules": [
+                {
+                    "rate_mode": "percent_bp",
+                    "rate_value": 0,
+                    "round_mode": "floor",
+                    "round_step_minor": 100,
+                    "surcharge_minor": 0,
+                }
+            ],
+        },
+        user=user,
+    )
+    pricing.activate(
+        channel_id="woocommerce:primary",
+        policy_revision_id=policy["id"],
+        expected_head_version=0,
+        reason="Postgres concurrency test setup",
+        user=user,
+    )
+    authority = ChannelPricingAuthorityService(db)
+    legacy = authority.snapshot("woocommerce:primary")
+    locked = authority.transition(
+        channel_id="woocommerce:primary",
+        new_authority=PricingAuthority.MIGRATION_LOCKED,
+        expected_head_version=legacy.head_version,
+        reason="Postgres concurrency test setup",
+        user=user,
+    )
+    authority.transition(
+        channel_id="woocommerce:primary",
+        new_authority=PricingAuthority.PRICING_MATRIX,
+        expected_head_version=locked.head_version,
+        reason="Postgres concurrency test setup",
+        user=user,
+    )
+
+
 def _create_workspace(client, auth_headers) -> dict:
     response = client.post(
         "/api/v2/unified-workspaces/manual",
@@ -315,6 +384,7 @@ def test_two_concurrent_applies_racing_the_same_manifest_resolve_to_exactly_one_
     from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
 
     _seed(db)
+    _activate_pricing_policy(db)
     workspace = _create_workspace(client, auth_headers)
     row = client.get(
         f"/api/v2/unified-workspaces/{workspace['id']}/grid", headers=auth_headers
