@@ -192,21 +192,24 @@ function PreviewRow({ row, selected, onToggle }: {
   )
 }
 
-const validationLabels: Record<string, string> = {
-  duplicate_sku: translate('workspace:workspace.validation.duplicateSku'), duplicate_product_id: translate('workspace:workspace.validation.duplicateProductKey'),
-  missing_product: translate('workspace:workspace.validation.missingProduct'), invalid_product_id: translate('workspace:workspace.validation.invalidProductKey'),
-  missing_product_identifier: translate('workspace:workspace.validation.missingIdentifier'), invalid_price: translate('workspace:workspace.validation.invalidPrice'),
-  invalid_or_missing_price: translate('workspace:workspace.validation.invalidOrMissingPrice'), missing_price: translate('workspace:workspace.validation.missingPrice'),
-  product_name_mismatch: translate('workspace:workspace.validation.nameMismatch'), missing_current_price: translate('workspace:workspace.validation.missingCurrentPrice'),
-  missing_variation_parent: translate('workspace:workspace.validation.missingVariationParent'), missing_variation_parent_id: translate('workspace:workspace.validation.missingVariationParent'),
-  unsupported_product_type: translate('workspace:workspace.validation.unsupportedProductType'), suspiciously_high_price: translate('workspace:workspace.validation.suspiciouslyHighPrice'),
-  active_sale_price_not_modified: translate('workspace:workspace.validation.activeSalePrice'), large_price_change: translate('workspace:workspace.validation.largePriceChange'),
-  large_price_change_blocked: translate('workspace:workspace.validation.largePriceChangeBlocked'), zero_or_negative_price: translate('workspace:workspace.validation.nonPositivePrice'),
-  stale_product_cache: translate('workspace:workspace.validation.staleCache'),
+const validationLabelKeys: Record<string, string> = {
+  duplicate_sku: 'workspace:workspace.validation.duplicateSku', duplicate_product_id: 'workspace:workspace.validation.duplicateProductKey',
+  missing_product: 'workspace:workspace.validation.missingProduct', invalid_product_id: 'workspace:workspace.validation.invalidProductKey',
+  missing_product_identifier: 'workspace:workspace.validation.missingIdentifier', invalid_price: 'workspace:workspace.validation.invalidPrice',
+  invalid_or_missing_price: 'workspace:workspace.validation.invalidOrMissingPrice', missing_price: 'workspace:workspace.validation.missingPrice',
+  product_name_mismatch: 'workspace:workspace.validation.nameMismatch', missing_current_price: 'workspace:workspace.validation.missingCurrentPrice',
+  missing_variation_parent: 'workspace:workspace.validation.missingVariationParent', missing_variation_parent_id: 'workspace:workspace.validation.missingVariationParent',
+  unsupported_product_type: 'workspace:workspace.validation.unsupportedProductType', suspiciously_high_price: 'workspace:workspace.validation.suspiciouslyHighPrice',
+  active_sale_price_not_modified: 'workspace:workspace.validation.activeSalePrice', large_price_change: 'workspace:workspace.validation.largePriceChange',
+  large_price_change_blocked: 'workspace:workspace.validation.largePriceChangeBlocked', zero_or_negative_price: 'workspace:workspace.validation.nonPositivePrice',
+  stale_product_cache: 'workspace:workspace.validation.staleCache',
 }
 
 void PreviewRow
-function validationLabel(code: string): string { return validationLabels[code] ?? code.replace(/_/g, ' ').replace(/^./, (value: string) => value.toUpperCase()) }
+function validationLabel(code: string): string {
+  const translationKey = validationLabelKeys[code]
+  return translationKey ? translate(translationKey) : code.replace(/_/g, ' ').replace(/^./, (value: string) => value.toUpperCase())
+}
 function ownerAction(code: string): string | null {
   if (code === 'missing_product') return translate('workspace:workspace.actions.missingProduct')
   if (code === 'duplicate_sku') return translate('workspace:workspace.actions.duplicateSku')
