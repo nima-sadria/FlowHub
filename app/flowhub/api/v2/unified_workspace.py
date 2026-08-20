@@ -88,6 +88,8 @@ class ReviewSelectionRequest(StrictModel):
 class ApplyRequest(StrictModel):
     review_id: str = Field(min_length=1, max_length=36)
     expected_selection_checksum: str = Field(min_length=64, max_length=64, pattern=r"^[a-f0-9]{64}$")
+    manifest_id: str = Field(min_length=1, max_length=36)
+    expected_manifest_checksum: str = Field(min_length=64, max_length=64, pattern=r"^[a-f0-9]{64}$")
     confirmed: bool
 
 
@@ -385,6 +387,17 @@ def save_review_selection(
     )
 
 
+@router.get("/{workspace_id}/reviews/{review_id}/manifest/{manifest_id}")
+def get_apply_manifest(
+    workspace_id: str,
+    review_id: str,
+    manifest_id: str,
+    user: FlowHubUser = Depends(require_workspace_permission("workspace.read")),
+    service: UnifiedWorkspaceService = Depends(_service),
+) -> dict[str, Any]:
+    return service.get_apply_manifest(workspace_id, review_id, manifest_id, user)
+
+
 @router.post("/{workspace_id}/apply", status_code=202)
 async def apply_selected(
     workspace_id: str,
@@ -399,6 +412,8 @@ async def apply_selected(
         body.review_id,
         idempotency_key=idempotency_key,
         expected_selection_checksum=body.expected_selection_checksum,
+        manifest_id=body.manifest_id,
+        expected_manifest_checksum=body.expected_manifest_checksum,
         confirmed=body.confirmed,
         user=user,
         correlation_id=correlation_id,

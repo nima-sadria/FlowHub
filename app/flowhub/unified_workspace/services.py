@@ -59,6 +59,8 @@ from app.flowhub.unified_workspace.listing_guard import (
 from app.flowhub.unified_workspace.models import (
     ApplyJob,
     ApplyJobItem,
+    ApplyManifest,
+    ApplyManifestOperation,
     CanonicalProduct,
     ChannelCache,
     CurrencyProfile,
@@ -2025,6 +2027,7 @@ class UnifiedWorkspaceService:
         selection_document = self._selection_document(review, items)
         selection_checksum = checksum(selection_document)
         review.selection_checksum = selection_checksum
+        manifest, manifest_operations = self._generate_apply_manifest(review, items, user)
         self._audit(
             "review_selection_saved",
             user,
@@ -2038,6 +2041,8 @@ class UnifiedWorkspaceService:
                 "selection_checksum": selection_checksum,
                 "selection_version": review.selection_version,
                 "canonical_selection": selection_document,
+                "apply_manifest_id": manifest.id,
+                "manifest_checksum": manifest.manifest_checksum,
             },
         )
         self.db.commit()
@@ -2046,6 +2051,7 @@ class UnifiedWorkspaceService:
             "selectedItemIds": unique_ids,
             "selectionChecksum": selection_checksum,
             "selectionVersion": review.selection_version,
+            **self._manifest_shape(manifest, manifest_operations),
         }
 
     def review_shape(self, review_id: str, user: FlowHubUser) -> dict[str, Any]:
@@ -2094,6 +2100,8 @@ class UnifiedWorkspaceService:
         *,
         idempotency_key: str,
         expected_selection_checksum: str,
+        manifest_id: str,
+        expected_manifest_checksum: str,
         confirmed: bool,
         user: FlowHubUser,
         correlation_id: str,
@@ -2175,6 +2183,33 @@ class UnifiedWorkspaceService:
                 "APPLY_SELECTION_CHECKSUM_MISMATCH",
                 "The confirmed selection changed; confirm the current selection again.",
             )
+        manifest = self.db.get(ApplyManifest, canonical_text(manifest_id))
+        if manifest is None or manifest.review_id != review.id:
+            raise self._not_found(
+                "APPLY_MANIFEST_NOT_FOUND", "Apply manifest not found."
+            )
+        expected_manifest = canonical_text(expected_manifest_checksum)
+        if not expected_manifest or expected_manifest != manifest.manifest_checksum:
+            raise self._conflict(
+                "APPLY_MANIFEST_CHECKSUM_MISMATCH",
+                "The confirmed manifest checksum does not match the referenced manifest.",
+            )
+        if (
+            manifest.selection_version != review.selection_version
+            or manifest.selection_checksum != selection_checksum
+        ):
+            raise self._conflict(
+                "STALE_APPLY_MANIFEST",
+                "The Review selection changed since this manifest was generated; "
+                "save the selection again to get a fresh manifest.",
+            )
+        fresh_document, _ = self._manifest_document(review, review_items)
+        if checksum(fresh_document) != manifest.manifest_checksum:
+            raise self._conflict(
+                "STALE_APPLY_MANIFEST",
+                "Channel state changed since this manifest was generated; save "
+                "the selection again to get a fresh manifest.",
+            )
         self._assert_review_fresh(review, user, correlation_id)
         logical_operation_key = checksum(
             {
@@ -2183,7 +2218,8 @@ class UnifiedWorkspaceService:
                 "draft_revision": review.draft_revision_id,
                 "review": review.id,
                 "selection": selection_checksum,
-                "operation_version": "workspace-apply-v2",
+                "manifest": manifest.manifest_checksum,
+                "operation_version": "workspace-apply-v3",
             }
         )
         existing = self.applies.by_logical_operation(logical_operation_key)
@@ -2213,6 +2249,8 @@ class UnifiedWorkspaceService:
             request_json={"selected_review_item_ids": selected_ids, "confirmed": True},
             status=ApplyState.PENDING,
             operation_checksum=logical_operation_key,
+            apply_manifest_id=manifest.id,
+            manifest_checksum=manifest.manifest_checksum,
         )
         self.db.add(job)
         job_items: dict[str, ApplyJobItem] = {}
@@ -2334,6 +2372,31 @@ class UnifiedWorkspaceService:
                 self._release_listing_locks(job.id)
                 self._audit(
                     "apply_blocked_pricing_stale",
+                    user,
+                    correlation_id,
+                    workspace_id=workspace.id,
+                    snapshot_id=snapshot.id,
+                    draft_revision_id=review.draft_revision_id,
+                    review_id=review.id,
+                    apply_job_id=job.id,
+                    apply_result=ApplyState.STALE,
+                    reason=review.stale_reason,
+                )
+                self.db.commit()
+                return self.apply_shape(job.id, user)
+            post_lock_document, _ = self._manifest_document(review, review_items)
+            if checksum(post_lock_document) != job.manifest_checksum:
+                review.status = ReviewState.STALE
+                review.invalidated_at = utcnow()
+                review.stale_reason = "apply_manifest_drift"
+                job.status = ApplyState.STALE
+                job.completed_at = utcnow()
+                job.worker_id = None
+                job.lease_token = None
+                job.lease_expires_at = None
+                self._release_listing_locks(job.id)
+                self._audit(
+                    "apply_blocked_manifest_stale",
                     user,
                     correlation_id,
                     workspace_id=workspace.id,
@@ -3520,6 +3583,165 @@ class UnifiedWorkspaceService:
             ],
         }
 
+    def _operation_payload(
+        self,
+        listing: Listing,
+        cache: ChannelCache,
+        capabilities: ChannelCapabilities,
+        targets: dict[str, str],
+    ) -> dict[str, Any]:
+        return {
+            "listing": listing.id,
+            "channel": listing.channel_id,
+            "targets": targets,
+            "mapping_version": listing.mapping_version,
+            "cache_version": cache.cache_version,
+            "cache_checksum": cache.checksum,
+            "capability_version": capabilities.version,
+        }
+
+    def _manifest_document(
+        self, review: Review, items: list[ReviewItem]
+    ) -> tuple[dict[str, object], dict[str, dict[str, Any]]]:
+        """Build the canonical, checksummable statement of what selected Review
+        items would actually write, plus the per-listing payload each
+        operation is bound to. Deliberately lighter than `_write_intent`: it
+        does not resolve parent-listing or pricing-authority-binding state,
+        since those bind to an ApplyJob that may not exist yet when this is
+        called (at selection-save time) and can legitimately change without
+        invalidating what was shown to the user."""
+
+        grouped: dict[str, list[ReviewItem]] = defaultdict(list)
+        for item in items:
+            grouped[item.listing_id].append(item)
+        listing_payloads: dict[str, dict[str, Any]] = {}
+        for listing_id, group in grouped.items():
+            listing = self.db.get(Listing, listing_id)
+            cache = self.db.query(ChannelCache).filter_by(listing_id=listing_id).first()
+            if listing is None or cache is None:
+                raise WorkspaceDomainError("Apply Listing state is unavailable.")
+            capabilities = self._capabilities_or_none(listing.channel_id)
+            if capabilities is None:
+                raise WorkspaceDomainError("Channel capabilities are unavailable.")
+            targets = {item.field: item.target_value for item in group}
+            listing_payloads[listing_id] = self._operation_payload(
+                listing, cache, capabilities, targets
+            )
+        ordered = sorted(
+            items, key=lambda item: (item.channel_id, item.listing_id, item.field, item.id)
+        )
+        document: dict[str, object] = {
+            "manifest_version": "uw-manifest-op-v1",
+            "workspace_id": review.workspace_id,
+            "snapshot_id": review.snapshot_id,
+            "draft_revision_id": review.draft_revision_id,
+            "review_id": review.id,
+            "review_checksum": review.checksum,
+            "selection_version": review.selection_version,
+            "selection_checksum": review.selection_checksum,
+            "operations": [
+                {
+                    "review_item_id": item.id,
+                    "listing_id": item.listing_id,
+                    "channel_id": item.channel_id,
+                    "field": item.field,
+                    "listing_payload": listing_payloads[item.listing_id],
+                }
+                for item in ordered
+            ],
+        }
+        return document, listing_payloads
+
+    def _generate_apply_manifest(
+        self, review: Review, review_items: list[ReviewItem], user: FlowHubUser
+    ) -> tuple[ApplyManifest, list[ApplyManifestOperation]]:
+        document, listing_payloads = self._manifest_document(review, review_items)
+        manifest = ApplyManifest(
+            id=_id(),
+            workspace_id=review.workspace_id,
+            snapshot_id=review.snapshot_id,
+            draft_revision_id=review.draft_revision_id,
+            review_id=review.id,
+            selection_version=review.selection_version,
+            selection_checksum=review.selection_checksum or "",
+            manifest_checksum=checksum(document),
+            operation_count=len(review_items),
+            channel_ids_json=sorted({item.channel_id for item in review_items}),
+            created_by_user_id=user.id,
+        )
+        self.db.add(manifest)
+        operations: list[ApplyManifestOperation] = []
+        for item in review_items:
+            listing_payload = listing_payloads[item.listing_id]
+            price_currency = None
+            price_unit = None
+            if item.field == "price":
+                price_currency = item.normalized_value_json.get("currency")
+                price_unit = item.normalized_value_json.get("unit")
+            operations.append(
+                ApplyManifestOperation(
+                    id=_id(),
+                    manifest_id=manifest.id,
+                    review_item_id=item.id,
+                    canonical_product_id=item.canonical_product_id,
+                    listing_id=item.listing_id,
+                    channel_id=item.channel_id,
+                    field=item.field,
+                    current_value=item.current_value,
+                    target_value=item.target_value,
+                    currency=price_currency,
+                    unit=price_unit,
+                    listing_payload_json=listing_payload,
+                    listing_payload_hash=checksum(listing_payload),
+                )
+            )
+        self.db.add_all(operations)
+        return manifest, operations
+
+    def _manifest_shape(
+        self, manifest: ApplyManifest, operations: list[ApplyManifestOperation]
+    ) -> dict[str, Any]:
+        ordered = sorted(
+            operations, key=lambda op: (op.channel_id, op.listing_id, op.field, op.id)
+        )
+        return {
+            "manifestId": manifest.id,
+            "manifestChecksum": manifest.manifest_checksum,
+            "affectedChannelIds": list(manifest.channel_ids_json),
+            "operations": [
+                {
+                    "id": op.id,
+                    "reviewItemId": op.review_item_id,
+                    "canonicalProductId": op.canonical_product_id,
+                    "listingId": op.listing_id,
+                    "channelId": op.channel_id,
+                    "field": op.field,
+                    "current": op.current_value,
+                    "target": op.target_value,
+                    "currency": op.currency,
+                    "unit": op.unit,
+                }
+                for op in ordered
+            ],
+        }
+
+    def get_apply_manifest(
+        self, workspace_id: str, review_id: str, manifest_id: str, user: FlowHubUser
+    ) -> dict[str, Any]:
+        workspace = self._workspace_for_user(workspace_id, user, edit=False)
+        review = self.reviews.get(review_id)
+        if review is None or review.workspace_id != workspace.id:
+            raise self._not_found("REVIEW_NOT_FOUND", "Review not found.")
+        manifest = self.db.get(ApplyManifest, manifest_id)
+        if manifest is None or manifest.review_id != review.id:
+            raise self._not_found("APPLY_MANIFEST_NOT_FOUND", "Apply manifest not found.")
+        operations = (
+            self.db.query(ApplyManifestOperation)
+            .filter(ApplyManifestOperation.manifest_id == manifest.id)
+            .all()
+        )
+        return self._manifest_shape(manifest, operations)
+
     def _recover_job_if_stale(self, job: ApplyJob, user: FlowHubUser, correlation_id: str) -> bool:
         # PENDING and RUNNING are both recoverable states.  A process can die
         # after either the job row or the Listing locks are committed but before
@@ -3831,15 +4053,7 @@ class UnifiedWorkspaceService:
             .order_by(ApplyJobItem.id)
             .all()
         )
-        payload = {
-            "listing": listing.id,
-            "channel": listing.channel_id,
-            "targets": targets,
-            "mapping_version": listing.mapping_version,
-            "cache_version": cache.cache_version,
-            "cache_checksum": cache.checksum,
-            "capability_version": capabilities.version,
-        }
+        payload = self._operation_payload(listing, cache, capabilities, targets)
         review = self.db.get(Review, job.review_id)
         if review is None:
             raise WorkspaceDomainError("Apply Review state is unavailable.")

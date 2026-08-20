@@ -560,6 +560,33 @@ def test_snapshot_and_revision_rows_are_immutable(db, admin):
     db.rollback()
 
 
+def test_apply_manifest_is_immutable(client, auth_headers, db):
+    from app.flowhub.unified_workspace.domain import ImmutableRecordError
+    from app.flowhub.unified_workspace.models import ApplyManifest, ApplyManifestOperation
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    selection = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    assert selection.status_code == 200
+    manifest = db.get(ApplyManifest, selection.json()["manifestId"])
+    manifest.operation_count = 999
+    with pytest.raises(ImmutableRecordError):
+        db.commit()
+    db.rollback()
+
+    operation = (
+        db.query(ApplyManifestOperation).filter_by(manifest_id=manifest.id).first()
+    )
+    operation.target_value = "0"
+    with pytest.raises(ImmutableRecordError):
+        db.commit()
+    db.rollback()
+
+
 def test_viewer_cannot_create_workspace(client, db):
     from app.flowhub.auth.jwt_service import create_access_token
     from app.flowhub.auth.models import FlowHubUser
@@ -760,6 +787,8 @@ def test_apply_is_selected_only_idempotent_and_patches_verified_cache(
         json={
             "review_id": review["id"],
             "expected_selection_checksum": selection.json()["selectionChecksum"],
+            "manifest_id": selection.json()["manifestId"],
+            "expected_manifest_checksum": selection.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -776,11 +805,286 @@ def test_apply_is_selected_only_idempotent_and_patches_verified_cache(
         json={
             "review_id": review["id"],
             "expected_selection_checksum": selection.json()["selectionChecksum"],
+            "manifest_id": selection.json()["manifestId"],
+            "expected_manifest_checksum": selection.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
     assert repeated.status_code == 202
     assert repeated.json()["id"] == result["id"]
+
+
+def test_apply_manifest_payload_matches_live_listing_and_cache_state_used_by_write_intent(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.unified_workspace.domain import checksum
+    from app.flowhub.unified_workspace.models import ApplyManifestOperation, ChannelCache, Listing
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    selected = review["items"][0]
+    selection = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [selected["id"]]},
+    )
+    assert selection.status_code == 200
+    listing = db.get(Listing, selected["listingId"])
+    cache_version_at_manifest_time = (
+        db.query(ChannelCache).filter_by(listing_id=selected["listingId"]).one().cache_version
+    )
+
+    async def fake_apply(_self, updates, *, requested_by):
+        update = updates[0]
+        return [
+            ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                response={"id": "provider-1"},
+                external_response_id="provider-1",
+                accepted_price=update.target_price,
+            )
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates",
+        fake_apply,
+    )
+    applied = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "payload-hash-parity"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": selection.json()["selectionChecksum"],
+            "manifest_id": selection.json()["manifestId"],
+            "expected_manifest_checksum": selection.json()["manifestChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert applied.status_code == 202, applied.text
+    manifest_op = (
+        db.query(ApplyManifestOperation)
+        .filter_by(manifest_id=selection.json()["manifestId"], review_item_id=selected["id"])
+        .one()
+    )
+    # The manifest's payload was built by the same _operation_payload helper
+    # _write_intent uses; it must describe the listing/cache identity that
+    # was actually in effect when the manifest was generated (before Apply's
+    # own successful write bumped the cache version), proving there is
+    # exactly one source of truth for what feeds the checksum rather than
+    # two independently maintained copies.
+    payload = manifest_op.listing_payload_json
+    assert payload["listing"] == listing.id
+    assert payload["mapping_version"] == listing.mapping_version
+    assert payload["cache_version"] == cache_version_at_manifest_time
+    assert payload["targets"]["price"] == selected["target"]
+    assert manifest_op.listing_payload_hash == checksum(payload)
+
+
+def test_select_review_items_generates_apply_manifest_with_payload_bound_checksum(
+    client, auth_headers, db
+):
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    first = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    assert first.status_code == 200
+    body = first.json()
+    assert body["manifestId"]
+    assert body["manifestChecksum"]
+    assert len(body["operations"]) == 1
+    assert body["operations"][0]["listingId"] == item["listingId"]
+    assert body["operations"][0]["channelId"] == item["channelId"]
+    assert body["operations"][0]["target"] == item["target"]
+    assert body["affectedChannelIds"] == [item["channelId"]]
+
+    # Reselecting the identical (listing, channel, field) scope after the
+    # *target value* changes via a new Draft Revision + Review produces a
+    # different manifestChecksum -- proving the manifest is bound to the
+    # payload, not just to which fields are selected (unlike the pre-existing
+    # selectionChecksum, which is scope-only).
+    revision = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/draft/revisions",
+        headers=auth_headers,
+        json={
+            "expected_version": 1,
+            "metadata": {},
+            "changes": [
+                {
+                    "canonical_product_id": item["canonicalProductId"],
+                    "listing_id": item["listingId"],
+                    "channel_id": item["channelId"],
+                    "field": "price",
+                    "target_value": "999",
+                    "currency": "EUR",
+                    "unit": "EUR",
+                }
+            ],
+        },
+    )
+    assert revision.status_code == 201, revision.text
+    reviewed = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": revision.json()["id"]},
+    )
+    assert reviewed.status_code == 201, reviewed.text
+    new_review = reviewed.json()
+    new_item = new_review["items"][0]
+    second = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{new_review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [new_item["id"]]},
+    )
+    assert second.status_code == 200
+    assert second.json()["manifestChecksum"] != body["manifestChecksum"]
+
+
+def test_apply_rejects_when_selection_changed_after_manifest_generated(
+    client, auth_headers, db
+):
+    from app.flowhub.unified_workspace.models import ApplyJob
+
+    workspace, review = _saved_review(client, auth_headers, db, second_product=True)
+    first, second = review["items"]
+    original = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [first["id"]]},
+    )
+    assert original.status_code == 200
+    manifest_id = original.json()["manifestId"]
+    manifest_checksum = original.json()["manifestChecksum"]
+    selection_checksum = original.json()["selectionChecksum"]
+
+    changed = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [second["id"]]},
+    )
+    assert changed.status_code == 200
+
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "stale-manifest-selection"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": selection_checksum,
+            "manifest_id": manifest_id,
+            "expected_manifest_checksum": manifest_checksum,
+            "confirmed": True,
+        },
+    )
+    assert response.status_code == 409
+    # The selection-checksum guard (pre-existing) is reached first since the
+    # selection itself also changed; either code proves no stale write occurs.
+    assert response.json()["detail"]["code"] in {
+        "APPLY_SELECTION_CHECKSUM_MISMATCH",
+        "STALE_APPLY_MANIFEST",
+    }
+    assert db.query(ApplyJob).filter_by(review_id=review["id"]).count() == 0
+
+
+def test_apply_rejects_when_manifest_checksum_submitted_does_not_match_manifest_row(
+    client, auth_headers, db
+):
+    from app.flowhub.unified_workspace.models import ApplyJob
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    selection = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [item["id"]]},
+    )
+    assert selection.status_code == 200
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "tampered-manifest-checksum"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": selection.json()["selectionChecksum"],
+            "manifest_id": selection.json()["manifestId"],
+            "expected_manifest_checksum": "a" * 64,
+            "confirmed": True,
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "APPLY_MANIFEST_CHECKSUM_MISMATCH"
+    assert db.query(ApplyJob).filter_by(review_id=review["id"]).count() == 0
+
+
+def test_apply_after_stale_manifest_rejection_can_retry_with_fresh_manifest(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    workspace, review = _saved_review(client, auth_headers, db, second_product=True)
+    first, second = review["items"]
+    stale = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [first["id"]]},
+    )
+    assert stale.status_code == 200
+    stale_manifest_id = stale.json()["manifestId"]
+    stale_manifest_checksum = stale.json()["manifestChecksum"]
+    stale_selection_checksum = stale.json()["selectionChecksum"]
+
+    fresh = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [second["id"]]},
+    )
+    assert fresh.status_code == 200
+
+    rejected = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "retry-1"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": stale_selection_checksum,
+            "manifest_id": stale_manifest_id,
+            "expected_manifest_checksum": stale_manifest_checksum,
+            "confirmed": True,
+        },
+    )
+    assert rejected.status_code == 409
+
+    async def fake_apply(_self, updates, *, requested_by):
+        update = updates[0]
+        return [
+            ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                response={"id": "provider-1"},
+                external_response_id="provider-1",
+                accepted_price=update.target_price,
+            )
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates",
+        fake_apply,
+    )
+    retried = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "retry-2"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": fresh.json()["selectionChecksum"],
+            "manifest_id": fresh.json()["manifestId"],
+            "expected_manifest_checksum": fresh.json()["manifestChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert retried.status_code == 202, retried.text
+    assert retried.json()["status"] == "applied"
 
 
 def test_cache_change_marks_review_stale_and_blocks_apply(client, auth_headers, db):
@@ -804,11 +1108,16 @@ def test_cache_change_marks_review_stale_and_blocks_apply(client, auth_headers, 
         json={
             "review_id": review["id"],
             "expected_selection_checksum": selection.json()["selectionChecksum"],
+            "manifest_id": selection.json()["manifestId"],
+            "expected_manifest_checksum": selection.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
     assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "STALE_REVIEW"
+    # The manifest freshness check (bound to cache_version/checksum via the
+    # operation payload) now catches this class of drift before
+    # _assert_review_fresh's own cache-identity check is reached.
+    assert response.json()["detail"]["code"] == "STALE_APPLY_MANIFEST"
 
 
 def test_pricing_policy_must_be_activated_before_review(client, auth_headers, db):
@@ -846,6 +1155,8 @@ def test_pricing_activation_change_marks_review_stale_before_apply(
         json={
             "review_id": review["id"],
             "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "manifest_id": confirmed.json()["manifestId"],
+            "expected_manifest_checksum": confirmed.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -892,6 +1203,8 @@ def test_pricing_channel_config_change_marks_review_stale_before_apply(
         json={
             "review_id": review["id"],
             "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "manifest_id": confirmed.json()["manifestId"],
+            "expected_manifest_checksum": confirmed.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -970,6 +1283,8 @@ def test_pricing_binding_race_blocks_before_write_pipeline(
         json={
             "review_id": review["id"],
             "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "manifest_id": confirmed.json()["manifestId"],
+            "expected_manifest_checksum": confirmed.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -1121,6 +1436,8 @@ def test_disabled_listing_or_channel_after_review_blocks_apply_before_provider(
         json={
             "review_id": review["id"],
             "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "manifest_id": confirmed.json()["manifestId"],
+            "expected_manifest_checksum": confirmed.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -1420,6 +1737,8 @@ def test_apply_partial_failure_is_auditable_and_retry_safe(client, auth_headers,
         json={
             "review_id": review["id"],
             "expected_selection_checksum": selected.json()["selectionChecksum"],
+            "manifest_id": selected.json()["manifestId"],
+            "expected_manifest_checksum": selected.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -1450,6 +1769,8 @@ def test_shared_write_pipeline_authority_and_selection_checksum_conflict(
     )
     assert confirmed.status_code == 200
     checksum_a = confirmed.json()["selectionChecksum"]
+    manifest_id_a = confirmed.json()["manifestId"]
+    manifest_checksum_a = confirmed.json()["manifestChecksum"]
     replaced = client.put(
         f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
         headers=auth_headers,
@@ -1478,6 +1799,8 @@ def test_shared_write_pipeline_authority_and_selection_checksum_conflict(
         json={
             "review_id": review["id"],
             "expected_selection_checksum": checksum_a,
+            "manifest_id": manifest_id_a,
+            "expected_manifest_checksum": manifest_checksum_a,
             "confirmed": True,
         },
     )
@@ -1486,12 +1809,16 @@ def test_shared_write_pipeline_authority_and_selection_checksum_conflict(
     assert calls == []
 
     current_checksum = replaced.json()["selectionChecksum"]
+    current_manifest_id = replaced.json()["manifestId"]
+    current_manifest_checksum = replaced.json()["manifestChecksum"]
     applied = client.post(
         f"/api/v2/unified-workspaces/{workspace['id']}/apply",
         headers={**auth_headers, "Idempotency-Key": "selection-tab-b"},
         json={
             "review_id": review["id"],
             "expected_selection_checksum": current_checksum,
+            "manifest_id": current_manifest_id,
+            "expected_manifest_checksum": current_manifest_checksum,
             "confirmed": True,
         },
     )
@@ -1539,6 +1866,8 @@ def test_ruleset_and_cache_max_age_block_apply_before_dispatch(
         json={
             "review_id": review["id"],
             "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "manifest_id": confirmed.json()["manifestId"],
+            "expected_manifest_checksum": confirmed.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -1586,6 +1915,8 @@ def test_reconciliation_required_is_durable_and_never_marks_success(
         json={
             "review_id": review["id"],
             "expected_selection_checksum": confirmed.json()["selectionChecksum"],
+            "manifest_id": confirmed.json()["manifestId"],
+            "expected_manifest_checksum": confirmed.json()["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -1650,6 +1981,8 @@ def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
         json={
             "review_id": first_review["id"],
             "expected_selection_checksum": first_selection["selectionChecksum"],
+            "manifest_id": first_selection["manifestId"],
+            "expected_manifest_checksum": first_selection["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -1716,6 +2049,8 @@ def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
         json={
             "review_id": second_review["id"],
             "expected_selection_checksum": second_selection["selectionChecksum"],
+            "manifest_id": second_selection["manifestId"],
+            "expected_manifest_checksum": second_selection["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -1736,6 +2071,8 @@ def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
         json={
             "review_id": second_review["id"],
             "expected_selection_checksum": expired_uncertain_selection["selectionChecksum"],
+            "manifest_id": expired_uncertain_selection["manifestId"],
+            "expected_manifest_checksum": expired_uncertain_selection["manifestChecksum"],
             "confirmed": True,
         },
     )
@@ -1777,6 +2114,8 @@ def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
         json={
             "review_id": second_review["id"],
             "expected_selection_checksum": reconfirmed["selectionChecksum"],
+            "manifest_id": reconfirmed["manifestId"],
+            "expected_manifest_checksum": reconfirmed["manifestChecksum"],
             "confirmed": True,
         },
     )
