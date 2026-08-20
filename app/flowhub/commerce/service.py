@@ -1163,6 +1163,13 @@ class CommerceHubService:
         setup_configured = self._source_setup_configured(
             source_id, str(meta["provider"]), instance
         )
+        if meta["provider"] == "nextcloud":
+            # Present the same effective policy used by Workspace and source
+            # reads.  The legacy persisted max_reads_per_24h is not an
+            # override of the canonical Rate Limits setting.
+            settings["source_read_policy"] = SpreadsheetSourceReadService(
+                self.db, connector_id=source_id
+            ).read_policy()
         return {
             "source_id": source_id,
             **self._source_lifecycle_contract(source_id),

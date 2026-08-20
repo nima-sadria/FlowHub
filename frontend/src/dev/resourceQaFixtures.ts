@@ -53,7 +53,7 @@ export function withConnectedSourceFixture(
     health: { ...item.health, status: 'healthy', message: '', error_code: null },
     read_status: {
       enabled: true,
-      max_reads_per_24h: 10,
+      max_reads_per_24h: 60,
       manual_read_allowed: true,
       reads_used_last_24h: 1,
       reads_remaining: 9,

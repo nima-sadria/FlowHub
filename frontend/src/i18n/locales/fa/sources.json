@@ -271,6 +271,7 @@
   "sourceConfiguration.mappingWasNotSaved": "تنظیم ستون‌ها ذخیره نشد",
   "sourceConfiguration.mapSourceProductIdentityFirstThenEach": "مشخص کنید ردیف‌های محصول از کجا شروع می‌شوند و اطلاعات هر کانال از کدام ستون‌های فایل خوانده شود.",
   "sourceConfiguration.maxAcquisitionsPer24Hours": "حداکثر تعداد دریافت در ۲۴ ساعت",
+  "sourceConfiguration.sourceReadLimitManagedInRateLimits": "از تنظیمات ← محدودیت‌های نرخ مدیریت می‌شود.",
   "sourceConfiguration.modeTagColumn": "ستون",
   "sourceConfiguration.modeTagHeader": "مرجع",
   "sourceConfiguration.modeTagInternal": "شناسه",

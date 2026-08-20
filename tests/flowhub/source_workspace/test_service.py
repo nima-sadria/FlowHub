@@ -461,17 +461,17 @@ def test_worksheet_discovery_reuses_current_snapshot_metadata_without_a_remote_r
     }
     assert result["readQuota"] == {
         "enabled": True,
-        "limit": 10,
+        "limit": 60,
         "usage": 0,
-        "remaining": 10,
+        "remaining": 60,
         "resetAt": None,
         "exhausted": False,
     }
     assert source_configuration["readQuota"] == {
         "enabled": True,
-        "limit": 10,
+        "limit": 60,
         "usage": 0,
-        "remaining": 10,
+        "remaining": 60,
         "reset_at": None,
         "exhausted": False,
     }
@@ -481,7 +481,7 @@ def test_worksheet_discovery_reuses_current_snapshot_metadata_without_a_remote_r
         "Marketplace",
     ]
     assert contract.worksheetDiscovery.metadataSource == "snapshot"
-    assert contract.readQuota.remaining == 10
+    assert contract.readQuota.remaining == 60
     assert calls == 0
     assert db.query(DlSourceReadReservation).count() == 0
 

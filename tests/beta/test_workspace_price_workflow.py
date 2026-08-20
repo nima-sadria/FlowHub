@@ -128,6 +128,7 @@ def auth_headers(client, db):
 @pytest.fixture()
 def configured_db(db):
     from app.flowhub.setup.service import AppConfigService
+    from app.flowhub.rate_limit.service import RateLimitService
 
     AppConfigService(db).set_many(
         {
@@ -401,6 +402,7 @@ def test_source_read_limit_returns_structured_429_and_retry_after(
 ):
     from app.flowhub.auth.models import FlowHubUser
     from app.flowhub.data_layer.models import DlSourceReadReservation
+    from app.flowhub.rate_limit.service import RateLimitService
     from app.flowhub.setup.service import AppConfigService
     from app.flowhub.source_workspace.models import SourceProfile
 
@@ -409,6 +411,7 @@ def test_source_read_limit_returns_structured_429_and_retry_after(
         "nextcloud.source_read_policy",
         '{"enabled": true, "manual_read_allowed": true, "max_reads_per_24h": 1}',
     )
+    RateLimitService(configured_db).update_settings(1, 30, updated_by="test")
     owner = configured_db.query(FlowHubUser).one()
     source = SourceProfile(
         id="source-nextcloud-primary",

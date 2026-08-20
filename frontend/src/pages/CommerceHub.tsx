@@ -42,7 +42,7 @@ export type ReadPolicyDraft = { enabled: boolean; max_reads_per_24h: number; man
 
 export const DEFAULT_READ_POLICY: ReadPolicyDraft = {
   enabled: true,
-  max_reads_per_24h: 10,
+  max_reads_per_24h: 60,
   manual_read_allowed: true,
 }
 

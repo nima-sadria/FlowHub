@@ -2434,6 +2434,7 @@ def test_nextcloud_test_connection_missing_spreadsheet_fails_clearly(client, aut
 
 
 def test_nextcloud_source_mapping_and_read_policy_are_saved(client, auth_headers, db):
+    from app.flowhub.rate_limit.service import RateLimitService
     from app.flowhub.setup.service import AppConfigService
 
     response = client.put(
@@ -2471,9 +2472,10 @@ def test_nextcloud_source_mapping_and_read_policy_are_saved(client, auth_headers
     assert cfg.get("nextcloud.worksheet_mode") == "selected"
     assert cfg.get("nextcloud.worksheet_name") == "Prices"
 
+    RateLimitService(db).update_settings(50, 30, updated_by="test")
     detail = client.get("/api/v2/commerce/sources/nextcloud:primary", headers=auth_headers)
     assert detail.status_code == 200
-    assert detail.json()["read_policy"]["max_reads_per_24h"] == 7
+    assert detail.json()["read_policy"]["max_reads_per_24h"] == 50
 
 
 @pytest.mark.parametrize(
@@ -2690,8 +2692,9 @@ def test_explicit_source_profile_read_retains_dataset_when_legacy_parser_finds_n
     ]
 
 
-def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, monkeypatch):
+def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, db, monkeypatch):
     from app.flowhub.integrations.nextcloud import NextcloudClient
+    from app.flowhub.rate_limit.service import RateLimitService
 
     downloads = 0
 
@@ -2723,6 +2726,7 @@ def test_nextcloud_source_read_rate_limit_is_enforced(client, auth_headers, monk
         },
     )
     assert save.status_code == 200
+    RateLimitService(db).update_settings(1, 30, updated_by="test")
 
     first = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers, json={})
     second = client.post("/api/v2/commerce/sources/nextcloud:primary/read", headers=auth_headers, json={})

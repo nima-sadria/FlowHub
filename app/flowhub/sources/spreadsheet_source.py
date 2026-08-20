@@ -33,6 +33,8 @@ from app.flowhub.integrations.errors import IntegrationError
 from app.flowhub.integrations.spreadsheet import load_workbook_bytes, parse_source_price_rows
 from app.flowhub.security.upstream_errors import UpstreamServiceError, normalize_upstream_error
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.rate_limit.service import RateLimitService
+from app.flowhub.rate_limit.limiter import DEFAULT_READ_RPM
 from app.flowhub.source_acquisition.execution import SourceAcquisitionExecutor
 from app.flowhub.source_acquisition.models import (
     SourceObservationDataset,
@@ -105,7 +107,7 @@ DEFAULT_SOURCE_MAPPING: dict[str, dict[str, object]] = {
 
 DEFAULT_READ_POLICY: dict[str, object] = {
     "enabled": True,
-    "max_reads_per_24h": 10,
+    "max_reads_per_24h": DEFAULT_READ_RPM,
     "manual_read_allowed": True,
 }
 
@@ -628,7 +630,12 @@ class SpreadsheetSourceReadService:
 
     def read_policy(self) -> dict[str, object]:
         raw = _json_config(self.config.get("nextcloud.source_read_policy"))
-        return normalize_read_policy(raw)
+        policy = normalize_read_policy(raw)
+        # Source-read enforcement is governed by the canonical Rate Limits
+        # setting.  Keep the legacy source policy's enable/manual controls,
+        # but never let its persisted max_reads_per_24h shadow that setting.
+        policy["max_reads_per_24h"] = RateLimitService(self.db).get_settings().read_requests_per_minute
+        return policy
 
     def worksheet_selection(self, *, source_profile_id: str | None = None) -> dict[str, str]:
         source = self.db.get(SourceProfile, source_profile_id) if source_profile_id else None

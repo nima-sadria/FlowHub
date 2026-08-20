@@ -271,6 +271,7 @@
   "sourceConfiguration.mappingWasNotSaved": "Column setup was not saved",
   "sourceConfiguration.mapSourceProductIdentityFirstThenEach": "Tell FlowHub where product rows begin and which file columns belong to each sales Channel.",
   "sourceConfiguration.maxAcquisitionsPer24Hours": "Maximum acquisitions per 24 hours",
+  "sourceConfiguration.sourceReadLimitManagedInRateLimits": "Managed in Settings → Rate Limits.",
   "sourceConfiguration.modeTagColumn": "Col",
   "sourceConfiguration.modeTagHeader": "Ref",
   "sourceConfiguration.modeTagInternal": "ID",
