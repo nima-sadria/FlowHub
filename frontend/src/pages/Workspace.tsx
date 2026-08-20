@@ -1,5 +1,5 @@
 import { translate } from '../i18n'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Badge from '../components/Badge'
 import Alert from '../components/Alert'
 import { useServices } from '../services/ServiceContext'
@@ -120,7 +120,7 @@ function PreviewRow({ row, selected, onToggle }: {
   const sku = row.matchedProduct?.sku || row.source.sku || '-'
   const isVariation = row.matchedProduct?.itemType === 'variation' || row.matchedProduct?.productType === 'variation'
   const attrs = attributeText(row.matchedProduct?.variationAttributes)
-  const currency = 'EUR'
+  const currency = ''
   const stockDiff = row.stockDifference
   return (
     <tr className="border-b border-border hover:bg-bg-base/60 transition-colors">
@@ -190,6 +190,79 @@ function PreviewRow({ row, selected, onToggle }: {
       </td>
     </tr>
   )
+}
+
+const validationLabelKeys: Record<string, string> = {
+  duplicate_sku: 'workspace:workspace.validation.duplicateSku', duplicate_product_id: 'workspace:workspace.validation.duplicateProductKey',
+  missing_product: 'workspace:workspace.validation.missingProduct', invalid_product_id: 'workspace:workspace.validation.invalidProductKey',
+  missing_product_identifier: 'workspace:workspace.validation.missingIdentifier', invalid_price: 'workspace:workspace.validation.invalidPrice',
+  invalid_or_missing_price: 'workspace:workspace.validation.invalidOrMissingPrice', missing_price: 'workspace:workspace.validation.missingPrice',
+  product_name_mismatch: 'workspace:workspace.validation.nameMismatch', missing_current_price: 'workspace:workspace.validation.missingCurrentPrice',
+  missing_variation_parent: 'workspace:workspace.validation.missingVariationParent', missing_variation_parent_id: 'workspace:workspace.validation.missingVariationParent',
+  unsupported_product_type: 'workspace:workspace.validation.unsupportedProductType', suspiciously_high_price: 'workspace:workspace.validation.suspiciouslyHighPrice',
+  active_sale_price_not_modified: 'workspace:workspace.validation.activeSalePrice', large_price_change: 'workspace:workspace.validation.largePriceChange',
+  large_price_change_blocked: 'workspace:workspace.validation.largePriceChangeBlocked', zero_or_negative_price: 'workspace:workspace.validation.nonPositivePrice',
+  stale_product_cache: 'workspace:workspace.validation.staleCache',
+}
+
+void PreviewRow
+function validationLabel(code: string): string {
+  const translationKey = validationLabelKeys[code]
+  return translationKey ? translate(translationKey) : code.replace(/_/g, ' ').replace(/^./, (value: string) => value.toUpperCase())
+}
+function ownerAction(code: string): string | null {
+  if (code === 'missing_product') return translate('workspace:workspace.actions.missingProduct')
+  if (code === 'duplicate_sku') return translate('workspace:workspace.actions.duplicateSku')
+  if (code === 'invalid_product_id' || code === 'missing_product_identifier') return translate('workspace:workspace.actions.missingIdentifier')
+  if (code.includes('price')) return translate('workspace:workspace.actions.invalidPrice')
+  return null
+}
+
+function OwnerPreviewRowReadable({ row, selected, onToggle, priceUnit }: { row: WorkspacePreviewRow; selected: boolean; onToggle: (rowId: string, selected: boolean) => void; priceUnit: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const sourceName = row.source.sourceDisplayName || row.source.productName || translate('workspace:workspace.unmatchedProduct')
+  const channelName = row.matchedProduct?.name || '-'
+  const sourceSku = row.source.sku || '-'
+  const channelSku = row.matchedProduct?.sku || '-'
+  const sourceProductKey = row.source.sourceProductKey || row.source.productId || '-'
+  const isVariation = row.matchedProduct?.itemType === 'variation' || row.matchedProduct?.productType === 'variation'
+  const attrs = attributeText(row.matchedProduct?.variationAttributes)
+  const parentName = row.matchedProduct?.parentProductName || '-'
+  const parentId = row.matchedProduct?.parentProductId || row.matchedProduct?.parentId || '-'
+  const issues = [...row.errors, ...row.warnings]
+  const status = row.errors.length ? 'Blocked' : row.warnings.length ? 'Warning' : row.status === 'unchanged' ? 'Unchanged' : 'Ready'
+  const evidence = (code: string) => <div className={['mt-1', 'text-text-muted'].join(' ')}><div>{translate('workspace:workspace.preview.source')}: {sourceName}</div>{code === 'product_name_mismatch' && <div>{translate('workspace:workspace.preview.woocommerce')}: {channelName}</div>}{(code === 'invalid_price' || code === 'invalid_or_missing_price' || code === 'missing_price') && <div>{translate('workspace:workspace.preview.sourceValue')}: {row.source.rawPrice || '-'}</div>}{ownerAction(code) && <div>{translate('workspace:workspace.preview.action')}: {ownerAction(code)}</div>}</div>
+  return <Fragment>
+    <tr className="border-b border-border hover:bg-bg-base/60 transition-colors align-top">
+      <td className="w-16 px-4 py-3 text-center align-top"><input type="checkbox" aria-label={translate('workspace:workspace.selectProduct', { product: sourceName })} checked={selected} disabled={!row.eligible_for_dry_run} onChange={event => onToggle(row.id, event.target.checked)} /></td>
+      <td className="min-w-[320px] px-4 py-3 align-top"><div className="flex items-start gap-3"><div className="h-11 w-11 shrink-0 overflow-hidden rounded bg-bg-subtle">{row.matchedProduct?.imageUrl ? <img loading="lazy" src={row.matchedProduct.imageUrl} alt="" className="h-full w-full object-cover" /> : <div aria-hidden="true" className="h-full w-full" />}</div><div className="min-w-0 space-y-1.5"><div className="fh-text-caption text-text-muted">{translate('workspace:workspace.preview.sourceLabel')}</div><LocalizedText className="block whitespace-normal break-words fh-text-body font-medium text-text-base" text={sourceName} /><div className="fh-text-caption fh-text-mono" dir="ltr">{translate('workspace:workspace.preview.sku')}: {sourceSku}</div><div className="fh-text-caption fh-text-mono" dir="ltr">{translate('workspace:workspace.preview.sourceProductKey')}: {sourceProductKey}</div><div className="fh-text-caption fh-text-mono" dir="ltr">{translate('workspace:workspace.preview.sourceRow')}: {row.source.worksheet}:{row.source.rowNumber}</div>{isVariation && <div className="space-y-1 pt-1"><div className="fh-text-caption font-semibold">{translate('workspace:workspace.preview.variation')}</div><LocalizedText className="block whitespace-normal break-words fh-text-caption" text={attrs || '-'} /><div className="fh-text-caption pt-1 font-semibold">{translate('workspace:workspace.preview.parent')}</div><LocalizedText className="block whitespace-normal break-words fh-text-caption" text={parentName} /><div className="fh-text-caption fh-text-mono" dir="ltr">{translate('workspace:workspace.preview.productId')}: {parentId}</div></div>}</div></div></td>
+      <td className="min-w-[240px] px-4 py-3 align-top"><div className="fh-text-caption text-text-muted">{translate('workspace:workspace.preview.currentWooCommerce')}</div><LocalizedText className="block whitespace-normal break-words fh-text-body-sm font-medium" text={channelName} /><div className="mt-1 space-y-0.5 fh-text-caption fh-text-mono" dir="ltr"><div>{translate('workspace:workspace.preview.productId')}: {row.matchedProduct?.productId || '-'}</div><div>{translate('workspace:workspace.preview.sku')}: {channelSku}</div></div><div className="mt-2" dir="ltr">{row.currentPrice == null ? '-' : fmtPrice(row.currentPrice, priceUnit)}</div></td>
+      <td className="min-w-[170px] px-4 py-3 align-top"><div className="fh-text-caption text-text-muted">{translate('workspace:workspace.preview.sourceChange')}</div><div dir="ltr">{row.proposedPrice == null ? row.source.rawPrice || '-' : fmtPrice(row.proposedPrice, priceUnit)}</div><div>{row.changePct == null ? '-' : <ChangePct pct={row.changePct} />}</div>{row.status === 'stock_changed' && <div className="mt-1 whitespace-normal fh-text-caption">{translate('workspace:workspace.preview.stockOnly')}: {row.currentStock ?? '-'} → {row.sourceStock ?? row.source.rawStock ?? '-'} ({row.stockDifference != null ? formatNumber(row.stockDifference, { signDisplay: 'always' }) : '-'})</div>}</td>
+      <td className="w-36 min-w-[140px] px-4 py-3 align-top"><div className="fh-text-caption text-text-muted">{translate('workspace:workspace.preview.status')}</div><Badge variant={status === 'Ready' ? 'success' : status === 'Warning' ? 'warning' : status === 'Unchanged' ? 'neutral' : 'danger'}>{translate(`workspace:workspace.preview.statuses.${status.toLowerCase()}`)}{issues.length ? ` · ${translate('workspace:workspace.preview.issueCount', { count: issues.length })}` : ''}</Badge><button type="button" className="mt-2 block fh-text-caption underline" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? translate('workspace:workspace.preview.hideDetails') : translate('workspace:workspace.preview.viewDetails')}</button></td>
+    </tr>
+    {expanded && <tr className="border-b border-border bg-bg-subtle"><td colSpan={5} className="px-6 py-4"><div className="grid gap-4 md:grid-cols-3 fh-text-caption"><div><p className="font-semibold text-text-base">{translate('workspace:workspace.preview.blockingIssues')}</p>{row.errors.length ? row.errors.map(code => <div key={code} className="mt-2"><div>{validationLabel(code)}</div>{evidence(code)}</div>) : <p className="mt-1 text-text-muted">{translate('workspace:workspace.preview.none')}</p>}</div><div><p className="font-semibold text-text-base">{translate('workspace:workspace.preview.warnings')}</p>{row.warnings.length ? row.warnings.map(code => <div key={code} className="mt-2"><div>{validationLabel(code)}</div>{evidence(code)}</div>) : <p className="mt-1 text-text-muted">{translate('workspace:workspace.preview.none')}</p>}</div><details><summary className="font-semibold cursor-pointer text-text-base">{translate('workspace:workspace.preview.technicalDetails')}</summary><p className="mt-1 font-mono break-all">{translate('workspace:workspace.preview.codes')}: {issues.join(', ') || translate('workspace:workspace.preview.none')}<br />{translate('workspace:workspace.preview.sourceRow')}: {row.source.worksheet}:{row.source.rowNumber}<br />{translate('workspace:workspace.preview.snapshot')}: {row.source.sourceSnapshotId}</p></details></div></td></tr>}
+  </Fragment>
+}
+
+export function OwnerPreviewRow({ row, selected, onToggle }: { row: WorkspacePreviewRow; selected: boolean; onToggle: (rowId: string, selected: boolean) => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const sourceName = row.source.sourceDisplayName || row.source.productName || translate('workspace:workspace.unmatchedProduct')
+  const channelName = row.matchedProduct?.name || '-'
+  const sku = row.source.sku || row.matchedProduct?.sku || '-'
+  const attrs = attributeText(row.matchedProduct?.variationAttributes)
+  const currency = ''
+  const issues = [...row.errors, ...row.warnings]
+  const status = row.errors.length ? 'Blocked' : row.warnings.length ? 'Warning' : row.status === 'unchanged' ? 'Unchanged' : 'Ready'
+  return <Fragment>
+    <tr className="border-b border-border hover:bg-bg-base/60 transition-colors align-top">
+      <td className="px-4 py-3 text-center"><input type="checkbox" aria-label={translate('workspace:workspace.selectProduct', { product: sourceName })} checked={selected} disabled={!row.eligible_for_dry_run} onChange={event => onToggle(row.id, event.target.checked)} /></td>
+      <td className="px-4 py-3 min-w-0 max-w-[300px]"><div className="flex items-start gap-2">{row.matchedProduct?.imageUrl ? <img loading="lazy" src={row.matchedProduct.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover bg-bg-subtle" /> : <div aria-hidden="true" className="h-10 w-10 shrink-0 rounded bg-bg-subtle" />}<div className="min-w-0"><div className="fh-text-caption text-text-muted">{translate('workspace:workspace.preview.sourceLabel')}</div><LocalizedText className="block truncate fh-text-body font-medium text-text-base" text={sourceName} /><div className="fh-text-caption fh-text-mono mt-0.5">{translate('workspace:workspace.preview.sku')}: {sku} · {row.source.worksheet}:{row.source.rowNumber}</div>{(row.source.sourceProductKey || row.source.productId) && <div className="fh-text-caption fh-text-mono">{translate('workspace:workspace.preview.sourceProductKey')}: {row.source.sourceProductKey || row.source.productId}</div>}</div></div>{row.matchedProduct?.itemType === 'variation' && <div className="fh-text-caption mt-1 truncate">{translate('workspace:workspace.preview.variation')} · <LocalizedText text={attrs || '-'} /> · {translate('workspace:workspace.preview.parent')} {row.matchedProduct.parentProductId || row.matchedProduct.parentId || '-'}{row.matchedProduct.parentProductName ? <> · <LocalizedText text={row.matchedProduct.parentProductName} /></> : null}</div>}</td>
+      <td className="px-4 py-3 min-w-[220px]"><div className="fh-text-caption text-text-muted">{translate('workspace:workspace.preview.currentWooCommerce')}</div><LocalizedText className="block truncate fh-text-body-sm font-medium" text={channelName} /><div className="fh-text-caption fh-text-mono">{translate('workspace:workspace.preview.productId')}: {row.matchedProduct?.productId || '-'} · {translate('workspace:workspace.preview.sku')}: {row.matchedProduct?.sku || '-'}</div>{row.currentPrice == null ? '-' : fmtPrice(row.currentPrice, currency)}</td>
+      <td className="px-4 py-3 min-w-[150px]"><div className="fh-text-caption text-text-muted">{translate('workspace:workspace.preview.sourceChange')}</div>{row.proposedPrice == null ? row.source.rawPrice || '-' : fmtPrice(row.proposedPrice, currency)}<div>{row.changePct == null ? '-' : <ChangePct pct={row.changePct} />}</div>{row.status === 'stock_changed' && <div className="fh-text-caption">{translate('workspace:workspace.preview.stockOnly')} · {row.currentStock ?? '-'} → {row.sourceStock ?? row.source.rawStock ?? '-'} ({row.stockDifference != null ? formatNumber(row.stockDifference, { signDisplay: 'always' }) : '-'})</div>}</td>
+      <td className="px-4 py-3 min-w-[140px]"><div className="fh-text-caption text-text-muted">{translate('workspace:workspace.preview.status')}</div><Badge variant={status === 'Ready' ? 'success' : status === 'Warning' ? 'warning' : status === 'Unchanged' ? 'neutral' : 'danger'}>{translate(`workspace:workspace.preview.statuses.${status.toLowerCase()}`)}{issues.length ? ` · ${translate('workspace:workspace.preview.issueCount', { count: issues.length })}` : ''}</Badge><button type="button" className="mt-2 block fh-text-caption underline" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? translate('workspace:workspace.preview.hideDetails') : translate('workspace:workspace.preview.viewDetails')}</button><span className="sr-only">{issues.join(', ')}</span></td>
+    </tr>
+    {expanded && <tr className="border-b border-border bg-bg-subtle"><td colSpan={5} className="px-6 py-4"><div className="grid gap-4 md:grid-cols-3 fh-text-caption"><div><p className="font-semibold text-text-base">{translate('workspace:workspace.preview.blockingIssues')}</p>{row.errors.length ? row.errors.map(code => <p key={code} className="mt-1">{validationLabel(code)}{ownerAction(code) && <span className="block text-text-muted">{translate('workspace:workspace.preview.action')}: {ownerAction(code)}</span>}</p>) : <p className="mt-1 text-text-muted">{translate('workspace:workspace.preview.none')}</p>}</div><div><p className="font-semibold text-text-base">{translate('workspace:workspace.preview.warnings')}</p>{row.warnings.length ? row.warnings.map(code => <p key={code} className="mt-1">{validationLabel(code)}{code === 'product_name_mismatch' && <span className="block text-text-muted">{translate('workspace:workspace.preview.source')}: {sourceName}<br />{translate('workspace:workspace.preview.woocommerce')}: {channelName}</span>}</p>) : <p className="mt-1 text-text-muted">{translate('workspace:workspace.preview.none')}</p>}</div><details><summary className="font-semibold cursor-pointer text-text-base">{translate('workspace:workspace.preview.technicalDetails')}</summary><p className="mt-1 font-mono break-all">{translate('workspace:workspace.preview.codes')}: {issues.join(', ') || translate('workspace:workspace.preview.none')}<br />{translate('workspace:workspace.preview.sourceRow')}: {row.source.worksheet}:{row.source.rowNumber}<br />{translate('workspace:workspace.preview.snapshot')}: {row.source.sourceSnapshotId}</p></details></div></td></tr>}
+  </Fragment>
 }
 
 function WorkflowSteps({ phase }: { phase: Phase }) {
@@ -270,10 +343,14 @@ export default function Workspace() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [cacheEmptyError, setCacheEmptyError] = useState(false)
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
+  const [previewSearch, setPreviewSearch] = useState('')
+  const [previewFilter, setPreviewFilter] = useState('all')
+  const [previewPage, setPreviewPage] = useState(1)
 
   // Check if both product and source connectors are configured.
   const [wcConfigured, setWcConfigured] = useState<boolean | null>(null)
   const [ncConfigured, setNcConfigured] = useState<boolean | null>(null)
+  const [priceUnit, setPriceUnit] = useState('EUR')
   const [configLoading, setConfigLoading] = useState(true)
   const [sourceBinding, setSourceBinding] = useState<WorkspaceSourceBinding | null>(null)
   const [sourceBindingLoading, setSourceBindingLoading] = useState(true)
@@ -289,6 +366,7 @@ export default function Workspace() {
       .then(s => {
         setWcConfigured(s.wcConfigured ?? false)
         setNcConfigured(s.ncConfigured ?? false)
+        setPriceUnit(s.currencyUnit || s.currency || 'EUR')
       })
       .catch(() => {
         setWcConfigured(false)
@@ -459,6 +537,18 @@ export default function Workspace() {
   const eligibleRows = preview?.rows.filter(row => row.eligible_for_dry_run) ?? []
   const blockedRows = preview?.rows.filter(row => row.errors.length > 0).length ?? 0
   const stockOnlyRows = preview?.rows.filter(row => row.status === 'stock_changed').length ?? 0
+  const filteredPreviewRows = useMemo(() => {
+    if (!preview) return []
+    const query = previewSearch.trim().toLocaleLowerCase()
+    return preview.rows.filter(row => {
+      const haystack = [row.source.sourceDisplayName, row.source.productName, row.source.sku, row.source.productId, row.matchedProduct?.name, row.matchedProduct?.productId, row.matchedProduct?.sku].filter(Boolean).join(' ').toLocaleLowerCase()
+      const matchesSearch = !query || haystack.includes(query)
+      const matchesFilter = previewFilter === 'all' || (previewFilter === 'ready' && row.eligible_for_dry_run && !row.errors.length && !row.warnings.length) || (previewFilter === 'blocked' && row.errors.length > 0) || (previewFilter === 'warnings' && row.warnings.length > 0) || (previewFilter === 'unchanged' && row.status === 'unchanged') || (previewFilter === 'missing_product' && row.errors.includes('missing_product')) || (previewFilter === 'duplicate_sku' && row.errors.includes('duplicate_sku')) || (previewFilter === 'price' && row.errors.some(code => code.includes('price'))) || (previewFilter === 'mismatch' && [...row.errors, ...row.warnings].includes('product_name_mismatch')) || (previewFilter === 'variation' && row.matchedProduct?.itemType === 'variation')
+      return matchesSearch && matchesFilter
+    })
+  }, [preview, previewFilter, previewSearch])
+  const previewPageSize = 50
+  const visiblePreviewRows = filteredPreviewRows.slice((previewPage - 1) * previewPageSize, previewPage * previewPageSize)
   const toggleRow = useCallback((rowId: string, selected: boolean) => {
     setSelectedRowIds(current => {
       const next = new Set(current)
@@ -629,14 +719,14 @@ export default function Workspace() {
           </div>
           <div className="fh-stat-grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
             {[
-              [translate('sources:sourceConfiguration.productsFound'), preview.summary.total_rows],
-              [translate('sources:sourceConfiguration.productsReady'), preview.summary.valid_changes],
-              [translate('dataQuality:dataQuality.warnings'), preview.summary.warning_rows],
-              [translate('sources:sourceConfiguration.unchangedProducts'), preview.summary.unchanged_rows],
-              [translate('dataQuality:dataQuality.blockingIssues'), preview.summary.error_rows],
-              [translate('dataQuality:category.duplicate_rows'), preview.summary.duplicate_rows],
-              [translate('workspace:workspace.productsMissingFromChannel'), preview.summary.missing_products],
-              [translate('workspace:workspace.largePriceChanges'), preview.summary.large_changes],
+              [translate('workspace:workspace.preview.summary.sourceRows'), preview.summary.total_rows],
+              [translate('workspace:workspace.preview.summary.ready'), preview.summary.valid_changes],
+              [translate('workspace:workspace.preview.summary.blockedRows'), preview.summary.blocked_rows ?? preview.summary.error_rows],
+              [translate('workspace:workspace.preview.summary.blockingIssues'), preview.rows.reduce((count, row) => count + row.errors.length, 0)],
+              [translate('workspace:workspace.preview.summary.warnings'), preview.summary.warning_rows],
+              [translate('workspace:workspace.preview.summary.missingProducts'), preview.summary.missing_products],
+              [translate('workspace:workspace.preview.summary.duplicates'), preview.summary.duplicate_rows],
+              [translate('workspace:workspace.preview.summary.unchanged'), preview.summary.unchanged_rows],
             ].map(([label, value]) => (
               <div key={label} className="fh-stat-tile">
                 <p className="fh-stat-tile-label">{label}</p>
@@ -764,13 +854,14 @@ export default function Workspace() {
                 <span className="fh-section-title">
                 {translate('workspace:workspace.preview2')} {preview.summary.total_rows} {translate('workspace:workspace.sourceRows')}
                 </span>
-                <p className="fh-text-caption mt-1">{translate('workspace:workspace.denseValidationRowsRemainScrollableButNow')}</p>
+              <p className="fh-text-caption mt-1">{translate('workspace:workspace.preview.ownerViewDescription')}</p>
               </div>
               <div className="flex flex-wrap items-center gap-3 fh-text-caption">
                 <span>
                   <span className="font-mono">{translate('workspace:workspace.source')} </span>
                   <LocalizedText text={preview.sourceName} />
                 </span>
+                <span className="fh-text-caption">{translate('workspace:workspace.preview.context', { file: preview.sourceContext?.filePath || preview.rows[0]?.source.sourceFilePath || '-', worksheet: preview.sourceContext?.worksheet || preview.rows[0]?.source.worksheet || '-', rows: preview.sourceContext?.rowsRead ?? preview.summary.total_rows, revision: preview.sourceContext?.mappingRevision ?? translate('workspace:workspace.preview.unavailable') })}</span>
                 <button type="button" onClick={() => setSelectedRowIds(new Set(eligibleRows.map(row => row.id)))} className="fh-button-secondary px-2 py-1">
                   <Icon name="apply" />
                   {translate('workspace:workspace.selectAllEligible')}
@@ -782,6 +873,12 @@ export default function Workspace() {
               </div>
             </div>
 
+            <div className="grid gap-3 border-b border-border bg-bg-subtle px-4 py-3 md:grid-cols-[minmax(220px,1fr)_180px_auto]">
+              <label className="sr-only" htmlFor="workspace-preview-search">{translate('workspace:workspace.preview.searchLabel')}</label><input id="workspace-preview-search" className="fh-input" aria-label={translate('workspace:workspace.preview.searchLabel')} value={previewSearch} onChange={event => { setPreviewSearch(event.target.value); setPreviewPage(1) }} />
+              <select className="fh-input" aria-label={translate('workspace:workspace.preview.filterLabel')} value={previewFilter} onChange={event => { setPreviewFilter(event.target.value); setPreviewPage(1) }}><option value="all">{translate('workspace:workspace.preview.filters.all')}</option><option value="ready">{translate('workspace:workspace.preview.filters.ready')}</option><option value="blocked">{translate('workspace:workspace.preview.filters.blocked')}</option><option value="warnings">{translate('workspace:workspace.preview.filters.warnings')}</option><option value="unchanged">{translate('workspace:workspace.preview.filters.unchanged')}</option><option value="missing_product">{translate('workspace:workspace.preview.filters.missingProduct')}</option><option value="duplicate_sku">{translate('workspace:workspace.preview.filters.duplicateSku')}</option><option value="price">{translate('workspace:workspace.preview.filters.price')}</option><option value="mismatch">{translate('workspace:workspace.preview.filters.mismatch')}</option><option value="variation">{translate('workspace:workspace.preview.filters.variations')}</option></select>
+              <span className="self-center fh-text-caption">{translate('workspace:workspace.preview.showing', { visible: visiblePreviewRows.length, total: filteredPreviewRows.length })}</span>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 px-4 py-3 border-b border-border bg-bg-subtle fh-text-caption">
               <span>{translate('workspace:workspace.selected')} <strong>{selectedRowIds.size}</strong></span>
               <span>{translate('workspace:workspace.eligible')} <strong>{eligibleRows.length}</strong></span>
@@ -790,19 +887,21 @@ export default function Workspace() {
               <span>{translate('workspace:workspace.estimatedWoocommerceCalls')} <strong>{selectedRowIds.size}</strong></span>
             </div>
 
+            {filteredPreviewRows.length > previewPageSize && <div className="fh-panel-footer !justify-center gap-3"><button type="button" className="fh-button-secondary" disabled={previewPage === 1} onClick={() => setPreviewPage(page => page - 1)}>{translate('workspace:workspace.preview.previous')}</button><span className="fh-text-caption">{translate('workspace:workspace.preview.page', { page: previewPage, pages: Math.ceil(filteredPreviewRows.length / previewPageSize) })}</span><button type="button" className="fh-button-secondary" disabled={previewPage >= Math.ceil(filteredPreviewRows.length / previewPageSize)} onClick={() => setPreviewPage(page => page + 1)}>{translate('workspace:workspace.preview.next')}</button></div>}
+
             <div className="overflow-x-auto">
-              <table className="fh-table fh-table-compact min-w-[1120px]">
+              <table className="fh-table fh-table-compact min-w-[920px]">
                 <thead>
                   <tr>
-                    {["Select", "Product", "Current Price", "New Price", "Change", "Current Stock", "Source Stock", "Stock Change", "Status", "Validation"].map(h => (
-                      <th key={h}>{h}</th>
+                    {[translate('workspace:gridModel.select'), translate('workspace:workspace.preview.productIdentity'), translate('workspace:workspace.preview.currentWooCommerce'), translate('workspace:workspace.preview.sourceChange'), translate('workspace:workspace.preview.status')].map((h, index) => (
+                      <th key={h} className={index === 0 ? 'w-16 text-center' : undefined}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {preview.rows.length > 0
-                    ? preview.rows.map(row => (
-                        <PreviewRow key={row.id} row={row} selected={selectedRowIds.has(row.id)} onToggle={toggleRow} />
+                    ? visiblePreviewRows.map(row => (
+                        <OwnerPreviewRowReadable key={row.id} row={row} selected={selectedRowIds.has(row.id)} onToggle={toggleRow} priceUnit={priceUnit} />
                       ))
                     : preview.changes.map(c => <PriceChangeRow key={c.productId} change={c} />)}
                 </tbody>

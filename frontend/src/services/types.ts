@@ -386,6 +386,10 @@ export interface WorkspaceSourceRowInfo {
   worksheet: string
   rowNumber: number
   productId?: string | null
+  sourceDisplayName?: string
+  sourceProductKey?: string | null
+  sourceRowNumber?: number | null
+  sourceLocation?: string | null
   sku?: string
   productName?: string
   rawPrice?: string
@@ -466,6 +470,12 @@ export interface WorkspacePreview {
   summary: WorkspacePreviewSummary
   startedAt: Date
   duplicateWarnings?: string[]
+  sourceContext?: {
+    filePath?: string | null
+    worksheet?: string | null
+    rowsRead?: number
+    mappingRevision?: string | number | null
+  }
 }
 
 export interface WorkspaceSourceReference {

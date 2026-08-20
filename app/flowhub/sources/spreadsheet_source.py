@@ -40,6 +40,7 @@ from app.flowhub.source_acquisition.models import (
 )
 from app.flowhub.source_acquisition.nextcloud_provider import NextcloudWebDavAcquisitionProvider
 from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.source_workspace.repositories import SourceRepository
 from app.flowhub.sources.xlsx_discovery import RangedXlsxDiscovery, XlsxDiscoveryError
 from app.flowhub.unified_workspace.domain import checksum
 
@@ -47,6 +48,54 @@ SOURCE_ID = "nextcloud:primary"
 SOURCE_TYPE = "nextcloud_spreadsheet"
 SOURCE_DATASET_PARSER_VERSION = "openpyxl-v1"
 SOURCE_DATASET_FORMULA_EVALUATION_VERSION = "openpyxl-data-only-v1"
+
+
+def resolve_participating_worksheet_scope(
+    *,
+    mapping_mode: str | None,
+    mapping_name: str | None,
+    enabled_rule_names: list[str] | None = None,
+    rule_mode: str | None = None,
+    legacy_mode: str = "all",
+    legacy_name: str = "",
+) -> dict[str, object]:
+    """Resolve one canonical worksheet scope for a Source read."""
+    mode = str(mapping_mode or "").strip().lower()
+    if not mode:
+        mode = str(legacy_mode or "all").strip().lower()
+        name = str(legacy_name or "").strip()
+        if mode == "selected" and not name:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "Selected worksheet name is required.",
+            )
+        return {"mode": mode, "name": name, "names": []}
+    if mode not in {"all", "selected"}:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Unsupported worksheet mode.",
+        )
+    names = list(
+        dict.fromkeys(
+            str(name).strip()
+            for name in (enabled_rule_names or [])
+            if str(name).strip() and str(name).strip() != "*"
+        )
+    )
+    if mode == "all" and not names:
+        return {"mode": "all", "name": "", "names": []}
+    if not names and mapping_name:
+        names = [str(mapping_name).strip()]
+    if not names:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Selected worksheet name is required.",
+        )
+    return {
+        "mode": "selected",
+        "name": names[0] if len(names) == 1 else "",
+        "names": names,
+    }
 
 DEFAULT_SOURCE_MAPPING: dict[str, dict[str, object]] = {
     "id": {"enabled": True, "column": "B"},
@@ -153,11 +202,15 @@ class SpreadsheetSourceReadService:
         manual: bool,
         capture_raw_worksheets: bool = False,
         source_profile_id: str | None = None,
+        worksheet_scope: dict[str, object] | None = None,
         idempotency_key: str | None = None,
     ) -> SourceImportResult:
         spreadsheet_path = self._required_connector_setting("spreadsheet_path")
         mapping = None if capture_raw_worksheets else self.mapping()
         worksheet = self.worksheet_selection(source_profile_id=source_profile_id)
+        resolved_worksheet_scope = worksheet_scope or self.worksheet_scope(
+            source_profile_id=source_profile_id
+        )
         try:
             normalize_nextcloud_url(
                 self._connector_setting("url"),
@@ -196,8 +249,9 @@ class SpreadsheetSourceReadService:
                 "source_id": quota_source_id,
                 "source_type": SOURCE_TYPE,
                 "spreadsheet_path": spreadsheet_path,
-                "worksheet_mode": worksheet["mode"],
-                "worksheet_name": worksheet["name"],
+                "worksheet_mode": resolved_worksheet_scope["mode"],
+                "worksheet_name": resolved_worksheet_scope["name"],
+                "worksheet_names": resolved_worksheet_scope["names"],
                 "reservation_id": reservation.id if reservation else None,
                 "reservation_status": reservation.status if reservation else None,
                 "read_only": True,
@@ -293,13 +347,20 @@ class SpreadsheetSourceReadService:
             else:
                 if mapping is None:
                     raise RuntimeError("Legacy Source mapping was not loaded.")
-                rows, duplicate_info = parse_source_price_rows(
-                    workbook,
-                    mapping=mapping,
-                    worksheet_mode=worksheet["mode"],
-                    worksheet_name=worksheet["name"],
-                )
-            if not rows and not capture_raw_worksheets and source_profile_id is None:
+                try:
+                    rows, duplicate_info = parse_source_price_rows(
+                        workbook,
+                        mapping=mapping,
+                        worksheet_mode=resolved_worksheet_scope["mode"],
+                        worksheet_name=resolved_worksheet_scope["name"],
+                        selected_worksheet_names=resolved_worksheet_scope["names"],
+                    )
+                except ValueError as exc:
+                    raise HTTPException(
+                        status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        {"code": "WORKSHEET_SCOPE_INVALID", "message": str(exc)},
+                    ) from exc
+            if not rows and not capture_raw_worksheets:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Spreadsheet contains no importable source rows.")
             persisted_row_count = (
                 sum(len(sheet_rows) for sheet_rows in raw_worksheets.values())
@@ -583,6 +644,57 @@ class SpreadsheetSourceReadService:
             "mode": mode,
             "name": str(self.config.get("nextcloud.worksheet_name") or "").strip(),
         }
+
+    def worksheet_scope(self, *, source_profile_id: str | None = None) -> dict[str, object]:
+        """Resolve the authoritative participating worksheet set.
+
+        A v2 Source mapping is authoritative for Workspace Preview. Legacy
+        connector settings are used only when no v2 mapping exists.
+        """
+        source = self.db.get(SourceProfile, source_profile_id) if source_profile_id else None
+        if source is None and self.connector_id:
+            source = (
+                self.db.query(SourceProfile)
+                .filter(SourceProfile.external_source_id == self.connector_id)
+                .one_or_none()
+            )
+        mapping = (
+            SourceRepository(self.db).latest_mapping(source.id)
+            if source is not None
+            else None
+        )
+        if mapping is None:
+            legacy = self.worksheet_selection(source_profile_id=source_profile_id)
+            scope = resolve_participating_worksheet_scope(
+                mapping_mode=None,
+                mapping_name=None,
+                legacy_mode=legacy["mode"],
+                legacy_name=legacy["name"],
+            )
+            if scope["mode"] == "selected" and scope["name"]:
+                scope["names"] = [scope["name"]]
+            scope["mapping_revision"] = None
+            return scope
+
+        repository = SourceRepository(self.db)
+        rule_set = repository.worksheet_rule_set(mapping.id)
+        enabled_rule_names = (
+            [
+                rule.worksheet_name
+                for rule in repository.worksheet_rules(rule_set.id)
+                if rule.enabled
+            ]
+            if rule_set is not None
+            else []
+        )
+        scope = resolve_participating_worksheet_scope(
+            mapping_mode=mapping.worksheet_mode,
+            mapping_name=mapping.worksheet_name,
+            enabled_rule_names=enabled_rule_names,
+            rule_mode=rule_set.mode if rule_set is not None else None,
+        )
+        scope["mapping_revision"] = mapping.version
+        return scope
 
     def read_status(self, *, source_id: str | None = None) -> dict:
         return {

@@ -164,10 +164,14 @@ describe('Workspace source-driven preview', () => {
     expect(container.textContent).toContain('Valid Product')
     expect(container.textContent).toContain('Variation Product')
     expect(container.textContent).toContain('Variation')
-    expect(container.textContent).toContain('Parent 100')
+    expect(container.textContent).toContain('Parent Product')
+    expect(container.textContent).toContain('Product ID: 100')
     expect(container.textContent).toContain('Color: Blue')
     expect(container.textContent).toContain('Missing Product')
-    expect(container.textContent).toContain('large_price_change')
+    const warningRow = Array.from(container.querySelectorAll('tr')).find(row => row.textContent?.includes('Warning Product'))
+    expect(warningRow).toBeTruthy()
+    await act(async () => (warningRow?.querySelector('button') as HTMLButtonElement).click())
+    expect(container.textContent).toContain('Price change is unusually large')
     expect(container.textContent).toContain('Unchanged')
     expect(container.textContent).toContain('Stock Only Product')
     expect(container.textContent).toContain('Stock only')
@@ -184,6 +188,15 @@ describe('Workspace source-driven preview', () => {
     expect(checkbox('Select Stock Only Product')?.hasAttribute('disabled')).toBe(true)
     expect(checkbox('Select Valid Product')?.hasAttribute('disabled')).toBe(false)
     expect(button('Dry Run')?.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('renders preview prices with the canonical configured pricing unit', async () => {
+    await renderWorkspace(makePreview({ withError: false }), vi.fn(), undefined, undefined, undefined, 'TOMAN')
+
+    await click('Start Preview')
+
+    expect(container.textContent).toContain('TOMAN 100')
+    expect(container.textContent).not.toContain('EUR 100')
   })
 
   it('selects eligible rows and sends only preview ID plus selected row IDs', async () => {
@@ -287,12 +300,13 @@ async function renderWorkspace(
   preview: WorkspacePreview,
   createDryRun: ReturnType<typeof vi.fn>,
   startPreview: (sourceId: string) => Promise<WorkspacePreview> = async () => preview,
-  sourceBinding: WorkspaceSourceBinding = activeSourceBinding(),
-  bindSource: (sourceId: string) => Promise<WorkspaceSourceReference> = async sourceId => ({
+    sourceBinding: WorkspaceSourceBinding = activeSourceBinding(),
+    bindSource: (sourceId: string) => Promise<WorkspaceSourceReference> = async sourceId => ({
     sourceId,
     sourceName: 'Active Source',
-    status: 'active',
-  }),
+      status: 'active',
+    }),
+    currencyUnit = 'EUR',
 ) {
   const services = {
     settings: {
@@ -303,6 +317,7 @@ async function renderWorkspace(
           syncIntervalMinutes: 60,
           timezone: 'UTC',
           currency: 'EUR',
+          currencyUnit,
           environment: 'test',
           wcConfigured: true,
           ncConfigured: true,
