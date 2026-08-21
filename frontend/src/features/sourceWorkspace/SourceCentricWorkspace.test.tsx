@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { changeLocale } from '../../i18n'
 import { NotificationProvider } from '../../notifications/NotificationProvider'
 import type { UnifiedWorkspaceService } from '../../services/unifiedWorkspace/UnifiedWorkspaceService'
-import type { ReviewResource, UnifiedWorkspaceResource } from '../../services/unifiedWorkspace/types'
+import type { DryRunResource, ReviewResource, UnifiedWorkspaceResource } from '../../services/unifiedWorkspace/types'
 import { sourceWorkspaceApi } from './api'
 import { formatSourceChannelDisplayName } from '../unifiedWorkspace/channelDisplayName'
 import SourceCentricWorkspace from './SourceCentricWorkspace'
@@ -17,6 +17,12 @@ function setInputValue(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
   setter?.call(input, value)
   input.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(done => { resolve = done })
+  return { promise, resolve }
 }
 
 const WORKSPACE: UnifiedWorkspaceResource = {
@@ -387,6 +393,105 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     expect(service.saveDraft).toHaveBeenCalledTimes(2)
     expect(vi.mocked(service.saveDraft).mock.calls[1][1]).toBe(1)
   })
+
+  it('shows Dry Run running state and keeps Review, confirmation, and Apply unavailable', async () => {
+    const currentReview = reviewForGrid()
+    const pendingDryRun = deferred<DryRunResource>()
+    service.createReview = vi.fn().mockResolvedValue(currentReview)
+    service.saveSelection = vi.fn().mockResolvedValue(selectionFor(currentReview))
+    service.runDryRun = vi.fn().mockReturnValue(pendingDryRun.promise)
+    await renderWorkspace(container, root, service)
+
+    await startOwnerFlow(container)
+    expect(service.runDryRun).toHaveBeenCalledWith(WORKSPACE.id, currentReview.id)
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('Verifying current Channel state')
+    expect(container.querySelector('[data-pricing-apply]')).toBeNull()
+    expect(container.querySelector('[data-products-save]')).toHaveProperty('disabled', true)
+    expect(container.textContent).not.toContain('Confirm selected Apply')
+  })
+
+  it('does not make Apply available from selection alone before a passed Dry Run', async () => {
+    const currentReview = reviewForGrid()
+    const pendingDryRun = deferred<DryRunResource>()
+    service.createReview = vi.fn().mockResolvedValue(currentReview)
+    service.saveSelection = vi.fn().mockResolvedValue(selectionFor(currentReview))
+    service.runDryRun = vi.fn().mockReturnValue(pendingDryRun.promise)
+    await renderWorkspace(container, root, service)
+
+    await startOwnerFlow(container)
+    expect(service.saveSelection).toHaveBeenCalledWith(
+      WORKSPACE.id,
+      currentReview.id,
+      currentReview.items.map(item => item.id),
+    )
+    expect(container.querySelector('[data-pricing-apply]')).toBeNull()
+    expect(container.textContent).not.toContain('Confirm selected Apply')
+  })
+
+  it('shows exact Dry Run counts and enables manifest review only after a passed current Dry Run', async () => {
+    const currentReview = reviewForGrid()
+    const dryRun = passedDryRun({ reviewedCount: 4, writeCount: 2, blockerCount: 0 })
+    service.createReview = vi.fn().mockResolvedValue(currentReview)
+    service.saveSelection = vi.fn().mockResolvedValue(selectionFor(currentReview))
+    service.runDryRun = vi.fn().mockResolvedValue(dryRun)
+    await renderWorkspace(container, root, service)
+
+    await startOwnerFlow(container)
+    const applyButton = container.querySelector<HTMLButtonElement>('[data-pricing-apply]')
+    expect(applyButton?.disabled).toBe(false)
+    expect(container.querySelector('[data-dry-run-summary]')?.textContent).toContain('Verified writes: 2')
+    expect(container.querySelector('[data-dry-run-summary]')?.textContent).toContain('Already current: 2')
+    expect(container.querySelector('[data-dry-run-summary]')?.textContent).toContain('Blocked: 0')
+
+    await act(async () => { applyButton?.click(); await Promise.resolve() })
+    expect(container.textContent).toContain('Confirm selected Apply')
+    expect(container.textContent).toContain('iPhone Cable')
+  })
+
+  it('invalidates a passed Dry Run and removes its manifest review when selection changes', async () => {
+    const currentReview = reviewForGrid()
+    service.createReview = vi.fn().mockResolvedValue(currentReview)
+    service.saveSelection = vi.fn().mockResolvedValue(selectionFor(currentReview))
+    service.runDryRun = vi.fn().mockResolvedValue(passedDryRun())
+    await renderWorkspace(container, root, service)
+
+    await startOwnerFlow(container)
+    expect(container.querySelector<HTMLButtonElement>('[data-pricing-apply]')?.disabled).toBe(false)
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.fh-pricing-dialog .fh-button-secondary')?.click()
+      await Promise.resolve()
+    })
+    const trigger = container.querySelector<HTMLButtonElement>('[data-row-menu-trigger][data-listing-id="snap-black"]')!
+    await act(async () => { trigger.click(); await Promise.resolve() })
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('[data-row-menu-action="toggle-selection"]')?.click()
+      await Promise.resolve()
+    })
+
+    expect(container.querySelector('[data-pricing-apply]')).toBeNull()
+    expect(container.textContent).not.toContain('Confirm selected Apply')
+    expect(container.querySelector<HTMLButtonElement>('[data-products-save]')?.disabled).toBe(false)
+  })
+
+  it.each([
+    ['CHANNEL_DRIFT', 'Channel changed since Preview'],
+    ['CHANNEL_STATE_UNVERIFIABLE', 'Unable to verify current Channel state'],
+  ] as const)('blocks Apply with the distinct human-readable %s state', async (reason, message) => {
+    const currentReview = reviewForGrid()
+    service.createReview = vi.fn().mockResolvedValue(currentReview)
+    service.saveSelection = vi.fn().mockResolvedValue(selectionFor(currentReview))
+    service.runDryRun = vi.fn().mockResolvedValue({
+      ...passedDryRun(), status: 'blocked', manifestId: undefined, manifestChecksum: undefined,
+      operations: undefined, affectedChannelIds: undefined, blockerCount: 1,
+      scopes: [{ reviewItemId: currentReview.items[0].id, disposition: 'blocked', reason }],
+    })
+    await renderWorkspace(container, root, service)
+
+    await startOwnerFlow(container)
+    expect(container.querySelector('[data-dry-run-status]')?.textContent).toContain(message)
+    expect(container.querySelector('[data-pricing-apply]')).toBeNull()
+    expect(container.textContent).not.toContain('Confirm selected Apply')
+  })
 })
 
 async function renderWorkspace(
@@ -470,4 +575,58 @@ function createService(): UnifiedWorkspaceService {
     getPreferences: vi.fn(),
     savePreferences: vi.fn(),
   }
+}
+
+function reviewForGrid(): ReviewResource {
+  return {
+    id: 'review-owner-flow', workspaceId: WORKSPACE.id, snapshotId: WORKSPACE.snapshot.id,
+    draftRevisionId: 'revision-1', status: 'ready', checksum: 'review-owner-flow-checksum',
+    summary: { total: 4, eligible: 4, blocked: 0, warnings: 0 },
+    items: [
+      reviewItemFor('review-woo', 'woo-main', 'woocommerce:primary'),
+      reviewItemFor('review-snap-black', 'snap-black', 'snappshop:main'),
+      reviewItemFor('review-tapsi', 'tapsi-main', 'tapsishop:main'),
+      reviewItemFor('review-snap-white', 'snap-white', 'snappshop:main'),
+    ],
+    staleReason: null,
+  }
+}
+
+function selectionFor(review: ReviewResource) {
+  return {
+    reviewId: review.id,
+    selectedItemIds: review.items.map(item => item.id),
+    selectionChecksum: 'selection-owner-flow-checksum',
+    selectionVersion: 1,
+  }
+}
+
+function passedDryRun(overrides: Partial<DryRunResource> = {}): DryRunResource {
+  return {
+    id: 'dry-run-owner-flow', status: 'passed', reviewedCount: 4, writeCount: 4, blockerCount: 0,
+    evidenceChecksum: 'e'.repeat(64),
+    scopes: [
+      { reviewItemId: 'review-woo', disposition: 'write', reason: null },
+      { reviewItemId: 'review-snap-black', disposition: 'write', reason: null },
+      { reviewItemId: 'review-tapsi', disposition: 'write', reason: null },
+      { reviewItemId: 'review-snap-white', disposition: 'write', reason: null },
+    ],
+    manifestId: 'manifest-owner-flow', manifestChecksum: 'm'.repeat(64),
+    operations: [{
+      id: 'operation-owner-flow', reviewItemId: 'review-woo', canonicalProductId: 'product-1',
+      listingId: 'woo-main', channelId: 'woocommerce:primary', field: 'price', current: '100',
+      target: '110', currency: 'IRR', unit: 'IRR',
+    }],
+    affectedChannelIds: ['woocommerce:primary'],
+    ...overrides,
+  }
+}
+
+async function startOwnerFlow(container: HTMLElement) {
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>('[data-products-save]')?.click()
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+  })
 }

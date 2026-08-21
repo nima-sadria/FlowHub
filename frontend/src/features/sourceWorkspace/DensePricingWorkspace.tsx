@@ -519,6 +519,8 @@ export default function DensePricingWorkspace({
         </button>
       </div>
 
+      {dryRunSummary && <DryRunStatus dryRun={dryRunSummary} />}
+
       {gridError && <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>}
       {channelInventoryError && <div className="fh-alert fh-alert-warning" role="alert"><Icon name="info" /><span>{channelInventoryError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void loadChannelInventory()}>{translate('products:products.retryInlinePricing')}</button></div>}
 
@@ -1212,6 +1214,20 @@ function BulkToggle({ checked, onChange, label }: { checked: boolean; onChange: 
       <span className="fh-bulk-toggle-knob" />
     </button>
   )
+}
+
+function DryRunStatus({ dryRun }: { dryRun: DryRunResource }) {
+  const presentation = dryRunPresentation(dryRun)
+  const message = presentation.blocker === 'CHANNEL_DRIFT'
+    ? translate('workspace:sourceCentricWorkspace.channelChangedSincePreview')
+    : presentation.blocker === 'CHANNEL_STATE_UNVERIFIABLE'
+      ? translate('workspace:sourceCentricWorkspace.channelStateUnverifiable')
+      : translate('workspace:sourceCentricWorkspace.reviewAndDryRunComplete')
+  return <p
+    className={presentation.blocker ? 'fh-alert fh-alert-warning mt-3' : 'fh-text-caption mt-3'}
+    data-dry-run-status
+    role={presentation.blocker ? 'alert' : 'status'}
+  >{message} · {translate('workspace:sourceCentricWorkspace.dryRunVerifiedCount', { count: presentation.verifiedCount })} · {translate('workspace:sourceCentricWorkspace.dryRunNoOpCount', { count: presentation.noOpCount })} · {translate('workspace:sourceCentricWorkspace.dryRunBlockerCount', { count: presentation.blockerCount })}</p>
 }
 
 function ReviewDialog({ review, grid, channelById, canApply, dryRun, onApply, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; channelById: ReadonlyMap<string, SourceChannel>; canApply: boolean; dryRun: DryRunResource | null; onApply: () => void; onClose: () => void }) {
