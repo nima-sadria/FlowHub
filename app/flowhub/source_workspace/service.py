@@ -157,8 +157,19 @@ UNSPECIFIED_IDENTITY_AUTHORITY = {
 }
 
 
+def _identity_text(value: Any) -> str:
+    """Text-ify an identity value (Source Product Key, Channel identifier)
+    without losing a falsy-but-present value such as numeric/string zero.
+    `value or ""` treats 0 the same as a truly missing value; identity
+    sentinels x/-/0 must reach the connector's identifier contract unchanged
+    (see the Product Identity Authority ADR), so only None or a value that
+    is itself blank after stripping becomes "".
+    """
+    return "" if value is None else str(value).strip()
+
+
 def _normalize_source_product_key(value: Any) -> str:
-    return str(value or "").strip().casefold()
+    return _identity_text(value).casefold()
 
 
 def _source_product_key_hash(value: Any) -> str:
@@ -1480,9 +1491,9 @@ class SourceWorkspaceService:
         ][:IDENTITY_CONFLICT_GROUP_LIMIT]
         duplicate_groups_by_key: dict[str, dict[str, Any]] = {}
         for record in duplicate_records:
-            display_value = str(
-                record.get("sourceProduct", {}).get("source_key") or ""
-            ).strip()
+            display_value = _identity_text(
+                record.get("sourceProduct", {}).get("source_key")
+            )
             normalized_key = _normalize_source_product_key(display_value)
             group = duplicate_groups_by_key.setdefault(
                 normalized_key,
@@ -1534,11 +1545,11 @@ class SourceWorkspaceService:
         listing_identities = {
             (
                 str(channel.get("channelId") or ""),
-                str(channel.get("fields", {}).get("external_id") or "").strip(),
+                _identity_text(channel.get("fields", {}).get("external_id")),
             )
             for record in records
             for channel in record.get("channels") or []
-            if str(channel.get("fields", {}).get("external_id") or "").strip()
+            if _identity_text(channel.get("fields", {}).get("external_id"))
         }
         listings = listing_context
         if listings is None:
@@ -1590,24 +1601,18 @@ class SourceWorkspaceService:
             channel_identities = {
                 (
                     str(channel.get("channelId") or ""),
-                    str(
-                        channel.get("fields", {}).get("external_id") or ""
-                    ).strip(),
+                    _identity_text(channel.get("fields", {}).get("external_id")),
                 )
                 for record in key_records
                 for channel in record.get("channels") or []
-                if str(
-                    channel.get("fields", {}).get("external_id") or ""
-                ).strip()
+                if _identity_text(channel.get("fields", {}).get("external_id"))
             }
             for record in key_records:
                 for channel in record.get("channels") or []:
                     listing = listings.get(
                         (
                             str(channel.get("channelId") or ""),
-                            str(
-                                channel.get("fields", {}).get("external_id") or ""
-                            ).strip(),
+                            _identity_text(channel.get("fields", {}).get("external_id")),
                         )
                     )
                     if (
@@ -2148,7 +2153,7 @@ class SourceWorkspaceService:
             (channel["channelId"], str(channel["fields"]["external_id"]).strip())
             for record in records
             for channel in record["channels"]
-            if str(channel["fields"].get("external_id") or "").strip()
+            if _identity_text(channel["fields"].get("external_id"))
         }
         # One pinned in-memory Listing cohort feeds identity assessment,
         # candidate resolution, binding proposals, and final lock verification.
@@ -2207,7 +2212,7 @@ class SourceWorkspaceService:
                 record.get("sourceProduct", {}).get("source_key")
             )
             for record in records
-            if str(record.get("sourceProduct", {}).get("source_key") or "").strip()
+            if _identity_text(record.get("sourceProduct", {}).get("source_key"))
         }
         source_identity_bindings = {
             item.source_key_hash: item
@@ -2246,9 +2251,7 @@ class SourceWorkspaceService:
                 candidate_evidence["complete"] = False
             for channel in record_channels:
                 channel_id = str(channel.get("channelId") or "")
-                external_id = str(
-                    channel.get("fields", {}).get("external_id") or ""
-                ).strip()
+                external_id = _identity_text(channel.get("fields", {}).get("external_id"))
                 listing = listings.get((channel_id, external_id))
                 if (
                     not external_id
@@ -2328,7 +2331,7 @@ class SourceWorkspaceService:
                 if channel_id in blocked_channels:
                     continue
                 fields = channel["fields"]
-                external_id = str(fields.get("external_id") or "").strip()
+                external_id = _identity_text(fields.get("external_id"))
                 listing = listings.get((channel_id, external_id))
                 if listing is None:
                     issues.append(
@@ -2374,7 +2377,7 @@ class SourceWorkspaceService:
                     )
                     continue
                 previous_product = product_identity.get(group_key)
-                source_key_value = str(source_product.get("source_key") or "").strip()
+                source_key_value = _identity_text(source_product.get("source_key"))
                 source_key_hash = (
                     _source_product_key_hash(source_key_value)
                     if source_key_value
@@ -3170,7 +3173,7 @@ class SourceWorkspaceService:
                         affected_channels.add(channel_id)
                     affected_sources.add(source.id)
                     technical_details = dict(issue.get("technicalDetails") or {})
-                    listing_id = str(technical_details.get("listing_id") or "").strip()
+                    listing_id = _identity_text(technical_details.get("listing_id"))
                     listing = self.db.get(Listing, listing_id) if listing_id else None
                     pending_issues.append(
                         SourceDataQualityIssue(
@@ -4603,7 +4606,7 @@ class SourceWorkspaceService:
                     })
                 continue
             references = [f"{item.get('worksheetName')}!{item.get('rowNumber')}" for item in matches]
-            key_value = str(matches[0].get("sourceProduct", {}).get("source_key") or "").strip()
+            key_value = _identity_text(matches[0].get("sourceProduct", {}).get("source_key"))
             for record in matches:
                 record["recognized"] = False
                 record["channels"] = []
@@ -4769,7 +4772,7 @@ class SourceWorkspaceService:
                     for field in rule["sourceFields"]
                     if field.reference_type != "disabled"
                 }
-                source_key = str(source_data.get("source_key") or "").strip()
+                source_key = _identity_text(source_data.get("source_key"))
                 require_source_key = any(
                     field.field == "source_key" and field.required
                     for field in rule["sourceFields"]
@@ -4813,7 +4816,7 @@ class SourceWorkspaceService:
                     # Channel identifiers are identity, never business-value
                     # sentinels.  x, dash, and zero reach the connector's
                     # identifier contract unchanged.
-                    external_id = str(fields.get("external_id") or "").strip()
+                    external_id = _identity_text(fields.get("external_id"))
                     if external_id:
                         channel_data.append({"channelId": channel_id, "fields": fields})
                     elif any(value not in {None, ""} for value in fields.values()):
@@ -4956,7 +4959,7 @@ class SourceWorkspaceService:
                 for field in source_fields
                 if field.reference_type != "disabled"
             }
-            source_key = str(source_data.get("source_key") or "").strip()
+            source_key = _identity_text(source_data.get("source_key"))
             require_source_key = any(
                 field.field == "source_key" and field.required for field in source_fields
             )
@@ -4982,7 +4985,7 @@ class SourceWorkspaceService:
                 # Channel identifiers are identity, never business-value
                 # sentinels.  x, dash, and zero reach the connector's
                 # identifier contract unchanged.
-                external_id = str(fields.get("external_id") or "").strip()
+                external_id = _identity_text(fields.get("external_id"))
                 if external_id:
                     channel_data.append({"channelId": channel_id, "fields": fields})
                 elif any(value not in {None, ""} for value in fields.values()):
@@ -5115,16 +5118,13 @@ class SourceWorkspaceService:
         # Other currencies must carry an explicit precision in channel
         # capability evidence before direct Source Price can be classified.
         precision = 0 if is_rial_or_toman else capabilities.get("monetaryPrecision")
-        price = (
-            normalize_direct_price(
-                fields.get("price"),
-                currency=currency,
-                unit=unit,
-                monetary_precision=precision if isinstance(precision, int) else None,
-                fix_zero_decimal_prices=channel_policy.get("fix_zero_decimal_prices"),
-            )
-            if "price" in fields
-            else None
+        price = normalize_direct_price(
+            fields.get("price"),
+            currency=currency,
+            unit=unit,
+            monetary_precision=precision if isinstance(precision, int) else None,
+            fix_zero_decimal_prices=channel_policy.get("fix_zero_decimal_prices"),
+            mapped="price" in fields,
         )
         quantity = normalize_quantity(fields.get("stock"), mapped="stock" in fields)
         stock_status = normalize_stock_status(fields.get("status"), mapped="status" in fields)
@@ -5255,7 +5255,7 @@ class SourceWorkspaceService:
 
         def product_identity(record: dict[str, Any]) -> str:
             source_product = dict(record.get("sourceProduct") or {})
-            identity = str(source_product.get("source_key") or "").strip()
+            identity = _identity_text(source_product.get("source_key"))
             if identity:
                 return f"product:{identity.casefold()}"
             return f"row:{record.get('rowKey') or record.get('rowNumber') or ''}"

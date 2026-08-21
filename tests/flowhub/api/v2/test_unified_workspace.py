@@ -295,7 +295,9 @@ def test_manual_workspace_snapshot_grid_draft_and_review_lifecycle(client, auth_
     assert row["fields"]["price"]["current"] == "100"
     assert row["fields"]["price"]["target"] == "100"
     assert row["fields"]["price"]["readOnly"] is False
-    assert row["fields"]["stock"]["readOnly"] is True
+    # WooCommerceWorkspaceConnector declares write_stock=True (governed stock
+    # writes, see connectors.py); stock is writable, not read-only.
+    assert row["fields"]["stock"]["readOnly"] is False
 
     saved_response = client.post(
         f"/api/v2/unified-workspaces/{workspace['id']}/draft/revisions",
@@ -1828,7 +1830,12 @@ def test_preferences_grid_filters_audit_and_mapping_decisions(client, auth_heade
             "mappingState": "resolved",
             "channelId": "woocommerce:primary",
             "sku": "SKU-101",
-            "channelStatus": "publish",
+            # ChannelCache.status is canonical availability (instock/
+            # outofstock), never provider publication state -- it is the
+            # governed "status" write dimension (see the accepted_status
+            # write-back in _record_listing_success), matching the seeded
+            # stock_status="instock", not status="publish".
+            "channelStatus": "instock",
             "minPrice": 90,
             "maxPrice": 110,
             "stockQuantity": 5,
