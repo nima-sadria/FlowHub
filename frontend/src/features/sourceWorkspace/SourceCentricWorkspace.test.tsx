@@ -275,7 +275,27 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     })]))
   })
 
-  it('saves only exact selected fields with replace mode after manual deselection', async () => {
+  it('merges the full local session into the Draft and excludes only the explicitly deselected field from Selection', async () => {
+    const created: ReviewResource = {
+      id: 'review-1',
+      workspaceId: WORKSPACE.id,
+      snapshotId: WORKSPACE.snapshot.id,
+      draftRevisionId: 'revision-1',
+      status: 'ready',
+      checksum: 'review-checksum',
+      summary: { total: 4, eligible: 4, blocked: 0, warnings: 0 },
+      items: [
+        reviewItemFor('review-woo', 'woo-main', 'woocommerce:primary'),
+        reviewItemFor('review-snap-black', 'snap-black', 'snappshop:main'),
+        reviewItemFor('review-tapsi', 'tapsi-main', 'tapsishop:main'),
+        reviewItemFor('review-snap-white', 'snap-white', 'snappshop:main'),
+      ],
+      staleReason: null,
+    }
+    service.createReview = vi.fn().mockResolvedValue(created)
+    service.saveSelection = vi.fn().mockResolvedValue({
+      reviewId: created.id, selectedItemIds: [], selectionChecksum: 'checksum-1', selectionVersion: 1,
+    })
     await renderWorkspace(container, root, service)
     const trigger = container.querySelector<HTMLButtonElement>('[data-row-menu-trigger][data-listing-id="snap-black"]')
     expect(trigger).toBeTruthy()
@@ -301,20 +321,23 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       await Promise.resolve()
     })
 
+    // Draft save now merges the current session's full local scope -- including
+    // the deselected field's still-accurate target value -- instead of wiping
+    // out every field outside this one page with a wholesale replace.
     const savedChanges = vi.mocked(service.saveDraft).mock.calls[0][2]
-    expect(savedChanges).not.toContainEqual(expect.objectContaining({
+    expect(savedChanges).toHaveLength(4)
+    expect(savedChanges).toContainEqual(expect.objectContaining({
       listing_id: 'snap-black',
       channel_id: 'snappshop:main',
       field: 'price',
-    }))
-    expect(savedChanges).toHaveLength(3)
-    expect(savedChanges).toContainEqual(expect.objectContaining({
-      listing_id: 'woo-main',
-      channel_id: 'woocommerce:primary',
-      field: 'price',
       target_value: '110',
     }))
-    expect(vi.mocked(service.saveDraft).mock.calls[0][3]).toBe('replace')
+    expect(vi.mocked(service.saveDraft).mock.calls[0][3]).toBe('merge')
+
+    // Every eligible Review item is auto-selected by identity; only the field
+    // the Owner explicitly excluded this Preview is left out.
+    const selectedIds = vi.mocked(service.saveSelection).mock.calls[0][2]
+    expect(selectedIds).toEqual(['review-woo', 'review-tapsi', 'review-snap-white'])
   })
 
   it('reconciles draftVersion after a successful Draft save even when a newer local edit invalidates the in-flight Review', async () => {
@@ -382,6 +405,23 @@ async function renderWorkspace(
     await Promise.resolve()
     await new Promise(resolve => setTimeout(resolve, 0))
   })
+}
+
+function reviewItemFor(id: string, listingId: string, channelId: string) {
+  return {
+    id,
+    canonicalProductId: 'product-1',
+    listingId,
+    channelId,
+    field: 'price' as const,
+    current: '100',
+    target: '110',
+    validationState: 'ready',
+    warnings: [],
+    errors: [],
+    eligible: true,
+    selected: false,
+  }
 }
 
 function sourceChannel(channelId: string, name: string): SourceChannel {

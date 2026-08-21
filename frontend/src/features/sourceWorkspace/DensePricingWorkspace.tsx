@@ -20,15 +20,15 @@ import {
   isPricingFieldSelected,
   persistPricingWorkspaceState,
   previewBulkTransformation,
+  pricingDraftChanges,
   pricingFieldChange,
   pricingFieldKey,
   pricingWorkspaceSummary,
   redoPricingWorkspace,
   registerPricingFields,
   restorePricingWorkspaceState,
-  selectedPricingChanges,
-  selectedPricingDraftChanges,
   setPricingFieldSelected,
+  setPricingFieldsSelectedByKey,
   undoPricingWorkspace,
   type BulkPreviewItem,
   type BulkTransformationKind,
@@ -302,10 +302,14 @@ export default function DensePricingWorkspace({
   async function saveAndReview() {
     if (!grid || summary.changed === 0 || summary.selected === 0) return
     const requestedRevision = pricingState.revision
-    const requestedChanges = selectedPricingChanges(pricingState)
     setBusy(translate('workspace:sourceCentricWorkspace.savingDraft'))
     try {
-      const revision = await service.saveDraft(workspace.id, draftVersion, [...selectedPricingDraftChanges(pricingState)], 'replace')
+      // Merge mode upserts only the locally touched fields (this page, and any
+      // other page visited this session) into the existing Draft instead of
+      // replacing it outright. The Source's full candidate scope can span many
+      // pages; a wholesale replace here would silently discard every Draft
+      // entry the Owner never scrolled to.
+      const revision = await service.saveDraft(workspace.id, draftVersion, [...pricingDraftChanges(pricingState)], 'merge')
       // The Draft save itself is now durably committed server-side (draft.version
       // has advanced) regardless of whether Review/Selection below succeed or get
       // superseded by a newer local edit. Reconciling here -- not only on the full
@@ -320,12 +324,11 @@ export default function DensePricingWorkspace({
         notify.error({ title: translate('workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted'), description: translate('workspace:sourceCentricWorkspace.generateAFreshReview') })
         return
       }
-      let selectedIds: string[]
-      try {
-        selectedIds = resolveExactReviewSelection(created.items, requestedChanges)
-      } catch {
-        throw new Error(translate('workspace:densePricing.noEligibleSelectedChanges'))
-      }
+      // The Review is generated from the Draft's full (unpaginated) scope, so
+      // this naturally auto-selects every eligible field across every page --
+      // not just whatever page happened to be loaded locally. A field the
+      // Owner explicitly deselected earlier in this same Preview stays out.
+      const selectedIds = resolveAutomaticReviewSelection(created.items, pricingStateRef.current)
       if (!selectedIds.length) throw new Error(translate('workspace:densePricing.noEligibleSelectedChanges'))
       const selection = await service.saveSelection(workspace.id, created.id, selectedIds)
       if (pricingStateRef.current.revision !== requestedRevision) {
@@ -462,6 +465,31 @@ export default function DensePricingWorkspace({
             {translate('products:products.bulkEdit')}
           </button>
         </div>
+      </div>
+
+      {/* i18n-ignore: utility classes, not user-facing copy */}
+      <div className="flex flex-wrap items-center gap-3 fh-text-caption" data-products-selection-summary>
+        <span>{translate('workspace:workspace.selected')} <strong data-selection-selected>{formatNumber(summary.selected)}</strong></span>
+        <span>{translate('workspace:workspace.eligible')} <strong data-selection-eligible>{formatNumber(summary.ready + summary.warning)}</strong></span>
+        <span>{translate('workspace:workspace.blocked')} <strong data-selection-blocked>{formatNumber(summary.blocked)}</strong></span>
+        <button
+          type="button"
+          className="fh-button-secondary fh-button-sm"
+          data-select-all-eligible
+          disabled={busy !== null || visibleKeys.size === 0}
+          onClick={() => mutatePricingState(current => setPricingFieldsSelectedByKey(current, visibleKeys, true))}
+        >
+          {translate('workspace:workspace.selectAllEligible')}
+        </button>
+        <button
+          type="button"
+          className="fh-button-secondary fh-button-sm"
+          data-deselect-all
+          disabled={busy !== null || visibleKeys.size === 0}
+          onClick={() => mutatePricingState(current => setPricingFieldsSelectedByKey(current, visibleKeys, false))}
+        >
+          {translate('workspace:workspace.deselectAll')}
+        </button>
       </div>
 
       {gridError && <div className="fh-alert fh-alert-danger" role="alert"><Icon name="alert" /><span>{gridError}</span><button className="fh-button-secondary fh-button-sm ms-auto" type="button" onClick={() => void load()}>{translate('products:products.retryInlinePricing')}</button></div>}
@@ -1465,33 +1493,34 @@ export function validateDescriptorTarget(
   }
 }
 
-export function resolveExactReviewSelection(
+/**
+ * Every eligible Review item is auto-selected by default -- the Review is
+ * generated from the Draft's full, unpaginated scope, so this naturally
+ * covers every page, not just whichever page happens to be loaded locally.
+ * A field the Owner explicitly deselected earlier in this same Preview (its
+ * local PricingWorkspaceState identity carries selectionMode
+ * 'manual_deselected') stays excluded even though it is still eligible
+ * server-side; a field never locally registered at all (an unvisited page)
+ * defaults to selected, exactly like a field the Owner did visit.
+ */
+export function resolveAutomaticReviewSelection(
   reviewItems: readonly ReviewItemResource[],
-  selectedChanges: readonly PricingFieldChange[],
+  pricingState: PricingWorkspaceState,
 ): string[] {
-  const reviewItemsByKey = new Map<string, ReviewItemResource[]>()
-  for (const item of reviewItems) {
-    const key = pricingFieldKey({
-      productId: item.canonicalProductId,
-      listingId: item.listingId,
-      channelId: item.channelId,
-      field: item.field,
+  const ids = reviewItems
+    .filter(item => item.eligible)
+    .filter(item => {
+      const change = pricingFieldChange(pricingState, {
+        productId: item.canonicalProductId,
+        listingId: item.listingId,
+        channelId: item.channelId,
+        field: item.field,
+      })
+      return !change || change.selectionMode !== 'manual_deselected'
     })
-    const matches = reviewItemsByKey.get(key) ?? []
-    matches.push(item)
-    reviewItemsByKey.set(key, matches)
-  }
-
-  const ids: string[] = []
-  for (const change of selectedChanges) {
-    const matches = reviewItemsByKey.get(change.key) ?? []
-    if (matches.length !== 1 || !matches[0].eligible) {
-      throw new Error('Selected pricing scope does not match one eligible Review item per field.')
-    }
-    ids.push(matches[0].id)
-  }
-  if (new Set(ids).size !== selectedChanges.length) {
-    throw new Error('Selected pricing scope contains duplicate Review identities.')
+    .map(item => item.id)
+  if (new Set(ids).size !== ids.length) {
+    throw new Error('Review contains duplicate item identities.')
   }
   return ids
 }

@@ -5,13 +5,14 @@ import {
   editPricingField,
   isPricingFieldEligible,
   selectedPricingChanges,
+  setPricingFieldSelected,
   type PricingFieldDescriptor,
 } from '../pricingWorkspace'
 import {
   createLatestGridLoader,
   pricingDescriptors,
   refreshRegisteredPricingState,
-  resolveExactReviewSelection,
+  resolveAutomaticReviewSelection,
   setProductListingsSelected,
   sourceChannelDisplayName,
   convertPricingUnit,
@@ -42,26 +43,38 @@ describe('DensePricingWorkspace safety boundaries', () => {
     expect(convertPricingUnit('not-a-price', 'IRR', 'RIAL', 'TOMAN', 'IRR')).toBe('not-a-price')
   })
 
-  it('requires every locally selected field to resolve to exactly one eligible Review item', () => {
+  it('auto-selects every eligible Review item across the full Draft scope, not just the locally loaded page', () => {
     const price = descriptor('price')
     const stock = descriptor('stock')
     let state = createPricingWorkspaceState('workspace-1', [price, stock], 'snapshot-1:draft-1')
     state = editPricingField(state, price, '110')
     state = editPricingField(state, stock, '8')
-    const changes = selectedPricingChanges(state)
-    const exact = [reviewItem('review-price', 'price', true), reviewItem('review-stock', 'stock', true)]
+    // The Owner explicitly excludes Stock during this Preview; Price stays selected.
+    state = setPricingFieldSelected(state, stock.identity, false)
 
-    expect(resolveExactReviewSelection(exact, changes)).toEqual(['review-price', 'review-stock'])
-    expect(resolveExactReviewSelection(exact, changes.slice(0, 1))).toEqual(['review-price'])
-    expect(() => resolveExactReviewSelection(exact.slice(0, 1), changes)).toThrow(/one eligible Review item/)
-    expect(() => resolveExactReviewSelection([
-      exact[0],
-      reviewItem('review-stock-blocked', 'stock', false),
-    ], changes)).toThrow(/one eligible Review item/)
-    expect(() => resolveExactReviewSelection([
-      ...exact,
-      reviewItem('review-price-duplicate', 'price', true),
-    ], changes)).toThrow(/one eligible Review item/)
+    const reviewItems = [
+      reviewItem('review-price', 'price', true),
+      reviewItem('review-stock', 'stock', true),
+      // Never locally registered at all (e.g. a page the Owner never visited) --
+      // still eligible server-side, and still defaults to selected.
+      reviewItem('review-unvisited', 'price', true, 'listing-2'),
+      // Ineligible server-side (blocked/unchanged) -- never selected regardless
+      // of local state.
+      reviewItem('review-blocked', 'price', false, 'listing-3'),
+    ]
+
+    expect(resolveAutomaticReviewSelection(reviewItems, state)).toEqual([
+      'review-price', 'review-unvisited',
+    ])
+  })
+
+  it('rejects a Review whose items resolve to duplicate identities', () => {
+    const reviewItems = [
+      reviewItem('review-dup', 'price', true, 'listing-1'),
+      reviewItem('review-dup', 'stock', true, 'listing-1'),
+    ]
+    expect(() => resolveAutomaticReviewSelection(reviewItems, createPricingWorkspaceState('workspace-1')))
+      .toThrow(/duplicate/)
   })
 
   it('commits only the latest grid response when an older request resolves last', async () => {
@@ -204,11 +217,11 @@ function descriptor(field: 'price' | 'stock' | 'status'): PricingFieldDescriptor
   }
 }
 
-function reviewItem(id: string, field: 'price' | 'stock' | 'status', eligible: boolean): ReviewItemResource {
+function reviewItem(id: string, field: 'price' | 'stock' | 'status', eligible: boolean, listingId = 'listing-1'): ReviewItemResource {
   return {
     id,
     canonicalProductId: 'product-1',
-    listingId: 'listing-1',
+    listingId,
     channelId: 'woocommerce:primary',
     field,
     current: null,

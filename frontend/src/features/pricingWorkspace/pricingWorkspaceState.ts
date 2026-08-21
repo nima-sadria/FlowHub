@@ -182,7 +182,7 @@ export function editPricingFields(
   for (const edit of uniqueEdits(edits)) {
     const key = pricingFieldKey(edit.descriptor.identity)
     const existing = next[key]
-    if (valuesEqual(edit.descriptor.currentValue, edit.targetValue)) {
+    if (valuesEqual(edit.descriptor.currentValue, edit.targetValue, edit.descriptor.identity.field)) {
       if (existing) {
         delete next[key]
         changed = true
@@ -213,6 +213,25 @@ export function setPricingFieldSelected(
     ...state.present.changes,
     [key]: freezeChange({ ...existing, selectionMode }),
   })
+}
+
+/**
+ * Bulk "Select all eligible" / "Deselect all" over an explicit key set (e.g.
+ * the currently visible rows). Ineligible/blocked keys are silently no-ops
+ * via setPricingFieldSelected's own eligibility guard, so blocked rows can
+ * never enter the selected scope through this path either.
+ */
+export function setPricingFieldsSelectedByKey(
+  state: PricingWorkspaceState,
+  keys: ReadonlySet<string>,
+  selected: boolean,
+): PricingWorkspaceState {
+  let next = state
+  for (const key of keys) {
+    const identity = parsePricingFieldKey(key)
+    if (identity) next = setPricingFieldSelected(next, identity, selected)
+  }
+  return next
 }
 
 export function isPricingFieldEligible(policy: PricingFieldPolicy): boolean {
@@ -390,7 +409,7 @@ export function applyBulkTransformation(
     if (liveValue !== item.previousValue) throw new Error(`Stale bulk preview for ${item.key}`)
     if (item.blockedReason || !item.changed || item.resultingValue === null) continue
     const existing = next[item.key]
-    if (valuesEqual(item.descriptor.currentValue, item.resultingValue)) delete next[item.key]
+    if (valuesEqual(item.descriptor.currentValue, item.resultingValue, item.descriptor.identity.field)) delete next[item.key]
     else next[item.key] = makeChange(descriptorForTarget(item.descriptor, item.resultingValue), item.resultingValue, existing?.selectionMode ?? 'automatic')
     changed = true
   }
@@ -468,7 +487,7 @@ function commitUserSnapshot(state: PricingWorkspaceState, changes: Record<string
 function snapshotFromDescriptors(fields: readonly PricingFieldDescriptor[]): PricingWorkspaceSnapshot {
   const changes: Record<string, PricingFieldChange> = {}
   for (const descriptor of uniqueDescriptors(fields)) {
-    if (valuesEqual(descriptor.currentValue, descriptor.targetValue)) continue
+    if (valuesEqual(descriptor.currentValue, descriptor.targetValue, descriptor.identity.field)) continue
     const key = pricingFieldKey(descriptor.identity)
     const target = descriptor.targetValue ?? ''
     changes[key] = makeChange(descriptorForTarget(descriptor, target), target, 'automatic')
@@ -487,14 +506,14 @@ function refreshSnapshot(
     const key = pricingFieldKey(descriptor.identity)
     const existing = next[key]
     if (!existing) {
-      if (!addServerTargets || valuesEqual(descriptor.currentValue, descriptor.targetValue)) continue
+      if (!addServerTargets || valuesEqual(descriptor.currentValue, descriptor.targetValue, descriptor.identity.field)) continue
       const target = descriptor.targetValue ?? ''
       next[key] = makeChange(descriptorForTarget(descriptor, target), target, 'automatic')
       changed = true
       continue
     }
     // If provider/cache state has reached the local target, this is no longer a change.
-    if (valuesEqual(descriptor.currentValue, existing.targetValue)) {
+    if (valuesEqual(descriptor.currentValue, existing.targetValue, descriptor.identity.field)) {
       delete next[key]
       changed = true
       continue
@@ -742,8 +761,26 @@ function pow10(power: number): bigint {
   return 10n ** BigInt(power)
 }
 
-function valuesEqual(left: string | null, right: string | null): boolean {
-  return (left ?? '') === (right ?? '')
+/**
+ * Canonical pricing comparison: "100", "100.0", and "100.00" are the same
+ * Price or Stock value. A formatting-only difference must never register as
+ * a change, so it can never be auto-selected as one. Status stays an exact
+ * string comparison.
+ */
+function valuesEqual(left: string | null, right: string | null, field?: PricingField): boolean {
+  const leftText = left ?? ''
+  const rightText = right ?? ''
+  if (field === 'price' || field === 'stock') {
+    const leftDecimal = parseDecimal(leftText)
+    const rightDecimal = parseDecimal(rightText)
+    if (leftDecimal && rightDecimal) return decimalEqual(leftDecimal, rightDecimal)
+  }
+  return leftText === rightText
+}
+
+function decimalEqual(left: Decimal, right: Decimal): boolean {
+  const scale = Math.max(left.scale, right.scale)
+  return left.coefficient * pow10(scale - left.scale) === right.coefficient * pow10(scale - right.scale)
 }
 
 function compareKeys(left: string, right: string): number {
