@@ -275,6 +275,25 @@ export interface GroupedField {
   unit: string | null
 }
 
+export interface ChangeBadgeDimension {
+  state: string
+  current?: string
+  target?: string
+  delta?: string
+}
+
+/** Backend-authoritative Phase B explanation; it never grants write authority. */
+export interface ChangeBadgeClassification {
+  version: string
+  price: ChangeBadgeDimension
+  quantity: ChangeBadgeDimension
+  stockStatus: ChangeBadgeDimension
+  warnings: Array<{ code: string; field?: string }>
+  blockers: string[]
+  eligibility: 'ELIGIBLE' | 'BLOCKED'
+  actionable: boolean
+}
+
 export interface GroupedListing {
   listingId: string
   channelId: string
@@ -289,6 +308,7 @@ export interface GroupedListing {
   selected: boolean
   reviewItemIds: string[]
   fields: Record<'price' | 'stock' | 'status', GroupedField>
+  changeClassification?: ChangeBadgeClassification | null
 }
 
 export interface GroupedProduct {

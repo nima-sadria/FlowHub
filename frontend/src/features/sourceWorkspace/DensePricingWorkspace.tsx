@@ -41,6 +41,7 @@ import { channelIdentitySignals, prepareResourceCollection, sourceChannelSignals
 import { formatSourceChannelDisplayName } from '../unifiedWorkspace/channelDisplayName'
 import { workspaceApplyIdempotencyKey } from '../unifiedWorkspace/useUnifiedWorkspaceController'
 import { inputHint } from '../../utils/inputHint'
+import { formatMoney } from '../../utils/price'
 import { sourceWorkspaceApi } from './api'
 import PricingWorkspaceStartup from './PricingWorkspaceStartup'
 import type { GroupedListing, GroupedProduct, GroupedWorkspacePage, SourceChannel } from './types'
@@ -833,7 +834,10 @@ const ProductGroup = memo(function ProductGroup({
                 <span className="fh-products-name">{product.name}</span>
               </span>}
             </td>
-            <td className="fh-products-channel-cell">{channelName}</td>
+            <td className="fh-products-channel-cell">
+              <div>{channelName}</div>
+              <ChangeBadges classification={listing.changeClassification} />
+            </td>
             <td className="fh-products-input-cell">
               <TargetInput
                 descriptor={descriptorMap.get(fieldKey(product, listing, 'price'))}
@@ -902,6 +906,30 @@ const ProductGroup = memo(function ProductGroup({
     </tbody>
   )
 })
+
+function ChangeBadges({ classification }: { classification: GroupedListing['changeClassification'] }) {
+  if (!classification) return null
+  const labels: Array<{ key: string; text: string; variant: 'neutral' | 'info' | 'success' | 'warning' | 'danger' }> = []
+  const price = classification.price
+  if (price.state === 'INCREASE' || price.state === 'DECREASE') {
+    const direction = price.state === 'INCREASE' ? '↑' : '↓'
+    labels.push({ key: 'price', text: `Price ${direction} ${formatMoney(price.delta?.replace(/^-/, ''))}`, variant: 'info' })
+  } else if (price.state === 'NO_VALID_PRICE') labels.push({ key: 'price', text: 'No usable price', variant: 'warning' })
+  const quantity = classification.quantity
+  if (quantity.state === 'INCREASE' || quantity.state === 'DECREASE') {
+    labels.push({ key: 'quantity', text: `QTY ${quantity.state === 'INCREASE' ? '+' : '-'}${formatMoney(quantity.delta?.replace(/^-/, ''))}`, variant: 'info' })
+  } else if (quantity.state === 'UNMANAGED') labels.push({ key: 'quantity', text: 'No quantity instruction', variant: 'neutral' })
+  const status = classification.stockStatus
+  if (status.state === 'BECOMES_IN_STOCK') labels.push({ key: 'status', text: 'Out of stock → In stock', variant: 'success' })
+  else if (status.state === 'BECOMES_OUT_OF_STOCK') labels.push({ key: 'status', text: 'In stock → Out of stock', variant: 'warning' })
+  else if (status.state === 'UNCHANGED_IN_STOCK') labels.push({ key: 'status', text: 'In stock', variant: 'success' })
+  else if (status.state === 'UNCHANGED_OUT_OF_STOCK') labels.push({ key: 'status', text: 'Out of stock', variant: 'neutral' })
+  for (const warning of classification.warnings) labels.push({ key: `warning-${warning.code}`, text: `Warning · ${warning.code.replace(/_/g, ' ')}`, variant: 'warning' })
+  labels.push({ key: 'eligibility', text: classification.eligibility === 'ELIGIBLE' ? 'Eligible' : 'Blocked', variant: classification.eligibility === 'ELIGIBLE' ? 'success' : 'danger' })
+  return <div className="mt-1 flex flex-wrap gap-1" data-change-badges aria-label="Change classification">
+    {labels.map(badge => <Badge key={badge.key} variant={badge.variant} className="text-[10px]">{badge.text}</Badge>)}
+  </div>
+}
 
 function ProductThumbnail({ imageUrl }: { imageUrl?: string | null }) {
   const [failed, setFailed] = useState(false)

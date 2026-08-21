@@ -1234,6 +1234,9 @@ class UnifiedWorkspaceService:
                 parent["media"] = product_media
             listing_changes = changes_by_listing.get(listing.id, {})
             source_targets = snapshot_row.normalized_data_json.get("targets") or {}
+            source_classification = snapshot_row.normalized_data_json.get(
+                "change_classification"
+            ) or {}
             capabilities = self._capabilities_or_none(listing.channel_id)
             channel_available = (
                 self._workspace_channel_available(listing.channel_id)
@@ -1297,6 +1300,11 @@ class UnifiedWorkspaceService:
                     "selected": listing.id in selected_listing_ids,
                     "reviewItemIds": [item.id for item in review_items if item.eligible],
                     "fields": fields,
+                    "changeClassification": self._change_badge_shape(
+                        source_classification,
+                        fields,
+                        row_blocked=blocked,
+                    ),
                 }
             )
         items = []
@@ -4793,6 +4801,70 @@ class UnifiedWorkspaceService:
         if field == "stock":
             return str(cache.stock_quantity) if cache.stock_quantity is not None else None
         return cache.status
+
+    @staticmethod
+    def _change_badge_shape(
+        classification: object,
+        fields: dict[str, dict[str, Any]],
+        *,
+        row_blocked: bool,
+    ) -> dict[str, Any] | None:
+        """Serialize display facts already decided by the pinned Source classifier.
+
+        This is intentionally a DTO projector, not another precedence engine.
+        It derives only direction/delta from exact values and forwards the
+        Source classifier's desired status, warnings, and blockers.
+        """
+
+        if not isinstance(classification, dict):
+            return None
+        field_evidence = classification.get("fields")
+        if not isinstance(field_evidence, dict):
+            return None
+
+        def numeric_state(field: str, unchanged: str) -> dict[str, Any]:
+            evidence = field_evidence.get(field) or {}
+            target, current = fields[field].get("target"), fields[field].get("current")
+            if evidence.get("instruction") != "SET" or target is None:
+                return {"state": "NO_VALID_PRICE" if field == "price" else "UNMANAGED"}
+            try:
+                delta = Decimal(str(target)) - Decimal(str(current))
+            except Exception:
+                return {"state": "NOT_EVALUATED"}
+            if delta == 0:
+                return {"state": unchanged, "current": str(current), "target": str(target), "delta": "0"}
+            return {
+                "state": "INCREASE" if delta > 0 else "DECREASE",
+                "current": str(current),
+                "target": str(target),
+                "delta": format(delta, "f"),
+            }
+
+        price = numeric_state("price", "UNCHANGED")
+        quantity = numeric_state("stock", "UNCHANGED")
+        desired = classification.get("desiredStockStatus")
+        current_status = str(fields["status"].get("current") or "").casefold()
+        current = {"instock": "IN_STOCK", "outofstock": "OUT_OF_STOCK"}.get(current_status)
+        if desired not in {"IN_STOCK", "OUT_OF_STOCK"} or current is None:
+            stock_status = {"state": "NOT_EVALUATED"}
+        elif desired == current:
+            stock_status = {"state": f"UNCHANGED_{desired}", "current": current, "target": desired}
+        else:
+            stock_status = {"state": f"BECOMES_{desired}", "current": current, "target": desired}
+        blockers = [str(value) for value in classification.get("blockers") or []]
+        return {
+            "version": classification.get("version", "workspace-change-badges-v1"),
+            "price": price,
+            "quantity": quantity,
+            "stockStatus": stock_status,
+            "warnings": [item for item in classification.get("warnings") or [] if isinstance(item, dict)],
+            "eligibility": "BLOCKED" if row_blocked or blockers else "ELIGIBLE",
+            "actionable": bool(
+                not row_blocked
+                and any(item.get("changed") for item in fields.values())
+            ),
+            "blockers": blockers,
+        }
 
     @staticmethod
     def _normalized_snapshot_data(
