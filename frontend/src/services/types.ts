@@ -350,31 +350,7 @@ export interface Source {
   productCount: number
 }
 
-// -- Workspace -----------------------------------------------------------------
-
-export type WorkspaceState = 'idle' | 'previewing' | 'preview_ready' | 'error'
-
-export interface PriceChange {
-  productId: string
-  productName: string
-  sku: string
-  currentPrice: number
-  proposedPrice: number
-  difference?: number
-  changePct: number
-  currency: string
-  warning?: string | null
-  status?: string
-  eligible_for_dry_run?: boolean
-  validationStatus?: string
-  itemType?: 'simple' | 'variation' | string
-  parentProductId?: string | null
-  parentProductName?: string | null
-  variationId?: string | null
-  variationAttributes?: Array<Record<string, string>>
-  source?: WorkspaceSourceRowInfo
-  validationWarnings?: string[]
-}
+// -- Write Pipeline ------------------------------------------------------------
 
 export interface WorkspaceSourceRowInfo {
   previewId: string
@@ -397,99 +373,6 @@ export interface WorkspaceSourceRowInfo {
   sourceStock?: number | null
   rawValues?: Record<string, string>
 }
-
-export interface WorkspaceMatchedProductInfo {
-  channelId: string
-  productId: string
-  externalId?: number | null
-  productType: string
-  parentId?: string | null
-  parentProductId?: string | null
-  parentProductName?: string | null
-  variationId?: string | null
-  variationAttributes?: Array<Record<string, string>>
-  itemType?: 'simple' | 'variation' | string
-  sku: string
-  name: string
-  currentPrice: number
-  regularPrice?: number | null
-  salePrice?: number | null
-  effectivePrice: number
-  stockQuantity?: number | null
-  stockStatus?: string | null
-  manageStock?: boolean | null
-  imageUrl?: string | null
-  categoryNames: string[]
-  freshness?: string | null
-}
-
-export interface WorkspacePreviewRow {
-  id: string
-  source: WorkspaceSourceRowInfo
-  matchedProduct: WorkspaceMatchedProductInfo | null
-  currentPrice: number | null
-  proposedPrice: number | null
-  currentStock?: number | null
-  sourceStock?: number | null
-  stockDifference?: number | null
-  difference: number | null
-  changePct: number | null
-  status: 'valid_change' | 'warning' | 'unchanged' | 'error' | 'stock_changed' | 'price_and_stock_changed'
-  changeType?: string
-  errors: string[]
-  warnings: string[]
-  eligible_for_dry_run: boolean
-}
-
-export interface WorkspacePreviewSummary {
-  total_rows: number
-  valid_changes: number
-  unchanged_rows: number
-  warning_rows: number
-  error_rows: number
-  duplicate_rows: number
-  missing_products: number
-  large_changes: number
-  matched_products?: number
-  matched_variations?: number
-  unmatched_rows?: number
-  changed_prices?: number
-  changed_stock?: number
-  blocked_rows?: number
-  estimated_woocommerce_updates?: number
-}
-
-export interface WorkspacePreview {
-  id: string
-  sourceId: string
-  sourceName: string
-  state: WorkspaceState
-  totalChanges: number
-  changes: PriceChange[]
-  rows: WorkspacePreviewRow[]
-  summary: WorkspacePreviewSummary
-  startedAt: Date
-  duplicateWarnings?: string[]
-  sourceContext?: {
-    filePath?: string | null
-    worksheet?: string | null
-    rowsRead?: number
-    mappingRevision?: string | number | null
-  }
-}
-
-export interface WorkspaceSourceReference {
-  sourceId: string
-  sourceName: string
-  status: string
-}
-
-export interface WorkspaceSourceBinding {
-  boundSource: WorkspaceSourceReference | null
-  candidates: WorkspaceSourceReference[]
-}
-
-// -- Write Pipeline ------------------------------------------------------------
 
 export type WritePipelineStatus =
   | 'dry_run_ready'

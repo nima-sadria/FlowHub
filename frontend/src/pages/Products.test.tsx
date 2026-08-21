@@ -197,7 +197,7 @@ function servicesFor(overrides: {
       createCatalog: overrides.createCatalog ?? vi.fn(async () => WORKSPACE),
       getWorkspace: overrides.getWorkspace ?? vi.fn(async () => WORKSPACE),
     },
-    health: {}, sources: {}, workspace: {}, settings: {
+    health: {}, sources: {}, settings: {
       getSettings: vi.fn(async () => ({ currency: 'IRR', currencyUnit: 'TOMAN' })),
     }, activity: {}, commerce: {}, writePipeline: {}, orders: {},
   } as unknown as Services

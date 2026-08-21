@@ -11,7 +11,6 @@ import { ServiceProvider } from './services/ServiceContext'
 import { ApiHealthService } from './services/health/ApiHealthService'
 import { ApiProductService } from './services/products/ApiProductService'
 import { ApiSourceService } from './services/sources/ApiSourceService'
-import { ApiWorkspaceService } from './services/workspace/ApiWorkspaceService'
 import { ApiSettingsService } from './services/settings/ApiSettingsService'
 import { ApiActivityService } from './services/activity/ApiActivityService'
 import { ApiCommerceService } from './services/commerce/ApiCommerceService'
@@ -56,7 +55,6 @@ const realServices = {
   health:    new ApiHealthService(),
   products:  new ApiProductService(),
   sources:   new ApiSourceService(),
-  workspace: new ApiWorkspaceService(),
   settings:  new ApiSettingsService(),
   activity:  new ApiActivityService(),
   commerce:  new ApiCommerceService(),

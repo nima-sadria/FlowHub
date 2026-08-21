@@ -52,7 +52,7 @@ describe('Activity business history', () => {
       activity: { getEvents },
       commerce: { getChannels },
       businessEvents: { acknowledge, resolve, getLifecycle },
-      health: {}, products: {}, sources: {}, workspace: {}, settings: {},
+      health: {}, products: {}, sources: {}, settings: {},
       writePipeline: {}, orders: {},
     } as unknown as Services
     await act(async () => {

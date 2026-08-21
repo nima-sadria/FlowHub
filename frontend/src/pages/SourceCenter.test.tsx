@@ -28,7 +28,6 @@ const services: Services = {
   products,
   health: {} as Services['health'],
   sources: {} as Services['sources'],
-  workspace: {} as Services['workspace'],
   settings: {} as Services['settings'],
   activity: {} as Services['activity'],
   writePipeline: {} as Services['writePipeline'],

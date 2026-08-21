@@ -146,7 +146,6 @@ function services(): Services {
         pageSize: 2,
       })),
     } as unknown as Services['activity'],
-    workspace: {} as Services['workspace'],
     settings: {} as Services['settings'],
     commerce: {} as Services['commerce'],
     writePipeline: {} as Services['writePipeline'],

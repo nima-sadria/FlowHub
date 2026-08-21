@@ -303,7 +303,6 @@ describe('SourceConfiguration per-Channel mappings', () => {
       health: {},
       products: {},
       sources: {},
-      workspace: {},
       settings: {},
       activity: {},
       writePipeline: {},
@@ -358,7 +357,6 @@ describe('SourceConfiguration per-Channel mappings', () => {
       health: {},
       products: {},
       sources: {},
-      workspace: {},
       settings: {},
       activity: {},
       writePipeline: {},
@@ -425,7 +423,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     })
     const services = {
       commerce: { testSource, getSourceConfiguration } as unknown as CommerceService,
-      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+      health: {}, products: {}, sources: {}, settings: {}, activity: {}, writePipeline: {},
     } as Services
 
     await renderPage(editorAuth, '/sources/source-1', services)
@@ -449,7 +447,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     })
     const services = {
       commerce: { getSourceConfiguration } as unknown as CommerceService,
-      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+      health: {}, products: {}, sources: {}, settings: {}, activity: {}, writePipeline: {},
     } as Services
 
     await renderPage(editorAuth, '/sources/source-1', services)
@@ -478,7 +476,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     })
     const services = {
       commerce: { getSourceConfiguration } as unknown as CommerceService,
-      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+      health: {}, products: {}, sources: {}, settings: {}, activity: {}, writePipeline: {},
     } as Services
 
     await renderPage(editorAuth, '/sources/source-1', services)
@@ -513,7 +511,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     })
     const services = {
       commerce: { getSourceConfiguration } as unknown as CommerceService,
-      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+      health: {}, products: {}, sources: {}, settings: {}, activity: {}, writePipeline: {},
     } as Services
 
     await renderPage(editorAuth, '/sources/source-1', services)
@@ -551,7 +549,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     })
     const services = {
       commerce: { getSourceConfiguration } as unknown as CommerceService,
-      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+      health: {}, products: {}, sources: {}, settings: {}, activity: {}, writePipeline: {},
     } as Services
 
     await renderPage(editorAuth, '/sources/source-1', services)
@@ -590,7 +588,7 @@ describe('SourceConfiguration per-Channel mappings', () => {
     })
     const services = {
       commerce: { testSource, readSource, getSourceConfiguration } as unknown as CommerceService,
-      health: {}, products: {}, sources: {}, workspace: {}, settings: {}, activity: {}, writePipeline: {},
+      health: {}, products: {}, sources: {}, settings: {}, activity: {}, writePipeline: {},
     } as Services
 
     await renderPage(adminAuth, '/sources/source-1', services)

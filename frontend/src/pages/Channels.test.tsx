@@ -135,7 +135,6 @@ describe('Channels page', () => {
       health: {} as Services['health'],
       products: {} as Services['products'],
       sources: {} as Services['sources'],
-      workspace: {} as Services['workspace'],
       settings: {} as Services['settings'],
       activity: {} as Services['activity'],
       writePipeline: {} as Services['writePipeline'],

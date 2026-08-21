@@ -25,7 +25,7 @@ describe('DataQuality summary states', () => {
   })
   afterEach(() => { act(() => root.unmount()); container.remove(); vi.restoreAllMocks() })
   async function render() {
-    const services = { products: { getProducts }, health: {}, sources: {}, workspace: {}, settings: {}, activity: {}, commerce: {}, writePipeline: {}, orders: {} } as unknown as Services
+    const services = { products: { getProducts }, health: {}, sources: {}, settings: {}, activity: {}, commerce: {}, writePipeline: {}, orders: {} } as unknown as Services
     await act(async () => {
       root.render(<MemoryRouter><ServiceProvider services={services}><DataQuality /></ServiceProvider></MemoryRouter>)
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
