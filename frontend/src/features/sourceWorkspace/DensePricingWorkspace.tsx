@@ -905,6 +905,18 @@ const ProductGroup = memo(function ProductGroup({
   )
 })
 
+// Per-code localized Owner-facing warning copy for the small set of codes
+// the classification engine actually emits today; a future/unmapped code
+// still gets a readable message via the generic humanized fallback.
+const WARNING_MESSAGE_KEYS: Record<string, string> = {
+  UNUSABLE_MAPPED_PRICE: 'products:products.changeBadge.warningUnusableMappedPrice',
+}
+
+function warningMessage(code: string): string {
+  const key = WARNING_MESSAGE_KEYS[code]
+  return key ? translate(key) : translate('products:products.changeBadge.warning', { code: code.replace(/_/g, ' ') })
+}
+
 function ChangeBadges({ classification, stale }: { classification: GroupedListing['changeClassification']; stale?: boolean }) {
   if (!classification) return null
   const labels: Array<{ key: string; text: ReactNode; variant: 'neutral' | 'info' | 'success' | 'warning' | 'danger' }> = []
@@ -930,7 +942,7 @@ function ChangeBadges({ classification, stale }: { classification: GroupedListin
   else if (status.state === 'BECOMES_OUT_OF_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.becomesOutOfStock'), variant: 'warning' })
   else if (status.state === 'UNCHANGED_IN_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.inStock'), variant: 'success' })
   else if (status.state === 'UNCHANGED_OUT_OF_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.outOfStock'), variant: 'neutral' })
-  for (const warning of classification.warnings) labels.push({ key: `warning-${warning.code}`, text: translate('products:products.changeBadge.warning', { code: warning.code.replace(/_/g, ' ') }), variant: 'warning' })
+  for (const warning of classification.warnings) labels.push({ key: `warning-${warning.code}`, text: warningMessage(warning.code), variant: 'warning' })
   labels.push({ key: 'eligibility', text: translate(classification.eligibility === 'ELIGIBLE' ? 'products:products.changeBadge.eligible' : 'products:products.changeBadge.blocked'), variant: classification.eligibility === 'ELIGIBLE' ? 'success' : 'danger' })
   return <div className={`mt-1 flex flex-wrap gap-1${stale ? ' opacity-50' : ''}`} data-change-badges data-change-badges-stale={stale ? 'true' : undefined} aria-label={translate('products:products.status')}>
     {stale && <Badge key="stale" variant="neutral" className="text-[10px]">{translate('products:products.changeBadgeStale')}</Badge>}
@@ -976,7 +988,7 @@ function TargetInput({ descriptor, pricingState, field, inputMode, narrow = fals
       type="text"
       inputMode={inputMode}
       dir="ltr"
-      value={draft ?? displayedValue}
+      value={draft ?? formatMoney(displayedValue, { empty: '' })}
       disabled={disabled}
       aria-label={ariaLabel}
       data-target-field={field}

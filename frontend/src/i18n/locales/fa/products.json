@@ -14,6 +14,7 @@
   "products.changeBadge.inStock": "موجود",
   "products.changeBadge.outOfStock": "ناموجود",
   "products.changeBadge.warning": "هشدار · {{code}}",
+  "products.changeBadge.warningUnusableMappedPrice": "هشدار · قیمت نگاشت‌شده غیرقابل استفاده",
   "products.changeBadge.eligible": "مجاز",
   "products.changeBadge.blocked": "مسدود",
   "products.changeBadgeStale": "قدیمی · ویرایش‌شده",

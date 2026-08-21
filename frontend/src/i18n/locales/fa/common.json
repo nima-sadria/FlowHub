@@ -61,6 +61,7 @@
   "status.authenticationFailed": "احراز هویت ناموفق بود",
   "status.blocked": "مسدود",
   "status.cancelled": "لغوشده",
+  "status.channelCacheNotFresh": "داده کانال ممکن است قدیمی باشد",
   "status.checking": "در حال بررسی",
   "status.completed": "تکمیل‌شده",
   "status.completedWithErrors": "با خطا تکمیل شد",
