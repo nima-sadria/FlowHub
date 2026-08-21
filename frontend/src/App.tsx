@@ -50,7 +50,6 @@ const SourceCenter = lazy(() => import('./pages/SourceCenter'))
 const SourceConfiguration = lazy(() => import('./pages/SourceConfiguration'))
 const SourceImportWizard = lazy(() => import('./pages/SourceImportWizard'))
 const UnifiedWorkspace = lazy(() => import('./pages/UnifiedWorkspace'))
-const Workspace = lazy(() => import('./pages/Workspace'))
 import type { SetupStatus } from './api/types'
 
 const realServices = {
@@ -147,6 +146,14 @@ function LegacyRateLimitsRedirect() {
   )
 }
 
+/** The source-driven Workspace was superseded by the canonical Pricing
+ * Workspace embedded in Products. Keep bookmarked URLs usable without
+ * exposing the legacy price-workflow validators or capability model. */
+function LegacyWorkspaceRedirect() {
+  const location = useLocation()
+  return <Navigate replace to={{ pathname: '/products', search: location.search, hash: location.hash }} />
+}
+
 // -- Setup Gate ----------------------------------------------------------------
 // Checks /api/v2/setup/status on first load. If setup is not complete, renders
 // only the /setup route and redirects everything else there. Once setup is
@@ -205,7 +212,7 @@ function SetupGate() {
           <Route path="/docs/channels" element={<RequirePermission permission="can_access_site"><ChannelDocs /></RequirePermission>} />
           <Route path="/docs/channels/:channelId" element={<RequirePermission permission="can_access_site"><ChannelDocs /></RequirePermission>} />
           <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
-          <Route path="/workspace" element={<RequirePermission permission="can_fetch"><Workspace /></RequirePermission>} />
+          <Route path="/workspace" element={<RequirePermission permission="can_fetch"><LegacyWorkspaceRedirect /></RequirePermission>} />
           <Route path="/workspace/:workspaceId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><UnifiedWorkspace /></RequirePermission>} />
           <Route path="/activity" element={<RequirePermission permission={WORKSPACE_PERMISSION.readAudit}><Activity /></RequirePermission>} />
           <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
