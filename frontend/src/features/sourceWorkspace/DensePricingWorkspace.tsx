@@ -276,6 +276,7 @@ export default function DensePricingWorkspace({
     setPricingState(current => update(current))
     setReview(null)
     setReviewContext(null)
+    setDryRunSummary(null)
     setReviewOpen(false)
     setApplyResult(null)
   }, [])

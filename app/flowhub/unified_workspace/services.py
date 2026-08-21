@@ -17,18 +17,24 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
+from app.flowhub.channels.gateway import WorkspaceConnectorFactory
 from app.flowhub.commerce.service import CommerceHubService
 from app.flowhub.data_layer.models import DlProductCache
-from app.flowhub.pricing_matrix.service import PricingMatrixService
+from app.flowhub.pricing_authority.contracts import PricingAuthority, PricingOrigin
 from app.flowhub.pricing_authority.service import ChannelPricingAuthorityService
 from app.flowhub.pricing_matrix.models import WorkspacePricingBinding
-from app.flowhub.pricing_authority.contracts import PricingAuthority, PricingOrigin
+from app.flowhub.pricing_matrix.service import PricingMatrixService
 from app.flowhub.product_media import normalize_product_media, primary_image_url
 from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.setup.service import AppConfigService
-from app.flowhub.source_workspace.models import SourceDataQualityIssue, SourceMappingRevision, SourceProfile
+from app.flowhub.source_workspace.models import (
+    FlowHubSheet,
+    SheetRevision,
+    SourceDataQualityIssue,
+    SourceMappingRevision,
+    SourceProfile,
+)
 from app.flowhub.source_workspace.service import SourceWorkspaceService
-from app.flowhub.channels.gateway import WorkspaceConnectorFactory
 from app.flowhub.unified_workspace.authorization import has_workspace_permission
 from app.flowhub.unified_workspace.domain import (
     ApplyState,
@@ -2085,6 +2091,137 @@ class UnifiedWorkspaceService:
             "dryRunStatus": "idle",
         }
 
+    def _assert_source_evidence_current(
+        self, workspace: UnifiedWorkspace, snapshot: WorkspaceSnapshot
+    ) -> None:
+        """Fail closed unless the exact Source revision behind the Preview remains current."""
+        if workspace.entry_point != EntryPoint.SOURCE:
+            return
+        metadata = snapshot.source_metadata_json or {}
+        source_id = canonical_text(metadata.get("source_id"))
+        source_version = metadata.get("source_version")
+        mapping_id = canonical_text(metadata.get("mapping_revision_id"))
+        mapping_checksum = canonical_text(metadata.get("mapping_checksum"))
+        sheet_revision_id = canonical_text(metadata.get("sheet_revision_id"))
+        sheet_revision_checksum = canonical_text(metadata.get("sheet_revision_checksum"))
+        binding = self.db.get(WorkspaceSourceBinding, workspace.id)
+        source = self.db.get(SourceProfile, source_id) if source_id else None
+        mapping = self.db.get(SourceMappingRevision, mapping_id) if mapping_id else None
+        if (
+            binding is None
+            or source is None
+            or not source_id
+            or source_version is None
+            or not mapping_id
+            or not mapping_checksum
+            or not sheet_revision_id
+            or not sheet_revision_checksum
+        ):
+            raise self._conflict(
+                "SOURCE_STATE_UNVERIFIABLE",
+                "Unable to prove Source evidence; fetch a fresh Preview.",
+            )
+        if (
+            source.version != binding.source_version
+            or source.version != source_version
+        ):
+            raise self._conflict(
+                "SOURCE_CHANGED", "Source changed since Preview; fetch a fresh Preview."
+            )
+        if (
+            mapping is None
+            or mapping.source_id != source.id
+            or mapping.checksum != mapping_checksum
+        ):
+            raise self._conflict(
+                "SOURCE_MAPPING_CHANGED",
+                "Source mapping changed; fetch a fresh Preview.",
+            )
+        revision = self.db.get(SheetRevision, sheet_revision_id)
+        sheet = self.db.get(FlowHubSheet, revision.sheet_id) if revision else None
+        if revision is None or sheet is None or sheet.source_id != source.id:
+            raise self._conflict(
+                "SOURCE_STATE_UNVERIFIABLE",
+                "Unable to prove Source revision evidence; fetch a fresh Preview.",
+            )
+        if (
+            revision.checksum != sheet_revision_checksum
+            or sheet.current_version != revision.version
+        ):
+            raise self._conflict(
+                "SOURCE_CHANGED", "Source changed since Preview; fetch a fresh Preview."
+            )
+
+    @staticmethod
+    def _expected_live_state(
+        item: ReviewItem,
+        *,
+        listing: Listing,
+        product: CanonicalProduct,
+        parent_external_id: str | None,
+        capabilities: ChannelCapabilities,
+    ) -> dict[str, Any]:
+        return {
+            "price": item.current_value,
+            "external_id": str(listing.external_primary_id),
+            "product_type": canonical_text(product.product_type).casefold(),
+            "parent_external_id": (
+                str(parent_external_id) if parent_external_id is not None else None
+            ),
+            "currency": canonical_text(capabilities.currency).upper(),
+            "unit": canonical_text(capabilities.unit).upper(),
+        }
+
+    @staticmethod
+    def _live_evidence_is_unverifiable(
+        observed: dict[str, Any], expected: dict[str, Any]
+    ) -> bool:
+        required = (
+            "external_id",
+            "product_type",
+            "parent_external_id",
+            "price",
+            "currency",
+            "unit",
+        )
+        if any(field not in observed for field in required):
+            return True
+        if not all(
+            canonical_text(observed.get(field))
+            for field in ("external_id", "product_type", "currency", "unit")
+        ):
+            return True
+        parent = observed.get("parent_external_id")
+        if parent is not None and not canonical_text(parent):
+            return True
+        # A price which cannot compare to itself is malformed/non-finite and
+        # cannot be authoritative evidence.
+        if not values_equal("price", observed.get("price"), observed.get("price")):
+            return True
+        if canonical_text(observed.get("external_id")) != canonical_text(
+            expected.get("external_id")
+        ):
+            return True
+        return not all(
+            canonical_text(expected.get(field))
+            for field in ("external_id", "product_type", "currency", "unit")
+        )
+
+    @staticmethod
+    def _live_evidence_drifted(observed: dict[str, Any], expected: dict[str, Any]) -> bool:
+        return (
+            canonical_text(observed["product_type"]).casefold()
+            != canonical_text(expected["product_type"]).casefold()
+            or (
+                None if observed["parent_external_id"] is None else str(observed["parent_external_id"])
+            )
+            != expected["parent_external_id"]
+            or canonical_text(observed["currency"]).upper()
+            != canonical_text(expected["currency"]).upper()
+            or canonical_text(observed["unit"]).upper()
+            != canonical_text(expected["unit"]).upper()
+        )
+
     async def run_dry_run(
         self, workspace_id: str, review_id: str, user: FlowHubUser, correlation_id: str
     ) -> dict[str, Any]:
@@ -2109,19 +2246,7 @@ class UnifiedWorkspaceService:
         snapshot = self.workspaces.snapshot(workspace.id)
         if review is None or snapshot is None or review.workspace_id != workspace.id:
             raise self._not_found("REVIEW_NOT_FOUND", "Review not found.")
-        if workspace.entry_point == EntryPoint.SOURCE:
-            binding = self.db.get(WorkspaceSourceBinding, workspace.id)
-            source_id = snapshot.source_metadata_json.get("source_id")
-            mapped_id = snapshot.source_metadata_json.get("mapping_revision_id")
-            mapped_checksum = snapshot.source_metadata_json.get("mapping_checksum")
-            source = self.db.get(SourceProfile, source_id) if source_id else None
-            mapping = self.db.get(SourceMappingRevision, mapped_id) if mapped_id else None
-            if binding is None or source is None:
-                raise self._conflict("SOURCE_STATE_UNVERIFIABLE", "Unable to prove Source evidence; fetch a fresh Preview.")
-            if source.version != binding.source_version or source.version != snapshot.source_metadata_json.get("source_version"):
-                raise self._conflict("SOURCE_CHANGED", "Source changed since Preview; fetch a fresh Preview.")
-            if mapping is None or mapping.source_id != source.id or mapping.checksum != mapped_checksum:
-                raise self._conflict("SOURCE_MAPPING_CHANGED", "Source mapping changed; fetch a fresh Preview.")
+        self._assert_source_evidence_current(workspace, snapshot)
         selected_ids = sorted(row.review_item_id for row in self.reviews.selections(review.id))
         if not selected_ids:
             raise self._unprocessable("DRY_RUN_SELECTION_REQUIRED", "Select one or more Review items before Dry Run.")
@@ -2155,6 +2280,7 @@ class UnifiedWorkspaceService:
             # values only to construct an exact entity read; Dry Run never
             # invokes its mutation counterpart.  Decimal comparison happens
             # below at the Workspace boundary.
+            capabilities = self._capabilities(listing.channel_id)
             expected = SimpleNamespace(
                 listing_id=listing.id, channel_id=listing.channel_id,
                 external_primary_id=listing.external_primary_id, sku=listing.sku,
@@ -2166,7 +2292,7 @@ class UnifiedWorkspaceService:
                 target_stock=cache.stock_quantity,
                 target_status=cache.status, currency=cache.price_currency, unit=cache.price_unit,
                 mapping_version=listing.mapping_version, cache_version=cache.cache_version,
-                cache_checksum=cache.checksum, capability_version=self._capabilities(listing.channel_id).version,
+                cache_checksum=cache.checksum, capability_version=capabilities.version,
                 currency_digest=review.currency_digest, idempotency_key="dry-run", payload_hash="dry-run",
             )
             connector = WorkspaceConnectorFactory(ProductPricingService(self.db), CommerceHubService(self.db)).get(listing.channel_id)
@@ -2178,9 +2304,17 @@ class UnifiedWorkspaceService:
             except Exception:
                 observed, error = {}, {"category": "transport"}
             for item in group:
-                expected_before = {"price": item.current_value, "listing": listing.external_primary_id, "parent": parent_external_id, "productType": product.product_type}
-                if error or not observed or str(observed.get("external_id")) != str(listing.external_primary_id) or (parent_external_id is not None and str(observed.get("parent_external_id")) != str(parent_external_id)):
+                expected_before = self._expected_live_state(
+                    item,
+                    listing=listing,
+                    product=product,
+                    parent_external_id=parent_external_id,
+                    capabilities=capabilities,
+                )
+                if error or not observed or self._live_evidence_is_unverifiable(observed, expected_before):
                     scopes.append(self._dry_run_block(item, "CHANNEL_STATE_UNVERIFIABLE", observed, expected_before))
+                elif self._live_evidence_drifted(observed, expected_before):
+                    scopes.append(self._dry_run_block(item, "CHANNEL_DRIFT", observed, expected_before))
                 elif values_equal(item.field, observed.get(item.field), item.target_value):
                     scopes.append({"item": item, "disposition": "no_op", "reason": "ALREADY_CURRENT", "observed": observed, "expected": expected_before})
                 elif not values_equal(item.field, observed.get(item.field), item.current_value):
@@ -2234,16 +2368,16 @@ class UnifiedWorkspaceService:
                 channel_id=listing.channel_id,
                 external_primary_id=listing.external_primary_id,
                 sku=listing.sku,
-                product_type=expected.get("productType") or product.product_type,
-                parent_external_id=expected.get("parent"),
+                product_type=expected.get("product_type") or product.product_type,
+                parent_external_id=expected.get("parent_external_id"),
                 current_price=(scope.observed_live_json or {}).get("price"),
                 current_stock=(scope.observed_live_json or {}).get("stock"),
                 current_status=(scope.observed_live_json or {}).get("status"),
                 target_price=(scope.observed_live_json or {}).get("price"),
                 target_stock=(scope.observed_live_json or {}).get("stock"),
                 target_status=(scope.observed_live_json or {}).get("status"),
-                currency=cache.price_currency,
-                unit=cache.price_unit,
+                currency=expected.get("currency"),
+                unit=expected.get("unit"),
                 mapping_version=listing.mapping_version,
                 cache_version=cache.cache_version,
                 cache_checksum=cache.checksum,
@@ -2254,11 +2388,17 @@ class UnifiedWorkspaceService:
             )
             try:
                 result = (await WorkspaceConnectorFactory(ProductPricingService(self.db), CommerceHubService(self.db)).get(listing.channel_id).verify_updates([probe], requested_by=user.username))[0]
-                observed = _canonical_live_evidence(dict((result.response.get("verification") or {}).get("observed") or {}))
+                verification = dict(result.response.get("verification") or {})
+                observed = _canonical_live_evidence(
+                    dict(verification.get("observed") or {})
+                )
+                error = verification.get("error")
             except Exception:
-                observed = {}
-            if not observed:
+                observed, error = {}, {"category": "transport"}
+            if error or not observed or self._live_evidence_is_unverifiable(observed, expected):
                 raise self._conflict("CHANNEL_STATE_UNVERIFIABLE", "Unable to verify current Channel state; restore connectivity and run Dry Run again.")
+            if self._live_evidence_drifted(observed, expected):
+                raise self._conflict("CHANNEL_DRIFT", "Channel changed since Dry Run; run Preview/Dry Run again.")
             if checksum(observed) != scope.live_fingerprint:
                 raise self._conflict("CHANNEL_DRIFT", "Channel changed since Dry Run; run Preview/Dry Run again.")
 
@@ -2632,6 +2772,7 @@ class UnifiedWorkspaceService:
                 raise self._conflict(
                     "MANIFEST_STALE", "Dry Run evidence is no longer valid; run Dry Run again."
                 )
+            self._assert_source_evidence_current(workspace, snapshot)
             pricing_issues = self._pricing_binding_issues_for_review(review)
             if pricing_issues:
                 reason = ";".join(

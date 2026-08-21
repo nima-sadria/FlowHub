@@ -26,6 +26,7 @@ from app.connectors.common.current_state import (
     CurrentStateResult,
     CurrentStateStrategy,
     TransportRecorder,
+    canonical_decimal,
     failed_current_state,
 )
 from app.connectors.common.errors import ConnectorError, ConnectorErrorCode
@@ -230,7 +231,7 @@ class WooCommerceConnector(DestinationConnector):
             payload, _, _ = await list_products_paged(
                 creds,
                 per_page=len(batch),
-                fields="id,regular_price,price,sale_price",
+                fields="id,type,regular_price,price,sale_price",
                 status="any",
                 product_ids=[int(entity.external_id) for entity in batch],
                 transport=recorder,
@@ -360,13 +361,12 @@ class WooCommerceConnector(DestinationConnector):
                 parent_external_id=(
                     str(parent_id) if parent_id is not None else None
                 ),
-                price=_optional_price(item.get("regular_price")),
+                price=canonical_decimal(item.get("regular_price")),
+                product_type=("variation" if parent_id is not None else _product_type(item)),
                 raw=item,
             )
 
 
-def _optional_price(value: object) -> float | None:
-    try:
-        return float(str(value).replace(",", "").strip())
-    except (TypeError, ValueError):
-        return None
+def _product_type(item: dict[str, object]) -> str | None:
+    value = str(item.get("type") or "").strip().lower()
+    return value or None

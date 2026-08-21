@@ -26,6 +26,7 @@ from app.connectors.common.current_state import (
     CurrentStateResult,
     CurrentStateStrategy,
     TransportRecorder,
+    canonical_decimal,
     failed_current_state,
 )
 from app.flowhub.channels.contracts import (
@@ -660,7 +661,7 @@ def _current_state_record(key: str, product: ChannelProduct) -> CurrentStateReco
         provider=product.connector_type,
         external_id=str(product.identifiers.external_product_id or ""),
         parent_external_id=product.identifiers.parent_product_number,
-        price=product.current_price,
+        price=canonical_decimal(product.current_price),
         stock=product.stock_quantity,
         status=product.status,
         currency=product.currency,

@@ -165,6 +165,7 @@ def authoritative_workspace_live_read(monkeypatch):
                     "provider": "woocommerce",
                     "external_id": str(update.external_primary_id),
                     "parent_external_id": update.parent_external_id,
+                    "product_type": update.product_type,
                     "price": update.current_price,
                     "stock": update.current_stock,
                     "status": update.current_status,

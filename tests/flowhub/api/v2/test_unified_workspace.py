@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, update
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -115,6 +115,7 @@ def authoritative_workspace_live_read(monkeypatch):
                     "provider": "woocommerce",
                     "external_id": str(update.external_primary_id),
                     "parent_external_id": update.parent_external_id,
+                    "product_type": update.product_type,
                     "price": update.current_price,
                     "stock": update.current_stock,
                     "status": update.current_status,
@@ -2681,7 +2682,14 @@ def test_dry_run_uses_targeted_read_creates_manifest_only_after_live_evidence(
             ListingUpdateResult(
                 listing_id=update.listing_id,
                 outcome=WriteOutcome.VERIFIED_APPLIED,
-                response={"verification": {"observed": {"external_id": update.external_primary_id, "parent_external_id": update.parent_external_id, "price": 100.0}}},
+                response={"verification": {"observed": {
+                    "external_id": update.external_primary_id,
+                    "parent_external_id": update.parent_external_id,
+                    "product_type": update.product_type,
+                    "price": "100.00",
+                    "currency": update.currency,
+                    "unit": update.unit,
+                }}},
             )
             for update in updates
         ]
@@ -2709,7 +2717,7 @@ def test_dry_run_uses_targeted_read_creates_manifest_only_after_live_evidence(
     [
         ({"external_id": "101", "parent_external_id": None, "price": 150.0}, "passed", 0, "ALREADY_CURRENT"),
         ({"external_id": "101", "parent_external_id": None, "price": 99.0}, "blocked", 0, "CHANNEL_DRIFT"),
-        ({}, "blocked", 0, "CHANNEL_STATE_UNVERIFIABLE"),
+        (None, "blocked", 0, "CHANNEL_STATE_UNVERIFIABLE"),
     ],
 )
 def test_dry_run_preserves_noops_and_distinguishes_drift_from_unverifiable(
@@ -2723,7 +2731,24 @@ def test_dry_run_preserves_noops_and_distinguishes_drift_from_unverifiable(
     assert client.put(f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection", headers=auth_headers, json={"review_item_ids": [selected["id"]]}).status_code == 200
 
     async def current(_self, updates, *, requested_by):
-        return [ListingUpdateResult(listing_id=update.listing_id, outcome=WriteOutcome.RECONCILIATION_REQUIRED, response={"verification": {"observed": observed}}) for update in updates]
+        return [
+            ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                response={"verification": {"observed": (
+                    None if observed is None else {
+                        "external_id": update.external_primary_id,
+                        "parent_external_id": update.parent_external_id,
+                        "product_type": update.product_type,
+                        "price": update.current_price,
+                        "currency": update.currency,
+                        "unit": update.unit,
+                        **observed,
+                    }
+                )}},
+            )
+            for update in updates
+        ]
 
     monkeypatch.setattr("app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.verify_updates", current)
     response = client.post(f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run", headers=auth_headers)
@@ -2734,3 +2759,249 @@ def test_dry_run_preserves_noops_and_distinguishes_drift_from_unverifiable(
     assert body["writeCount"] == expected_writes
     assert body["scopes"][0]["reason"] == expected_reason
     assert "manifestId" not in body
+
+
+def _bind_workspace_to_sheet_source(db, workspace_id: str, user_id: int = 1):
+    """Attach a manual test Workspace to exact, mutable sheet authority."""
+    from app.flowhub.source_workspace.models import (
+        FlowHubSheet,
+        SheetRevision,
+        SourceMappingRevision,
+        SourceProfile,
+    )
+    from app.flowhub.unified_workspace.models import (
+        UnifiedWorkspace,
+        WorkspaceSnapshot,
+        WorkspaceSourceBinding,
+    )
+
+    source = SourceProfile(
+        id=str(uuid.uuid4()), name="Phase B Source", source_kind="flowhub_sheet",
+        worksheet_mode="selected", worksheet_name="Prices", data_start_row=2,
+        status="active", version=1, owner_user_id=user_id,
+    )
+    sheet = FlowHubSheet(
+        id=str(uuid.uuid4()), source_id=source.id, name="Prices", current_version=1,
+        owner_user_id=user_id,
+    )
+    revision = SheetRevision(
+        id=str(uuid.uuid4()), sheet_id=sheet.id, version=1, checksum="s" * 64,
+        formula_engine_version="test", row_count=1, column_count=2,
+        created_by_user_id=user_id,
+    )
+    mapping = SourceMappingRevision(
+        id=str(uuid.uuid4()), source_id=source.id, version=1, checksum="m" * 64,
+        worksheet_mode="selected", worksheet_name="Prices", data_start_row=2,
+        value_policy_json={}, identity_authority_json={}, identity_policy_version=1,
+        created_by_user_id=user_id,
+    )
+    db.add_all([
+        source, sheet, revision, mapping,
+        WorkspaceSourceBinding(
+            workspace_id=workspace_id, source_id=source.id, source_version=1,
+            bound_by_user_id=user_id,
+        ),
+    ])
+    db.flush()
+    db.execute(
+        update(UnifiedWorkspace)
+        .where(UnifiedWorkspace.id == workspace_id)
+        .values(entry_point="source", source_type="flowhub_sheet")
+    )
+    db.execute(
+        update(WorkspaceSnapshot)
+        .where(WorkspaceSnapshot.workspace_id == workspace_id)
+        .values(source_metadata_json={
+            "source_id": source.id,
+            "source_version": 1,
+            "mapping_revision_id": mapping.id,
+            "mapping_checksum": mapping.checksum,
+            "sheet_revision_id": revision.id,
+            "sheet_revision_checksum": revision.checksum,
+        })
+    )
+    db.commit()
+    return sheet
+
+
+def test_dry_run_blocks_changed_source_sheet_without_provider_dispatch(
+    client, auth_headers, db, monkeypatch
+):
+    workspace, review = _saved_review(client, auth_headers, db)
+    sheet = _bind_workspace_to_sheet_source(db, workspace["id"])
+    sheet.current_version = 2
+    db.commit()
+    writes: list[str] = []
+
+    async def forbidden_write(_self, updates, *, requested_by):
+        writes.extend(update.listing_id for update in updates)
+        return []
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates",
+        forbidden_write,
+    )
+    item = review["items"][0]
+    assert client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers, json={"review_item_ids": [item["id"]]},
+    ).status_code == 200
+    blocked = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run",
+        headers=auth_headers,
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"]["code"] == "SOURCE_CHANGED"
+    assert writes == []
+
+
+def test_apply_blocks_changed_source_sheet_after_dry_run_without_dispatch(
+    client, auth_headers, db, monkeypatch
+):
+    workspace, review = _saved_review(client, auth_headers, db)
+    sheet = _bind_workspace_to_sheet_source(db, workspace["id"])
+    item = review["items"][0]
+    confirmed = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]]).json()
+    sheet.current_version = 2
+    db.commit()
+    writes: list[str] = []
+
+    async def forbidden_write(_self, updates, *, requested_by):
+        writes.extend(update.listing_id for update in updates)
+        return []
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates",
+        forbidden_write,
+    )
+    blocked = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "source-changed-before-apply"},
+        json={
+            "review_id": review["id"],
+            "expected_selection_checksum": confirmed["selectionChecksum"],
+            "manifest_id": confirmed["manifestId"],
+            "expected_manifest_checksum": confirmed["manifestChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"]["code"] == "SOURCE_CHANGED"
+    assert writes == []
+
+
+@pytest.mark.parametrize(
+    ("override", "missing", "reason"),
+    [
+        ({"product_type": "variation"}, None, "CHANNEL_DRIFT"),
+        ({"parent_external_id": "parent-1"}, None, "CHANNEL_DRIFT"),
+        ({"currency": "USD"}, None, "CHANNEL_DRIFT"),
+        ({"unit": "RIAL"}, None, "CHANNEL_DRIFT"),
+        ({}, "product_type", "CHANNEL_STATE_UNVERIFIABLE"),
+        ({}, "price", "CHANNEL_STATE_UNVERIFIABLE"),
+    ],
+)
+def test_dry_run_blocks_incomplete_or_changed_live_pricing_evidence(
+    client, auth_headers, db, monkeypatch, override, missing, reason
+):
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    assert client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers, json={"review_item_ids": [item["id"]]},
+    ).status_code == 200
+    writes: list[str] = []
+
+    async def observed(_self, updates, *, requested_by):
+        result = []
+        for candidate in updates:
+            evidence = {
+                "external_id": candidate.external_primary_id,
+                "parent_external_id": candidate.parent_external_id,
+                "product_type": candidate.product_type,
+                "price": "100.0000000000000001",
+                "currency": candidate.currency,
+                "unit": candidate.unit,
+                **override,
+            }
+            if missing:
+                evidence.pop(missing)
+            result.append(ListingUpdateResult(
+                listing_id=candidate.listing_id,
+                outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+                response={"verification": {"observed": evidence}},
+            ))
+        return result
+
+    async def forbidden_write(_self, updates, *, requested_by):
+        writes.extend(update.listing_id for update in updates)
+        return []
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.verify_updates", observed
+    )
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates", forbidden_write
+    )
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "blocked"
+    assert response.json()["scopes"][0]["reason"] == reason
+    assert "manifestId" not in response.json()
+    from app.flowhub.unified_workspace.models import DryRunScope
+
+    persisted = db.query(DryRunScope).filter_by(dry_run_id=response.json()["id"]).one()
+    assert persisted is not None
+    if missing:
+        assert missing not in persisted.observed_live_json
+    else:
+        assert persisted.observed_live_json["price"] == "100.0000000000000001"
+    assert writes == []
+
+
+def test_apply_post_lock_timeout_is_unverifiable_and_never_dispatches(
+    client, auth_headers, db, monkeypatch
+):
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    item = review["items"][0]
+    confirmed = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]]).json()
+    reads = 0
+    writes: list[str] = []
+
+    async def timeout_after_dry_run(_self, updates, *, requested_by):
+        nonlocal reads
+        reads += 1
+        return [ListingUpdateResult(
+            listing_id=update.listing_id,
+            outcome=WriteOutcome.RECONCILIATION_REQUIRED,
+            response={"verification": {"observed": None, "error": {"category": "timeout"}}},
+        ) for update in updates]
+
+    async def forbidden_write(_self, updates, *, requested_by):
+        writes.extend(update.listing_id for update in updates)
+        return []
+
+    monkeypatch.setattr("app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.verify_updates", timeout_after_dry_run)
+    monkeypatch.setattr("app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates", forbidden_write)
+    blocked = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+        headers={**auth_headers, "Idempotency-Key": "post-lock-timeout"},
+        json={
+            "review_id": review["id"], "expected_selection_checksum": confirmed["selectionChecksum"],
+            "manifest_id": confirmed["manifestId"], "expected_manifest_checksum": confirmed["manifestChecksum"],
+            "confirmed": True,
+        },
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"]["code"] == "CHANNEL_STATE_UNVERIFIABLE"
+    assert reads == 1
+    assert writes == []

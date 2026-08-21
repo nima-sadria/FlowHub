@@ -470,6 +470,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
 
     expect(container.querySelector('[data-pricing-apply]')).toBeNull()
     expect(container.textContent).not.toContain('Confirm selected Apply')
+    expect(container.querySelector('[data-dry-run-status]')).toBeNull()
     expect(container.querySelector<HTMLButtonElement>('[data-products-save]')?.disabled).toBe(false)
   })
 
