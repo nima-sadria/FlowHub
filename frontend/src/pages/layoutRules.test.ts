@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 const primaryPages = [
   'Dashboard.tsx',
   'Products.tsx',
+  'Workspace.tsx',
   'CommerceHub.tsx',
   'Activity.tsx',
   'DataQuality.tsx',

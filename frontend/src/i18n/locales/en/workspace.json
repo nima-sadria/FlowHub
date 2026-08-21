@@ -369,5 +369,10 @@
   "workspace.actions.missingProduct": "Create or map this product in WooCommerce, then run Preview again.",
   "workspace.actions.duplicateSku": "Keep one authoritative row in the selected worksheet or correct the SKU.",
   "workspace.actions.missingIdentifier": "Fill the mapped Source Product Key or SKU column for this row.",
-  "workspace.actions.invalidPrice": "Enter a valid source price or exclude the row from the pricing workflow."
+  "workspace.actions.invalidPrice": "Enter a valid source price or exclude the row from the pricing workflow.",
+  "reconciliation.subtitle": "Automated Source-to-Channel pricing reconciliation.",
+  "reconciliation.pricingWorkspace": "Pricing workspace",
+  "reconciliation.workspaceUnavailableHttp": "Workspace unavailable (HTTP {{status}}).",
+  "reconciliation.noEligibleSourceProducts": "No eligible Source products are available for reconciliation yet.",
+  "reconciliation.workspaceUnavailable": "Workspace unavailable"
 }
