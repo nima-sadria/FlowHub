@@ -24,6 +24,42 @@ and Phase 4 (docs/permissions/e2e) remain outstanding. P2 items (P2-1
 through P2-4) remain planning-only pending Owner priority/timing
 confirmation, as originally scoped.
 
+**e2e note (found during Phase 1/2 verification, 2026-08-22):** the CI
+`frontend` job only runs the `@browser-benchmark`-tagged e2e test by
+default; the broader Playwright suite (`e2e/source-centric-workspace.spec.ts`,
+`e2e/source-channel-ordering.spec.ts`, `e2e/unified-workspace-apply-visual.spec.ts`,
+`e2e/unified-workspace-performance.spec.ts`) is not CI-gated. All four
+files contained stale `page.goto('/workspace/<id>')` navigations that
+depended on the now-removed `LegacyWorkspaceRedirect` bounce to
+`/products?workspace=<id>`; these were updated to navigate directly to
+`/workspace?workspace=<id>`, matching the real Phase 1 page, and the
+CI-gating `@browser-benchmark` test plus 4 other previously-broken-by-this-
+work tests were verified passing locally after the fix. Beyond that,
+**8 pre-existing failures were found and confirmed unrelated to this
+work** via direct comparison against `origin/main` at `1f04c90` (the
+commit immediately before this entire reconciliation engagement began,
+reproduced in an isolated `git worktree`):
+- 5 tests across `source-centric-workspace.spec.ts` (2) and
+  `unified-workspace-apply-visual.spec.ts` (3) fail on
+  `getByRole('dialog'/'heading', { name: 'Review Changes' })` never
+  appearing after a Save click — reproduced identically at `1f04c90`,
+  before any Products/Workspace work in this engagement.
+- 1 test (`source-centric-workspace.spec.ts`) expects a Source
+  configuration tab literally named "Worksheet rules"; the live page
+  renders "Worksheet discovery" and "Choose participating worksheets"
+  instead — a stale label, unrelated to routing.
+- 2 tests (`source-channel-ordering.spec.ts`) fail on a Channel
+  "connected" resource-section grouping assertion, at a point in the test
+  before any Workspace/Products navigation occurs.
+
+None of these were introduced by this reconciliation; left untouched as
+genuinely out of scope, consistent with this project's existing practice
+of investigating and disclosing pre-existing failures rather than masking
+or silently fixing them inline (see `WORKSPACE_GAP_ANALYSIS.md`'s
+pre-existing-failures section for the same pattern applied to the backend
+suite). Recommend a dedicated e2e-suite maintenance pass, separate from
+Workspace/Products architecture work.
+
 Based on `WORKSPACE_RECONCILIATION_AUDIT_2026-08-22.md`.
 
 ---

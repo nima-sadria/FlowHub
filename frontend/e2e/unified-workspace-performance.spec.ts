@@ -178,10 +178,10 @@ test('@browser-benchmark bounds a paginated 10,000-product, five-channel Workspa
       && url.searchParams.get('page') === '1'
       && !url.searchParams.has('search')
   })
-  await page.goto('/workspace/browser-benchmark', { waitUntil: 'domcontentloaded' })
+  await page.goto('/workspace?workspace=browser-benchmark', { waitUntil: 'domcontentloaded' })
   expect((await workspaceResponse).status()).toBe(200)
   expect((await firstPageResponse).status()).toBe(200)
-  await expect(page).toHaveURL('/products?workspace=browser-benchmark')
+  await expect(page).toHaveURL('/workspace?workspace=browser-benchmark')
   await expect(page.locator('[data-products-table]')).toBeVisible({ timeout: 30_000 })
   const readyMs = Math.round(performance.now() - started)
   const initialProducts = await page.locator('[data-product-group]').count()
@@ -368,8 +368,8 @@ test('keeps visible Listing identity through filter, paging, keyboard and paste'
     return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
   })
 
-  await page.goto('/workspace/identity-workspace')
-  await expect(page).toHaveURL('/products?workspace=identity-workspace')
+  await page.goto('/workspace?workspace=identity-workspace')
+  await expect(page).toHaveURL('/workspace?workspace=identity-workspace')
   await expect(page.locator('[data-products-table]')).toBeVisible()
   const betaTarget = page.locator('input[data-listing-id="listing-b"][data-target-field="price"]')
   await expect(betaTarget).toBeVisible()
