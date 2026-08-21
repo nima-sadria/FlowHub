@@ -551,6 +551,16 @@ def values_equal(field: str, current: object, target: object) -> bool:
         except InvalidOperation:
             return False
         return left.is_finite() and right.is_finite() and left == right
+    if field == "status":
+        canonical_status = {
+            "instock": "in_stock",
+            "outofstock": "out_of_stock",
+            "in_stock": "in_stock",
+            "out_of_stock": "out_of_stock",
+        }
+        return canonical_status.get(canonical_text(current).casefold()) == canonical_status.get(
+            canonical_text(target).casefold()
+        )
     return canonical_text(current).casefold() == canonical_text(target).casefold()
 
 

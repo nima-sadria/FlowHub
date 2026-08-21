@@ -1,7 +1,8 @@
 """WooCommerce Write Pipeline adapter.
 
-This is the only WooCommerce-specific write adapter registered for FlowHub
-1.0.0. It supports price updates only and accepts no stock payload fields.
+This is the only WooCommerce-specific write adapter registered for FlowHub.
+It executes the exact governed price, quantity, and stock-status fields from
+an immutable Workspace intent.
 """
 
 from __future__ import annotations
@@ -40,7 +41,7 @@ class WooCommercePriceWriteAdapter:
             channel_type=self.channel_type,
             channel_ids=(self.channel_id,),
             operation_types=(self.operation_type,),
-            stock_write_supported=False,
+            stock_write_supported=True,
             scheduler_supported=False,
             automatic_apply_supported=False,
         )
@@ -58,9 +59,11 @@ class WooCommercePriceWriteAdapter:
         self, item: WriteItemContract, context: ChannelWriteContext
     ) -> dict[str, object]:
         connector = await self._connected_connector(context)
-        result = await connector.update_price(
+        result = await connector.update_fields(
             int(item.channel_product_id),
-            item.proposed_price,
+            price=getattr(item, "proposed_price", None),
+            stock_quantity=getattr(item, "proposed_stock", None),
+            stock_status=getattr(item, "proposed_stock_status", None),
             parent_product_id=_parent_product_id(item),
         )
         return {str(key): value for key, value in result.items()}

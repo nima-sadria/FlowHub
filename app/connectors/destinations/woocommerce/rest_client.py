@@ -19,7 +19,7 @@ Supported operations:
   - list_orders_paged()  - paginated read-only order fetch
   - get_order()          - read one order
   - count_products()     - total product count from X-WP-Total header
-  - update_product_price()- PUT /wp-json/wc/v3/products/{id} price fields only
+  - update_product_fields()- PUT /wp-json/wc/v3/products/{id} governed price/inventory fields
 """
 from __future__ import annotations
 
@@ -639,18 +639,32 @@ async def get_variation(creds: WooCommerceCredentials, product_id: int, variatio
     return data if isinstance(data, dict) else {}
 
 
-async def update_product_price(
+async def update_product_fields(
     creds: WooCommerceCredentials,
     product_id: int,
-    price: float,
     *,
+    price: float | None = None,
+    stock_quantity: int | None = None,
+    stock_status: str | None = None,
     parent_product_id: int | None = None,
 ) -> dict:
-    """Update only regular_price for a WooCommerce product or variation.
+    """Update only the governed WooCommerce price/inventory fields.
 
-    Stock and inventory fields are intentionally not accepted by this adapter.
+    ``manage_stock`` is a necessary WooCommerce transport adjunct for a
+    quantity write; it is not an independently selected business operation.
     """
-    normalized = f"{price:.2f}"
+    payload: dict[str, object] = {}
+    if price is not None:
+        payload["regular_price"] = f"{price:.2f}"
+    if stock_quantity is not None:
+        payload["manage_stock"] = True
+        payload["stock_quantity"] = stock_quantity
+    if stock_status is not None:
+        if stock_status not in {"instock", "outofstock"}:
+            raise ValueError("WooCommerce stock status must be instock or outofstock.")
+        payload["stock_status"] = stock_status
+    if not payload:
+        raise ValueError("WooCommerce update requires at least one governed field.")
     path = (
         f"/products/{parent_product_id}/variations/{product_id}"
         if parent_product_id is not None
@@ -659,13 +673,25 @@ async def update_product_price(
     result = await _put(
         creds,
         path,
-        {"regular_price": normalized},
+        payload,
     )
     return {
         "provider": "woocommerce",
         "product_id": result.get("id", product_id) if isinstance(result, dict) else product_id,
         "parent_product_id": parent_product_id,
         "variation_id": product_id if parent_product_id is not None else None,
-        "regular_price": result.get("regular_price", normalized) if isinstance(result, dict) else normalized,
-        "stock_update": False,
+        "regular_price": result.get("regular_price") if isinstance(result, dict) else None,
+        "stock_quantity": result.get("stock_quantity") if isinstance(result, dict) else None,
+        "stock_status": result.get("stock_status") if isinstance(result, dict) else None,
+        "fields": sorted(payload),
+        "stock_update": bool(stock_quantity is not None or stock_status is not None),
     }
+
+
+async def update_product_price(
+    creds: WooCommerceCredentials, product_id: int, price: float, *, parent_product_id: int | None = None
+) -> dict:
+    """Compatibility wrapper for legacy price-only callers."""
+    return await update_product_fields(
+        creds, product_id, price=price, parent_product_id=parent_product_id
+    )

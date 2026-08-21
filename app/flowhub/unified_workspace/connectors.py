@@ -122,9 +122,9 @@ class WooCommerceWorkspaceConnector:
             read_price=True,
             write_price=True,
             read_stock=True,
-            write_stock=False,
+            write_stock=True,
             read_status=True,
-            write_status=False,
+            write_status=True,
             supports_bulk_update=False,
             supports_partial_update=True,
             supports_multiple_listings=False,
@@ -136,11 +136,11 @@ class WooCommerceWorkspaceConnector:
             if self.pricing.config.get("woocommerce.url")
             else "unconfigured",
             primary_identifier_type="woocommerce_product_id",
-            supported_statuses=("publish", "draft", "private"),
+            supported_statuses=("instock", "outofstock"),
             currency=currency,
             unit=unit,
             write_available=True,
-            version="uw-1.2",
+            version="uw-1.3-stock",
             mapping_required_fields=("external_id",),
         )
 
@@ -150,8 +150,8 @@ class WooCommerceWorkspaceConnector:
             ProductWritePolicy(
                 channel_name="WooCommerce",
                 write_price=True,
-                write_stock=False,
-                require_price=True,
+                write_stock=True,
+                write_status=True,
                 numeric_identifier=True,
             ),
         )
@@ -215,7 +215,7 @@ class WooCommerceWorkspaceConnector:
         state = await _fetch_current_state(
             adapter,
             _current_state_request(
-                self.channel_id, successful, required_fields={"price"}
+                self.channel_id, successful, required_fields=_governed_fields(successful)
             ),
             context=context,
             strategy=CurrentStateStrategy.BATCH_BY_ID,
@@ -915,7 +915,15 @@ def _governed_fields(updates: Sequence[ListingUpdateLike]) -> set[str]:
 
     fields: set[str] = set()
     for update in updates:
-        fields.update(getattr(update, "governed_fields", ()) or ())
+        explicit = getattr(update, "governed_fields", ()) or ()
+        fields.update(explicit)
+        if not explicit:
+            if getattr(update, "target_price", None) is not None:
+                fields.add("price")
+            if getattr(update, "target_stock", None) is not None:
+                fields.add("stock")
+            if getattr(update, "target_status", None) is not None:
+                fields.add("status")
     return fields or {"price", "stock", "status"}
 
 
@@ -1018,17 +1026,22 @@ def _woocommerce_state_matches(
         if update.product_type == "variation" and update.parent_external_id is not None
         else None
     )
-    expected_price = canonical_decimal(update.target_price)
-    return bool(
+    if not (
         record is not None
         and record.provider == "woocommerce"
         and record.external_id == update.external_primary_id
         and record.parent_external_id == expected_parent
-        and record.product_type == update.product_type
-        and record.price is not None
-        and expected_price is not None
-        and record.price == expected_price
-    )
+        and (record.product_type is None or record.product_type == update.product_type)
+    ):
+        return False
+    fields = _governed_fields((update,))
+    if "price" in fields and record.price != canonical_decimal(update.target_price):
+        return False
+    if "stock" in fields and record.stock != update.target_stock:
+        return False
+    if "status" in fields and record.status != _woo_stock_status(update.target_status):
+        return False
+    return True
 
 
 def _snappshop_state_matches(
@@ -1076,11 +1089,20 @@ def _technolife_state_matches(
 class _WooWriteItem:
     def __init__(self, update: ListingUpdateLike) -> None:
         self.channel_product_id = update.external_primary_id
-        self.proposed_price = float(update.target_price or 0)
+        self.proposed_price = float(update.target_price) if update.target_price is not None else None
+        self.proposed_stock = int(update.target_stock) if update.target_stock is not None else None
+        self.proposed_stock_status = _woo_stock_status(update.target_status)
         self.pre_write_snapshot_json: dict[str, object] = {
             "item_type": update.product_type,
             "parent_product_id": update.parent_external_id,
         }
+
+
+def _woo_stock_status(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip().casefold()
+    return {"in_stock": "instock", "out_of_stock": "outofstock", "instock": "instock", "outofstock": "outofstock"}.get(normalized)
 
 
 def _response_id(response: dict[str, object]) -> str | None:
