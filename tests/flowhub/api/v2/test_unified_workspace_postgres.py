@@ -551,7 +551,10 @@ def test_selection_replacement_racing_dry_run_invalidates_the_persisted_evidence
                 response={"verification": {"observed": {
                     "external_id": str(update.external_primary_id),
                     "parent_external_id": update.parent_external_id,
+                    "product_type": update.product_type,
                     "price": update.current_price,
+                    "currency": update.currency,
+                    "unit": update.unit,
                 }}},
             )
             for update in updates
@@ -645,7 +648,10 @@ def test_apply_racing_replaced_dry_run_never_dispatches_the_old_manifest(
                 response={"verification": {"observed": {
                     "external_id": str(update.external_primary_id),
                     "parent_external_id": update.parent_external_id,
+                    "product_type": update.product_type,
                     "price": update.current_price,
+                    "currency": update.currency,
+                    "unit": update.unit,
                 }}},
             )
             for update in updates
