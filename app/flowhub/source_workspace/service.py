@@ -107,6 +107,7 @@ from app.flowhub.unified_workspace.domain import (
     ReviewState,
     SourceInstruction,
     checksum,
+    default_monetary_precision,
     normalize_direct_price,
     normalize_quantity,
     normalize_stock_status,
@@ -5114,10 +5115,20 @@ class SourceWorkspaceService:
         unit = str(capabilities.get("unit") or cache.price_unit or "").upper() or None
         channel_policy = dict(policy.get("channel_price_policies") or {}).get(channel.id, {})
         is_rial_or_toman = currency == "IRR" and unit in {"RIAL", "TOMAN"}
-        # Current architecture has a declared zero-decimal IRR unit contract.
-        # Other currencies must carry an explicit precision in channel
-        # capability evidence before direct Source Price can be classified.
-        precision = 0 if is_rial_or_toman else capabilities.get("monetaryPrecision")
+        # RIAL/TOMAN has a declared zero-decimal contract. Every other
+        # currency uses an explicit Channel-declared precision override when
+        # present, otherwise the canonical ISO 4217 standard minor-unit
+        # default (see default_monetary_precision) -- not an invented guess,
+        # and not an unconditional block for the common case of an
+        # unconfigured but perfectly ordinary currency like EUR/USD.
+        explicit_precision = capabilities.get("monetaryPrecision")
+        precision = (
+            0
+            if is_rial_or_toman
+            else explicit_precision
+            if isinstance(explicit_precision, int)
+            else default_monetary_precision(currency)
+        )
         price = normalize_direct_price(
             fields.get("price"),
             currency=currency,

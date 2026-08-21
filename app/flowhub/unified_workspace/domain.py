@@ -202,6 +202,35 @@ def _decimal_from_lexeme(raw: object) -> tuple[str | None, Decimal | None, str |
     return lexeme, value, None
 
 
+# ISO 4217 minor-unit (decimal-place) exponents. This is the canonical,
+# versioned default monetary precision contract for any currency without an
+# explicit Channel-declared override (`capabilities["monetaryPrecision"]`).
+# RIAL/TOMAN are handled separately (always 0, see is_rial_or_toman below)
+# and are not part of this table. Every other ISO 4217 currency not listed
+# here uses the standard two-decimal default.
+_ISO_4217_ZERO_DECIMAL_CURRENCIES = frozenset(
+    {
+        "BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "PYG",
+        "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF",
+    }
+)
+_ISO_4217_THREE_DECIMAL_CURRENCIES = frozenset(
+    {"BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"}
+)
+MONETARY_PRECISION_CONTRACT_VERSION = "iso4217-v1"
+
+
+def default_monetary_precision(currency: str | None) -> int:
+    """Return the ISO 4217 standard decimal-place count for `currency`."""
+
+    code = canonical_text(currency).upper()
+    if code in _ISO_4217_ZERO_DECIMAL_CURRENCIES:
+        return 0
+    if code in _ISO_4217_THREE_DECIMAL_CURRENCIES:
+        return 3
+    return 2
+
+
 def normalize_direct_price(
     raw: object,
     *,

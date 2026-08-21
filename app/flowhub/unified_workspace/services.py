@@ -1902,6 +1902,59 @@ class UnifiedWorkspaceService:
                 "ruleset": VALIDATION_VERSION,
             }
         )
+        # Attach the same immutable per-Listing change classification the grid
+        # shows (price/quantity/stock-status/warnings/eligibility) to every
+        # ReviewItem for that Listing, so the Review dialog can render the
+        # identical badges the Owner already saw in Preview instead of raw
+        # current/target pairs (see WORKSPACE_PHASE_B_CHANGE_BADGES_PLAN.md
+        # section 4, "Presentation scope and lifecycle").
+        prepared_by_listing: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for item in prepared:
+            prepared_by_listing[item["change"].listing_id].append(item)
+        snapshot_rows_by_listing = {
+            row.listing_id: row
+            for row in self.db.query(SnapshotRow)
+            .filter(
+                SnapshotRow.snapshot_id == snapshot.id,
+                SnapshotRow.listing_id.in_(review_listing_ids),
+            )
+            .all()
+        }
+        for listing_id, listing_items in prepared_by_listing.items():
+            cache = review_caches.get(listing_id)
+            snapshot_row = snapshot_rows_by_listing.get(listing_id)
+            classification = None
+            if cache is not None and snapshot_row is not None:
+                source_classification = (
+                    snapshot_row.normalized_data_json.get("change_classification") or {}
+                )
+                source_targets = snapshot_row.normalized_data_json.get("targets") or {}
+                changes_for_listing = {
+                    item["change"].field: item["change"] for item in listing_items
+                }
+                fields: dict[str, dict[str, Any]] = {}
+                for field in ("price", "stock", "status"):
+                    current = self._current_value(cache, field)
+                    change_for_field = changes_for_listing.get(field)
+                    target = (
+                        change_for_field.target_value
+                        if change_for_field
+                        else source_targets.get(field, current)
+                    )
+                    fields[field] = {
+                        "current": current,
+                        "target": target,
+                        "changed": bool(
+                            target is not None and not values_equal(field, current, str(target))
+                        ),
+                    }
+                row_blocked = any(item["errors"] for item in listing_items)
+                classification = self._change_badge_shape(
+                    source_classification, fields, row_blocked=row_blocked
+                )
+            for item in listing_items:
+                item["classification"] = classification
+
         eligible_count = sum(1 for item in prepared if item["eligible"])
         # A row-safety count distinct from eligible_count: eligible_count
         # requires "not unchanged" (it is an actionability/selection gate,
@@ -1954,7 +2007,10 @@ class UnifiedWorkspaceService:
                 field=change.field,
                 current_value=item["current"],
                 target_value=change.target_value,
-                normalized_value_json=item["normalized"],
+                normalized_value_json={
+                    **item["normalized"],
+                    "changeClassification": item["classification"],
+                },
                 payload_summary_json={"field": change.field, "target": change.target_value},
                 validation_state="error"
                 if item["errors"]
@@ -2467,6 +2523,7 @@ class UnifiedWorkspaceService:
                     "current": item.current_value,
                     "target": item.target_value,
                     "normalized": item.normalized_value_json,
+                    "changeClassification": item.normalized_value_json.get("changeClassification"),
                     "validationState": item.validation_state,
                     "warnings": item.warnings_json,
                     "errors": item.errors_json,
@@ -4860,25 +4917,40 @@ class UnifiedWorkspaceService:
         if not isinstance(field_evidence, dict):
             return None
 
-        def numeric_state(field: str, unchanged: str) -> dict[str, Any]:
+        def numeric_state(field: str, unchanged: str, *, with_percentage: bool = False) -> dict[str, Any]:
             evidence = field_evidence.get(field) or {}
             target, current = fields[field].get("target"), fields[field].get("current")
             if evidence.get("instruction") != "SET" or target is None:
                 return {"state": "NO_VALID_PRICE" if field == "price" else "UNMANAGED"}
             try:
-                delta = Decimal(str(target)) - Decimal(str(current))
+                target_decimal = Decimal(str(target))
+                current_decimal = Decimal(str(current))
+                delta = target_decimal - current_decimal
             except Exception:
                 return {"state": "NOT_EVALUATED"}
+            # Percentage delta is exact/unrounded here -- presentation rounding
+            # (two decimals, "<0.01%" for a nonzero magnitude that would round
+            # to zero, "from 0" when current is zero) is a display concern, not
+            # business classification (see plan section 5.2).
+            percentage = (
+                format(delta / current_decimal * 100, "f") if current_decimal != 0 else None
+            )
             if delta == 0:
-                return {"state": unchanged, "current": str(current), "target": str(target), "delta": "0"}
-            return {
+                result = {"state": unchanged, "current": str(current), "target": str(target), "delta": "0"}
+                if with_percentage:
+                    result["percentageDelta"] = "0"
+                return result
+            result = {
                 "state": "INCREASE" if delta > 0 else "DECREASE",
                 "current": str(current),
                 "target": str(target),
                 "delta": format(delta, "f"),
             }
+            if with_percentage:
+                result["percentageDelta"] = percentage
+            return result
 
-        price = numeric_state("price", "UNCHANGED")
+        price = numeric_state("price", "UNCHANGED", with_percentage=True)
         quantity = numeric_state("stock", "UNCHANGED")
         desired = classification.get("desiredStockStatus")
         current_status = str(fields["status"].get("current") or "").casefold()
