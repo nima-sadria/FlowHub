@@ -6,48 +6,72 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
-import type { Product } from '../services/types'
-import type { UnifiedWorkspaceResource } from '../services/unifiedWorkspace/types'
+import type {
+  Product,
+  ProductChannelPriceOperation,
+  ProductChannelPriceStateSet,
+} from '../services/types'
 import Products from './Products'
-
-vi.mock('../features/sourceWorkspace/DensePricingWorkspace', async () => {
-  const React = await import('react')
-  return {
-    default: ({ workspace, initialSearch, displayProfile }: { workspace: UnifiedWorkspaceResource; initialSearch?: string; displayProfile?: { currency: string; unit: string } | null }) => React.createElement(
-      'section',
-      { 'data-inline-pricing-grid': workspace.id, 'data-initial-search': initialSearch, 'data-display-profile': displayProfile ? `${displayProfile.currency}:${displayProfile.unit}` : '' },
-      `Inline pricing ${workspace.id}`,
-    ),
-  }
-})
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+function setInputValue(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+  setter?.call(input, value)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
 const PRODUCT: Product = {
   id: '101', name: 'Cached Product', sku: 'SKU-101', currentPrice: 100, sourcePrice: null,
-  currency: 'EUR', status: 'synced', lastSynced: new Date('2026-07-11T10:00:00Z'),
+  currency: 'EUR', status: 'synced', lastSynced: new Date('2026-08-22T10:00:00Z'),
   categoryNames: ['Default'], productType: 'simple', connectorId: 'woocommerce:primary',
 }
 
-const WORKSPACE: UnifiedWorkspaceResource = {
-  id: 'catalog-workspace', name: 'Pricing workspace', entryPoint: 'manual', ownerUserId: 1,
-  status: 'active', version: 1, snapshot: { id: 'snapshot-1', checksum: 'hash', schemaVersion: '1', createdAt: '2026-07-17T08:00:00Z' },
-  draft: { id: 'draft-1', version: 0, currentRevisionId: null, status: 'draft' }, createdAt: '2026-07-17T08:00:00Z',
+const CHANNEL_STATE: ProductChannelPriceStateSet = {
+  product: { id: '101', name: 'Cached Product', sku: 'SKU-101', productType: 'simple' },
+  version: 'v1',
+  canonical: { label: 'Canonical/business price', value: 100, currency: 'EUR', unit: 'store currency', freshness: 'fresh', lastSyncedAt: null, staleToken: 'canon-1' },
+  channels: [
+    {
+      channelId: 'woocommerce:primary', channelName: 'WooCommerce', connectorType: 'woocommerce',
+      channelProductId: 'wc-101', sku: 'SKU-101', connectionState: 'connected', healthStatus: 'ok',
+      canRead: true, canWrite: true, readOnly: false, writeCapability: 'products.write_price',
+      currentValue: 100, proposedValue: 100, currency: 'EUR', unit: 'EUR', normalizedValue: 100,
+      normalizedCurrency: 'EUR', normalizedUnit: 'EUR', freshness: 'fresh', lastSyncedAt: null,
+      validationState: 'valid', validationMessage: null, pendingChange: false, staleToken: 'wc-token-1',
+    },
+    {
+      channelId: 'snappshop:main', channelName: 'Snapp Shop', connectorType: 'snappshop',
+      channelProductId: '', sku: '', connectionState: 'disconnected', healthStatus: 'unknown',
+      canRead: true, canWrite: false, readOnly: true, writeCapability: 'products.write_price',
+      currentValue: null, proposedValue: null, currency: 'IRR', unit: 'toman', normalizedValue: null,
+      normalizedCurrency: 'IRR', normalizedUnit: 'rial', freshness: 'missing', lastSyncedAt: null,
+      validationState: 'disconnected', validationMessage: 'Channel has no synchronized product row.', pendingChange: false, staleToken: 'missing',
+    },
+  ],
+  dryRunRequired: true,
+  applyRequiresApproval: true,
 }
 
-const SOURCE_WORKSPACE: UnifiedWorkspaceResource = {
-  ...WORKSPACE,
-  id: 'source-workspace',
-  entryPoint: 'source',
-  sourceType: 'flowhub_sheet',
+const OPERATION: ProductChannelPriceOperation = {
+  id: 'mcp_1', productId: '101', sku: 'SKU-101', productName: 'Cached Product',
+  status: 'dry_run_ready', version: 'v1', createdBy: 'owner', approvedBy: null, approvalReason: null,
+  createdAt: '2026-08-22T10:00:00Z', approvedAt: null, appliedAt: null,
+  summary: { total: 1, pending: 1, success: 0, failed: 0, external_write_performed: false },
+  items: [{
+    id: 1, channelId: 'woocommerce:primary', connectorType: 'woocommerce', channelProductId: 'wc-101',
+    sku: 'SKU-101', currentValue: 100, proposedValue: 120, currency: 'EUR', unit: 'EUR',
+    outboundValue: 120, outboundUnit: 'store currency', staleToken: 'wc-token-1', status: 'pending',
+    validationState: 'valid', errorMessage: null, result: {},
+  }],
+  externalWritePerformed: false, applyRequiresApproval: true,
 }
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 
-describe('Products inline pricing entry', () => {
+describe('Products manual Channel editor', () => {
   beforeEach(() => {
-    window.sessionStorage.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -56,150 +80,129 @@ describe('Products inline pricing entry', () => {
   afterEach(() => {
     act(() => root.unmount())
     container.remove()
-    window.sessionStorage.clear()
     vi.restoreAllMocks()
   })
 
-  it('opens the dense pricing grid directly without product pre-selection or navigation', async () => {
-    const createCatalog = vi.fn(async () => WORKSPACE)
+  it('lists cached products directly, without bootstrapping any Workspace', async () => {
     const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
-    await renderProducts(servicesFor({ createCatalog, getProducts }))
-    await waitFor(() => container.querySelector('[data-inline-pricing-grid="catalog-workspace"]') !== null)
+    await renderProducts(servicesFor({ getProducts }))
+    await waitFor(() => container.textContent?.includes('Cached Product') === true)
 
-    expect(createCatalog).toHaveBeenCalledWith('Pricing workspace')
-    expect(container.textContent).not.toContain('Open pricing workspace')
-    expect(container.textContent).not.toContain('Choose a product set first')
-    expect(container.querySelector('input[type="checkbox"]')).toBeNull()
-    expect(window.location.pathname).not.toBe('/workspace/catalog-workspace')
-    expect(getProducts).not.toHaveBeenCalled()
-    await waitFor(() => container.querySelector('[data-display-profile="IRR:TOMAN"]') !== null)
+    expect(getProducts).toHaveBeenCalledWith({ search: '', status: 'all', page: 1, pageSize: 50 })
   })
 
-  it('resumes the immutable manual Workspace supplied by a compatibility redirect', async () => {
-    const getWorkspace = vi.fn(async () => WORKSPACE)
-    const createCatalog = vi.fn(async () => WORKSPACE)
-    await renderProducts(servicesFor({ createCatalog, getWorkspace }), '/products?workspace=catalog-workspace')
-    await waitFor(() => container.querySelector('[data-inline-pricing-grid="catalog-workspace"]') !== null)
-
-    expect(getWorkspace).toHaveBeenCalledWith('catalog-workspace')
-    expect(createCatalog).not.toHaveBeenCalled()
-    expect(window.sessionStorage.getItem('flowhub.products.active_workspace')).toBeNull()
-  })
-
-  it('passes q to the real pricing workspace while preserving other query parameters', async () => {
-    const getWorkspace = vi.fn(async () => WORKSPACE)
-    await renderProducts(
-      servicesFor({ getWorkspace }),
-      '/products?workspace=catalog-workspace&status=active&q=red%20shoe',
-    )
-    await waitFor(() => container.querySelector('[data-inline-pricing-grid="catalog-workspace"]') !== null)
-
-    const grid = container.querySelector('[data-inline-pricing-grid="catalog-workspace"]')
-    expect(grid?.getAttribute('data-initial-search')).toBe('red shoe')
-    expect(getWorkspace).toHaveBeenCalledWith('catalog-workspace')
-  })
-
-  it('embeds a source-entry Workspace on Products without replacing the catalog session', async () => {
-    window.sessionStorage.setItem('flowhub.products.active_workspace', 'catalog-workspace')
-    const getWorkspace = vi.fn(async () => SOURCE_WORKSPACE)
-    const createCatalog = vi.fn(async () => WORKSPACE)
-    await renderProducts(servicesFor({ createCatalog, getWorkspace }), '/products?workspace=source-workspace')
-    await waitFor(() => container.querySelector('[data-inline-pricing-grid="source-workspace"]') !== null)
-
-    expect(getWorkspace).toHaveBeenCalledWith('source-workspace')
-    expect(createCatalog).not.toHaveBeenCalled()
-    expect(window.sessionStorage.getItem('flowhub.products.active_workspace')).toBe('catalog-workspace')
-  })
-
-  it('keeps cached products visible read-only with a precise localized retry when bootstrap fails', async () => {
-    const createCatalog = vi.fn()
-      .mockRejectedValueOnce(new ApiError(502, 'unsafe upstream prose'))
-      .mockResolvedValueOnce(WORKSPACE)
-    await renderProducts(servicesFor({ createCatalog }))
-    await waitFor(() => container.textContent?.includes('Inline pricing is unavailable (HTTP 502)') === true)
-
-    expect(container.textContent).toContain('Cached Product')
-    expect(container.textContent).not.toContain('unsafe upstream prose')
-    expect(container.querySelector('[data-product-id="101"] input')).toBeNull()
-    await click('Retry inline pricing')
-    await waitFor(() => container.querySelector('[data-inline-pricing-grid="catalog-workspace"]') !== null)
-    expect(createCatalog).toHaveBeenCalledTimes(2)
-  })
-
-  it('turns an empty catalog scope into an actionable product-cache state', async () => {
-    const createCatalog = vi.fn().mockRejectedValue(new ApiError(
-      422,
-      'No cached products match the requested catalog scope.',
-      'CATALOG_SCOPE_EMPTY',
-    ))
-    const getProducts = vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 50, configured: true }))
-    await renderProducts(servicesFor({ createCatalog, getProducts }))
-    await waitFor(() => container.textContent?.includes('No products cached for inline pricing') === true)
-
-    expect(container.textContent).toContain('Open Channels and refresh the product cache, then return here.')
-    expect(container.textContent).not.toContain('HTTP 422')
-    expect(container.textContent).not.toContain('Retry inline pricing')
-    await click('Open Channels')
-    await waitFor(() => container.querySelector('[data-channels-route]') !== null)
-  })
-
-  it('keeps ineligible cached rows read-only without presenting the expected empty scope as HTTP 422', async () => {
-    const createCatalog = vi.fn().mockRejectedValue(new ApiError(
-      422,
-      'No cached products match the requested catalog scope.',
-      'CATALOG_SCOPE_EMPTY',
-    ))
+  it('opens the manual channel editor for a selected product without running Source comparison or auto-selection', async () => {
     const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
-    await renderProducts(servicesFor({ createCatalog, getProducts }))
-    await waitFor(() => container.textContent?.includes('No cached products are currently eligible for inline pricing.') === true)
+    const getChannelPrices = vi.fn(async () => CHANNEL_STATE)
+    await renderProducts(servicesFor({ getProducts, getChannelPrices }))
+    await waitFor(() => container.querySelector('[data-open-channel-editor="101"]') !== null)
+    await click('Cached Product')
+    await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
 
-    expect(container.textContent).toContain('Cached Product')
-    expect(container.textContent).toContain('Open Channels')
-    expect(container.textContent).not.toContain('HTTP 422')
-    expect(container.querySelector('[data-product-id="101"] input')).toBeNull()
+    expect(getChannelPrices).toHaveBeenCalledWith('101')
+    expect(container.querySelector('[data-channel-row="woocommerce:primary"]')).not.toBeNull()
+    expect(container.querySelector('[data-channel-row="snappshop:main"]')).not.toBeNull()
   })
 
-  it('uses q in the real cached-product API fallback', async () => {
-    const createCatalog = vi.fn().mockRejectedValue(new ApiError(502, 'unavailable'))
+  it('runs validate -> Dry Run -> Approve -> Apply as an explicit safe-write sequence', async () => {
     const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
-    await renderProducts(servicesFor({ createCatalog, getProducts }), '/products?q=blue%20mug&status=active')
-    await waitFor(() => getProducts.mock.calls.length > 0)
+    const getChannelPrices = vi.fn(async () => CHANNEL_STATE)
+    const validateChannelPrices = vi.fn(async () => CHANNEL_STATE)
+    const createChannelPriceDryRun = vi.fn(async () => OPERATION)
+    const approveChannelPriceOperation = vi.fn(async () => ({ ...OPERATION, status: 'approved' as const }))
+    const applyChannelPriceOperation = vi.fn(async () => ({ ...OPERATION, status: 'applied' as const, externalWritePerformed: true, summary: { ...OPERATION.summary, success: 1, pending: 0 } }))
+    await renderProducts(servicesFor({
+      getProducts, getChannelPrices, validateChannelPrices, createChannelPriceDryRun,
+      approveChannelPriceOperation, applyChannelPriceOperation,
+    }))
+    await waitFor(() => container.querySelector('[data-open-channel-editor="101"]') !== null)
+    await click('Cached Product')
+    await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
 
-    expect(getProducts).toHaveBeenCalledWith({
-      search: 'blue mug',
-      status: 'all',
-      page: 1,
-      pageSize: 50,
+    const input = container.querySelector('[data-channel-row="woocommerce:primary"] input') as HTMLInputElement
+    expect(input).not.toBeNull()
+    await act(async () => { setInputValue(input, '120'); await Promise.resolve() })
+
+    await click('Validate')
+    expect(validateChannelPrices).toHaveBeenCalledWith('101', {
+      version: 'v1',
+      changes: [{ channelId: 'woocommerce:primary', proposedValue: 120, unit: 'EUR', staleToken: 'wc-token-1' }],
     })
+
+    await click('Dry Run')
+    expect(createChannelPriceDryRun).toHaveBeenCalledWith('101', {
+      version: 'v1',
+      changes: [{ channelId: 'woocommerce:primary', proposedValue: 120, unit: 'EUR', staleToken: 'wc-token-1' }],
+    })
+    await waitFor(() => container.textContent?.includes('dry_run_ready') === true)
+
+    await click('Approve')
+    expect(approveChannelPriceOperation).toHaveBeenCalledWith('mcp_1')
+    await waitFor(() => container.textContent?.includes('approved') === true)
+
+    await click('Apply')
+    expect(applyChannelPriceOperation).toHaveBeenCalledWith('mcp_1')
+    await waitFor(() => container.textContent?.includes('applied') === true)
+  })
+
+  it('surfaces a stale-conflict as a distinct, reloadable state instead of a generic error', async () => {
+    const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
+    const getChannelPrices = vi.fn(async () => CHANNEL_STATE)
+    const createChannelPriceDryRun = vi.fn(async () => {
+      throw new ApiError(409, 'changed', 'STALE_CHANNEL_PRICE_STATE')
+    })
+    await renderProducts(servicesFor({ getProducts, getChannelPrices, createChannelPriceDryRun }))
+    await waitFor(() => container.querySelector('[data-open-channel-editor="101"]') !== null)
+    await click('Cached Product')
+    await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
+
+    const input = container.querySelector('[data-channel-row="woocommerce:primary"] input') as HTMLInputElement
+    await act(async () => { setInputValue(input, '120'); await Promise.resolve() })
+    await click('Dry Run')
+    await waitFor(() => container.textContent?.includes('Try again') === true)
+    expect(container.textContent).not.toContain('"code"')
+
+    const callsBeforeRetry = getChannelPrices.mock.calls.length
+    await click('Try again')
+    await waitFor(() => getChannelPrices.mock.calls.length > callsBeforeRetry)
+  })
+
+  it('renders a not-configured state without any product source', async () => {
+    const getProducts = vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 50, configured: false }))
+    await renderProducts(servicesFor({ getProducts }))
+    await waitFor(() => container.textContent?.includes('No product connector configured') === true)
   })
 })
 
 async function renderProducts(services: Services, initialPath = '/products') {
   await act(async () => {
-    root.render(<StrictMode><MemoryRouter initialEntries={[initialPath]}><NotificationProvider><ServiceProvider services={services}><Routes><Route path="/products" element={<Products />} /><Route path="/channels" element={<span data-channels-route>Channels route</span>} /></Routes></ServiceProvider></NotificationProvider></MemoryRouter></StrictMode>)
+    root.render(<StrictMode><MemoryRouter initialEntries={[initialPath]}><NotificationProvider><ServiceProvider services={services}><Routes><Route path="/products" element={<Products />} /></Routes></ServiceProvider></NotificationProvider></MemoryRouter></StrictMode>)
     await Promise.resolve()
   })
 }
 
 function servicesFor(overrides: {
-  createCatalog?: ReturnType<typeof vi.fn>
-  getWorkspace?: ReturnType<typeof vi.fn>
   getProducts?: ReturnType<typeof vi.fn>
+  getChannelPrices?: ReturnType<typeof vi.fn>
+  validateChannelPrices?: ReturnType<typeof vi.fn>
+  createChannelPriceDryRun?: ReturnType<typeof vi.fn>
+  approveChannelPriceOperation?: ReturnType<typeof vi.fn>
+  applyChannelPriceOperation?: ReturnType<typeof vi.fn>
 } = {}): Services {
   return {
     products: {
       getProducts: overrides.getProducts ?? vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true })),
       async getCategories() { return [] },
       async getProduct() { return PRODUCT },
+      getChannelPrices: overrides.getChannelPrices ?? vi.fn(async () => CHANNEL_STATE),
+      validateChannelPrices: overrides.validateChannelPrices ?? vi.fn(async () => CHANNEL_STATE),
+      createChannelPriceDryRun: overrides.createChannelPriceDryRun ?? vi.fn(async () => OPERATION),
+      getChannelPriceOperation: vi.fn(async () => OPERATION),
+      approveChannelPriceOperation: overrides.approveChannelPriceOperation ?? vi.fn(async () => ({ ...OPERATION, status: 'approved' as const })),
+      applyChannelPriceOperation: overrides.applyChannelPriceOperation ?? vi.fn(async () => ({ ...OPERATION, status: 'applied' as const })),
     },
-    unifiedWorkspace: {
-      createManual: vi.fn(),
-      createCatalog: overrides.createCatalog ?? vi.fn(async () => WORKSPACE),
-      getWorkspace: overrides.getWorkspace ?? vi.fn(async () => WORKSPACE),
-    },
-    health: {}, sources: {}, settings: {
-      getSettings: vi.fn(async () => ({ currency: 'IRR', currencyUnit: 'TOMAN' })),
-    }, activity: {}, commerce: {}, writePipeline: {}, orders: {},
+    health: {}, sources: {}, settings: {}, activity: {}, commerce: {}, writePipeline: {}, orders: {},
+    unifiedWorkspace: undefined,
   } as unknown as Services
 }
 
