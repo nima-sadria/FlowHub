@@ -56,6 +56,23 @@ export function fmtPrice(p: string | null | undefined): string {
   return formatMoney(p)
 }
 
+/**
+ * Format an exact, unrounded percentage-delta string for display: two
+ * decimals, trailing zeros trimmed, "<0.01" for a nonzero magnitude that
+ * would otherwise round to zero (never a misleading "0"). The exact value
+ * stays authoritative server-side; this is presentation only. Returns null
+ * when there is no numeric percentage to show (e.g. comparison from a zero
+ * base, where the caller should show "from 0" instead).
+ */
+export function formatPercentageDelta(raw: string | null | undefined): string | null {
+  if (raw === null || raw === undefined) return null
+  const magnitude = Math.abs(Number(raw))
+  if (!Number.isFinite(magnitude)) return null
+  if (magnitude === 0) return '0'
+  const rounded = magnitude.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+  return rounded === '0' ? '<0.01' : rounded
+}
+
 function normalizeMoneyText(value: MoneyValue): string | null {
   if (value === null || value === undefined || value === '') return null
   if (typeof value === 'bigint') return value.toString()

@@ -177,33 +177,6 @@ class ConnectorSourceListResponse(BaseModel):
     runtime_write_blocked: bool = True
 
 
-class WorkspaceIntegrationSummary(BaseModel):
-    state: str = "idle"
-    source_count: int
-    product_count: int
-    connector_count: int
-    runtime_write_blocked: bool = True
-    apply_available: bool = False
-    scheduler_available: bool = False
-    pricing_automation_available: bool = False
-
-
-class WorkspacePreviewResponse(BaseModel):
-    id: str
-    sourceId: str
-    sourceName: str
-    state: str
-    totalChanges: int
-    changes: list[dict] = Field(default_factory=list)
-    rows: list[dict] = Field(default_factory=list)
-    summary: dict = Field(default_factory=dict)
-    startedAt: str
-    duplicateWarnings: list[str] = Field(default_factory=list)
-    sourceContext: dict = Field(default_factory=dict)
-    runtime_write_blocked: bool = True
-    external_call_performed: bool = False
-
-
 class IntegrationSettingsSummary(BaseModel):
     connector_id: str
     connector_type: str

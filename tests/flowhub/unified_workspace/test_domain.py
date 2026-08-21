@@ -209,4 +209,49 @@ def test_invalid_quantity_is_a_row_blocker(raw):
 )
 def test_status_normalizes_only_blank_zero_and_one(raw, target):
     assert normalize_stock_status(raw).target == target
+
+
+def test_normalize_direct_price_unmapped_is_no_instruction_not_none():
+    # Regression: normalize_direct_price previously had no `mapped` parameter
+    # (unlike normalize_quantity/normalize_stock_status), so a caller had to
+    # substitute a bare None for an unmapped Price field. resolve_availability
+    # then crashed with AttributeError on that None instead of a proper field.
+    result = normalize_direct_price(
+        "125", currency="EUR", unit="EUR", monetary_precision=2, mapped=False
+    )
+    assert result.instruction is SourceInstruction.NO_INSTRUCTION
+    assert result.availability_signal is None
+    assert result.blocker_code is None
+    desired, blockers = resolve_availability(
+        result, normalize_quantity(None), normalize_stock_status(None)
+    )
+    assert blockers == ()
+
+
+def test_default_monetary_precision_uses_iso_4217_minor_units():
+    from app.flowhub.unified_workspace.domain import default_monetary_precision
+
+    assert default_monetary_precision("EUR") == 2
+    assert default_monetary_precision("USD") == 2
+    assert default_monetary_precision("JPY") == 0
+    assert default_monetary_precision("KWD") == 3
+    assert default_monetary_precision("xyz-unknown") == 2
+
+
+def test_unmapped_channel_precision_falls_back_to_iso_4217_not_a_permanent_block():
+    # Regression: nothing in the codebase ever wrote a "monetaryPrecision"
+    # capability key, so every non-RIAL/TOMAN currency's direct mapped Price
+    # unconditionally blocked with MONETARY_PRECISION_CONTRACT_MISSING. The
+    # ISO 4217 standard default must resolve a normal currency like EUR.
+    from app.flowhub.unified_workspace.domain import default_monetary_precision
+
+    price = normalize_direct_price(
+        "125.00",
+        currency="EUR",
+        unit="EUR",
+        monetary_precision=default_monetary_precision("EUR"),
+    )
+    assert price.instruction is SourceInstruction.SET
+    assert price.target == "125"
+    assert price.blocker_code is None
     assert normalize_stock_status("active").blocker_code == "INVALID_STOCK_STATUS"

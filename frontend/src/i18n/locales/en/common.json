@@ -61,6 +61,7 @@
   "status.authenticationFailed": "Authentication failed",
   "status.blocked": "Blocked",
   "status.cancelled": "Cancelled",
+  "status.channelCacheNotFresh": "Channel data may be stale",
   "status.checking": "Checking",
   "status.completed": "Completed",
   "status.completedWithErrors": "Completed with errors",

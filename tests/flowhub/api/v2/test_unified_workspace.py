@@ -1722,44 +1722,8 @@ def test_listing_schema_supports_multiple_marketplace_listings_without_collapse(
     assert workspace["entryPoint"] == "manual"
 
 
-def test_source_workspace_requires_persisted_source_and_never_reads_provider(
-    client, auth_headers, db, monkeypatch
-):
+def test_source_workspace_requires_persisted_source(client, auth_headers, db):
     _seed(db)
-    calls = 0
-
-    async def fake_preview(_self, _user):
-        nonlocal calls
-        calls += 1
-        return SimpleNamespace(
-            id="legacy-preview-1",
-            sourceId="nextcloud:primary",
-            sourceName="Price source.xlsx",
-            startedAt=datetime(2026, 1, 2, 3, 4, 5),
-            rows=[
-                {
-                    "source": {"row": 7, "sku": "SKU-101"},
-                    "matchedProduct": {"productId": "101"},
-                    "proposedPrice": "130",
-                    "sourceStock": 8,
-                    "errors": [],
-                    "warnings": ["source-warning"],
-                },
-                {
-                    "source": {"row": 8, "sku": "UNMATCHED"},
-                    "matchedProduct": None,
-                    "proposedPrice": "140",
-                    "sourceStock": 2,
-                    "errors": ["unmatched"],
-                    "warnings": [],
-                },
-            ],
-        )
-
-    monkeypatch.setattr(
-        "app.flowhub.workspace.price_workflow.WorkspacePriceWorkflowService.preview_from_nextcloud",
-        fake_preview,
-    )
     response = client.post(
         "/api/v2/unified-workspaces/source",
         headers={**auth_headers, "X-Correlation-ID": "source-read-once"},
@@ -1770,7 +1734,6 @@ def test_source_workspace_requires_persisted_source_and_never_reads_provider(
         detail["loc"][-1] == "source_id" and detail["type"] == "missing"
         for detail in response.json()["detail"]
     )
-    assert calls == 0
 
 
 def test_preferences_grid_filters_audit_and_mapping_decisions(client, auth_headers, db):

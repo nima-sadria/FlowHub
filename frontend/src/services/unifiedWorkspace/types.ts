@@ -1,3 +1,5 @@
+import type { ChangeBadgeClassification } from '../../features/sourceWorkspace/types'
+
 export type WorkspaceCellStatus =
   | 'unchanged' | 'edited' | 'draft_saved' | 'warning' | 'error' | 'ready'
   | 'applying' | 'applied' | 'failed' | 'read_only' | 'unavailable' | 'stale_review'
@@ -107,6 +109,7 @@ export interface ReviewItemResource {
   field: 'price' | 'stock' | 'status'
   current: string | null
   target: string
+  changeClassification?: ChangeBadgeClassification | null
   validationState: string
   warnings: string[]
   errors: string[]

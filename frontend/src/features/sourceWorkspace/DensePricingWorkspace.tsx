@@ -41,7 +41,7 @@ import { channelIdentitySignals, prepareResourceCollection, sourceChannelSignals
 import { formatSourceChannelDisplayName } from '../unifiedWorkspace/channelDisplayName'
 import { workspaceApplyIdempotencyKey } from '../unifiedWorkspace/useUnifiedWorkspaceController'
 import { inputHint } from '../../utils/inputHint'
-import { formatMoney } from '../../utils/price'
+import { formatMoney, formatPercentageDelta } from '../../utils/price'
 import { sourceWorkspaceApi } from './api'
 import PricingWorkspaceStartup from './PricingWorkspaceStartup'
 import type { GroupedListing, GroupedProduct, GroupedWorkspacePage, SourceChannel } from './types'
@@ -834,7 +834,7 @@ const ProductGroup = memo(function ProductGroup({
             </td>
             <td className="fh-products-channel-cell">
               <div>{channelName}</div>
-              <ChangeBadges classification={listing.changeClassification} />
+              <ChangeBadges classification={listing.changeClassification} stale={hasChanges} />
             </td>
             <td className="fh-products-input-cell">
               <TargetInput
@@ -905,25 +905,47 @@ const ProductGroup = memo(function ProductGroup({
   )
 })
 
-function ChangeBadges({ classification }: { classification: GroupedListing['changeClassification'] }) {
+// Per-code localized Owner-facing warning copy for the small set of codes
+// the classification engine actually emits today; a future/unmapped code
+// still gets a readable message via the generic humanized fallback.
+const WARNING_MESSAGE_KEYS: Record<string, string> = {
+  UNUSABLE_MAPPED_PRICE: 'products:products.changeBadge.warningUnusableMappedPrice',
+}
+
+function warningMessage(code: string): string {
+  const key = WARNING_MESSAGE_KEYS[code]
+  return key ? translate(key) : translate('products:products.changeBadge.warning', { code: code.replace(/_/g, ' ') })
+}
+
+function ChangeBadges({ classification, stale }: { classification: GroupedListing['changeClassification']; stale?: boolean }) {
   if (!classification) return null
-  const labels: Array<{ key: string; text: string; variant: 'neutral' | 'info' | 'success' | 'warning' | 'danger' }> = []
+  const labels: Array<{ key: string; text: ReactNode; variant: 'neutral' | 'info' | 'success' | 'warning' | 'danger' }> = []
   const price = classification.price
   if (price.state === 'INCREASE' || price.state === 'DECREASE') {
-    labels.push({ key: 'price', text: translate(price.state === 'INCREASE' ? 'products:products.changeBadge.priceIncrease' : 'products:products.changeBadge.priceDecrease', { amount: formatMoney(price.delta?.replace(/^-/, '')) }), variant: 'info' })
+    const amount = formatMoney(price.delta?.replace(/^-/, ''))
+    const percentage = formatPercentageDelta(price.percentageDelta)
+    const key = price.state === 'INCREASE' ? 'priceIncrease' : 'priceDecrease'
+    const text = percentage
+      ? translate(`products:products.changeBadge.${key}WithPercentage`, { amount, percentage })
+      : translate(`products:products.changeBadge.${key}`, { amount })
+    labels.push({ key: 'price', text: <span dir="ltr">{text}</span>, variant: 'info' })
   } else if (price.state === 'NO_VALID_PRICE') labels.push({ key: 'price', text: translate('products:products.changeBadge.noUsablePrice'), variant: 'warning' })
+  else if (price.state === 'UNCHANGED') labels.push({ key: 'price', text: translate('products:products.changeBadge.priceUnchanged'), variant: 'neutral' })
   const quantity = classification.quantity
   if (quantity.state === 'INCREASE' || quantity.state === 'DECREASE') {
-    labels.push({ key: 'quantity', text: translate(quantity.state === 'INCREASE' ? 'products:products.changeBadge.quantityIncrease' : 'products:products.changeBadge.quantityDecrease', { amount: formatMoney(quantity.delta?.replace(/^-/, '')) }), variant: 'info' })
+    const text = translate(quantity.state === 'INCREASE' ? 'products:products.changeBadge.quantityIncrease' : 'products:products.changeBadge.quantityDecrease', { amount: formatMoney(quantity.delta?.replace(/^-/, '')) })
+    labels.push({ key: 'quantity', text: <span dir="ltr">{text}</span>, variant: 'info' })
   } else if (quantity.state === 'UNMANAGED') labels.push({ key: 'quantity', text: translate('products:products.changeBadge.noQuantityInstruction'), variant: 'neutral' })
+  else if (quantity.state === 'UNCHANGED') labels.push({ key: 'quantity', text: <span dir="ltr">{translate('products:products.changeBadge.quantityUnchanged', { amount: formatMoney(quantity.current) })}</span>, variant: 'neutral' })
   const status = classification.stockStatus
   if (status.state === 'BECOMES_IN_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.becomesInStock'), variant: 'success' })
   else if (status.state === 'BECOMES_OUT_OF_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.becomesOutOfStock'), variant: 'warning' })
   else if (status.state === 'UNCHANGED_IN_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.inStock'), variant: 'success' })
   else if (status.state === 'UNCHANGED_OUT_OF_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.outOfStock'), variant: 'neutral' })
-  for (const warning of classification.warnings) labels.push({ key: `warning-${warning.code}`, text: translate('products:products.changeBadge.warning', { code: warning.code.replace(/_/g, ' ') }), variant: 'warning' })
+  for (const warning of classification.warnings) labels.push({ key: `warning-${warning.code}`, text: warningMessage(warning.code), variant: 'warning' })
   labels.push({ key: 'eligibility', text: translate(classification.eligibility === 'ELIGIBLE' ? 'products:products.changeBadge.eligible' : 'products:products.changeBadge.blocked'), variant: classification.eligibility === 'ELIGIBLE' ? 'success' : 'danger' })
-  return <div className="mt-1 flex flex-wrap gap-1" data-change-badges aria-label={translate('products:products.status')}>
+  return <div className={`mt-1 flex flex-wrap gap-1${stale ? ' opacity-50' : ''}`} data-change-badges data-change-badges-stale={stale ? 'true' : undefined} aria-label={translate('products:products.status')}>
+    {stale && <Badge key="stale" variant="neutral" className="text-[10px]">{translate('products:products.changeBadgeStale')}</Badge>}
     {labels.map(badge => <Badge key={badge.key} variant={badge.variant} className="text-[10px]">{badge.text}</Badge>)}
   </div>
 }
@@ -966,7 +988,7 @@ function TargetInput({ descriptor, pricingState, field, inputMode, narrow = fals
       type="text"
       inputMode={inputMode}
       dir="ltr"
-      value={draft ?? displayedValue}
+      value={draft ?? formatMoney(displayedValue, { empty: '' })}
       disabled={disabled}
       aria-label={ariaLabel}
       data-target-field={field}
@@ -1286,12 +1308,18 @@ export function ReviewScopePresentation({ review }: { review: ReviewResource }) 
   for (const item of review.items) groups.set(item.listingId, [...(groups.get(item.listingId) ?? []), item])
   return <div className="m-4 grid gap-2" data-review-full-scope>{[...groups.values()].map(items => {
     const first = items[0]
+    // The same immutable per-Listing classification the grid already showed
+    // (Price/Quantity/Stock Status/Warnings/Eligibility) must be available
+    // here too, not just raw field:value pairs (plan section 4). Fall back
+    // to the raw eligible/blocked badge only when no classification exists
+    // (e.g. a manual workspace with no Source classification evidence).
     return <section key={first.listingId} className="rounded border border-border p-3" data-review-listing={first.listingId}>
       <div className="flex flex-wrap items-center gap-2"><strong dir="ltr">{first.externalPrimaryId ?? first.listingId}</strong><span className="fh-text-caption" dir="ltr">{first.canonicalProductId}</span>
         {items.map(item => <Badge key={item.id} variant={isItemSafe(item) ? 'success' : 'danger'}>{formatField(item.field)}: {formatOperationValue({ ...item, currency: null, unit: null }, true)}</Badge>)}
-        <Badge variant={items.every(isItemSafe) ? 'success' : 'danger'}>{items.every(isItemSafe) ? translate('workspace:unifiedWorkspace.eligible') : translate('workspace:unifiedWorkspace.blocked')}</Badge>
+        {!first.changeClassification && <Badge variant={items.every(isItemSafe) ? 'success' : 'danger'}>{items.every(isItemSafe) ? translate('workspace:unifiedWorkspace.eligible') : translate('workspace:unifiedWorkspace.blocked')}</Badge>}
         <Badge variant={items.every(item => item.selected) ? 'success' : 'neutral'}>{items.every(item => item.selected) ? '✓' : '—'}</Badge>
       </div>
+      {first.changeClassification && <ChangeBadges classification={first.changeClassification} />}
       {items.flatMap(item => item.warnings).map((warning, index) => <Badge key={`warning-${index}`} variant="warning">{formatStatus(warning)}</Badge>)}
       {items.flatMap(item => item.errors).map((error, index) => <Badge key={`error-${index}`} variant="danger">{formatStatus(error)}</Badge>)}
     </section>

@@ -135,6 +135,6 @@ function services(workspaceResource: UnifiedWorkspaceResource): Services {
       async saveDraft() { return { id: 'revision-1', revisionNumber: 1, checksum: 'checksum', draftVersion: 1 } }, async createReview() { return review }, async saveSelection() { return { reviewId: 'review-1', selectedItemIds: [], selectionChecksum: 'checksum', selectionVersion: 1 } }, async applySelected() { throw new Error('not used') }, async getApply() { throw new Error('not used') }, async reconcileApply() { throw new Error('not used') }, async getPreferences() { return preferences },
       async savePreferences(value: WorkspacePreferences) { return value },
     },
-    products: {}, health: {}, sources: {}, workspace: {}, settings: {}, activity: {}, commerce: {}, writePipeline: {}, orders: {},
+    products: {}, health: {}, sources: {}, settings: {}, activity: {}, commerce: {}, writePipeline: {}, orders: {},
   } as unknown as Services
 }

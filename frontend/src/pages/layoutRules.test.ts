@@ -4,7 +4,6 @@ const primaryPages = [
   'Dashboard.tsx',
   'Products.tsx',
   'CommerceHub.tsx',
-  'Workspace.tsx',
   'Activity.tsx',
   'DataQuality.tsx',
   'Diagnostics.tsx',

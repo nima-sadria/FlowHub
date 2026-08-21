@@ -280,6 +280,7 @@ export interface ChangeBadgeDimension {
   current?: string
   target?: string
   delta?: string
+  percentageDelta?: string | null
 }
 
 /** Backend-authoritative Phase B explanation; it never grants write authority. */

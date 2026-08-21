@@ -2,7 +2,6 @@ import { createContext, useContext, type ReactNode } from 'react'
 import type { HealthService } from './health/HealthService'
 import type { ProductService } from './products/ProductService'
 import type { SourceService } from './sources/SourceService'
-import type { WorkspaceService } from './workspace/WorkspaceService'
 import type { SettingsService } from './settings/SettingsService'
 import type { ActivityService } from './activity/ActivityService'
 import type { CommerceService } from './commerce/CommerceService'
@@ -16,7 +15,6 @@ export interface Services {
   health: HealthService
   products: ProductService
   sources: SourceService
-  workspace: WorkspaceService
   settings: SettingsService
   activity: ActivityService
   commerce: CommerceService

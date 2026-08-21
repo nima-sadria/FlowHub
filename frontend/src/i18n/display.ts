@@ -2,6 +2,7 @@ import i18n, { translate } from './index'
 
 const statusAliases: Record<string, string> = {
   authentication_failed: 'authenticationFailed',
+  channel_cache_not_fresh: 'channelCacheNotFresh',
   completed_with_errors: 'completedWithErrors',
   draft_saved: 'draftSaved',
   in_progress: 'inProgress',

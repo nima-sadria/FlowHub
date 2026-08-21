@@ -107,20 +107,28 @@ again immediately before dispatch. Closes WS-002 and WS-003.
 specification review of the Price/Quantity/Stock Status/Warning/Eligibility
 classification engine (shipped in `feat/workspace-phase-b-completion`)
 found and fixed three P0 defects (canonical availability precedence,
-identifier-zero truthiness loss, an unmapped-Price crash) and two P1
-defects (an all-unchanged Review incorrectly reporting `blocked`; the Review
-dialog showing unchanged fields as `Blocked`). See `WORKSPACE_GAP_ANALYSIS.md`
-CLS-001 through CLS-015 for the full disposition, including deferred P1/P2
-badge-completeness gaps (percentage delta, badge staleness, Review-dialog
-classification DTO) that are real but out of this pass's scope.
+identifier-zero truthiness loss, an unmapped-Price crash), a fourth P0
+(a missing currency precision contract that unconditionally blocked Price
+classification for every non-RIAL/TOMAN currency), and closed the P1
+badge-completeness gaps (percentage delta, neutral badge states, badge
+staleness, Review-dialog classification DTO, per-warning-code localization,
+grid input grouping). See `WORKSPACE_GAP_ANALYSIS.md` CLS-001 through
+CLS-015 for the full disposition; CLS-006 (a backend `eligible`/`actionable`
+split) and CLS-013 (full float-to-Decimal migration through the write-pipeline
+wire boundary) remain deliberately deferred as higher-risk, separately-scoped
+follow-ups.
+
+**Legacy `/workspace` removal** — WS-001/CLS-015 fully resolved: the legacy
+backend router (`app/flowhub/api/v2/workspace.py`), its service
+(`price_workflow.py`), the dead frontend page and its dedicated client
+service, and the now-orphaned `IntegrationPlatformService` summary/preview
+methods are deleted. `/workspace` still redirects to `/products` for
+bookmarked URLs (`d49d0e4`, unchanged).
 
 Remaining potential work after this item:
 
-- Frontend route consolidation for WS-001 is done (`/workspace` redirects to
-  `/products`, `d49d0e4`); the legacy backend route
-  (`POST /api/v2/workspace/preview`) and dead `frontend/src/pages/Workspace.tsx`
-  page/translations/tests are still mounted/present (CLS-015) and still need
-  removal on the deprecation timeline OD-004 leaves open.
+- `/workspace/:workspaceId`'s dead `UnifiedWorkspace.tsx` Handsontable grid
+  (the *other* surface named in OD-004) is untouched and remains open.
 - Align stale, cancelled, blocked, partial, and reconciliation state naming
   across entry points (WS-004).
 - The deferred Phase B badge-completeness gaps above (CLS-006 through

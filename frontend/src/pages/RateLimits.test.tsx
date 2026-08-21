@@ -77,7 +77,6 @@ function services(): Services {
     health: {} as Services['health'],
     products: {} as Services['products'],
     sources: {} as Services['sources'],
-    workspace: {} as Services['workspace'],
     activity: {} as Services['activity'],
     commerce: {} as Services['commerce'],
     writePipeline: {} as Services['writePipeline'],
