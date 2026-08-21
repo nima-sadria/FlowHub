@@ -1009,7 +1009,7 @@ def test_workspace_preview_classifies_validation_errors_warnings_and_unchanged(
     by_row = {item["source"]["rowNumber"]: item for item in rows}
 
     assert "duplicate_product_id" in by_row[3]["errors"]
-    assert "product_name_mismatch" in by_row[5]["errors"]
+    assert by_row[5]["eligible_for_dry_run"] is True
     assert by_row[6]["status"] == "unchanged"
     assert by_row[7]["eligible_for_dry_run"] is True
     assert "large_price_change" in by_row[8]["warnings"]
@@ -1022,12 +1022,12 @@ def test_workspace_preview_classifies_validation_errors_warnings_and_unchanged(
     assert "duplicate_sku" in by_row[13]["errors"]
     assert "missing_product_identifier" in by_row[14]["errors"]
     assert "large_price_change_blocked" in by_row[15]["errors"]
-    assert data["summary"]["error_rows"] == 9
+    assert data["summary"]["error_rows"] == 8
     assert data["summary"]["unchanged_rows"] == 1
     assert data["summary"]["large_changes"] == 2
 
     change_ids = {item["productId"] for item in data["changes"]}
-    assert change_ids == {"104", "105", "107"}
+    assert change_ids == {"102", "104", "105", "107"}
     assert all("stock" not in item for item in data["changes"])
 
 

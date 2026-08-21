@@ -482,10 +482,6 @@ class WorkspacePriceWorkflowService:
                     errors.append("unsupported_product_type")
                 if product_type == "variation" and not str(matched.row.parent_id or "").strip():
                     errors.append("missing_variation_parent_id")
-                source_name = str(source_row.get("product_name") or "").strip()
-                cache_name = str(matched.row.name or "").strip()
-                if source_name and cache_name and source_name.casefold() != cache_name.casefold():
-                    errors.append("product_name_mismatch")
                 if matched.row.freshness == "stale":
                     warnings.append("stale_product_cache")
                 if _parse_float(matched.row.sale_price) is not None:
