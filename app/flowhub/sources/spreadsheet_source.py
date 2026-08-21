@@ -379,7 +379,7 @@ class SpreadsheetSourceReadService:
                 file_meta=file_meta,
                 sheet_names=list(workbook.sheetnames),
                 row_count=persisted_row_count,
-                duplicate_count=len(duplicate_info["duplicate_product_ids"]) + len(duplicate_info["duplicate_skus"]),
+                duplicate_count=len(duplicate_info["duplicate_product_ids"]),
                 invalid_row_count=stats["error_rows"],
             )
             observation = execution.observation
@@ -1387,8 +1387,6 @@ def source_row_stats(rows: list[dict], duplicate_info: dict) -> dict:
     error_details: list[dict[str, str]] = []
     for product_id in duplicate_info.get("duplicate_product_ids", []):
         errors.append(f"Duplicate product ID in spreadsheet: {product_id}")
-    for sku in duplicate_info.get("duplicate_skus", []):
-        errors.append(f"Duplicate SKU in spreadsheet: {sku}")
     for row in rows:
         for item in row.get("row_warnings") or []:
             if item not in warnings:
@@ -1406,7 +1404,7 @@ def source_row_stats(rows: list[dict], duplicate_info: dict) -> dict:
     warning_rows = sum(1 for row in rows if not row.get("row_errors") and row.get("row_warnings"))
     valid_rows = len(rows) - error_rows - warning_rows
     duplicate_rows = sum(
-        1 for row in rows if row.get("duplicate_product_id") or row.get("duplicate_sku")
+        1 for row in rows if row.get("duplicate_product_id")
     )
     return {
         "total_rows": len(rows),

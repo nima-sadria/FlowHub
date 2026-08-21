@@ -70,6 +70,9 @@ class ListingUpdateLike(Protocol):
     @property
     def idempotency_key(self) -> str: ...
 
+    @property
+    def governed_fields(self) -> frozenset[str]: ...
+
 
 @dataclass(frozen=True, slots=True)
 class ListingUpdate:
@@ -260,7 +263,7 @@ class WooCommerceWorkspaceConnector:
         state = await _fetch_current_state(
             adapter,
             _current_state_request(
-                self.channel_id, updates, required_fields={"price"}
+                self.channel_id, updates, required_fields=_governed_fields(updates)
             ),
             context=context,
             strategy=CurrentStateStrategy.BATCH_BY_ID,
@@ -390,7 +393,7 @@ class SnappShopWorkspaceConnector:
         state = await _fetch_current_state(
             connector,
             _current_state_request(
-                self.channel_id, successful, required_fields={"price", "stock"}
+                self.channel_id, successful, required_fields=_governed_fields(successful)
             ),
             strategy=CurrentStateStrategy.COLLECTION_SCAN,
         )
@@ -463,7 +466,7 @@ class SnappShopWorkspaceConnector:
         state = await _fetch_current_state(
             connector,
             _current_state_request(
-                self.channel_id, updates, required_fields={"price", "stock"}
+                self.channel_id, updates, required_fields=_governed_fields(updates)
             ),
             strategy=CurrentStateStrategy.COLLECTION_SCAN,
         )
@@ -568,7 +571,7 @@ class TapsiShopWorkspaceConnector:
         state = await _fetch_current_state(
             connector,
             _current_state_request(
-                self.channel_id, updates, required_fields={"price", "stock"}
+                self.channel_id, updates, required_fields=_governed_fields(updates)
             ),
             strategy=CurrentStateStrategy.UNSUPPORTED,
         )
@@ -651,7 +654,7 @@ class TapsiShopWorkspaceConnector:
         del requested_by
         connector = self.commerce._tapsishop_connector()
         request = _current_state_request(
-            self.channel_id, updates, required_fields={"price", "stock"}
+            self.channel_id, updates, required_fields=_governed_fields(updates)
         )
         state = await _fetch_current_state(
             connector,
@@ -782,7 +785,7 @@ class TechnolifeWorkspaceConnector:
         state = await _fetch_current_state(
             connector,
             _current_state_request(
-                self.channel_id, successful, required_fields={"price", "stock"}
+                self.channel_id, successful, required_fields=_governed_fields(successful)
             ),
             strategy=CurrentStateStrategy.GROUPED_COLLECTION,
         )
@@ -847,7 +850,7 @@ class TechnolifeWorkspaceConnector:
         state = await _fetch_current_state(
             connector,
             _current_state_request(
-                self.channel_id, updates, required_fields={"price", "stock"}
+                self.channel_id, updates, required_fields=_governed_fields(updates)
             ),
             strategy=CurrentStateStrategy.GROUPED_COLLECTION,
         )
@@ -900,6 +903,20 @@ def _current_state_request(
         purpose="post_apply_verification",
         max_staleness_seconds=0,
     )
+
+
+def _governed_fields(updates: Sequence[ListingUpdateLike]) -> set[str]:
+    """Ask a provider only for fields selected for this verification.
+
+    Normal Apply objects predate field-scoped reads, so preserve their
+    historical complete-field behaviour when they do not expose the optional
+    marker.  Dry Run probes always supply it.
+    """
+
+    fields: set[str] = set()
+    for update in updates:
+        fields.update(getattr(update, "governed_fields", ()) or ())
+    return fields or {"price", "stock", "status"}
 
 
 async def _fetch_current_state(

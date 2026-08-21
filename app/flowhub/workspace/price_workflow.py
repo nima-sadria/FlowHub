@@ -441,13 +441,7 @@ class WorkspacePriceWorkflowService:
         mapping_revision: object | None = None,
     ) -> list[dict]:
         by_product_id = {row.product_id: row for row in products if row.product_id}
-        by_sku: dict[str, list[DlProductCache]] = {}
-        for product in products:
-            if product.sku:
-                by_sku.setdefault(product.sku.strip().lower(), []).append(product)
-
         duplicate_product_ids = set(duplicate_info["duplicate_product_ids"])
-        duplicate_skus = set(duplicate_info["duplicate_skus"])
         preview_rows: list[dict] = []
         for row_index, source_row in enumerate(source_rows):
             errors: list[str] = []
@@ -455,7 +449,7 @@ class WorkspacePriceWorkflowService:
             status_value = "valid_change"
             errors.extend(str(item) for item in source_row.get("row_errors") or [])
             warnings.extend(str(item) for item in source_row.get("row_warnings") or [])
-            matched = self._match_product(source_row, by_product_id, by_sku, errors)
+            matched = self._match_product(source_row, by_product_id, errors)
             proposed_price = source_row.get("proposed_price")
             product_id = source_row.get("product_id")
             sku = str(source_row.get("sku") or "")
@@ -463,14 +457,12 @@ class WorkspacePriceWorkflowService:
             stock_enabled = source_row.get("stock_enabled") is True
             source_stock = source_row.get("source_stock")
 
-            if not product_id and not sku.strip():
+            if not product_id:
                 errors.append("missing_product_identifier")
             if source_row.get("product_id_error"):
                 errors.append("invalid_product_id")
             if product_id and product_id in duplicate_product_ids:
                 errors.append("duplicate_product_id")
-            if sku and sku.strip().lower() in duplicate_skus:
-                errors.append("duplicate_sku")
             if price_enabled:
                 if source_row.get("price_parse_error") or source_row.get("raw_price") == "":
                     errors.append("invalid_or_missing_price")
@@ -611,7 +603,6 @@ class WorkspacePriceWorkflowService:
         self,
         source_row: dict,
         by_product_id: dict[str, DlProductCache],
-        by_sku: dict[str, list[DlProductCache]],
         errors: list[str],
     ) -> ProductMatch | None:
         candidates: list[DlProductCache] = []
@@ -620,9 +611,6 @@ class WorkspacePriceWorkflowService:
             product = by_product_id.get(str(product_id))
             if product is not None:
                 candidates = [product]
-        if not candidates and source_row.get("sku"):
-            candidates = by_sku.get(str(source_row["sku"]).strip().lower(), [])
-
         if not candidates:
             errors.append("missing_product")
             return None
@@ -874,7 +862,7 @@ def _summary(rows: list[dict]) -> dict:
         "error_rows": sum(1 for row in rows if row["errors"]),
         "blocked_rows": sum(1 for row in rows if row["errors"]),
         "duplicate_rows": sum(
-            1 for row in rows if "duplicate_product_id" in row["errors"] or "duplicate_sku" in row["errors"]
+            1 for row in rows if "duplicate_product_id" in row["errors"]
         ),
         "missing_products": sum(1 for row in rows if "missing_product" in row["errors"]),
         "large_changes": sum(
@@ -907,6 +895,4 @@ def _duplicate_warnings(duplicate_info: dict) -> list[str]:
     warnings: list[str] = []
     for product_id in duplicate_info["duplicate_product_ids"]:
         warnings.append(f"Duplicate product ID in spreadsheet: {product_id}")
-    for sku in duplicate_info["duplicate_skus"]:
-        warnings.append(f"Duplicate SKU in spreadsheet: {sku}")
     return warnings

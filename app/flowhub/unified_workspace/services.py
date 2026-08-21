@@ -2170,62 +2170,77 @@ class UnifiedWorkspaceService:
         parent_external_id: str | None,
         capabilities: ChannelCapabilities,
     ) -> dict[str, Any]:
-        return {
-            "price": item.current_value,
+        expected = {
             "external_id": str(listing.external_primary_id),
             "product_type": canonical_text(product.product_type).casefold(),
             "parent_external_id": (
                 str(parent_external_id) if parent_external_id is not None else None
             ),
-            "currency": canonical_text(capabilities.currency).upper(),
-            "unit": canonical_text(capabilities.unit).upper(),
         }
+        # A Dry Run authorizes one governed field at a time.  Do not make a
+        # price-only write depend on an unrelated stock/status cache value (or
+        # vice versa): that would turn harmless independent changes into false
+        # drift.  Currency and unit remain exact evidence for monetary writes.
+        expected[item.field] = item.current_value
+        if item.field == "price":
+            expected["currency"] = canonical_text(capabilities.currency).upper()
+            expected["unit"] = canonical_text(capabilities.unit).upper()
+        return expected
 
     @staticmethod
     def _live_evidence_is_unverifiable(
         observed: dict[str, Any], expected: dict[str, Any]
     ) -> bool:
-        required = (
-            "external_id",
-            "product_type",
-            "parent_external_id",
-            "price",
-            "currency",
-            "unit",
+        governed_fields = tuple(
+            field for field in ("price", "stock", "status") if field in expected
         )
+        required = ("external_id", "product_type", "parent_external_id", *governed_fields)
+        if "price" in governed_fields:
+            required += ("currency", "unit")
         if any(field not in observed for field in required):
             return True
         if not all(
             canonical_text(observed.get(field))
-            for field in ("external_id", "product_type", "currency", "unit")
+            for field in ("external_id", "product_type")
+        ):
+            return True
+        if "price" in governed_fields and not all(
+            canonical_text(observed.get(field)) for field in ("currency", "unit")
         ):
             return True
         parent = observed.get("parent_external_id")
         if parent is not None and not canonical_text(parent):
             return True
-        # A price which cannot compare to itself is malformed/non-finite and
-        # cannot be authoritative evidence.
-        if not values_equal("price", observed.get("price"), observed.get("price")):
-            return True
+        for field in governed_fields:
+            # A value which cannot compare to itself is malformed/non-finite
+            # and cannot be authoritative evidence for that governed field.
+            if not values_equal(field, observed.get(field), observed.get(field)):
+                return True
         if canonical_text(observed.get("external_id")) != canonical_text(
             expected.get("external_id")
         ):
             return True
-        return not all(
-            canonical_text(expected.get(field))
-            for field in ("external_id", "product_type", "currency", "unit")
-        )
+        required_expected = ["external_id", "product_type"]
+        if "price" in governed_fields:
+            required_expected.extend(("currency", "unit"))
+        return not all(canonical_text(expected.get(field)) for field in required_expected)
 
     @staticmethod
     def _live_evidence_drifted(observed: dict[str, Any], expected: dict[str, Any]) -> bool:
-        return (
+        identity_drift = (
             canonical_text(observed["product_type"]).casefold()
             != canonical_text(expected["product_type"]).casefold()
             or (
                 None if observed["parent_external_id"] is None else str(observed["parent_external_id"])
             )
             != expected["parent_external_id"]
-            or canonical_text(observed["currency"]).upper()
+        )
+        if identity_drift:
+            return True
+        if "price" not in expected:
+            return False
+        return (
+            canonical_text(observed["currency"]).upper()
             != canonical_text(expected["currency"]).upper()
             or canonical_text(observed["unit"]).upper()
             != canonical_text(expected["unit"]).upper()
@@ -2303,6 +2318,7 @@ class UnifiedWorkspaceService:
                 mapping_version=listing.mapping_version, cache_version=cache.cache_version,
                 cache_checksum=cache.checksum, capability_version=capabilities.version,
                 currency_digest=review.currency_digest, idempotency_key="dry-run", payload_hash="dry-run",
+                governed_fields=frozenset(item.field for item in group),
             )
             connector = WorkspaceConnectorFactory(ProductPricingService(self.db), CommerceHubService(self.db)).get(listing.channel_id)
             try:
@@ -2394,6 +2410,7 @@ class UnifiedWorkspaceService:
                 currency_digest="",
                 idempotency_key="apply-live-recheck",
                 payload_hash="apply-live-recheck",
+                governed_fields=frozenset({item.field}),
             )
             try:
                 result = (await WorkspaceConnectorFactory(ProductPricingService(self.db), CommerceHubService(self.db)).get(listing.channel_id).verify_updates([probe], requested_by=user.username))[0]

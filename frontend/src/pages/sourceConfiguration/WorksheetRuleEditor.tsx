@@ -350,7 +350,7 @@ export default function WorksheetRuleEditor({ rule, rowCount, columns = [], chan
       </section>
       <details className="rounded-lg border border-border bg-bg-subtle p-3">
         <summary className="cursor-pointer font-medium text-text-base" title={translate('sources:sourceConfiguration.eachSpecialValueIsInterpretedExplicitlyCurrency')}>{translate('sources:sourceConfiguration.valueHandling')}</summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(POLICY_OPTIONS).map(([key, options]) => <label className="fh-field-label" key={key}>{translate(`sources:sourceConfiguration.valueType.${key}`)}<select className="fh-input mt-1" disabled={!rule.enabled} value={rule.valuePolicy[key] ?? DEFAULT_SOURCE_VALUE_POLICY[key]} onChange={event => onChange({ ...rule, valuePolicy: { ...rule.valuePolicy, [key]: event.target.value } })}>{options.map(([value, label]) => <option value={value} key={value}>{translate(label)}</option>)}</select></label>)}</div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(POLICY_OPTIONS).map(([key, options]) => <label className="fh-field-label" key={key}>{translate(`sources:sourceConfiguration.valueType.${key}`)}<select className="fh-input mt-1" disabled={!rule.enabled} value={String(rule.valuePolicy[key] ?? DEFAULT_SOURCE_VALUE_POLICY[key])} onChange={event => onChange({ ...rule, valuePolicy: { ...rule.valuePolicy, [key]: event.target.value } })}>{options.map(([value, label]) => <option value={value} key={value}>{translate(label)}</option>)}</select></label>)}</div>
       </details>
     </div>
   </details>

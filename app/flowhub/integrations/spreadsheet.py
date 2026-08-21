@@ -386,29 +386,23 @@ def parse_source_price_rows(
             })
 
     duplicate_product_ids = _duplicate_values(row["product_id"] for row in rows if row.get("product_id"))
-    duplicate_skus = _duplicate_values(row["sku"].strip().lower() for row in rows if row.get("sku"))
     duplicate_product_id_set = set(duplicate_product_ids)
-    duplicate_sku_set = set(duplicate_skus)
     for row in rows:
         duplicate_id = bool(row.get("product_id") and row["product_id"] in duplicate_product_id_set)
-        duplicate_sku = bool(row.get("sku") and row["sku"].strip().lower() in duplicate_sku_set)
         row["duplicate_product_id"] = duplicate_id
-        row["duplicate_sku"] = duplicate_sku
+        # SKU is display evidence only.  It must not participate in identity
+        # or turn an otherwise identifier-authoritative Source row into an
+        # error.
+        row["duplicate_sku"] = False
         if duplicate_id:
             row["row_errors"].append("duplicate_product_id")
             row["row_error_details"].append({
                 "code": "DUPLICATE_PRODUCT_ID",
                 "message": "Product ID appears more than once in the spreadsheet.",
             })
-        if duplicate_sku:
-            row["row_errors"].append("duplicate_sku")
-            row["row_error_details"].append({
-                "code": "DUPLICATE_SKU",
-                "message": "SKU appears more than once in the spreadsheet.",
-            })
     return rows, {
         "duplicate_product_ids": duplicate_product_ids,
-        "duplicate_skus": duplicate_skus,
+        "duplicate_skus": [],
     }
 
 

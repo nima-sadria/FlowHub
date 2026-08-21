@@ -912,20 +912,19 @@ function ChangeBadges({ classification }: { classification: GroupedListing['chan
   const labels: Array<{ key: string; text: string; variant: 'neutral' | 'info' | 'success' | 'warning' | 'danger' }> = []
   const price = classification.price
   if (price.state === 'INCREASE' || price.state === 'DECREASE') {
-    const direction = price.state === 'INCREASE' ? '↑' : '↓'
-    labels.push({ key: 'price', text: `Price ${direction} ${formatMoney(price.delta?.replace(/^-/, ''))}`, variant: 'info' })
-  } else if (price.state === 'NO_VALID_PRICE') labels.push({ key: 'price', text: 'No usable price', variant: 'warning' })
+    labels.push({ key: 'price', text: translate(price.state === 'INCREASE' ? 'products:products.changeBadge.priceIncrease' : 'products:products.changeBadge.priceDecrease', { amount: formatMoney(price.delta?.replace(/^-/, '')) }), variant: 'info' })
+  } else if (price.state === 'NO_VALID_PRICE') labels.push({ key: 'price', text: translate('products:products.changeBadge.noUsablePrice'), variant: 'warning' })
   const quantity = classification.quantity
   if (quantity.state === 'INCREASE' || quantity.state === 'DECREASE') {
-    labels.push({ key: 'quantity', text: `QTY ${quantity.state === 'INCREASE' ? '+' : '-'}${formatMoney(quantity.delta?.replace(/^-/, ''))}`, variant: 'info' })
-  } else if (quantity.state === 'UNMANAGED') labels.push({ key: 'quantity', text: 'No quantity instruction', variant: 'neutral' })
+    labels.push({ key: 'quantity', text: translate(quantity.state === 'INCREASE' ? 'products:products.changeBadge.quantityIncrease' : 'products:products.changeBadge.quantityDecrease', { amount: formatMoney(quantity.delta?.replace(/^-/, '')) }), variant: 'info' })
+  } else if (quantity.state === 'UNMANAGED') labels.push({ key: 'quantity', text: translate('products:products.changeBadge.noQuantityInstruction'), variant: 'neutral' })
   const status = classification.stockStatus
-  if (status.state === 'BECOMES_IN_STOCK') labels.push({ key: 'status', text: 'Out of stock → In stock', variant: 'success' })
-  else if (status.state === 'BECOMES_OUT_OF_STOCK') labels.push({ key: 'status', text: 'In stock → Out of stock', variant: 'warning' })
-  else if (status.state === 'UNCHANGED_IN_STOCK') labels.push({ key: 'status', text: 'In stock', variant: 'success' })
-  else if (status.state === 'UNCHANGED_OUT_OF_STOCK') labels.push({ key: 'status', text: 'Out of stock', variant: 'neutral' })
-  for (const warning of classification.warnings) labels.push({ key: `warning-${warning.code}`, text: `Warning · ${warning.code.replace(/_/g, ' ')}`, variant: 'warning' })
-  labels.push({ key: 'eligibility', text: classification.eligibility === 'ELIGIBLE' ? 'Eligible' : 'Blocked', variant: classification.eligibility === 'ELIGIBLE' ? 'success' : 'danger' })
+  if (status.state === 'BECOMES_IN_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.becomesInStock'), variant: 'success' })
+  else if (status.state === 'BECOMES_OUT_OF_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.becomesOutOfStock'), variant: 'warning' })
+  else if (status.state === 'UNCHANGED_IN_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.inStock'), variant: 'success' })
+  else if (status.state === 'UNCHANGED_OUT_OF_STOCK') labels.push({ key: 'status', text: translate('products:products.changeBadge.outOfStock'), variant: 'neutral' })
+  for (const warning of classification.warnings) labels.push({ key: `warning-${warning.code}`, text: translate('products:products.changeBadge.warning', { code: warning.code.replace(/_/g, ' ') }), variant: 'warning' })
+  labels.push({ key: 'eligibility', text: translate(classification.eligibility === 'ELIGIBLE' ? 'products:products.changeBadge.eligible' : 'products:products.changeBadge.blocked'), variant: classification.eligibility === 'ELIGIBLE' ? 'success' : 'danger' })
   return <div className="mt-1 flex flex-wrap gap-1" data-change-badges aria-label={translate('products:products.status')}>
     {labels.map(badge => <Badge key={badge.key} variant={badge.variant} className="text-[10px]">{badge.text}</Badge>)}
   </div>
