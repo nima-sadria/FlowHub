@@ -861,7 +861,7 @@ Required correction: preserve Price origin, raw lexeme, normalized instruction/r
 - Current ReviewItems are field-level and already store warnings, errors, and an `eligible` value. Authoritative selection is persisted in `ReviewSelection` rows; `ReviewItem.selected` exists but is not the selection authority.
 - Current backend `eligible = not errors and not unchanged` conflates safety eligibility with actionability, making unchanged fields ineligible. It also permits an eligible sibling field even when another row-wide fatal field on the Listing is blocked. The approved contract requires separate row safety eligibility and actionability, plus row-level blocking for invalid Quantity/Status, identity/shared-schema/direct-Price-configuration/evidence, and hard policy. A known unusable direct mapped Price is deliberately excluded because it requests OOS; Matrix/provider Price failures are separately excluded because they block only Price and must not suppress independently safe Stock work.
 - Current auto-selection uses eligible Review items and preserves a manual-deselected state, which is a strong base, but it must consume the new separate actionability result.
-- No-op changes are removed before Review, so warning-only and neutral no-change presentation need the grouped classification DTO rather than fake Review operations.
+- No-op changes are removed before Review, so warning-only and neutral no-change presentation need the grouped classification DTO rather than synthetic Review operations.
 - Current Source review creation can block a mapped unsupported field too broadly. It needs field-specific optional capability behavior so safe sibling Price work can continue.
 - The current live expected-state helper treats Price as the expected value for every field, and the Woo Phase B targeted live-verification request is Price-only even though generic provider reads expose more data. Price, stock, and status need independent requested/normalized live evidence.
 - Current Manifest construction already emits only selected verified field operations and withholds the Manifest when a selected scope blocks. Preserve that whole-scope boundary.
@@ -1105,7 +1105,7 @@ Likely test areas:
 - `tests/flowhub/source_workspace/test_worksheet_rules.py`
 - `tests/connectors/destinations/test_woocommerce_connector.py`
 - `tests/connectors/destinations/test_woocommerce_rest.py`
-- `tests/beta/test_workspace_price_workflow.py`
+- the legacy workspace-price workflow test module
 - `frontend/src/features/sourceWorkspace/DensePricingWorkspace.safety.test.ts`
 - `frontend/src/features/sourceWorkspace/SourceCentricWorkspace.test.tsx`
 - `frontend/src/features/pricingWorkspace/pricingWorkspaceState.test.ts`
@@ -1131,7 +1131,7 @@ Failures in exact Decimal, identifier authority, no-provider-write Preview/Dry R
 
 ### Step 12 — Owner acceptance — Risk: MEDIUM
 
-**[APPROVED BUSINESS]** Present a seeded Preview containing the required examples and demonstrate that badges explain—but do not authorize—the exact selected, verified Manifest operations. Demonstrate manual deselection persistence, warning-only non-selection, direct mapped unusable Price→OOS without a Price blocker, fatal invalid Quantity/Status row blocking, Matrix/provider Price-only blocking with safe Stock continuation, zero-decimal ON/OFF behavior, variation independence, globally grouped financial display, and zero writes during Preview/Dry Run.
+**[APPROVED BUSINESS]** Present a seeded Preview containing the required examples and verify that badges explain—but do not authorize—the exact selected, verified Manifest operations. Verify manual deselection persistence, warning-only non-selection, direct mapped unusable Price→OOS without a Price blocker, fatal invalid Quantity/Status row blocking, Matrix/provider Price-only blocking with safe Stock continuation, zero-decimal ON/OFF behavior, variation independence, globally grouped financial display, and zero writes during Preview/Dry Run.
 
 **[IMPLEMENTATION DETAIL]** Use an Owner-review fixture or controlled non-production environment. Any live FlowHub review URL must comply with the repository live-version rule and be tied to the then-current `origin/main` commit.
 

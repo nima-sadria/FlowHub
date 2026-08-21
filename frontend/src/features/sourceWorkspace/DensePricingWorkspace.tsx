@@ -1265,7 +1265,7 @@ function DryRunStatus({ dryRun }: { dryRun: DryRunResource }) {
       ? translate('workspace:sourceCentricWorkspace.channelStateUnverifiable')
       : translate('workspace:sourceCentricWorkspace.reviewAndDryRunComplete')
   return <section className={presentation.blocker ? 'fh-alert fh-alert-warning mt-3' : 'fh-text-caption mt-3'} data-dry-run-status role={presentation.blocker ? 'alert' : 'status'}>
-    <p>{message} · {translate('workspace:sourceCentricWorkspace.dryRunVerifiedCount', { count: presentation.verifiedCount })} · {translate('workspace:sourceCentricWorkspace.dryRunNoOpCount', { count: presentation.noOpCount })} · {translate('workspace:sourceCentricWorkspace.dryRunBlockerCount', { count: presentation.blockerCount })}</p>
+    <p data-dry-run-summary>{message} · {translate('workspace:sourceCentricWorkspace.dryRunVerifiedCount', { count: presentation.verifiedCount })} · {translate('workspace:sourceCentricWorkspace.dryRunNoOpCount', { count: presentation.noOpCount })} · {translate('workspace:sourceCentricWorkspace.dryRunBlockerCount', { count: presentation.blockerCount })}</p>
     <div className="mt-2 grid gap-1" data-dry-run-scopes>{dryRun.scopes.map(scope => <div key={scope.reviewItemId} className="flex flex-wrap gap-x-2" data-dry-run-disposition={scope.disposition}>
       <strong>{formatStatus(scope.reason ?? scope.disposition)}</strong><span dir="ltr">{scope.reviewItemId}</span>
       {scope.expected && Object.entries(scope.expected).filter(([key]) => !['external_primary_id', 'product_type', 'parent_external_primary_id', 'currency', 'unit'].includes(key)).map(([key, value]) => <span key={`expected-${key}`} dir="ltr">{key}: {evidenceValue(value)} → {evidenceValue(scope.observed?.[key])}</span>)}
