@@ -15,7 +15,7 @@ import math
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
@@ -24,14 +24,19 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
-from app.flowhub.data_layer.models import DlProductCache, DlRefreshJob, DlSourceSnapshot, DlWorkspacePreview
+from app.flowhub.data_layer.models import (
+    DlProductCache,
+    DlRefreshJob,
+    DlSourceSnapshot,
+    DlWorkspacePreview,
+)
 from app.flowhub.integration_platform.contracts import WorkspacePreviewResponse
-from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.integration_platform.models import IntegrationConnectorInstance
+from app.flowhub.integration_platform.service import IntegrationPlatformService
 from app.flowhub.product_media import primary_image_url
-from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
-from app.flowhub.source_workspace.models import SourceProfile
 from app.flowhub.setup.service import AppConfigService
+from app.flowhub.source_workspace.models import SourceProfile
+from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
 from app.flowhub.workspace.preview_store import WorkspacePreviewStore
 
 SOURCE_ID = "nextcloud:primary"
@@ -211,7 +216,7 @@ class WorkspacePriceWorkflowService:
         source_config_hash: str | None = None,
         worksheet_scope: dict[str, object] | None = None,
     ) -> WorkspacePreviewResponse:
-        started = datetime.now(timezone.utc).replace(tzinfo=None)
+        started = datetime.now(UTC).replace(tzinfo=None)
         preview_id = f"wp_{uuid.uuid4().hex[:16]}"
         self._required_config("nextcloud.spreadsheet_path")
         self._require_channel_config()
