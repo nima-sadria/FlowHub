@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ReviewItemResource } from '../../services/unifiedWorkspace/types'
+import type { DryRunResource, ReviewItemResource } from '../../services/unifiedWorkspace/types'
 import {
   createPricingWorkspaceState,
   editPricingField,
@@ -16,11 +16,26 @@ import {
   setProductListingsSelected,
   sourceChannelDisplayName,
   convertPricingUnit,
+  dryRunPresentation,
   validateDescriptorTarget,
 } from './DensePricingWorkspace'
 import type { GroupedWorkspacePage, SourceChannel } from './types'
 
 describe('DensePricingWorkspace safety boundaries', () => {
+  it('presents Dry Run progress as exact verified, no-op, and blocker counts', () => {
+    const presentation = dryRunPresentation(dryRun({ reviewedCount: 5, writeCount: 3, blockerCount: 1 }))
+    expect(presentation).toMatchObject({ verifiedCount: 3, noOpCount: 1, blockerCount: 1 })
+  })
+
+  it('keeps Channel drift distinct from unavailable authoritative evidence', () => {
+    expect(dryRunPresentation(dryRun({
+      scopes: [{ reviewItemId: 'one', disposition: 'blocked', reason: 'CHANNEL_DRIFT' }],
+    })).blocker).toBe('CHANNEL_DRIFT')
+    expect(dryRunPresentation(dryRun({
+      scopes: [{ reviewItemId: 'one', disposition: 'blocked', reason: 'CHANNEL_STATE_UNVERIFIABLE' }],
+    })).blocker).toBe('CHANNEL_STATE_UNVERIFIABLE')
+  })
+
   it('uses Commerce-resolved names verbatim for Data Sheet channel labels', () => {
     const systemName = channel({})
     const ownerAlias = { ...systemName, name: 'ووکامرس', displayNameCustom: true }
@@ -196,6 +211,23 @@ describe('DensePricingWorkspace safety boundaries', () => {
     expect(isPricingFieldEligible(stock.policy)).toBe(false)
   })
 })
+
+function dryRun(overrides: Partial<DryRunResource> = {}): DryRunResource {
+  return {
+    id: 'dry-run-1',
+    status: 'passed',
+    reviewedCount: 1,
+    writeCount: 1,
+    blockerCount: 0,
+    evidenceChecksum: 'a'.repeat(64),
+    scopes: [{ reviewItemId: 'one', disposition: 'write', reason: null }],
+    manifestId: 'manifest-1',
+    manifestChecksum: 'b'.repeat(64),
+    operations: [],
+    affectedChannelIds: [],
+    ...overrides,
+  }
+}
 
 function descriptor(field: 'price' | 'stock' | 'status'): PricingFieldDescriptor {
   return {

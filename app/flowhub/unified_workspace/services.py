@@ -2096,7 +2096,16 @@ class UnifiedWorkspaceService:
         provider-neutral observation evidence and compares prices with Decimal.
         """
         workspace = self._workspace_for_user(workspace_id, user, edit=True)
-        review = self.reviews.get(review_id)
+        # Serialize a Dry Run with selection replacement and with another Dry
+        # Run for this Review.  The lock is deliberately held across the
+        # bounded targeted read: it makes the final persisted evidence
+        # linearizable with the exact selection it authorizes.
+        review = (
+            self.db.query(Review)
+            .filter(Review.id == review_id)
+            .with_for_update()
+            .one_or_none()
+        )
         snapshot = self.workspaces.snapshot(workspace.id)
         if review is None or snapshot is None or review.workspace_id != workspace.id:
             raise self._not_found("REVIEW_NOT_FOUND", "Review not found.")
@@ -2182,6 +2191,14 @@ class UnifiedWorkspaceService:
         writes = [scope for scope in scopes if scope["disposition"] == "write"]
         status_value = "blocked" if blockers else "passed"
         evidence = [{"item": scope["item"].id, "disposition": scope["disposition"], "reason": scope["reason"], "observed": scope["observed"], "expected": scope["expected"]} for scope in scopes]
+        # Exactly one passed result may authorize a Review selection.  Earlier
+        # evidence is retained for audit but becomes historical before a newer
+        # result is made current.  The Review row lock above prevents two
+        # sessions from both committing a current result.
+        self.db.query(DryRun).filter(
+            DryRun.review_id == review.id,
+            DryRun.status.in_(["running", "passed"]),
+        ).update({DryRun.status: "invalidated"}, synchronize_session=False)
         dry_run = DryRun(id=_id(), workspace_id=workspace.id, snapshot_id=snapshot.id, review_id=review.id, selection_version=review.selection_version, selection_checksum=selection_checksum, status=status_value, evidence_checksum=checksum(evidence), reviewed_count=len(scopes), write_count=len(writes), blocker_count=len(blockers), created_by_user_id=user.id)
         self.db.add(dry_run)
         for scope in scopes:
@@ -2527,7 +2544,16 @@ class UnifiedWorkspaceService:
         failed = 0
         reconciliation = 0
         try:
-            review = self.reviews.get(review.id)
+            # Lock the authorization boundary before final live verification
+            # and dispatch.  Selection replacement or a newer Dry Run must
+            # either commit first (making this Apply stale) or wait until this
+            # exact approved manifest has finished its locked decision.
+            review = (
+                self.db.query(Review)
+                .filter(Review.id == review.id)
+                .with_for_update()
+                .one_or_none()
+            )
             if review is None or review.status != ReviewState.READY:
                 raise self._conflict("REVIEW_NOT_READY", "Apply requires a ready Review.")
             self._assert_review_fresh(review, user, correlation_id)
@@ -2546,6 +2572,22 @@ class UnifiedWorkspaceService:
                 raise self._conflict(
                     "APPLY_REVISION_MISMATCH", "Draft Revision changed before dispatch."
                 )
+            dry_run = (
+                self.db.query(DryRun)
+                .filter(DryRun.id == manifest.dry_run_id)
+                .with_for_update()
+                .one_or_none()
+            )
+            if (
+                dry_run is None
+                or dry_run.status != "passed"
+                or dry_run.review_id != review.id
+                or dry_run.selection_checksum != selection_checksum
+                or dry_run.selection_version != review.selection_version
+            ):
+                raise self._conflict(
+                    "MANIFEST_STALE", "Dry Run evidence is no longer valid; run Dry Run again."
+                )
             job.status = ApplyState.RUNNING
             job.started_at = utcnow()
             job.heartbeat_at = job.started_at
@@ -2561,6 +2603,35 @@ class UnifiedWorkspaceService:
                 apply_job_id=job.id,
             )
             self.db.commit()
+            # The Apply job must be committed before provider work so recovery
+            # can see it.  Reacquire the Review/Dry-Run authorization lock
+            # immediately afterwards; this closes the commit-to-dispatch race
+            # without treating stale in-memory evidence as authority.
+            review = (
+                self.db.query(Review)
+                .filter(Review.id == review.id)
+                .with_for_update()
+                .one_or_none()
+            )
+            dry_run = (
+                self.db.query(DryRun)
+                .filter(DryRun.id == manifest.dry_run_id)
+                .with_for_update()
+                .one_or_none()
+            )
+            current_selection = self.reviews.selections(review.id) if review else []
+            if (
+                review is None
+                or dry_run is None
+                or dry_run.status != "passed"
+                or dry_run.selection_checksum != selection_checksum
+                or dry_run.selection_version != review.selection_version
+                or sorted(item.review_item_id for item in current_selection) != selected_ids
+                or checksum(self._selection_document(review, review_items)) != expected_checksum
+            ):
+                raise self._conflict(
+                    "MANIFEST_STALE", "Dry Run evidence is no longer valid; run Dry Run again."
+                )
             pricing_issues = self._pricing_binding_issues_for_review(review)
             if pricing_issues:
                 reason = ";".join(

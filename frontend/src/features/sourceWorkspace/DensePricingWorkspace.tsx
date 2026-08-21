@@ -12,7 +12,7 @@ import { localizedApiError } from '../../i18n/errors'
 import { formatCurrencyLabel, formatNumber } from '../../i18n/format'
 import { useNotification } from '../../notifications/NotificationProvider'
 import type { UnifiedWorkspaceService } from '../../services/unifiedWorkspace/UnifiedWorkspaceService'
-import type { ApplyResource, ManifestOperationResource, ReviewItemResource, ReviewResource, UnifiedWorkspaceResource } from '../../services/unifiedWorkspace/types'
+import type { ApplyResource, DryRunResource, ManifestOperationResource, ReviewItemResource, ReviewResource, UnifiedWorkspaceResource } from '../../services/unifiedWorkspace/types'
 import {
   applyBulkTransformation,
   createPricingWorkspaceState,
@@ -66,6 +66,17 @@ interface ReviewContext {
   manifestChecksum: string
   operations: ManifestOperationResource[]
   affectedChannelIds: string[]
+  dryRun: DryRunResource
+}
+
+export function dryRunPresentation(dryRun: DryRunResource) {
+  const blocker = dryRun.scopes.find(scope => scope.reason === 'CHANNEL_DRIFT' || scope.reason === 'CHANNEL_STATE_UNVERIFIABLE')?.reason
+  return {
+    verifiedCount: dryRun.writeCount,
+    noOpCount: Math.max(0, dryRun.reviewedCount - dryRun.writeCount - dryRun.blockerCount),
+    blockerCount: dryRun.blockerCount,
+    blocker,
+  }
 }
 
 export interface DensePricingWorkspaceProps {
@@ -124,6 +135,7 @@ export default function DensePricingWorkspace({
   const [review, setReview] = useState<ReviewResource | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewContext, setReviewContext] = useState<ReviewContext | null>(null)
+  const [dryRunSummary, setDryRunSummary] = useState<DryRunResource | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [applyResult, setApplyResult] = useState<ApplyResource | null>(null)
   const [bulkOpen, setBulkOpen] = useState(false)
@@ -207,6 +219,7 @@ export default function DensePricingWorkspace({
     setPricingState(refreshed.state)
     setReview(null)
     setReviewContext(null)
+    setDryRunSummary(null)
     setReviewOpen(false)
     setConfirming(false)
     setApplyResult(null)
@@ -332,9 +345,16 @@ export default function DensePricingWorkspace({
       if (!selectedIds.length) throw new Error(translate('workspace:densePricing.noEligibleSelectedChanges'))
       const selection = await service.saveSelection(workspace.id, created.id, selectedIds)
       if (!service.runDryRun) throw new Error('Live Dry Run is unavailable in this Workspace client.')
+      setBusy(translate('workspace:sourceCentricWorkspace.dryRunRunning'))
       const dryRun = await service.runDryRun(workspace.id, created.id)
+      setDryRunSummary(dryRun)
       if (dryRun.status !== 'passed' || !dryRun.manifestId || !dryRun.manifestChecksum || !dryRun.operations || !dryRun.affectedChannelIds) {
-        notify.error({ title: translate('workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted'), description: translate('workspace:sourceCentricWorkspace.generateAFreshReview') })
+        const presentation = dryRunPresentation(dryRun)
+        const drift = presentation.blocker === 'CHANNEL_DRIFT'
+        notify.error({
+          title: translate(drift ? 'workspace:sourceCentricWorkspace.channelChangedSincePreview' : 'workspace:sourceCentricWorkspace.channelStateUnverifiable'),
+          description: translate(drift ? 'workspace:sourceCentricWorkspace.runPreviewDryRunAgain' : 'workspace:sourceCentricWorkspace.restoreChannelEvidence'),
+        })
         return
       }
       if (pricingStateRef.current.revision !== requestedRevision) {
@@ -352,6 +372,7 @@ export default function DensePricingWorkspace({
         manifestChecksum: dryRun.manifestChecksum,
         operations: dryRun.operations,
         affectedChannelIds: dryRun.affectedChannelIds,
+        dryRun,
       })
       setReviewOpen(true)
       notify.success({ title: translate('workspace:sourceCentricWorkspace.reviewAndDryRunComplete'), description: translate('workspace:densePricing.selectionBoundToReview', { count: selectedIds.length }) })
@@ -636,6 +657,7 @@ export default function DensePricingWorkspace({
       grid={grid}
       channelById={channelById}
       canApply={review.status === 'ready' && reviewContext !== null && busy === null}
+      dryRun={reviewContext?.dryRun ?? dryRunSummary}
       onApply={() => setConfirming(true)}
       onClose={() => setReviewOpen(false)}
     />}
@@ -1192,8 +1214,9 @@ function BulkToggle({ checked, onChange, label }: { checked: boolean; onChange: 
   )
 }
 
-function ReviewDialog({ review, grid, channelById, canApply, onApply, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; channelById: ReadonlyMap<string, SourceChannel>; canApply: boolean; onApply: () => void; onClose: () => void }) {
-  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p></div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[900px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th><th>{translate('workspace:sourceCentricWorkspace.selected')}</th></tr></thead><tbody>{review.items.map(item => { const product = grid.items.find(row => row.children.some(child => child.listingId === item.listingId)); return <tr key={item.id}><td>{product?.name ?? item.canonicalProductId}</td><td>{sourceChannelDisplayName(item.channelId, channelById)}</td><td>{formatField(item.field)}</td><td>{item.current ?? '—'}</td><td>{item.target}</td><td>{item.selected ? '✓' : '—'}</td></tr> })}</tbody></table></div><div className="fh-panel-footer"><button className="fh-button-secondary" type="button" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button><button className="fh-button-primary" type="button" data-pricing-apply disabled={!canApply} onClick={onApply}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')}</button></div></div></div>
+function ReviewDialog({ review, grid, channelById, canApply, dryRun, onApply, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; channelById: ReadonlyMap<string, SourceChannel>; canApply: boolean; dryRun: DryRunResource | null; onApply: () => void; onClose: () => void }) {
+  const presentation = dryRun ? dryRunPresentation(dryRun) : null
+  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p>{presentation && <p className="fh-text-caption mt-1" data-dry-run-summary>{translate('workspace:sourceCentricWorkspace.dryRunVerifiedCount', { count: presentation.verifiedCount })} · {translate('workspace:sourceCentricWorkspace.dryRunNoOpCount', { count: presentation.noOpCount })} · {translate('workspace:sourceCentricWorkspace.dryRunBlockerCount', { count: presentation.blockerCount })}</p>}</div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[900px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th><th>{translate('workspace:sourceCentricWorkspace.selected')}</th></tr></thead><tbody>{review.items.map(item => { const product = grid.items.find(row => row.children.some(child => child.listingId === item.listingId)); return <tr key={item.id}><td>{product?.name ?? item.canonicalProductId}</td><td>{sourceChannelDisplayName(item.channelId, channelById)}</td><td>{formatField(item.field)}</td><td>{item.current ?? '—'}</td><td>{item.target}</td><td>{item.selected ? '✓' : '—'}</td></tr> })}</tbody></table></div><div className="fh-panel-footer"><button className="fh-button-secondary" type="button" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button><button className="fh-button-primary" type="button" data-pricing-apply disabled={!canApply} onClick={onApply}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')}</button></div></div></div>
 }
 
 function ApplyResults({ result, channelById }: { result: ApplyResource; channelById: ReadonlyMap<string, SourceChannel> }) {
