@@ -584,8 +584,8 @@ class ApplyJobItem(FlowHubBase):
 
 class ApplyManifest(FlowHubBase):
     """Immutable, checksummed statement of the exact operations a Review
-    selection would write, generated eagerly at selection-save time so it can
-    be shown to the user before Apply confirmation (see OD-005)."""
+    selection would write, generated only after authoritative Dry Run evidence
+    so it can be shown to the user before Apply confirmation (see OD-005)."""
 
     __tablename__ = "uw_apply_manifests"
 
@@ -601,6 +601,12 @@ class ApplyManifest(FlowHubBase):
     )
     review_id: Mapped[str] = mapped_column(
         ForeignKey("uw_reviews.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    # FLOWHUB_044: a manifest is applyable only when it came from a successful
+    # authoritative live-verification Dry Run.  Old cache-only manifests stay
+    # historical and are deliberately not backfilled.
+    dry_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("uw_dry_runs.id", ondelete="RESTRICT"), nullable=True, index=True
     )
     selection_version: Mapped[int] = mapped_column(Integer, nullable=False)
     selection_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -646,6 +652,47 @@ class ApplyManifestOperation(FlowHubBase):
     unit: Mapped[str | None] = mapped_column(String(24), nullable=True)
     listing_payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     listing_payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class DryRun(FlowHubBase):
+    """Durable, no-write live verification of one exact Review selection."""
+
+    __tablename__ = "uw_dry_runs"
+    __table_args__ = (
+        CheckConstraint("status IN ('running','passed','blocked','error','invalidated')", name="ck_uw_dry_run_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("uw_workspaces.id", ondelete="RESTRICT"), nullable=False, index=True)
+    snapshot_id: Mapped[str] = mapped_column(ForeignKey("uw_workspace_snapshots.id", ondelete="RESTRICT"), nullable=False)
+    review_id: Mapped[str] = mapped_column(ForeignKey("uw_reviews.id", ondelete="RESTRICT"), nullable=False, index=True)
+    selection_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    selection_checksum: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    evidence_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    reviewed_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    write_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    blocker_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("flowhub_users.id", ondelete="RESTRICT"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class DryRunScope(FlowHubBase):
+    """Immutable row-level live evidence; includes no-op and blocked rows."""
+
+    __tablename__ = "uw_dry_run_scopes"
+    __table_args__ = (UniqueConstraint("dry_run_id", "review_item_id", name="uq_uw_dry_run_scope_item"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    dry_run_id: Mapped[str] = mapped_column(ForeignKey("uw_dry_runs.id", ondelete="RESTRICT"), nullable=False, index=True)
+    review_item_id: Mapped[str] = mapped_column(ForeignKey("uw_review_items.id", ondelete="RESTRICT"), nullable=False)
+    listing_id: Mapped[str] = mapped_column(ForeignKey("uw_listings.id", ondelete="RESTRICT"), nullable=False, index=True)
+    channel_id: Mapped[str] = mapped_column(ForeignKey("uw_channels.id", ondelete="RESTRICT"), nullable=False, index=True)
+    disposition: Mapped[str] = mapped_column(String(32), nullable=False)  # write | no_op | blocked
+    reason_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    expected_before_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    observed_live_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    live_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class ValidationIssue(FlowHubBase):
@@ -816,6 +863,7 @@ _IMMUTABLE_MODELS = (
     ApplyAttemptEvent,
     ApplyManifest,
     ApplyManifestOperation,
+    DryRunScope,
 )
 
 

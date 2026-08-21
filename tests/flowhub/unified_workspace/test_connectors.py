@@ -12,6 +12,7 @@ from app.connectors.common.current_state import (
     CurrentStateResult,
     CurrentStateStrategy,
     TransportRecorder,
+    canonical_decimal,
 )
 from app.flowhub.channels.contracts import (
     ChannelIdentifierSet,
@@ -101,12 +102,13 @@ def _record(
     entity,
     *,
     provider: str,
-    price: float,
+    price: object,
     stock: float | None = None,
     currency: str | None = None,
     unit: str | None = None,
     external_id: str | None = None,
     parent_external_id: str | None = None,
+    product_type: str | None = "simple",
 ) -> CurrentStateRecord:
     return CurrentStateRecord(
         key=entity.key,
@@ -117,10 +119,11 @@ def _record(
             if parent_external_id is None
             else parent_external_id
         ),
-        price=price,
+        price=canonical_decimal(price),
         stock=stock,
         currency=currency,
         unit=unit,
+        product_type=product_type,
     )
 
 

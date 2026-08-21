@@ -144,6 +144,44 @@ def auth_headers(admin):
     return {"Authorization": f"Bearer {create_access_token(admin.id, admin.username, admin.role)}"}
 
 
+@pytest.fixture(autouse=True)
+def authoritative_workspace_live_read(monkeypatch):
+    """Model the connector's targeted, read-only authoritative observation.
+
+    The real PostgreSQL Apply race must cross the same Phase-B boundary as
+    production: selection is insufficient, a passed Dry Run is required, and
+    Apply reuses this exact observation for its post-lock revalidation.
+    """
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    async def verified(_self, updates, *, requested_by):
+        del requested_by
+        return [
+            ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                response={"verification": {"observed": {
+                    "provider": "woocommerce",
+                    "external_id": str(update.external_primary_id),
+                    "parent_external_id": update.parent_external_id,
+                    "product_type": update.product_type,
+                    "price": update.current_price,
+                    "stock": update.current_stock,
+                    "status": update.current_status,
+                    "currency": update.currency,
+                    "unit": update.unit,
+                }}},
+            )
+            for update in updates
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.verify_updates",
+        verified,
+    )
+
+
 def _seed(db) -> None:
     from app.flowhub.data_layer.models import DlProductCache
     from app.flowhub.setup.service import AppConfigService
@@ -266,6 +304,29 @@ def _change_payload(row: dict, target_value: str) -> dict:
         "currency": "EUR",
         "unit": "EUR",
     }
+
+
+def _review_with_selection(client, auth_headers, workspace: dict, row: dict) -> tuple[dict, dict]:
+    revision = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/draft/revisions",
+        headers=auth_headers,
+        json={"expected_version": 0, "metadata": {}, "changes": [_change_payload(row, "150")]},
+    )
+    assert revision.status_code == 201, revision.text
+    review = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews",
+        headers=auth_headers,
+        json={"draft_revision_id": revision.json()["id"]},
+    )
+    assert review.status_code == 201, review.text
+    review_body = review.json()
+    selection = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review_body['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [review_body["items"][0]["id"]]},
+    )
+    assert selection.status_code == 200, selection.text
+    return review_body, selection.json()
 
 
 def test_concurrent_draft_saves_with_the_same_expected_version_resolve_to_exactly_one_winner(
@@ -410,6 +471,15 @@ def test_two_concurrent_applies_racing_the_same_manifest_resolve_to_exactly_one_
     )
     assert selection.status_code == 200, selection.text
     selection_body = selection.json()
+    assert "manifestId" not in selection_body
+    dry_run = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review_body['id']}/dry-run",
+        headers=auth_headers,
+    )
+    assert dry_run.status_code == 200, dry_run.text
+    dry_run_body = dry_run.json()
+    assert dry_run_body["status"] == "passed", dry_run_body
+    assert dry_run_body["writeCount"] == 1
 
     async def fake_apply(_self, updates, *, requested_by):
         return [
@@ -438,8 +508,8 @@ def test_two_concurrent_applies_racing_the_same_manifest_resolve_to_exactly_one_
             json={
                 "review_id": review_body["id"],
                 "expected_selection_checksum": selection_body["selectionChecksum"],
-                "manifest_id": selection_body["manifestId"],
-                "expected_manifest_checksum": selection_body["manifestChecksum"],
+                "manifest_id": dry_run_body["manifestId"],
+                "expected_manifest_checksum": dry_run_body["manifestChecksum"],
                 "confirmed": True,
             },
         )
@@ -452,3 +522,179 @@ def test_two_concurrent_applies_racing_the_same_manifest_resolve_to_exactly_one_
     job_ids = {response.json()["id"] for response in results}
     assert len(job_ids) == 1, "both requests must resolve to the same ApplyJob, never two"
     assert db.query(ApplyJob).filter_by(workspace_id=workspace["id"]).count() == 1
+
+
+def test_selection_replacement_racing_dry_run_invalidates_the_persisted_evidence(
+    client, auth_headers, db, monkeypatch
+):
+    """Separate PostgreSQL sessions cannot leave a stale Dry Run applyable."""
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.unified_workspace.models import DryRun
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    _seed(db)
+    _activate_pricing_policy(db)
+    workspace = _create_workspace(client, auth_headers)
+    row = client.get(f"/api/v2/unified-workspaces/{workspace['id']}/grid", headers=auth_headers).json()["items"][0]
+    review, _selection = _review_with_selection(client, auth_headers, workspace, row)
+    read_started = threading.Event()
+    release_read = threading.Event()
+
+    async def delayed_read(_self, updates, *, requested_by):
+        del requested_by
+        read_started.set()
+        assert release_read.wait(timeout=10)
+        return [
+            ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                response={"verification": {"observed": {
+                    "external_id": str(update.external_primary_id),
+                    "parent_external_id": update.parent_external_id,
+                    "product_type": update.product_type,
+                    "price": update.current_price,
+                    "currency": update.currency,
+                    "unit": update.unit,
+                }}},
+            )
+            for update in updates
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.verify_updates",
+        delayed_read,
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        dry_future = pool.submit(
+            client.post,
+            f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run",
+            headers=auth_headers,
+        )
+        assert read_started.wait(timeout=10)
+        replacement_future = pool.submit(
+            client.put,
+            f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+            headers=auth_headers,
+            json={"review_item_ids": [review["items"][0]["id"]]},
+        )
+        release_read.set()
+        dry_response = dry_future.result(timeout=15)
+        replacement_response = replacement_future.result(timeout=15)
+
+    assert dry_response.status_code == 200, dry_response.text
+    assert replacement_response.status_code == 200, replacement_response.text
+    assert db.query(DryRun).filter_by(review_id=review["id"]).one().status == "invalidated"
+
+
+def test_two_dry_runs_racing_same_selection_leave_one_current_authorization(
+    client, auth_headers, db
+):
+    """The Review row lock serializes two real PostgreSQL Dry Run sessions."""
+    from app.flowhub.unified_workspace.models import DryRun
+
+    _seed(db)
+    _activate_pricing_policy(db)
+    workspace = _create_workspace(client, auth_headers)
+    row = client.get(f"/api/v2/unified-workspaces/{workspace['id']}/grid", headers=auth_headers).json()["items"][0]
+    review, _selection = _review_with_selection(client, auth_headers, workspace, row)
+    barrier = threading.Barrier(2)
+
+    def dry_run_request():
+        barrier.wait(timeout=10)
+        return client.post(
+            f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run",
+            headers=auth_headers,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(lambda _index: dry_run_request(), range(2)))
+
+    assert [response.status_code for response in responses] == [200, 200], [response.text for response in responses]
+    states = [row.status for row in db.query(DryRun).filter_by(review_id=review["id"]).all()]
+    assert sorted(states) == ["invalidated", "passed"]
+
+
+def test_apply_racing_replaced_dry_run_never_dispatches_the_old_manifest(
+    client, auth_headers, db, monkeypatch
+):
+    """A newer Dry Run wins the authorization boundary before any write."""
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    _seed(db)
+    _activate_pricing_policy(db)
+    workspace = _create_workspace(client, auth_headers)
+    row = client.get(f"/api/v2/unified-workspaces/{workspace['id']}/grid", headers=auth_headers).json()["items"][0]
+    review, selection = _review_with_selection(client, auth_headers, workspace, row)
+    first = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run",
+        headers=auth_headers,
+    )
+    assert first.status_code == 200, first.text
+    first_body = first.json()
+    read_started = threading.Event()
+    release_read = threading.Event()
+    provider_writes: list[str] = []
+
+    async def delayed_read(_self, updates, *, requested_by):
+        del requested_by
+        read_started.set()
+        assert release_read.wait(timeout=10)
+        return [
+            ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                response={"verification": {"observed": {
+                    "external_id": str(update.external_primary_id),
+                    "parent_external_id": update.parent_external_id,
+                    "product_type": update.product_type,
+                    "price": update.current_price,
+                    "currency": update.currency,
+                    "unit": update.unit,
+                }}},
+            )
+            for update in updates
+        ]
+
+    async def forbidden_write(_self, updates, *, requested_by):
+        del requested_by
+        provider_writes.extend(update.listing_id for update in updates)
+        return []
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.verify_updates",
+        delayed_read,
+    )
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.apply_updates",
+        forbidden_write,
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        replacement_future = pool.submit(
+            client.post,
+            f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run",
+            headers=auth_headers,
+        )
+        assert read_started.wait(timeout=10)
+        apply_future = pool.submit(
+            client.post,
+            f"/api/v2/unified-workspaces/{workspace['id']}/apply",
+            headers={**auth_headers, "Idempotency-Key": "stale-dry-run-race"},
+            json={
+                "review_id": review["id"],
+                "expected_selection_checksum": selection["selectionChecksum"],
+                "manifest_id": first_body["manifestId"],
+                "expected_manifest_checksum": first_body["manifestChecksum"],
+                "confirmed": True,
+            },
+        )
+        release_read.set()
+        replacement = replacement_future.result(timeout=15)
+        apply_response = apply_future.result(timeout=15)
+
+    assert replacement.status_code == 200, replacement.text
+    assert apply_response.status_code == 409, apply_response.text
+    assert apply_response.json()["detail"]["code"] == "MANIFEST_STALE"
+    assert provider_writes == []

@@ -14,6 +14,7 @@ from app.connectors.common.current_state import (
     CurrentStateRequest,
     CurrentStateResult,
     CurrentStateStrategy,
+    canonical_decimal,
     failed_current_state,
     unsupported_current_state,
 )
@@ -35,7 +36,6 @@ from app.flowhub.write_pipeline.workspace_contracts import (
 from app.flowhub.write_pipeline.workspace_contracts import (
     WriteOutcome,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +233,14 @@ class WooCommerceWorkspaceConnector:
                 provider_accepted=True,
                 response={
                     **response,
-                    "verification": _verification_evidence(record, error, verified, state),
+                    "verification": _verification_evidence(
+                        record,
+                        error,
+                        verified,
+                        state,
+                        currency=self.capabilities().currency,
+                        unit=self.capabilities().unit,
+                    ),
                 },
                 external_response_id=_response_id(response),
                 error_category="verification" if error else None,
@@ -274,7 +281,12 @@ class WooCommerceWorkspaceConnector:
                     ),
                     response={
                         "verification": _verification_evidence(
-                            record, error, verified, state
+                            record,
+                            error,
+                            verified,
+                            state,
+                            currency=self.capabilities().currency,
+                            unit=self.capabilities().unit,
                         )
                     },
                     error_category="verification" if error else None,
@@ -947,6 +959,9 @@ def _verification_evidence(
     error: CurrentStateError | None,
     verified: bool,
     result: CurrentStateResult,
+    *,
+    currency: str | None = None,
+    unit: str | None = None,
 ) -> dict[str, object]:
     return {
         "verified": verified,
@@ -955,11 +970,12 @@ def _verification_evidence(
                 "provider": record.provider,
                 "external_id": record.external_id,
                 "parent_external_id": record.parent_external_id,
-                "price": record.price,
+                "product_type": record.product_type,
+                "price": format(record.price, "f") if record.price is not None else None,
                 "stock": record.stock,
                 "status": record.status,
-                "currency": record.currency,
-                "unit": record.unit,
+                "currency": record.currency or currency,
+                "unit": record.unit or unit,
             }
             if record is not None
             else None
@@ -985,14 +1001,16 @@ def _woocommerce_state_matches(
         if update.product_type == "variation" and update.parent_external_id is not None
         else None
     )
-    expected_price = float(update.target_price or 0)
+    expected_price = canonical_decimal(update.target_price)
     return bool(
         record is not None
         and record.provider == "woocommerce"
         and record.external_id == update.external_primary_id
         and record.parent_external_id == expected_parent
+        and record.product_type == update.product_type
         and record.price is not None
-        and abs(record.price - expected_price) < 0.005
+        and expected_price is not None
+        and record.price == expected_price
     )
 
 
@@ -1010,7 +1028,7 @@ def _snappshop_state_matches(
         and record.provider == "snappshop"
         and record.external_id == update.external_primary_id
         and record.parent_external_id == update.parent_external_id
-        and record.price == expected_price
+        and record.price == canonical_decimal(expected_price)
         and record.stock == expected_stock
         and record.currency == "IRR"
         and str(record.unit or "").lower() == "toman"
@@ -1031,7 +1049,7 @@ def _technolife_state_matches(
         and record.provider == "technolife"
         and record.external_id == update.external_primary_id
         and record.parent_external_id == update.parent_external_id
-        and record.price == expected_price
+        and record.price == canonical_decimal(expected_price)
         and record.stock == expected_stock
         and record.currency == "IRR"
         and str(record.unit or "").upper() == "RIAL"

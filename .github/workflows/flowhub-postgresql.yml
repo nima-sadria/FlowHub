@@ -359,6 +359,22 @@ jobs:
           fi
           test "$pytest_status" -eq 0
           test "$manifest_status" -eq 0
+      - name: PostgreSQL FLOWHUB_044 live Dry Run migration safety
+        id: postgres-044-live-dry-run-tests
+        run: |
+          set +e
+          python -m pytest -q -ra --strict-markers --tb=long --junitxml=postgres-044-junit.xml \
+            tests/flowhub/migration/test_workspace_live_dry_run_044.py 2>&1 | tee postgres-044-output.log
+          pytest_status=${PIPESTATUS[0]}
+          if [ -f postgres-044-junit.xml ]; then
+            python scripts/assert_postgres_junit.py postgres-044-junit.xml 044-live-dry-run | tee postgres-044-manifest.log
+            manifest_status=${PIPESTATUS[0]}
+          else
+            echo 'pytest did not produce postgres-044-junit.xml' | tee postgres-044-manifest.log
+            manifest_status=1
+          fi
+          test "$pytest_status" -eq 0
+          test "$manifest_status" -eq 0
       - name: PostgreSQL TapsiShop webhook concurrency tests
         id: postgres-tapsishop-webhook-tests
         run: |

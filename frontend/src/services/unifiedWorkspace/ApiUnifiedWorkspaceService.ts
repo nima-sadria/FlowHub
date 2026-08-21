@@ -5,6 +5,7 @@ import type {
   ApplyResource,
   DraftChangeInput,
   DraftRevisionResource,
+  DryRunResource,
   ReviewResource,
   ReviewSelectionResource,
   UnifiedWorkspaceResource,
@@ -48,6 +49,10 @@ export class ApiUnifiedWorkspaceService implements UnifiedWorkspaceService {
 
   saveSelection(id: string, reviewId: string, itemIds: string[]): Promise<ReviewSelectionResource> {
     return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/reviews/${encodeURIComponent(reviewId)}/selection`, authFetch, json('PUT', { review_item_ids: itemIds }))
+  }
+
+  runDryRun(id: string, reviewId: string): Promise<DryRunResource> {
+    return apiFetch(`/api/v2/unified-workspaces/${encodeURIComponent(id)}/reviews/${encodeURIComponent(reviewId)}/dry-run`, authFetch, json('POST', {}))
   }
 
   applySelected(

@@ -10,6 +10,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from typing import Any
 
@@ -59,12 +60,27 @@ class CurrentStateRecord:
     provider: str
     external_id: str
     parent_external_id: str | None = None
-    price: float | None = None
+    # Pricing verification must retain the provider's decimal value exactly.
+    # Callers may serialize this to canonical text for durable evidence, but
+    # must never round-trip it through float first.
+    price: Decimal | None = None
     stock: float | None = None
     status: str | None = None
     currency: str | None = None
     unit: str | None = None
+    product_type: str | None = None
     raw: dict[str, Any] = field(default_factory=dict)
+
+
+def canonical_decimal(value: object) -> Decimal | None:
+    """Normalize one provider numeric value without binary-float loss."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        parsed = Decimal(str(value).replace(",", "").strip())
+    except (InvalidOperation, ValueError):
+        return None
+    return parsed if parsed.is_finite() else None
 
 
 @dataclass(frozen=True, slots=True)

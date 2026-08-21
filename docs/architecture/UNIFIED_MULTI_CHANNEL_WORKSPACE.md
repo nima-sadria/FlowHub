@@ -47,6 +47,28 @@ Administrators configure the global unit with `server.currency_unit` through Set
 
 ## Cache and Apply safety
 
+### Canonical pricing Dry Run
+
+The `/products` Pricing Workspace follows `Selection -> Dry Run -> Reviewed
+Scope / Verified Write Set -> immutable Manifest -> Confirmation -> Apply`.
+Selection is scope evidence only: it cannot authorize an Apply Manifest.  Dry
+Run performs provider-neutral, targeted current-state reads for the selected
+Listings and records every selected Review item durably.  Rows already at the
+approved target remain in Reviewed Scope as `no_op` but never enter the Write
+Set or Manifest.  A provider state that is authoritative but no longer equals
+the Preview's expected-before state is `CHANNEL_DRIFT`; missing, malformed,
+contradictory, or non-authoritative evidence is
+`CHANNEL_STATE_UNVERIFIABLE`.  Both block the selected scope fail-closed.
+
+Manifest operations bind the Dry Run identifier and checksum of the exact live
+evidence.  Cache-only manifests created before `FLOWHUB_044` remain historical
+and cannot be applied.  Apply accepts a passed Dry Run only while its bounded
+five-minute evidence lease is valid; after locks are acquired it performs a
+second targeted authoritative read and rejects drift or unverifiable evidence
+before any provider dispatch.  Dry Run and
+confirmation perform no provider mutation; provider writes remain exclusive to
+the shared Write Pipeline Apply path.
+
 Current values are mutable `ChannelCache` state with explicit version/checksum metadata. Draft targets never mutate Current. A Review captures each participating Listing cache version and Mapping/capability versions. Any relevant change makes Apply stale and requires Review regeneration without source reread. Apply also rejects a cache older than `workspace.channel_cache_max_age_minutes` (default 60, bounded to 1–10,080 minutes), even when its checksum is unchanged.
 
 Unified Workspace, Product Pricing, and the legacy Apply facade all submit typed commands to `WritePipelineService`. It is the sole active external write authority and owns authorization context, maintenance enforcement, limiter use, durable pre-dispatch attempts, provider dispatch, exact verification, verified-only cache mutation, and result evidence. No application service calls a provider write method. Provider strategies translate protocol and transport only. WooCommerce uses the existing price adapter; SnappShop batches at most 50 updates. TapsiShop compatibility writes remain `RECONCILIATION_REQUIRED` because the current provider contract has no exact product read-back endpoint.
