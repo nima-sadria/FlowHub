@@ -54,6 +54,20 @@ Full route consolidation (redirecting or removing `/workspace` and the dead
 **Safe interim:** Keep both routes; do not merge their business logic beyond
 what an individual approved change requires.
 
+**Update:** The frontend `/workspace` route already redirected to `/products`
+(`d49d0e4`) before this update. This change goes further and removes the
+now-fully-unreachable legacy surface entirely: the backend router
+(`app/flowhub/api/v2/workspace.py`, mounted at `/api/v2/workspace/*`), its
+service (`app/flowhub/workspace/price_workflow.py`), the dead frontend page
+(`frontend/src/pages/Workspace.tsx`) and its dedicated client
+(`ApiWorkspaceService`), and the now-orphaned
+`IntegrationPlatformService.workspace_summary()`/`workspace_preview()`
+methods the deleted router was the only caller of. `/workspace` still
+redirects to `/products` for bookmarked URLs. The *other* dead surface named
+above — `/workspace/:workspaceId` (`frontend/src/pages/UnifiedWorkspace.tsx`)
+and its Handsontable grid — is untouched by this change and remains a
+separate, not-yet-resolved cleanup.
+
 ### OD-005: Unified Apply confirmation and operation evidence
 
 The unified UI currently saves selected Review items and immediately submits
