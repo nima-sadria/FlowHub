@@ -75,8 +75,11 @@ Apply with `confirmed: true`. The reference model requires a separate user
 confirmation bound to exact approved operations.
 
 **Decision:** Approved. Build an immutable, checksummed pre-Apply operation
-manifest now (tracked as the Apply Manifest feature; see
+manifest (tracked as the Apply Manifest feature; see
 `WORKSPACE_IMPLEMENTATION_PHASES.md` Phase 3).
+
+**Status:** Implemented and verified present in current `main` (PR #12,
+`5277706`).
 
 **Required acceptance criteria:**
 
@@ -130,9 +133,12 @@ New decisions must identify:
 ## Audit Disposition
 
 The authorization contract and all small/medium integration findings are
-resolved. OD-004, OD-005, and OD-007 are approved; implementation of the
-Apply Manifest feature (OD-005) is now in progress against the canonical
-Unified Workspace surface identified under OD-004. Until OD-006 is decided:
+resolved. OD-004, OD-005, and OD-007 are approved; the Apply Manifest
+feature (OD-005) is implemented against the canonical Unified Workspace
+surface identified under OD-004, and the legacy `/workspace` backend and
+frontend surface OD-004 left as a separate future decision is now removed
+(the `/workspace/:workspaceId` dead Handsontable grid remains a separate,
+still-open item). Until OD-006 is decided:
 
 - keep legacy permission aliases in `/api/auth/me`;
 - do not remove `can_fetch`/`can_apply`/related aliases.

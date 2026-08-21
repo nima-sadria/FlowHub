@@ -93,15 +93,18 @@ Validation:
 
 ## Phase 3: Canonical Workspace UX
 
-**Status:** In progress. OD-004 and OD-005 are approved (Unified Workspace,
-reachable at `/products` via `DensePricingWorkspace.tsx`, is canonical; a
-real pre-Apply operation manifest is being built).
+**Status:** Apply Manifest feature complete (PR #12, `5277706`); Phase B
+badge-completeness and legacy-route removal complete (see below). OD-004 and
+OD-005 are approved and both implemented.
 
-Current work item: **Apply Manifest feature** — an immutable, checksummed
+**Apply Manifest feature** — an immutable, checksummed
 `ApplyManifest`/`ApplyManifestOperation` pair generated when a Review
 selection is saved, displayed in the existing confirmation dialog before any
 write, and re-verified fresh by the server before Apply job creation and
-again immediately before dispatch. Closes WS-002 and WS-003.
+again immediately before dispatch. Closed WS-002 and WS-003 (confirmed
+still present and enforced in current `main`: `apply_selected` requires
+`manifest_id`/`expected_manifest_checksum`, loads the persisted manifest
+rows, and re-verifies the checksum before any write).
 
 **Phase B business classification correctness pass** — an Owner-reference-
 specification review of the Price/Quantity/Stock Status/Warning/Eligibility

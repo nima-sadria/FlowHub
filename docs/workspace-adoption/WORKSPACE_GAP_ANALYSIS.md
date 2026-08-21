@@ -22,8 +22,8 @@
 | ID | Severity | Current behavior | Target behavior | Disposition |
 | --- | --- | --- | --- | --- |
 | WS-001 | P1 | Legacy `/workspace` and unified `/workspace/:id` coexist as separate user workflows | One canonical Workspace entry and lifecycle | Owner decided (OD-004): Unified Workspace is canonical. **Partially resolved in `e16e7e9`**: the legacy `/workspace` backend router/service and dead frontend page are removed entirely (see CLS-015); `/workspace/:id`'s dead `UnifiedWorkspace.tsx` Handsontable grid is untouched and remains open. |
-| WS-002 | P0 | Unified Apply button saves selection and immediately sends `confirmed: true` | Separate confirmation bound to exact approved Review/operation scope | Owner approved (OD-005): in progress, see Apply Manifest feature in `WORKSPACE_IMPLEMENTATION_PHASES.md` Phase 3 |
-| WS-003 | P1 | Unified Review is the approval boundary, but no presentation contract identifies an exact operation manifest for confirmation | Persist or expose exact intended operations and checksum before confirmation | Owner approved (OD-005): resolved by the same Apply Manifest feature as WS-002 |
+| WS-002 | P0 | Unified Apply button saves selection and immediately sends `confirmed: true` | Separate confirmation bound to exact approved Review/operation scope | Resolved in PR #12 (`5277706`, `0c652a8`, `724ff7a`): `apply_selected` requires `manifest_id` and `expected_manifest_checksum` (in addition to `expected_selection_checksum`), loads the persisted `ApplyManifest`/`ApplyManifestOperation` rows, and re-verifies the checksum before any write; the confirmation dialog displays and enforces it. Verified still present in current `main` (`git merge-base --is-ancestor` confirmed). |
+| WS-003 | P1 | Unified Review is the approval boundary, but no presentation contract identifies an exact operation manifest for confirmation | Persist or expose exact intended operations and checksum before confirmation | Resolved by the same Apply Manifest feature as WS-002. |
 | WS-004 | P1 | Legacy Workspace uses a separate Preview/Dry Run/Approval/Write Pipeline facade | Canonical state names and recovery behavior across entry points | Owner decision required |
 | WS-005 | P2 | Presentation preferences use `workspace.read` for writes | Decide whether preferences are presentation-only read capability or need a dedicated permission | Keep current behavior pending evidence |
 
@@ -128,6 +128,9 @@ turned 7 previously crashing/failing tests green.
 The authorization-contract HOLD is resolved. The page-by-page audit is
 complete and all non-architectural findings above are committed. WS-001
 through WS-003 are no longer HOLD: OD-004/OD-005 record the Owner's
-architecture decisions, and WS-002/WS-003 are being implemented as the Apply
-Manifest feature. WS-001's route-consolidation mechanics remain future work.
-WS-004 and WS-005 remain open.
+architecture decisions, WS-002/WS-003 are resolved (Apply Manifest feature,
+PR #12), and WS-001's legacy-route removal is resolved (CLS-015); the
+`/workspace/:id` dead Handsontable grid named in OD-004 remains untouched.
+WS-004 and WS-005 remain open (WS-004 explicitly needs an Owner decision on
+canonical state naming across entry points; WS-005 needs evidence on
+whether presentation preferences need a dedicated permission).
