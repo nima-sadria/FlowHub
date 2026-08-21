@@ -103,12 +103,28 @@ selection is saved, displayed in the existing confirmation dialog before any
 write, and re-verified fresh by the server before Apply job creation and
 again immediately before dispatch. Closes WS-002 and WS-003.
 
+**Phase B business classification correctness pass** — an Owner-reference-
+specification review of the Price/Quantity/Stock Status/Warning/Eligibility
+classification engine (shipped in `feat/workspace-phase-b-completion`)
+found and fixed three P0 defects (canonical availability precedence,
+identifier-zero truthiness loss, an unmapped-Price crash) and two P1
+defects (an all-unchanged Review incorrectly reporting `blocked`; the Review
+dialog showing unchanged fields as `Blocked`). See `WORKSPACE_GAP_ANALYSIS.md`
+CLS-001 through CLS-015 for the full disposition, including deferred P1/P2
+badge-completeness gaps (percentage delta, badge staleness, Review-dialog
+classification DTO) that are real but out of this pass's scope.
+
 Remaining potential work after this item:
 
-- Route consolidation mechanics for WS-001 (redirect/deprecation timeline for
-  legacy `/workspace` and the dead `/workspace/:id` Handsontable grid).
+- Frontend route consolidation for WS-001 is done (`/workspace` redirects to
+  `/products`, `d49d0e4`); the legacy backend route
+  (`POST /api/v2/workspace/preview`) and dead `frontend/src/pages/Workspace.tsx`
+  page/translations/tests are still mounted/present (CLS-015) and still need
+  removal on the deprecation timeline OD-004 leaves open.
 - Align stale, cancelled, blocked, partial, and reconciliation state naming
   across entry points (WS-004).
+- The deferred Phase B badge-completeness gaps above (CLS-006 through
+  CLS-013).
 
 Safety gate:
 
