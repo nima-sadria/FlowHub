@@ -5,6 +5,8 @@ export interface MoneyFormatOptions {
   unit?: string | null
   position?: 'prefix' | 'suffix'
   empty?: string
+  /** Presentation only: accepted redundant decimal scale is not displayed. */
+  trimTrailingZeros?: boolean
 }
 
 const MONEY_TEXT = /^([+-]?)(\d+)(?:\.(\d+))?$/
@@ -15,7 +17,8 @@ export function formatMoney(value: MoneyValue, options: MoneyFormatOptions = {})
   if (numeric === null) return options.empty ?? '-'
   const match = MONEY_TEXT.exec(numeric)
   if (!match) return options.empty ?? '-'
-  const [, sign, integer, fraction] = match
+  const [, sign, integer, rawFraction] = match
+  const fraction = options.trimTrailingZeros === false ? rawFraction : rawFraction?.replace(/0+$/, '')
   const grouped = `${sign}${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}${fraction ? `.${fraction}` : ''}`
   const label = String(options.unit ?? options.currency ?? '').trim()
   if (!label) return grouped

@@ -416,7 +416,7 @@ export default function SourceConfiguration() {
   const [worksheetDiscoveryFeedback, setWorksheetDiscoveryFeedback] = useState<WorksheetDiscoveryFeedback | null>(null)
   const [dataStartRow, setDataStartRow] = useState(1)
   const [worksheetName, setWorksheetName] = useState('')
-  const [valuePolicy, setValuePolicy] = useState<Record<string, string>>(DEFAULT_VALUE_POLICY)
+  const [valuePolicy, setValuePolicy] = useState<Record<string, unknown>>(DEFAULT_VALUE_POLICY)
   const [preview, setPreview] = useState<SourcePreview | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -1940,12 +1940,35 @@ export default function SourceConfiguration() {
             {Object.entries(POLICY_OPTIONS).map(([key, options]) => (
               <label className="fh-field-label capitalize" key={key}>
                 {translate(`sources:sourceConfiguration.valueType.${key}`)}
-                <select className="fh-input mt-1" value={valuePolicy[key]} onChange={event => setValuePolicy(current => ({ ...current, [key]: event.target.value }))}>
+                <select className="fh-input mt-1" value={String(valuePolicy[key] ?? DEFAULT_VALUE_POLICY[key])} onChange={event => setValuePolicy(current => ({ ...current, [key]: event.target.value }))}>
                   {options.map(([value, labelKey]) => <option value={value} key={value}>{translate(labelKey)}</option>)}
                 </select>
               </label>
             ))}
           </div>
+          {configuredChannelIds.length > 0 && <div className="mt-4 border-t border-border pt-3">
+            <p className="fh-text-caption mb-2">{translate('sources:sourceConfiguration.zeroDecimalPricesHelp')}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {configuredChannelIds.map(channelId => {
+                const policies = (valuePolicy.channel_price_policies as Record<string, Record<string, unknown>> | undefined) ?? {}
+                const policy = policies[channelId] ?? {}
+                const checked = policy.fix_zero_decimal_prices !== false
+                return <label className="fh-inline-check" key={channelId}>
+                  <input type="checkbox" checked={checked} onChange={event => setValuePolicy(current => {
+                    const currentPolicies = (current.channel_price_policies as Record<string, Record<string, unknown>> | undefined) ?? {}
+                    return {
+                      ...current,
+                      channel_price_policies: {
+                        ...currentPolicies,
+                        [channelId]: { ...currentPolicies[channelId], fix_zero_decimal_prices: event.target.checked },
+                      },
+                    }
+                  })} />
+                  {translate('sources:sourceConfiguration.fixZeroDecimalPrices', { channel: formatChannelDisplayName(channelId, { showInstance: true }) })}
+                </label>
+              })}
+            </div>
+          </div>}
         </ConfigurationSection>
       </div>
 

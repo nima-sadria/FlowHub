@@ -17,6 +17,7 @@ from app.flowhub.auth import models as _auth_models  # noqa: F401
 from app.flowhub.data_layer import models as _data_layer_models  # noqa: F401
 from app.flowhub.integration_platform import models as _integration_platform_models  # noqa: F401
 from app.flowhub.setup import models as _setup_models  # noqa: F401
+from app.flowhub.source_acquisition import models as _source_acquisition_models  # noqa: F401
 from app.flowhub.source_workspace import models as _source_workspace_models  # noqa: F401
 from app.flowhub.unified_workspace import models as _unified_workspace_models  # noqa: F401
 from app.flowhub.write_pipeline import models as _write_pipeline_models  # noqa: F401
@@ -648,7 +649,7 @@ def test_variation_row_matched_by_variation_id_is_eligible_for_dry_run(
     assert item["variationAttributes"][0] == {"name": "Color", "value": "Blue"}
 
 
-def test_variation_row_matched_by_sku_if_safe(client, auth_headers, configured_db, monkeypatch):
+def test_variation_row_is_not_matched_by_sku(client, auth_headers, configured_db, monkeypatch):
     from app.flowhub.integrations.nextcloud import NextcloudClient
     from app.flowhub.setup.service import AppConfigService
 
@@ -683,11 +684,12 @@ def test_variation_row_matched_by_sku_if_safe(client, auth_headers, configured_d
 
     assert response.status_code == 200
     row = response.json()["rows"][0]
-    assert row["matchedProduct"]["variationId"] == "202"
-    assert row["eligible_for_dry_run"] is True
+    assert row["matchedProduct"] is None
+    assert "missing_product_identifier" in row["errors"]
+    assert row["eligible_for_dry_run"] is False
 
 
-def test_workspace_preview_generates_distinct_ids_for_sku_only_source_rows(
+def test_workspace_preview_keeps_sku_only_source_rows_blocked(
     client, auth_headers, configured_db, monkeypatch
 ):
     from app.flowhub.integrations.nextcloud import NextcloudClient
@@ -729,8 +731,8 @@ def test_workspace_preview_generates_distinct_ids_for_sku_only_source_rows(
         headers=auth_headers,
         json={"previewId": data["id"], "selectedRowIds": [row_ids[0]]},
     )
-    assert dry_run.status_code == 201
-    assert dry_run.json()["items"][0]["source"]["rowNumber"] == 3
+    assert all("missing_product_identifier" in row["errors"] for row in data["rows"])
+    assert dry_run.status_code == 422
 
 
 def test_workspace_preview_keeps_duplicate_business_identifiers_distinct(
@@ -760,7 +762,7 @@ def test_workspace_preview_keeps_duplicate_business_identifiers_distinct(
     assert len(set(row_ids)) == 4
     assert [row["source"]["rowNumber"] for row in rows] == [3, 4, 5, 6]
     assert sum(1 for row in rows if "duplicate_product_id" in row["errors"]) == 2
-    assert sum(1 for row in rows if "duplicate_sku" in row["errors"]) == 2
+    assert sum(1 for row in rows if "duplicate_sku" in row["errors"]) == 0
 
 
 def test_workspace_preview_keeps_identical_content_on_different_rows_distinct(
@@ -1009,7 +1011,7 @@ def test_workspace_preview_classifies_validation_errors_warnings_and_unchanged(
     by_row = {item["source"]["rowNumber"]: item for item in rows}
 
     assert "duplicate_product_id" in by_row[3]["errors"]
-    assert "product_name_mismatch" in by_row[5]["errors"]
+    assert by_row[5]["eligible_for_dry_run"] is True
     assert by_row[6]["status"] == "unchanged"
     assert by_row[7]["eligible_for_dry_run"] is True
     assert "large_price_change" in by_row[8]["warnings"]
@@ -1018,16 +1020,16 @@ def test_workspace_preview_classifies_validation_errors_warnings_and_unchanged(
     assert by_row[11]["status"] == "valid_change"
     assert by_row[11]["matchedProduct"]["itemType"] == "variation"
     assert by_row[11]["eligible_for_dry_run"] is True
-    assert "duplicate_sku" in by_row[12]["errors"]
-    assert "duplicate_sku" in by_row[13]["errors"]
+    assert "duplicate_sku" not in by_row[12]["errors"]
+    assert "duplicate_sku" not in by_row[13]["errors"]
     assert "missing_product_identifier" in by_row[14]["errors"]
     assert "large_price_change_blocked" in by_row[15]["errors"]
-    assert data["summary"]["error_rows"] == 9
+    assert data["summary"]["error_rows"] == 8
     assert data["summary"]["unchanged_rows"] == 1
     assert data["summary"]["large_changes"] == 2
 
     change_ids = {item["productId"] for item in data["changes"]}
-    assert change_ids == {"104", "105", "107"}
+    assert change_ids == {"102", "104", "105", "107"}
     assert all("stock" not in item for item in data["changes"])
 
 
@@ -1245,9 +1247,9 @@ def test_duplicate_product_ids_and_skus_are_detected_across_worksheets():
 
     rows, duplicates = parse_source_price_rows(workbook)
 
-    assert duplicates == {"duplicate_product_ids": ["101"], "duplicate_skus": ["dup-sku"]}
+    assert duplicates == {"duplicate_product_ids": ["101"], "duplicate_skus": []}
     assert all("duplicate_product_id" in row["row_errors"] for row in rows)
-    assert all("duplicate_sku" in row["row_errors"] for row in rows)
+    assert all("duplicate_sku" not in row["row_errors"] for row in rows)
 
 
 def test_workspace_preview_uses_configured_mapping_and_reads_stock(

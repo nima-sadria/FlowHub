@@ -24,8 +24,8 @@ from app.flowhub.business_observability.models import BusinessEvent
 from app.flowhub.data_layer.models import (
     DlConnectorHealth,
     DlConnectorTelemetry,
-    DlInventoryCache,
     DlInvalidationEvent,
+    DlInventoryCache,
     DlProductCache,
     DlRefreshJob,
     DlSourceDiscoveryLock,
@@ -55,8 +55,8 @@ from app.flowhub.source_acquisition.models import (
     SourceMappingSchemaExpectation,
     SourceObservation,
     SourceObservationDataset,
-    SourceObservationWorksheetDataset,
     SourceObservationVersionHead,
+    SourceObservationWorksheetDataset,
     SourceSchemaAssessment,
 )
 from app.flowhub.source_workspace.formula import (
@@ -79,8 +79,8 @@ from app.flowhub.source_workspace.models import (
     SourceDataQualityScan,
     SourceDataQualityScanSource,
     SourceFieldMapping,
-    SourceMappingRevision,
     SourceMappingIdentityAssessment,
+    SourceMappingRevision,
     SourceProductIdentity,
     SourceProfile,
     SourceWorksheetChannelFieldMapping,
@@ -96,10 +96,23 @@ from app.flowhub.source_workspace.repositories import (
 )
 from app.flowhub.sources.spreadsheet_source import (
     SOURCE_ID as LEGACY_EXTERNAL_SOURCE_ID,
+)
+from app.flowhub.sources.spreadsheet_source import (
     SpreadsheetSourceReadService,
     normalize_source_mapping,
 )
-from app.flowhub.unified_workspace.domain import ApplyState, ReviewState, checksum, utcnow
+from app.flowhub.unified_workspace.domain import (
+    ApplyState,
+    AvailabilitySignal,
+    ReviewState,
+    SourceInstruction,
+    checksum,
+    normalize_direct_price,
+    normalize_quantity,
+    normalize_stock_status,
+    resolve_availability,
+    utcnow,
+)
 from app.flowhub.unified_workspace.events import (
     DomainEvent,
     DomainEventBus,
@@ -1029,7 +1042,7 @@ class SourceWorkspaceService:
         data_start_row: int,
         source_fields: list[dict[str, Any]],
         channel_mappings: list[dict[str, Any]],
-        value_policy: dict[str, str],
+        value_policy: dict[str, Any],
         worksheet_rule_mode: str = "shared",
         selected_worksheet_names: list[str] | None = None,
         duplicate_product_policy: str = "block",
@@ -1251,7 +1264,7 @@ class SourceWorkspaceService:
         data_start_row: int,
         source_fields: list[dict[str, Any]],
         channel_mappings: list[dict[str, Any]],
-        value_policy: dict[str, str],
+        value_policy: dict[str, Any],
         worksheet_rule_mode: str = "shared",
         selected_worksheet_names: list[str] | None = None,
         duplicate_product_policy: str = "block",
@@ -2281,9 +2294,9 @@ class SourceWorkspaceService:
         seen_listing_ids: set[str] = set()
         for record in records:
             source_product = record["sourceProduct"]
-            group_key = _normalize_source_product_key(
-                source_product.get("source_key") or source_product.get("name")
-            )
+            # The accepted Source Product Key groups Source rows.  Product
+            # Name is display evidence only and is never an identity fallback.
+            group_key = _normalize_source_product_key(source_product.get("source_key"))
             blocked_channels: set[str] = set()
             global_block = False
             for row_issue in record.get("issues", []):
@@ -2410,6 +2423,19 @@ class SourceWorkspaceService:
                     continue
                 channel_group = (group_key, channel_id)
                 channel_contract = channel_contracts.get(channel_id)
+                if channel_contract is None:
+                    issues.append(
+                        self._candidate_issue(
+                            record,
+                            channel_id,
+                            "unavailable_capability",
+                            "CHANNEL_CONTRACT_UNAVAILABLE",
+                            "The Channel capability contract is unavailable.",
+                            "Refresh Channel configuration before creating a Workspace.",
+                            {},
+                        )
+                    )
+                    continue
                 if (
                     channel_contract is not None
                     and not bool(
@@ -2449,27 +2475,38 @@ class SourceWorkspaceService:
                         )
                     )
                     continue
-                targets: dict[str, str] = {}
-                blocked = False
-                for field in ("price", "stock", "status"):
-                    interpreted = self._interpret_target(fields.get(field), field, policy)
-                    if interpreted["issue"]:
-                        blocked = True
+                targets, classification, classification_warnings = self._classify_channel_targets(
+                    fields, policy, channel_contract, cache
+                )
+                if classification["blockers"]:
+                    for code in classification["blockers"]:
                         issues.append(
                             self._candidate_issue(
                                 record,
                                 channel_id,
                                 "invalid_value",
-                                interpreted["issue"],
-                                str(interpreted["message"]),
-                                "Correct the mapped value or change the explicit value policy.",
-                                {"field": field, "raw": fields.get(field)},
+                                str(code),
+                                "The Source value or its monetary contract cannot be safely classified.",
+                                "Correct the Source value or Mapping currency/precision evidence.",
+                                {"classification": classification},
                             )
                         )
-                    elif interpreted["target"] is not None:
-                        targets[field] = interpreted["target"]
-                if blocked:
                     continue
+                for warning in classification_warnings:
+                    issues.append(
+                        {
+                            **self._candidate_issue(
+                                record,
+                                channel_id,
+                                "warning",
+                                str(warning["code"]),
+                                "The mapped Price is unusable and requests out of stock.",
+                                "Correct the Source Price if out of stock was not intended.",
+                                {"field": warning["field"], "classification": classification},
+                            ),
+                            "severity": "warning",
+                        }
+                    )
                 seen_listing_ids.add(listing.id)
                 candidates.append(
                     {
@@ -2482,6 +2519,7 @@ class SourceWorkspaceService:
                         "mappingVersion": listing.mapping_version,
                         "cacheVersion": cache.cache_version,
                         "targets": targets,
+                        "classification": classification,
                     }
                 )
                 complete_evidence = (
@@ -4308,7 +4346,7 @@ class SourceWorkspaceService:
         self.db.flush()
 
     @staticmethod
-    def _normalize_value_policy(raw: dict[str, str]) -> dict[str, str]:
+    def _normalize_value_policy(raw: dict[str, Any]) -> dict[str, Any]:
         allowed = {
             "blank": {"no_change", "blocked"},
             "x": {"unavailable", "no_change", "blocked"},
@@ -4317,8 +4355,31 @@ class SourceWorkspaceService:
             "formula": {"calculated_value", "blocked"},
             "invalid": {"blocked"},
         }
-        result = dict(DEFAULT_VALUE_POLICY)
+        result: dict[str, Any] = dict(DEFAULT_VALUE_POLICY)
         for key, value in raw.items():
+            if key == "channel_price_policies":
+                if not isinstance(value, dict):
+                    raise _unprocessable("VALUE_POLICY_INVALID", "Channel price policies must be an object.")
+                normalized_channels: dict[str, dict[str, Any]] = {}
+                for channel_id, policy in value.items():
+                    if not isinstance(policy, dict):
+                        raise _unprocessable("VALUE_POLICY_INVALID", "Each Channel price policy must be an object.")
+                    fix = policy.get("fix_zero_decimal_prices")
+                    applicability = policy.get("fix_zero_decimal_prices_applicability")
+                    precision_version = policy.get("monetary_precision_contract_version")
+                    if fix is not None and not isinstance(fix, bool):
+                        raise _unprocessable("VALUE_POLICY_INVALID", "Fix zero-decimal prices must be Boolean.")
+                    if applicability not in {None, "APPLICABLE", "NOT_APPLICABLE"}:
+                        raise _unprocessable("VALUE_POLICY_INVALID", "Invalid zero-decimal applicability.")
+                    if precision_version is not None and not isinstance(precision_version, str):
+                        raise _unprocessable("VALUE_POLICY_INVALID", "Invalid monetary precision contract version.")
+                    normalized_channels[str(channel_id)] = {
+                        "fix_zero_decimal_prices": fix,
+                        "fix_zero_decimal_prices_applicability": applicability,
+                        "monetary_precision_contract_version": precision_version,
+                    }
+                result[key] = normalized_channels
+                continue
             if key not in allowed or value not in allowed[key]:
                 raise _unprocessable("VALUE_POLICY_INVALID", f"Invalid handling policy for {key}.")
             result[key] = value
@@ -4708,7 +4769,6 @@ class SourceWorkspaceService:
                     for field in rule["sourceFields"]
                     if field.reference_type != "disabled"
                 }
-                name = str(source_data.get("name") or "").strip()
                 source_key = str(source_data.get("source_key") or "").strip()
                 require_source_key = any(
                     field.field == "source_key" and field.required
@@ -4750,15 +4810,10 @@ class SourceWorkspaceService:
                     }
                     if any(value not in {None, ""} for value in fields.values()):
                         channel_value_present = True
+                    # Channel identifiers are identity, never business-value
+                    # sentinels.  x, dash, and zero reach the connector's
+                    # identifier contract unchanged.
                     external_id = str(fields.get("external_id") or "").strip()
-                    marker = external_id.casefold()
-                    if marker == "x" and policy["x"] in {"unavailable", "no_change"}:
-                        continue
-                    if marker in {"-", "–", "—"} and policy["dash"] in {
-                        "unavailable",
-                        "no_change",
-                    }:
-                        continue
                     if external_id:
                         channel_data.append({"channelId": channel_id, "fields": fields})
                     elif any(value not in {None, ""} for value in fields.values()):
@@ -4770,20 +4825,14 @@ class SourceWorkspaceService:
                                 "message": "Channel values exist but External Listing ID is missing.",
                             }
                         )
+                non_display_source = {
+                    key: value for key, value in source_data.items() if key != "name"
+                }
                 row_has_product_data = (
-                    any(value not in {None, ""} for value in source_data.values())
+                    any(value not in {None, ""} for value in non_display_source.values())
                     or channel_value_present
                 )
-                recognized = bool(name and (source_key or not require_source_key) and channel_data)
-                if not name and row_has_product_data:
-                    row_issues.append(
-                        {
-                            "category": "missing_source_identity",
-                            "severity": "blocked",
-                            "channelId": None,
-                            "message": "Source Product Name is required.",
-                        }
-                    )
+                recognized = bool((source_key or not require_source_key) and channel_data)
                 if require_source_key and not source_key and row_has_product_data:
                     row_issues.append(
                         {
@@ -4907,7 +4956,6 @@ class SourceWorkspaceService:
                 for field in source_fields
                 if field.reference_type != "disabled"
             }
-            name = str(source_data.get("name") or "").strip()
             source_key = str(source_data.get("source_key") or "").strip()
             require_source_key = any(
                 field.field == "source_key" and field.required for field in source_fields
@@ -4931,15 +4979,10 @@ class SourceWorkspaceService:
                 }
                 if any(value not in {None, ""} for value in fields.values()):
                     channel_value_present = True
+                # Channel identifiers are identity, never business-value
+                # sentinels.  x, dash, and zero reach the connector's
+                # identifier contract unchanged.
                 external_id = str(fields.get("external_id") or "").strip()
-                marker = external_id.casefold()
-                if marker == "x" and policy["x"] in {"unavailable", "no_change"}:
-                    continue
-                if marker in {"-", "–", "—"} and policy["dash"] in {
-                    "unavailable",
-                    "no_change",
-                }:
-                    continue
                 if external_id:
                     channel_data.append({"channelId": channel_id, "fields": fields})
                 elif any(value not in {None, ""} for value in fields.values()):
@@ -4951,19 +4994,14 @@ class SourceWorkspaceService:
                             "message": "Channel values exist but External Listing ID is missing.",
                         }
                     )
+            non_display_source = {
+                key: value for key, value in source_data.items() if key != "name"
+            }
             row_has_product_data = (
-                any(value not in {None, ""} for value in source_data.values())
+                any(value not in {None, ""} for value in non_display_source.values())
                 or channel_value_present
             )
-            recognized = bool(name and (source_key or not require_source_key) and channel_data)
-            if not name and row_has_product_data:
-                row_issues.append(
-                    {
-                        "category": "missing_source_identity",
-                        "severity": "blocked",
-                        "message": "Source Product Name is required.",
-                    }
-                )
+            recognized = bool((source_key or not require_source_key) and channel_data)
             if require_source_key and not source_key and row_has_product_data:
                 row_issues.append(
                     {
@@ -5049,6 +5087,112 @@ class SourceWorkspaceService:
         return {"target": text, "issue": None, "message": None}
 
     @staticmethod
+    def _classify_channel_targets(
+        fields: dict[str, Any],
+        policy: dict[str, Any],
+        channel: WorkspaceChannel,
+        cache: ChannelCache,
+    ) -> tuple[dict[str, str], dict[str, Any], list[dict[str, str]]]:
+        """Translate Source cells once into exact targets plus immutable evidence.
+
+        The mapping builder previously reduced every sentinel and malformed value
+        to ``None``.  That made it impossible to distinguish no instruction from
+        the Owner-approved direct-price availability instruction.  This small
+        adapter keeps the pure business classification in ``domain.py`` and
+        leaves connector capability/write decisions to Unified Workspace.
+        """
+
+        capabilities = dict(channel.capabilities_json or {})
+        # Cache currency/unit is pinned Source-to-Preview evidence when older
+        # Channel capability payloads predate those declarations.  A missing
+        # value on both surfaces remains a blocker; it is never inferred from
+        # price magnitude.
+        currency = str(capabilities.get("currency") or cache.price_currency or "").upper() or None
+        unit = str(capabilities.get("unit") or cache.price_unit or "").upper() or None
+        channel_policy = dict(policy.get("channel_price_policies") or {}).get(channel.id, {})
+        is_rial_or_toman = currency == "IRR" and unit in {"RIAL", "TOMAN"}
+        # Current architecture has a declared zero-decimal IRR unit contract.
+        # Other currencies must carry an explicit precision in channel
+        # capability evidence before direct Source Price can be classified.
+        precision = 0 if is_rial_or_toman else capabilities.get("monetaryPrecision")
+        price = (
+            normalize_direct_price(
+                fields.get("price"),
+                currency=currency,
+                unit=unit,
+                monetary_precision=precision if isinstance(precision, int) else None,
+                fix_zero_decimal_prices=channel_policy.get("fix_zero_decimal_prices"),
+            )
+            if "price" in fields
+            else None
+        )
+        quantity = normalize_quantity(fields.get("stock"), mapped="stock" in fields)
+        stock_status = normalize_stock_status(fields.get("status"), mapped="status" in fields)
+        normalized = {"price": price, "stock": quantity, "status": stock_status}
+        desired, blockers = resolve_availability(*normalized.values())
+        targets: dict[str, str] = {}
+        warnings: list[dict[str, str]] = []
+        for field, result in normalized.items():
+            if result.warning_code:
+                warnings.append({"code": result.warning_code, "field": field})
+        if blockers:
+            return targets, {
+                "version": "workspace-change-badges-v1",
+                "fields": {
+                    field: {
+                        "instruction": result.instruction.value,
+                        "rawLexeme": result.raw_lexeme,
+                        "target": result.target,
+                        "availabilitySignal": result.availability_signal.value if result.availability_signal else None,
+                        "reason": result.reason_code,
+                        "warning": result.warning_code,
+                        "blocker": result.blocker_code,
+                        "fixApplied": result.fix_applied,
+                    }
+                    for field, result in normalized.items()
+                },
+                "desiredStockStatus": None,
+                "blockers": list(blockers),
+                "warnings": warnings,
+            }, warnings
+        if price and price.instruction is SourceInstruction.SET and price.target is not None:
+            targets["price"] = price.target
+        if (
+            quantity.instruction is SourceInstruction.SET
+            and quantity.target is not None
+            and not (desired is AvailabilitySignal.OUT_OF_STOCK and quantity.target != "0")
+        ):
+            # Positive quantity is intentionally suppressed by a winning OOS
+            # instruction. Zero remains an explicit governed instruction.
+            targets["stock"] = quantity.target
+        current_status = str(cache.status or "").casefold()
+        current_canonical = {
+            "instock": AvailabilitySignal.IN_STOCK,
+            "outofstock": AvailabilitySignal.OUT_OF_STOCK,
+        }.get(current_status)
+        if desired is not None and current_canonical is not None and desired is not current_canonical:
+            targets["status"] = desired.value
+        return targets, {
+            "version": "workspace-change-badges-v1",
+            "fields": {
+                field: {
+                    "instruction": result.instruction.value,
+                    "rawLexeme": result.raw_lexeme,
+                    "target": result.target,
+                    "availabilitySignal": result.availability_signal.value if result.availability_signal else None,
+                    "reason": result.reason_code,
+                    "warning": result.warning_code,
+                    "blocker": result.blocker_code,
+                    "fixApplied": result.fix_applied,
+                }
+                for field, result in normalized.items()
+            },
+            "desiredStockStatus": desired.value if desired else None,
+            "blockers": [],
+            "warnings": warnings,
+        }, warnings
+
+    @staticmethod
     def _candidate_issue(
         record: dict[str, Any],
         channel_id: str | None,
@@ -5111,9 +5255,7 @@ class SourceWorkspaceService:
 
         def product_identity(record: dict[str, Any]) -> str:
             source_product = dict(record.get("sourceProduct") or {})
-            identity = str(
-                source_product.get("source_key") or source_product.get("name") or ""
-            ).strip()
+            identity = str(source_product.get("source_key") or "").strip()
             if identity:
                 return f"product:{identity.casefold()}"
             return f"row:{record.get('rowKey') or record.get('rowNumber') or ''}"

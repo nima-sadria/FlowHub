@@ -102,6 +102,7 @@ export interface ReviewItemResource {
   id: string
   canonicalProductId: string
   listingId: string
+  externalPrimaryId?: string | null
   channelId: string
   field: 'price' | 'stock' | 'status'
   current: string | null
@@ -180,7 +181,7 @@ export interface DryRunResource {
   writeCount: number
   blockerCount: number
   evidenceChecksum: string
-  scopes: Array<{ reviewItemId: string; disposition: 'write' | 'no_op' | 'blocked'; reason: string | null }>
+  scopes: Array<{ reviewItemId: string; disposition: 'write' | 'no_op' | 'blocked'; reason: string | null; expected?: Record<string, unknown> | null; observed?: Record<string, unknown> | null }>
   manifestId?: string
   manifestChecksum?: string
   operations?: ManifestOperationResource[]

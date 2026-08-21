@@ -641,6 +641,7 @@ class UnifiedWorkspaceService:
                 "mapping_version": candidate["mappingVersion"],
                 "cache_version": candidate["cacheVersion"],
                 "targets": candidate["targets"],
+                "change_classification": candidate.get("classification"),
             }
             snapshot_document.append(immutable)
             staged_rows.append(
@@ -1233,6 +1234,9 @@ class UnifiedWorkspaceService:
                 parent["media"] = product_media
             listing_changes = changes_by_listing.get(listing.id, {})
             source_targets = snapshot_row.normalized_data_json.get("targets") or {}
+            source_classification = snapshot_row.normalized_data_json.get(
+                "change_classification"
+            ) or {}
             capabilities = self._capabilities_or_none(listing.channel_id)
             channel_available = (
                 self._workspace_channel_available(listing.channel_id)
@@ -1296,6 +1300,11 @@ class UnifiedWorkspaceService:
                     "selected": listing.id in selected_listing_ids,
                     "reviewItemIds": [item.id for item in review_items if item.eligible],
                     "fields": fields,
+                    "changeClassification": self._change_badge_shape(
+                        source_classification,
+                        fields,
+                        row_blocked=blocked,
+                    ),
                 }
             )
         items = []
@@ -2161,62 +2170,77 @@ class UnifiedWorkspaceService:
         parent_external_id: str | None,
         capabilities: ChannelCapabilities,
     ) -> dict[str, Any]:
-        return {
-            "price": item.current_value,
+        expected = {
             "external_id": str(listing.external_primary_id),
             "product_type": canonical_text(product.product_type).casefold(),
             "parent_external_id": (
                 str(parent_external_id) if parent_external_id is not None else None
             ),
-            "currency": canonical_text(capabilities.currency).upper(),
-            "unit": canonical_text(capabilities.unit).upper(),
         }
+        # A Dry Run authorizes one governed field at a time.  Do not make a
+        # price-only write depend on an unrelated stock/status cache value (or
+        # vice versa): that would turn harmless independent changes into false
+        # drift.  Currency and unit remain exact evidence for monetary writes.
+        expected[item.field] = item.current_value
+        if item.field == "price":
+            expected["currency"] = canonical_text(capabilities.currency).upper()
+            expected["unit"] = canonical_text(capabilities.unit).upper()
+        return expected
 
     @staticmethod
     def _live_evidence_is_unverifiable(
         observed: dict[str, Any], expected: dict[str, Any]
     ) -> bool:
-        required = (
-            "external_id",
-            "product_type",
-            "parent_external_id",
-            "price",
-            "currency",
-            "unit",
+        governed_fields = tuple(
+            field for field in ("price", "stock", "status") if field in expected
         )
+        required = ("external_id", "product_type", "parent_external_id", *governed_fields)
+        if "price" in governed_fields:
+            required += ("currency", "unit")
         if any(field not in observed for field in required):
             return True
         if not all(
             canonical_text(observed.get(field))
-            for field in ("external_id", "product_type", "currency", "unit")
+            for field in ("external_id", "product_type")
+        ):
+            return True
+        if "price" in governed_fields and not all(
+            canonical_text(observed.get(field)) for field in ("currency", "unit")
         ):
             return True
         parent = observed.get("parent_external_id")
         if parent is not None and not canonical_text(parent):
             return True
-        # A price which cannot compare to itself is malformed/non-finite and
-        # cannot be authoritative evidence.
-        if not values_equal("price", observed.get("price"), observed.get("price")):
-            return True
+        for field in governed_fields:
+            # A value which cannot compare to itself is malformed/non-finite
+            # and cannot be authoritative evidence for that governed field.
+            if not values_equal(field, observed.get(field), observed.get(field)):
+                return True
         if canonical_text(observed.get("external_id")) != canonical_text(
             expected.get("external_id")
         ):
             return True
-        return not all(
-            canonical_text(expected.get(field))
-            for field in ("external_id", "product_type", "currency", "unit")
-        )
+        required_expected = ["external_id", "product_type"]
+        if "price" in governed_fields:
+            required_expected.extend(("currency", "unit"))
+        return not all(canonical_text(expected.get(field)) for field in required_expected)
 
     @staticmethod
     def _live_evidence_drifted(observed: dict[str, Any], expected: dict[str, Any]) -> bool:
-        return (
+        identity_drift = (
             canonical_text(observed["product_type"]).casefold()
             != canonical_text(expected["product_type"]).casefold()
             or (
                 None if observed["parent_external_id"] is None else str(observed["parent_external_id"])
             )
             != expected["parent_external_id"]
-            or canonical_text(observed["currency"]).upper()
+        )
+        if identity_drift:
+            return True
+        if "price" not in expected:
+            return False
+        return (
+            canonical_text(observed["currency"]).upper()
             != canonical_text(expected["currency"]).upper()
             or canonical_text(observed["unit"]).upper()
             != canonical_text(expected["unit"]).upper()
@@ -2294,6 +2318,7 @@ class UnifiedWorkspaceService:
                 mapping_version=listing.mapping_version, cache_version=cache.cache_version,
                 cache_checksum=cache.checksum, capability_version=capabilities.version,
                 currency_digest=review.currency_digest, idempotency_key="dry-run", payload_hash="dry-run",
+                governed_fields=frozenset(item.field for item in group),
             )
             connector = WorkspaceConnectorFactory(ProductPricingService(self.db), CommerceHubService(self.db)).get(listing.channel_id)
             try:
@@ -2343,7 +2368,7 @@ class UnifiedWorkspaceService:
             manifest, operations = self._generate_apply_manifest(review, [scope["item"] for scope in writes], user, dry_run_id=dry_run.id, live_evidence_checksum=dry_run.evidence_checksum)
         self._audit("dry_run_completed", user, correlation_id, workspace_id=workspace.id, snapshot_id=snapshot.id, review_id=review.id, review_result=status_value, metadata={"reviewed": len(scopes), "writes": len(writes), "blockers": len(blockers), "zero_provider_writes": True})
         self.db.commit()
-        result: dict[str, Any] = {"id": dry_run.id, "status": status_value, "reviewedCount": len(scopes), "writeCount": len(writes), "blockerCount": len(blockers), "evidenceChecksum": dry_run.evidence_checksum, "scopes": [{"reviewItemId": scope["item"].id, "disposition": scope["disposition"], "reason": scope["reason"]} for scope in scopes]}
+        result: dict[str, Any] = {"id": dry_run.id, "status": status_value, "reviewedCount": len(scopes), "writeCount": len(writes), "blockerCount": len(blockers), "evidenceChecksum": dry_run.evidence_checksum, "scopes": [{"reviewItemId": scope["item"].id, "disposition": scope["disposition"], "reason": scope["reason"], "expected": scope["expected"], "observed": scope["observed"]} for scope in scopes]}
         if manifest is not None:
             result.update(self._manifest_shape(manifest, operations))
         return result
@@ -2385,6 +2410,7 @@ class UnifiedWorkspaceService:
                 currency_digest="",
                 idempotency_key="apply-live-recheck",
                 payload_hash="apply-live-recheck",
+                governed_fields=frozenset({item.field}),
             )
             try:
                 result = (await WorkspaceConnectorFactory(ProductPricingService(self.db), CommerceHubService(self.db)).get(listing.channel_id).verify_updates([probe], requested_by=user.username))[0]
@@ -2408,6 +2434,11 @@ class UnifiedWorkspaceService:
             raise self._not_found("REVIEW_NOT_FOUND", "Review not found.")
         self._workspace_for_user(review.workspace_id, user)
         selections = {item.review_item_id for item in self.reviews.selections(review.id)}
+        items = self.reviews.items(review.id)
+        listings = {
+            listing.id: listing
+            for listing in self.db.query(Listing).filter(Listing.id.in_([item.listing_id for item in items])).all()
+        }
         return {
             "id": review.id,
             "workspaceId": review.workspace_id,
@@ -2424,6 +2455,7 @@ class UnifiedWorkspaceService:
                     "id": item.id,
                     "canonicalProductId": item.canonical_product_id,
                     "listingId": item.listing_id,
+                    "externalPrimaryId": listings.get(item.listing_id).external_primary_id if listings.get(item.listing_id) else None,
                     "channelId": item.channel_id,
                     "field": item.field,
                     "current": item.current_value,
@@ -2435,7 +2467,7 @@ class UnifiedWorkspaceService:
                     "eligible": item.eligible,
                     "selected": item.id in selections,
                 }
-                for item in self.reviews.items(review.id)
+                for item in items
             ],
         }
 
@@ -4792,6 +4824,70 @@ class UnifiedWorkspaceService:
         if field == "stock":
             return str(cache.stock_quantity) if cache.stock_quantity is not None else None
         return cache.status
+
+    @staticmethod
+    def _change_badge_shape(
+        classification: object,
+        fields: dict[str, dict[str, Any]],
+        *,
+        row_blocked: bool,
+    ) -> dict[str, Any] | None:
+        """Serialize display facts already decided by the pinned Source classifier.
+
+        This is intentionally a DTO projector, not another precedence engine.
+        It derives only direction/delta from exact values and forwards the
+        Source classifier's desired status, warnings, and blockers.
+        """
+
+        if not isinstance(classification, dict):
+            return None
+        field_evidence = classification.get("fields")
+        if not isinstance(field_evidence, dict):
+            return None
+
+        def numeric_state(field: str, unchanged: str) -> dict[str, Any]:
+            evidence = field_evidence.get(field) or {}
+            target, current = fields[field].get("target"), fields[field].get("current")
+            if evidence.get("instruction") != "SET" or target is None:
+                return {"state": "NO_VALID_PRICE" if field == "price" else "UNMANAGED"}
+            try:
+                delta = Decimal(str(target)) - Decimal(str(current))
+            except Exception:
+                return {"state": "NOT_EVALUATED"}
+            if delta == 0:
+                return {"state": unchanged, "current": str(current), "target": str(target), "delta": "0"}
+            return {
+                "state": "INCREASE" if delta > 0 else "DECREASE",
+                "current": str(current),
+                "target": str(target),
+                "delta": format(delta, "f"),
+            }
+
+        price = numeric_state("price", "UNCHANGED")
+        quantity = numeric_state("stock", "UNCHANGED")
+        desired = classification.get("desiredStockStatus")
+        current_status = str(fields["status"].get("current") or "").casefold()
+        current = {"instock": "IN_STOCK", "outofstock": "OUT_OF_STOCK"}.get(current_status)
+        if desired not in {"IN_STOCK", "OUT_OF_STOCK"} or current is None:
+            stock_status = {"state": "NOT_EVALUATED"}
+        elif desired == current:
+            stock_status = {"state": f"UNCHANGED_{desired}", "current": current, "target": desired}
+        else:
+            stock_status = {"state": f"BECOMES_{desired}", "current": current, "target": desired}
+        blockers = [str(value) for value in classification.get("blockers") or []]
+        return {
+            "version": classification.get("version", "workspace-change-badges-v1"),
+            "price": price,
+            "quantity": quantity,
+            "stockStatus": stock_status,
+            "warnings": [item for item in classification.get("warnings") or [] if isinstance(item, dict)],
+            "eligibility": "BLOCKED" if row_blocked or blockers else "ELIGIBLE",
+            "actionable": bool(
+                not row_blocked
+                and any(item.get("changed") for item in fields.values())
+            ),
+            "blockers": blockers,
+        }
 
     @staticmethod
     def _normalized_snapshot_data(

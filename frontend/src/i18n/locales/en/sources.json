@@ -408,6 +408,8 @@
   "sourceConfiguration.validateConfiguration": "Validate Configuration",
   "sourceConfiguration.validateIdentityFromLocalData": "Validate identity from local data",
   "sourceConfiguration.valueHandling": "How to read special cell values",
+  "sourceConfiguration.fixZeroDecimalPrices": "Fix zero-decimal prices for {{channel}}",
+  "sourceConfiguration.zeroDecimalPricesHelp": "For Rial/Toman channels, convert only exact .00 or .000 price values to integers. Fractional prices are never rounded.",
   "sourceConfiguration.valueType.blank": "Blank",
   "sourceConfiguration.valueType.dash": "Dash",
   "sourceConfiguration.valueType.formula": "Formula",

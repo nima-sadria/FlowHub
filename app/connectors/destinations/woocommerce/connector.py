@@ -41,7 +41,7 @@ from .rest_client import (
     list_products_paged,
     list_variations_by_ids,
     ping,
-    update_product_price,
+    update_product_fields,
 )
 
 
@@ -176,13 +176,29 @@ class WooCommerceConnector(DestinationConnector):
             "sale_price": product.get("sale_price"),
         }
 
-    async def update_price(self, product_id: int, price: float, *, parent_product_id: int | None = None) -> dict:
-        """Apply a price-only update through the approved Write Pipeline.
-
-        This method deliberately accepts no stock or inventory fields.
-        """
+    async def update_fields(
+        self,
+        product_id: int,
+        *,
+        price: float | None = None,
+        stock_quantity: int | None = None,
+        stock_status: str | None = None,
+        parent_product_id: int | None = None,
+    ) -> dict:
+        """Apply the selected governed price/inventory fields only."""
         creds = self._require_connected()
-        return await update_product_price(creds, product_id, price, parent_product_id=parent_product_id)
+        return await update_product_fields(
+            creds,
+            product_id,
+            price=price,
+            stock_quantity=stock_quantity,
+            stock_status=stock_status,
+            parent_product_id=parent_product_id,
+        )
+
+    async def update_price(self, product_id: int, price: float, *, parent_product_id: int | None = None) -> dict:
+        """Compatibility wrapper for legacy price-only callers."""
+        return await self.update_fields(product_id, price=price, parent_product_id=parent_product_id)
 
     async def fetch_current_state(
         self,
@@ -231,7 +247,7 @@ class WooCommerceConnector(DestinationConnector):
             payload, _, _ = await list_products_paged(
                 creds,
                 per_page=len(batch),
-                fields="id,type,regular_price,price,sale_price",
+                fields="id,type,regular_price,price,sale_price,stock_quantity,stock_status,manage_stock",
                 status="any",
                 product_ids=[int(entity.external_id) for entity in batch],
                 transport=recorder,
@@ -362,6 +378,12 @@ class WooCommerceConnector(DestinationConnector):
                     str(parent_id) if parent_id is not None else None
                 ),
                 price=canonical_decimal(item.get("regular_price")),
+                stock=(
+                    float(item["stock_quantity"])
+                    if item.get("stock_quantity") is not None
+                    else None
+                ),
+                status=str(item.get("stock_status") or "") or None,
                 product_type=("variation" if parent_id is not None else _product_type(item)),
                 raw=item,
             )

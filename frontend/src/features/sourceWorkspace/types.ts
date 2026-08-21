@@ -131,7 +131,7 @@ export interface SourcePreviewItem {
   ready: boolean
   sourceProduct: Record<string, SourcePreviewValue>
   channels: Array<{ channelId: string; fields: Record<string, SourcePreviewValue> }>
-  valuePolicy: Record<string, string>
+  valuePolicy: Record<string, unknown>
   issues: Array<{ category: string; severity: string; channelId: string | null; message: string; details?: Record<string, unknown> }>
 }
 
@@ -200,7 +200,7 @@ export interface SourceWorksheetRule {
   worksheetName: string
   enabled: boolean
   dataStartRow: number
-  valuePolicy: Record<string, string>
+  valuePolicy: Record<string, unknown>
   sourceFields: FieldMapping[]
   channels: SourceMapping['channels']
 }
@@ -212,7 +212,7 @@ export interface SourceMapping {
   worksheetMode: 'all' | 'selected'
   worksheetName: string | null
   dataStartRow: number
-  valuePolicy: Record<string, string>
+  valuePolicy: Record<string, unknown>
   worksheetRuleMode?: 'shared' | 'per_worksheet'
   selectedWorksheetNames?: string[]
   duplicateProductPolicy?: 'block' | 'last_sheet_wins'
@@ -275,6 +275,25 @@ export interface GroupedField {
   unit: string | null
 }
 
+export interface ChangeBadgeDimension {
+  state: string
+  current?: string
+  target?: string
+  delta?: string
+}
+
+/** Backend-authoritative Phase B explanation; it never grants write authority. */
+export interface ChangeBadgeClassification {
+  version: string
+  price: ChangeBadgeDimension
+  quantity: ChangeBadgeDimension
+  stockStatus: ChangeBadgeDimension
+  warnings: Array<{ code: string; field?: string }>
+  blockers: string[]
+  eligibility: 'ELIGIBLE' | 'BLOCKED'
+  actionable: boolean
+}
+
 export interface GroupedListing {
   listingId: string
   channelId: string
@@ -289,6 +308,7 @@ export interface GroupedListing {
   selected: boolean
   reviewItemIds: string[]
   fields: Record<'price' | 'stock' | 'status', GroupedField>
+  changeClassification?: ChangeBadgeClassification | null
 }
 
 export interface GroupedProduct {
@@ -322,14 +342,14 @@ export interface SourceMappingSaveRequest {
     enabled: boolean
     fields: Array<{ field: string; reference_type: ReferenceType; reference_value: string | null; required: boolean }>
   }>
-  value_policy: Record<string, string>
+  value_policy: Record<string, unknown>
   worksheet_rule_mode: 'shared' | 'per_worksheet'
   duplicate_product_policy: 'block' | 'last_sheet_wins'
   worksheet_rules: Array<{
     worksheet_name: string
     enabled: boolean
     data_start_row: number
-    value_policy: Record<string, string>
+    value_policy: Record<string, unknown>
     source_fields: Array<{ field: string; reference_type: ReferenceType; reference_value: string | null; required: boolean }>
     channel_mappings: Array<{
       channel_id: string

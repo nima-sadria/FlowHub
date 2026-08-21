@@ -408,6 +408,8 @@
   "sourceConfiguration.validateConfiguration": "اعتبارسنجی پیکربندی",
   "sourceConfiguration.validateIdentityFromLocalData": "اعتبارسنجی هویت با داده محلی",
   "sourceConfiguration.valueHandling": "نحوه خواندن مقدارهای ویژه سلول",
+  "sourceConfiguration.fixZeroDecimalPrices": "اصلاح قیمت‌های اعشاریِ صفر برای {{channel}}",
+  "sourceConfiguration.zeroDecimalPricesHelp": "برای کانال‌های ریال/تومان، فقط قیمت‌های دقیق .00 یا .000 به عدد صحیح تبدیل می‌شوند. قیمت‌های دارای بخش اعشاری هرگز گرد نمی‌شوند.",
   "sourceConfiguration.valueType.blank": "خالی",
   "sourceConfiguration.valueType.dash": "خط تیره",
   "sourceConfiguration.valueType.formula": "فرمول",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 
@@ -12,15 +12,15 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
 from app.flowhub.auth.models import FlowHubUser
-from app.flowhub.database import FlowHubBase
 from app.flowhub.data_layer.models import DlSourceReadReservation, DlSourceSnapshot
+from app.flowhub.database import FlowHubBase
 from app.flowhub.integration_platform.models import (
     IntegrationConnectorInstance,
     IntegrationConnectorSetting,
 )
 from app.flowhub.setup.service import AppConfigService
-from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
 from app.flowhub.source_workspace.service import SourceWorkspaceService
+from app.flowhub.sources.spreadsheet_source import SpreadsheetSourceReadService
 from app.flowhub.unified_workspace.models import (
     ApplyJob,
     CanonicalProduct,
@@ -424,7 +424,7 @@ def test_worksheet_discovery_reuses_current_snapshot_metadata_without_a_remote_r
             file_path="/Reports/prices.xlsx",
             sheet_names=["Retail", "Marketplace"],
             version_seq=4,
-            snapshotted_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            snapshotted_at=datetime.now(UTC).replace(tzinfo=None),
         )
     )
     db.commit()
@@ -610,7 +610,7 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
             connector_version="1",
             freshness="fresh",
             fetch_status="success",
-            fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            fetched_at=datetime.now(UTC).replace(tzinfo=None),
         )
         for listing in listings
     ]
@@ -650,17 +650,18 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
             {"row_key": row_key, "column_key": "snap-id", "value": "1826345203"},
             {"row_key": row_key, "column_key": "snap-price", "value": "12900000"},
             {"row_key": row_key, "column_key": "snap-stock", "value": "12"},
-            {"row_key": row_key, "column_key": "snap-status", "value": "instock"},
+            {"row_key": row_key, "column_key": "snap-status", "value": "1"},
             {"row_key": row_key, "column_key": "tapsi-id", "value": "7785746738"},
             {"row_key": row_key, "column_key": "tapsi-price", "value": "12700000"},
             {"row_key": row_key, "column_key": "tapsi-stock", "value": "6"},
-            {"row_key": row_key, "column_key": "tapsi-status", "value": "instock"},
+            {"row_key": row_key, "column_key": "tapsi-status", "value": "1"},
         ],
         user=user,
     )
     source = service.get_source(sheet["sourceId"], user)
     source_fields = [
-        {"field": "name", "reference_type": "column_letter", "reference_value": "A", "required": True}
+        {"field": "name", "reference_type": "column_letter", "reference_value": "A", "required": True},
+        {"field": "source_key", "reference_type": "column_letter", "reference_value": "A", "required": True},
     ]
     channel_mappings = [
         {
@@ -710,8 +711,8 @@ def test_one_source_resolves_three_independent_channel_targets_and_preserves_dis
     targets = {item["channelId"]: item["targets"] for item in analysis["candidates"]}
     assert targets == {
         "woocommerce:primary": {"price": "12500000", "stock": "8"},
-        "snappshop:main": {"price": "12900000", "stock": "12", "status": "instock"},
-        "tapsishop:main": {"price": "12700000", "stock": "6", "status": "instock"},
+        "snappshop:main": {"price": "12900000", "stock": "12"},
+        "tapsishop:main": {"price": "12700000", "stock": "6"},
     }
 
     updated_source = service.get_source(source["id"], user)
@@ -792,7 +793,7 @@ def test_external_source_replays_local_snapshot_and_resolves_independent_channel
                     connector_version="1",
                     freshness="fresh",
                     fetch_status="success",
-                    fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                    fetched_at=datetime.now(UTC).replace(tzinfo=None),
                 )
                 for listing in listings
             ],
@@ -816,7 +817,8 @@ def test_external_source_replays_local_snapshot_and_resolves_independent_channel
         worksheet_name="Sheet1",
         data_start_row=2,
         source_fields=[
-            {"field": "name", "reference_type": "column_letter", "reference_value": "A", "required": True}
+            {"field": "name", "reference_type": "column_letter", "reference_value": "A", "required": True},
+            {"field": "source_key", "reference_type": "column_letter", "reference_value": "A", "required": True},
         ],
         channel_mappings=[
             {
@@ -850,7 +852,7 @@ def test_external_source_replays_local_snapshot_and_resolves_independent_channel
     )
     rows = [
         ["نام محصول", "Woo ID", "Woo Price", "Woo Stock", "Snap Stock", "Snap Status", "قیمت اسنپ", None, None, "Tapsi Price", "Tapsi Stock", "Tapsi Status", None, None, "SNP", "Seller SKU"],
-        ["کابل آیفون", "51550", "12500000", "8", "12", "instock", "12900000", None, None, "12700000", "6", "instock", None, None, "1826345203", "7785746738"],
+        ["کابل آیفون", "51550", "12500000", "8", "12", "1", "12900000", None, None, "12700000", "6", "1", None, None, "1826345203", "7785746738"],
     ]
 
     async def provider_read_forbidden(
@@ -871,8 +873,8 @@ def test_external_source_replays_local_snapshot_and_resolves_independent_channel
     analysis = asyncio.run(service.snapshot_candidates(source["id"], user))
     assert {item["channelId"]: item["targets"] for item in analysis["candidates"]} == {
         "woocommerce:primary": {"price": "12500000"},
-        "snappshop:main": {"price": "12900000", "stock": "12", "status": "instock"},
-        "tapsishop:main": {"price": "12700000", "stock": "6", "status": "instock"},
+        "snappshop:main": {"price": "12900000", "stock": "12"},
+        "tapsishop:main": {"price": "12700000", "stock": "6"},
     }
 
 
@@ -927,7 +929,7 @@ def test_logitech_local_snapshot_resolves_targets_and_isolates_invalid_channel(
                         connector_version="1",
                         freshness="fresh",
                         fetch_status="success",
-                        fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                        fetched_at=datetime.now(UTC).replace(tzinfo=None),
                     )
                     for listing in listings
                 ],
@@ -985,7 +987,13 @@ def test_logitech_local_snapshot_resolves_targets_and_isolates_invalid_channel(
                 "reference_type": "column_letter",
                 "reference_value": "A",
                 "required": True,
-            }
+            },
+            {
+                "field": "source_key",
+                "reference_type": "column_letter",
+                "reference_value": "A",
+                "required": True,
+            },
         ],
         channel_mappings=[
             {
@@ -1046,8 +1054,8 @@ def test_logitech_local_snapshot_resolves_targets_and_isolates_invalid_channel(
                 "32950000",
                 "5",
                 "7785746738",
-                "instock",
-                "instock",
+                "1",
+                "1",
             ],
             [
                 "LOGITECH-M705-GRY",
@@ -1060,8 +1068,8 @@ def test_logitech_local_snapshot_resolves_targets_and_isolates_invalid_channel(
                 "9900000",
                 "4",
                 "509240408",
-                "instock",
-                "instock",
+                "1",
+                "1",
             ],
         ]
     }
@@ -1095,12 +1103,10 @@ def test_logitech_local_snapshot_resolves_targets_and_isolates_invalid_channel(
         ("external:Logitech:2", "snappshop:main"): {
             "price": "36550000",
             "stock": "7",
-            "status": "instock",
         },
         ("external:Logitech:2", "tapsishop:main"): {
             "price": "32950000",
             "stock": "5",
-            "status": "instock",
         },
         ("external:Logitech:3", "woocommerce:primary"): {
             "price": "8000000",
@@ -1109,7 +1115,6 @@ def test_logitech_local_snapshot_resolves_targets_and_isolates_invalid_channel(
         ("external:Logitech:3", "tapsishop:main"): {
             "price": "9900000",
             "stock": "4",
-            "status": "instock",
         },
     }
     assert any(

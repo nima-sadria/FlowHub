@@ -42,7 +42,7 @@ class WorksheetRuleInput(StrictModel):
     data_start_row: int = Field(default=1, ge=1, le=1_000_000)
     source_fields: list[ColumnReference] = Field(default_factory=list, max_length=5)
     channel_mappings: list[ChannelMappingInput] = Field(default_factory=list, max_length=20)
-    value_policy: dict[str, str] = Field(default_factory=dict)
+    value_policy: dict[str, Any] = Field(default_factory=dict)
 
 
 class WorksheetSummary(StrictModel):
@@ -103,7 +103,7 @@ class SourcePreviewItem(StrictModel):
     ready: bool
     sourceProduct: dict[str, str | int | float | bool | None]
     channels: list[SourcePreviewChannel]
-    valuePolicy: dict[str, str]
+    valuePolicy: dict[str, Any]
     issues: list[SourcePreviewItemIssue]
 
 
@@ -207,7 +207,7 @@ class MappingSaveRequest(StrictModel):
     data_start_row: int = Field(ge=1, le=1_000_000)
     source_fields: list[ColumnReference] = Field(default_factory=list, max_length=5)
     channel_mappings: list[ChannelMappingInput] = Field(default_factory=list, max_length=20)
-    value_policy: dict[str, str] = Field(default_factory=dict)
+    value_policy: dict[str, Any] = Field(default_factory=dict)
     worksheet_rule_mode: Literal["shared", "per_worksheet"] = "shared"
     selected_worksheet_names: list[str] = Field(default_factory=list, max_length=100)
     duplicate_product_policy: Literal["block", "last_sheet_wins"] = "block"

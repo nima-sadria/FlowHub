@@ -3,12 +3,18 @@ from decimal import Decimal
 import pytest
 
 from app.flowhub.unified_workspace.domain import (
+    AvailabilitySignal,
     ChannelCapabilities,
     DraftChange,
     Money,
+    SourceInstruction,
     WorkspaceDomainError,
     deterministic_revision_checksum,
     finite_number,
+    normalize_direct_price,
+    normalize_quantity,
+    normalize_stock_status,
+    resolve_availability,
     validate_product_editable,
     values_equal,
 )
@@ -136,3 +142,71 @@ def test_domain_comparison_capability_and_number_edge_cases():
     assert finite_number("invalid") is False
     with pytest.raises(WorkspaceDomainError):
         validate_product_editable("bundle")
+
+
+@pytest.mark.parametrize(
+    ("raw", "instruction", "signal", "warning"),
+    [
+        (None, SourceInstruction.UNAVAILABLE, AvailabilitySignal.OUT_OF_STOCK, None),
+        ("0.00", SourceInstruction.UNAVAILABLE, AvailabilitySignal.OUT_OF_STOCK, None),
+        ("x", SourceInstruction.UNAVAILABLE, AvailabilitySignal.OUT_OF_STOCK, None),
+        ("hello", SourceInstruction.UNUSABLE, AvailabilitySignal.OUT_OF_STOCK, "UNUSABLE_MAPPED_PRICE"),
+        ("10O000", SourceInstruction.UNUSABLE, AvailabilitySignal.OUT_OF_STOCK, "UNUSABLE_MAPPED_PRICE"),
+    ],
+)
+def test_direct_mapped_unusable_price_is_an_oos_instruction_not_a_blocker(
+    raw, instruction, signal, warning
+):
+    result = normalize_direct_price(
+        raw, currency="IRR", unit="RIAL", monetary_precision=0
+    )
+    assert result.instruction is instruction
+    assert result.availability_signal is signal
+    assert result.warning_code == warning
+    assert result.blocker_code is None
+
+
+def test_rial_zero_decimal_fix_and_strict_mode_are_exact():
+    fixed = normalize_direct_price(
+        "15758858.000", currency="IRR", unit="RIAL", monetary_precision=0,
+        fix_zero_decimal_prices=True,
+    )
+    strict = normalize_direct_price(
+        "15758858.00", currency="IRR", unit="RIAL", monetary_precision=0,
+        fix_zero_decimal_prices=False,
+    )
+    fractional = normalize_direct_price(
+        "15758858.50", currency="IRR", unit="RIAL", monetary_precision=0,
+    )
+    assert fixed.target == "15758858"
+    assert fixed.fix_applied is True
+    assert strict.instruction is SourceInstruction.UNUSABLE
+    assert fractional.instruction is SourceInstruction.UNUSABLE
+    assert fractional.target is None
+
+
+def test_other_currency_precision_and_stock_precedence_are_exact():
+    price = normalize_direct_price(
+        "15,758,858.25", currency="USD", unit="USD", monetary_precision=2
+    )
+    quantity = normalize_quantity("5")
+    status = normalize_stock_status("0")
+    desired, blockers = resolve_availability(price, quantity, status)
+    assert price.target == "15758858.25"
+    assert desired is AvailabilitySignal.OUT_OF_STOCK
+    assert blockers == ()
+
+
+@pytest.mark.parametrize("raw", ["-1", "2.5", "hello", True])
+def test_invalid_quantity_is_a_row_blocker(raw):
+    result = normalize_quantity(raw)
+    assert result.instruction is SourceInstruction.INVALID
+    assert result.blocker_code == "INVALID_QUANTITY"
+
+
+@pytest.mark.parametrize(
+    ("raw", "target"), [(None, "IN_STOCK"), ("1.00", "IN_STOCK"), ("۰", "OUT_OF_STOCK")]
+)
+def test_status_normalizes_only_blank_zero_and_one(raw, target):
+    assert normalize_stock_status(raw).target == target
+    assert normalize_stock_status("active").blocker_code == "INVALID_STOCK_STATUS"
