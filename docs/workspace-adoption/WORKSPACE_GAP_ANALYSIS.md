@@ -92,7 +92,7 @@ introduced) -- left untouched as out of this review's scope:
 `test_cost_only_row_participates_in_identity_validation_but_blank_row_is_ignored`;
 `tests/flowhub/source_workspace/test_workspace_integration.py::test_source_product_workspace_groups_listings_and_auto_selects_ready_changes`;
 `tests/flowhub/unified_workspace/test_connectors.py::test_woocommerce_adapter_validates_verifies_and_redacts_provider_failures`;
-and eight in `tests/beta/test_commerce_hub.py` (`test_nextcloud_manual_read_now_uses_mapping_and_never_writes`,
+and eight in the legacy Commerce Hub suite (`test_commerce_hub.py`) (`test_nextcloud_manual_read_now_uses_mapping_and_never_writes`,
 `test_explicit_source_profile_read_retains_dataset_when_legacy_parser_finds_no_rows`,
 `test_detect_worksheets_reuses_the_new_snapshot_without_double_counting`,
 `test_failed_outbound_source_read_consumes_reserved_quota`,
