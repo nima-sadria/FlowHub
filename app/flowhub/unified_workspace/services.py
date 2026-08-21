@@ -2368,7 +2368,7 @@ class UnifiedWorkspaceService:
             manifest, operations = self._generate_apply_manifest(review, [scope["item"] for scope in writes], user, dry_run_id=dry_run.id, live_evidence_checksum=dry_run.evidence_checksum)
         self._audit("dry_run_completed", user, correlation_id, workspace_id=workspace.id, snapshot_id=snapshot.id, review_id=review.id, review_result=status_value, metadata={"reviewed": len(scopes), "writes": len(writes), "blockers": len(blockers), "zero_provider_writes": True})
         self.db.commit()
-        result: dict[str, Any] = {"id": dry_run.id, "status": status_value, "reviewedCount": len(scopes), "writeCount": len(writes), "blockerCount": len(blockers), "evidenceChecksum": dry_run.evidence_checksum, "scopes": [{"reviewItemId": scope["item"].id, "disposition": scope["disposition"], "reason": scope["reason"]} for scope in scopes]}
+        result: dict[str, Any] = {"id": dry_run.id, "status": status_value, "reviewedCount": len(scopes), "writeCount": len(writes), "blockerCount": len(blockers), "evidenceChecksum": dry_run.evidence_checksum, "scopes": [{"reviewItemId": scope["item"].id, "disposition": scope["disposition"], "reason": scope["reason"], "expected": scope["expected"], "observed": scope["observed"]} for scope in scopes]}
         if manifest is not None:
             result.update(self._manifest_shape(manifest, operations))
         return result
@@ -2434,6 +2434,11 @@ class UnifiedWorkspaceService:
             raise self._not_found("REVIEW_NOT_FOUND", "Review not found.")
         self._workspace_for_user(review.workspace_id, user)
         selections = {item.review_item_id for item in self.reviews.selections(review.id)}
+        items = self.reviews.items(review.id)
+        listings = {
+            listing.id: listing
+            for listing in self.db.query(Listing).filter(Listing.id.in_([item.listing_id for item in items])).all()
+        }
         return {
             "id": review.id,
             "workspaceId": review.workspace_id,
@@ -2450,6 +2455,7 @@ class UnifiedWorkspaceService:
                     "id": item.id,
                     "canonicalProductId": item.canonical_product_id,
                     "listingId": item.listing_id,
+                    "externalPrimaryId": listings.get(item.listing_id).external_primary_id if listings.get(item.listing_id) else None,
                     "channelId": item.channel_id,
                     "field": item.field,
                     "current": item.current_value,
@@ -2461,7 +2467,7 @@ class UnifiedWorkspaceService:
                     "eligible": item.eligible,
                     "selected": item.id in selections,
                 }
-                for item in self.reviews.items(review.id)
+                for item in items
             ],
         }
 

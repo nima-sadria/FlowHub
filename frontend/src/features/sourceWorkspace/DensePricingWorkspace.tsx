@@ -665,7 +665,7 @@ export default function DensePricingWorkspace({
       onApply={() => setConfirming(true)}
       onClose={() => setReviewOpen(false)}
     />}
-    {confirming && reviewContext && grid && <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:sourceCentricWorkspace.applyConfirmation')}><div className="fh-card fh-card-pad max-w-3xl">
+    {confirming && reviewContext && grid && <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:sourceCentricWorkspace.applyConfirmation')}><div className="fh-card fh-card-pad max-w-3xl" data-verified-write-set>
       <h2 className="fh-page-title">{translate('workspace:sourceCentricWorkspace.confirmSelectedApply')}</h2>
       <p className="fh-text-caption mt-2">{translate('workspace:densePricing.confirmApplyScope', { count: reviewContext.selectedCount })}</p>
       {/* i18n-ignore: utility classes, not user-facing copy */}
@@ -681,11 +681,11 @@ export default function DensePricingWorkspace({
           <tbody>{reviewContext.operations.map(operation => {
             const product = grid.items.find(row => row.children.some(child => child.listingId === operation.listingId))
             return <tr key={operation.id}>
-              <td>{product?.name ?? operation.canonicalProductId}</td>
+              <td><span>{product?.name ?? operation.canonicalProductId}</span><span className="fh-text-caption block" dir="ltr">{operation.listingId}</span></td>
               <td>{sourceChannelDisplayName(operation.channelId, channelById)}</td>
               <td>{formatField(operation.field)}</td>
-              <td>{operation.current ?? '—'}</td>
-              <td>{operation.target}</td>
+              <td dir="ltr">{formatOperationValue(operation)}</td>
+              <td dir="ltr">{formatOperationValue(operation, true)}</td>
             </tr>
           })}</tbody>
         </table>
@@ -1244,6 +1244,19 @@ function BulkToggle({ checked, onChange, label }: { checked: boolean; onChange: 
   )
 }
 
+function formatOperationValue(operation: Pick<ManifestOperationResource, 'field' | 'current' | 'target' | 'currency' | 'unit'>, target = false): string {
+  const value = target ? operation.target : operation.current
+  if (value === null || value === '') return '—'
+  if (operation.field === 'status') return formatStatus(value)
+  return formatMoney(value, operation.field === 'price' ? { currency: operation.currency, unit: operation.unit } : {})
+}
+
+function evidenceValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value === 'string' && /^(in_stock|out_of_stock|instock|outofstock)$/i.test(value)) return formatStatus(value)
+  return formatMoney(String(value), { empty: String(value) })
+}
+
 function DryRunStatus({ dryRun }: { dryRun: DryRunResource }) {
   const presentation = dryRunPresentation(dryRun)
   const message = presentation.blocker === 'CHANNEL_DRIFT'
@@ -1251,15 +1264,35 @@ function DryRunStatus({ dryRun }: { dryRun: DryRunResource }) {
     : presentation.blocker === 'CHANNEL_STATE_UNVERIFIABLE'
       ? translate('workspace:sourceCentricWorkspace.channelStateUnverifiable')
       : translate('workspace:sourceCentricWorkspace.reviewAndDryRunComplete')
-  return <p
-    className={presentation.blocker ? 'fh-alert fh-alert-warning mt-3' : 'fh-text-caption mt-3'}
-    data-dry-run-status
-    role={presentation.blocker ? 'alert' : 'status'}
-  >{message} · {translate('workspace:sourceCentricWorkspace.dryRunVerifiedCount', { count: presentation.verifiedCount })} · {translate('workspace:sourceCentricWorkspace.dryRunNoOpCount', { count: presentation.noOpCount })} · {translate('workspace:sourceCentricWorkspace.dryRunBlockerCount', { count: presentation.blockerCount })}</p>
+  return <section className={presentation.blocker ? 'fh-alert fh-alert-warning mt-3' : 'fh-text-caption mt-3'} data-dry-run-status role={presentation.blocker ? 'alert' : 'status'}>
+    <p>{message} · {translate('workspace:sourceCentricWorkspace.dryRunVerifiedCount', { count: presentation.verifiedCount })} · {translate('workspace:sourceCentricWorkspace.dryRunNoOpCount', { count: presentation.noOpCount })} · {translate('workspace:sourceCentricWorkspace.dryRunBlockerCount', { count: presentation.blockerCount })}</p>
+    <div className="mt-2 grid gap-1" data-dry-run-scopes>{dryRun.scopes.map(scope => <div key={scope.reviewItemId} className="flex flex-wrap gap-x-2" data-dry-run-disposition={scope.disposition}>
+      <strong>{formatStatus(scope.reason ?? scope.disposition)}</strong><span dir="ltr">{scope.reviewItemId}</span>
+      {scope.expected && Object.entries(scope.expected).filter(([key]) => !['external_primary_id', 'product_type', 'parent_external_primary_id', 'currency', 'unit'].includes(key)).map(([key, value]) => <span key={`expected-${key}`} dir="ltr">{key}: {evidenceValue(value)} → {evidenceValue(scope.observed?.[key])}</span>)}
+    </div>)}</div>
+  </section>
+}
+
+export function ReviewScopePresentation({ review }: { review: ReviewResource }) {
+  const groups = new Map<string, ReviewItemResource[]>()
+  for (const item of review.items) groups.set(item.listingId, [...(groups.get(item.listingId) ?? []), item])
+  return <div className="m-4 grid gap-2" data-review-full-scope>{[...groups.values()].map(items => {
+    const first = items[0]
+    return <section key={first.listingId} className="rounded border border-border p-3" data-review-listing={first.listingId}>
+      <div className="flex flex-wrap items-center gap-2"><strong dir="ltr">{first.externalPrimaryId ?? first.listingId}</strong><span className="fh-text-caption" dir="ltr">{first.canonicalProductId}</span>
+        {items.map(item => <Badge key={item.id} variant={item.eligible ? 'success' : 'danger'}>{formatField(item.field)}: {formatOperationValue({ ...item, currency: null, unit: null }, true)}</Badge>)}
+        <Badge variant={items.every(item => item.eligible) ? 'success' : 'danger'}>{items.every(item => item.eligible) ? translate('workspace:unifiedWorkspace.eligible') : translate('workspace:unifiedWorkspace.blocked')}</Badge>
+        <Badge variant={items.every(item => item.selected) ? 'success' : 'neutral'}>{items.every(item => item.selected) ? '✓' : '—'}</Badge>
+      </div>
+      {items.flatMap(item => item.warnings).map((warning, index) => <Badge key={`warning-${index}`} variant="warning">{formatStatus(warning)}</Badge>)}
+      {items.flatMap(item => item.errors).map((error, index) => <Badge key={`error-${index}`} variant="danger">{formatStatus(error)}</Badge>)}
+    </section>
+  })}</div>
 }
 
 function ReviewDialog({ review, grid, channelById, canApply, dryRun, onApply, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; channelById: ReadonlyMap<string, SourceChannel>; canApply: boolean; dryRun: DryRunResource | null; onApply: () => void; onClose: () => void }) {
-  const presentation = dryRun ? dryRunPresentation(dryRun) : null
+  const presentation = dryRun ? dryRunPresentation(dryRun) : { verifiedCount: 0, noOpCount: 0, blockerCount: 0, blocker: undefined }
+  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p>{dryRun && <DryRunStatus dryRun={dryRun} />}</div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><ReviewScopePresentation review={review} /><div className="fh-panel-footer"><button className="fh-button-secondary" type="button" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button><button className="fh-button-primary" type="button" data-pricing-apply disabled={!canApply} onClick={onApply}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')}</button></div></div></div>
   return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p>{presentation && <p className="fh-text-caption mt-1" data-dry-run-summary>{translate('workspace:sourceCentricWorkspace.dryRunVerifiedCount', { count: presentation.verifiedCount })} · {translate('workspace:sourceCentricWorkspace.dryRunNoOpCount', { count: presentation.noOpCount })} · {translate('workspace:sourceCentricWorkspace.dryRunBlockerCount', { count: presentation.blockerCount })}</p>}</div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[900px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th><th>{translate('workspace:sourceCentricWorkspace.selected')}</th></tr></thead><tbody>{review.items.map(item => { const product = grid.items.find(row => row.children.some(child => child.listingId === item.listingId)); return <tr key={item.id}><td>{product?.name ?? item.canonicalProductId}</td><td>{sourceChannelDisplayName(item.channelId, channelById)}</td><td>{formatField(item.field)}</td><td>{item.current ?? '—'}</td><td>{item.target}</td><td>{item.selected ? '✓' : '—'}</td></tr> })}</tbody></table></div><div className="fh-panel-footer"><button className="fh-button-secondary" type="button" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button><button className="fh-button-primary" type="button" data-pricing-apply disabled={!canApply} onClick={onApply}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')}</button></div></div></div>
 }
 
