@@ -223,7 +223,7 @@ export interface PaginatedResult<T> {
 }
 
 export type ChannelPriceValidationState = 'valid' | 'error' | 'read_only' | 'disconnected'
-export type ChannelPriceOperationStatus = 'dry_run_ready' | 'approved' | 'applied' | 'partially_failed' | 'failed'
+export type ChannelPriceOperationStatus = 'dry_run_ready' | 'approved' | 'applied' | 'partially_failed' | 'failed' | 'reconciliation_required'
 
 export interface ProductChannelPriceState {
   channelId: string

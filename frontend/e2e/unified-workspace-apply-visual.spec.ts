@@ -86,8 +86,8 @@ async function installApplyFixture(page: Page, scenario = 'success') {
 for (const scenario of ['success', 'partial', 'reconciliation']) {
   test(`renders mocked ${scenario} Apply result without external writes`, async ({ page }) => {
     await installApplyFixture(page, scenario)
-    await page.goto(`/workspace/visual-apply?result=${scenario}`)
-    await expect(page).toHaveURL('/products?workspace=visual-apply')
+    await page.goto(`/workspace?workspace=visual-apply&result=${scenario}`)
+    await expect(page).toHaveURL(`/workspace?workspace=visual-apply&result=${scenario}`)
     await expect(page.locator('[data-products-table]')).toBeVisible()
     await expect(page.locator('[data-product-group][data-product-id="product-1"]')).toBeVisible()
     await expect(page.locator('[data-pricing-row]')).toHaveCount(5)
@@ -109,8 +109,8 @@ test('captures the mocked Workspace and Apply states at supported desktop viewpo
   await installApplyFixture(page)
   for (const viewport of [{ width: 1280, height: 720 }, { width: 1366, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
     await page.setViewportSize(viewport)
-    await page.goto('/workspace/visual-apply?result=success')
-    await expect(page).toHaveURL('/products?workspace=visual-apply')
+    await page.goto('/workspace?workspace=visual-apply&result=success')
+    await expect(page).toHaveURL('/workspace?workspace=visual-apply&result=success')
     await expect(page.locator('[data-products-table]')).toBeVisible()
     await expect(page.locator('[data-pricing-row]')).toHaveCount(5)
     const suffix = `${viewport.width}x${viewport.height}`

@@ -694,7 +694,7 @@ test('all Source and Channel workflow surfaces share the same grouped order and 
   await expect(copySelector).toHaveValue('')
   await page.screenshot({ path: path.join(screenshotRoot, 'en-source-configuration.png'), fullPage: true })
 
-  await page.goto('/workspace/ordering-workspace')
+  await page.goto('/workspace?workspace=ordering-workspace')
   await expect(page.locator('[data-products-table]')).toBeVisible()
   await expect(page.locator('[data-pricing-row]')).toHaveCount(1)
   await expect(page.locator('[data-pricing-row]')).toHaveAttribute('data-channel-id', 'snappshop:main')
@@ -767,7 +767,7 @@ test('the same ordering and technical identities remain stable in Persian RTL', 
     await page.screenshot({ path: path.join(screenshotRoot, `fa-${name}.png`), fullPage: true })
   }
 
-  await page.goto('/workspace/ordering-workspace')
+  await page.goto('/workspace?workspace=ordering-workspace')
   await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
   await expect(page.locator('[data-products-table]')).toBeVisible()

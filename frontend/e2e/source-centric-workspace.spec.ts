@@ -111,8 +111,8 @@ test('source-centric daily Workspace is understandable and responsive with isola
   await installMockApi(page)
   for (const viewport of viewports) {
     await page.setViewportSize(viewport)
-    await page.goto('/workspace/source-visual-workspace')
-    await expect(page).toHaveURL(/\/products\?workspace=source-visual-workspace$/)
+    await page.goto('/workspace?workspace=source-visual-workspace')
+    await expect(page).toHaveURL(/\/workspace\?workspace=source-visual-workspace$/)
     await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
     await expect(page.locator('[data-products-table]')).toBeVisible()
     await expect(page.locator('[data-product-group]')).toHaveCount(1)
@@ -136,12 +136,12 @@ test('source-centric daily Workspace is understandable and responsive with isola
   await page.screenshot({ path: path.join(screenshotRoot, 'apply-confirmation.png'), fullPage: true })
 })
 
-test('all pricing Workspace compatibility routes redirect to the Products pricing grid', async ({ page }) => {
+test('both manual and source Workspace entry points render directly at /workspace', async ({ page }) => {
   await installMockApi(page)
   await page.setViewportSize({ width: 1440, height: 900 })
   for (const workspaceId of ['manual-visual-workspace', 'source-visual-workspace']) {
-    await page.goto(`/workspace/${workspaceId}`)
-    await expect(page).toHaveURL(new RegExp(`/products\\?workspace=${workspaceId}$`))
+    await page.goto(`/workspace?workspace=${workspaceId}`)
+    await expect(page).toHaveURL(new RegExp(`/workspace\\?workspace=${workspaceId}$`))
     await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
     await expect(page.locator('[data-products-table]')).toBeVisible()
     await expect(page.locator('[data-pricing-row]')).toHaveCount(4)
@@ -188,7 +188,7 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
   const routes = [
     ['login', '/login'],
     ['dashboard', '/home'],
-    ['workspace', '/workspace/source-visual-workspace'],
+    ['workspace', '/workspace?workspace=source-visual-workspace'],
     ['flowhub-sheet', '/sheets/sheet-visual'],
     ['import-wizard', '/sources/import'],
     ['products', '/products'],
@@ -245,7 +245,7 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
     await page.screenshot({ path: path.join(i18nScreenshotRoot, `rtl-${name}.png`), fullPage: true })
   }
 
-  await page.goto('/workspace/source-visual-workspace')
+  await page.goto('/workspace?workspace=source-visual-workspace')
   await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
   // The paginated Products table keeps immutable product and Listing
   // identities on the grouped rows even though technical IDs are not shown.

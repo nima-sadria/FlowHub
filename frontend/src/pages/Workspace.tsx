@@ -41,7 +41,7 @@ function bootstrapFailure(error: unknown): string {
 }
 
 export default function Workspace() {
-  const { unifiedWorkspace, settings } = useServices()
+  const { unifiedWorkspace, settings, products: productService } = useServices()
   const [searchParams] = useSearchParams()
   const queryWorkspaceId = searchParams.get('workspace')?.trim() ?? ''
   const querySearch = searchParams.get('q')?.trim() ?? ''
@@ -53,6 +53,15 @@ export default function Workspace() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [displayProfile, setDisplayProfile] = useState<{ currency: string; unit: string } | null>(null)
+  const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>([])
+
+  useEffect(() => {
+    let active = true
+    productService.getCategories?.()
+      .then(result => { if (active) setCategoryOptions(result.map(category => ({ value: category.name, label: category.name }))) })
+      .catch(() => { if (active) setCategoryOptions([]) })
+    return () => { active = false }
+  }, [productService])
 
   useEffect(() => {
     let active = true
@@ -119,6 +128,7 @@ export default function Workspace() {
           workspace={workspace}
           service={unifiedWorkspace}
           embedded
+          categoryOptions={categoryOptions}
           initialSearch={querySearch}
           displayProfile={displayProfile}
         />

@@ -1,199 +1,445 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { ApiError } from '../api/client'
-import Badge from '../components/Badge'
+import Badge, { type BadgeVariant } from '../components/Badge'
 import Empty from '../components/Empty'
 import Icon from '../components/Icon'
 import LocalizedText from '../components/LocalizedText'
 import PageShell from '../components/PageShell'
-import PricingWorkspaceStartup from '../features/sourceWorkspace/PricingWorkspaceStartup'
+import Spinner from '../components/loading/Spinner'
 import { translate } from '../i18n'
 import { formatProductType } from '../i18n/display'
-import { formatNumber } from '../i18n/format'
+import { formatMoney } from '../utils/price'
 import { useServices } from '../services/ServiceContext'
-import type { Product } from '../services/types'
-import type { Category } from '../services/products/ProductService'
-import type { UnifiedWorkspaceResource } from '../services/unifiedWorkspace/types'
+import type { ProductService } from '../services/products/ProductService'
+import type {
+  ChannelPriceValidationState,
+  Product,
+  ProductChannelPriceChange,
+  ProductChannelPriceOperation,
+  ProductChannelPriceState,
+  ProductChannelPriceStateSet,
+} from '../services/types'
 
-const ACTIVE_WORKSPACE_KEY = 'flowhub.products.active_workspace'
-const FALLBACK_PAGE_SIZE = 50
-const DensePricingWorkspace = lazy(() => import('../features/sourceWorkspace/DensePricingWorkspace'))
+// Manual Channel Editor: the Owner directly edits Channel fields (today:
+// price) with no Source comparison, auto-selection, Dry Run scoring, or
+// Apply Manifest business rules. Normal technical/security controls still
+// apply: permissions, connector capability, provider validation, safe
+// write execution (validate -> Dry Run -> Approve -> Apply), verification,
+// and audit. See docs/workspace-adoption/WORKSPACE_CANONICAL_OWNER_SPEC_2026-08-22.md
+// section 9. The automated Source-to-Channel reconciliation engine lives
+// at /workspace (frontend/src/pages/Workspace.tsx), not here.
 
-function storedWorkspaceId(): string {
-  try { return window.sessionStorage.getItem(ACTIVE_WORKSPACE_KEY)?.trim() ?? '' } catch { return '' }
+const PAGE_SIZE = 50
+
+const CHANNEL_NAME_KEY: Record<string, string> = {
+  'woocommerce:primary': 'products:products.woocommerce',
+  'snappshop:main': 'products:products.snappShop',
+  'tapsishop:main': 'products:products.tapsiShop',
 }
 
-function rememberWorkspaceId(workspaceId: string) {
-  try { window.sessionStorage.setItem(ACTIVE_WORKSPACE_KEY, workspaceId) } catch { /* Session persistence is optional. */ }
+function channelDisplayName(channel: { channelId: string; channelName: string }): string {
+  const key = CHANNEL_NAME_KEY[channel.channelId]
+  return key ? translate(key) : channel.channelName
 }
 
-function forgetWorkspaceId() {
-  try { window.sessionStorage.removeItem(ACTIVE_WORKSPACE_KEY) } catch { /* Session persistence is optional. */ }
-}
-
-function bootstrapFailure(error: unknown): string {
-  if (error instanceof ApiError && error.code === 'CATALOG_SCOPE_EMPTY') {
-    return translate('products:products.noEligibleCachedProducts')
+function describeError(cause: unknown, fallbackKey: string): string {
+  if (cause instanceof ApiError && cause.status !== 409 && cause.status !== 422) {
+    return `${translate(fallbackKey)} (HTTP ${cause.status})`
   }
-  if (error instanceof ApiError) {
-    return translate('products:products.inlinePricingUnavailableHttp', { status: error.status })
-  }
-  return translate('products:products.inlinePricingUnavailable')
+  if (cause instanceof ApiError) return cause.message || translate(fallbackKey)
+  return translate(fallbackKey)
 }
 
-function CachedProductRow({ product }: { product: Product }) {
+function isStaleConflict(cause: unknown): boolean {
+  return cause instanceof ApiError && cause.status === 409
+    && (cause.code === 'STALE_PRODUCT_PRICE_STATE' || cause.code === 'STALE_CHANNEL_PRICE_STATE')
+}
+
+function ProductRow({ product, onSelect }: { product: Product; onSelect: () => void }) {
   return <tr data-product-id={product.id}>
-    <td><div className="font-medium"><LocalizedText text={product.name} /></div></td>
+    <td>
+      <button type="button" className="fh-link" onClick={onSelect} data-open-channel-editor={product.id}>
+        <LocalizedText text={product.name} />
+      </button>
+    </td>
     <td className="fh-text-mono">{product.sku || '—'}</td>
     <td><Badge variant="neutral">{formatProductType(product.productType)}</Badge></td>
     <td>{(product.categoryNames ?? []).join(', ') || '—'}</td>
-    <td className="fh-text-mono text-end">{formatNumber(product.currentPrice)} <span className="fh-text-caption">{product.currency}</span></td>
+    <td className="fh-text-mono text-end">{formatMoney(product.currentPrice, { unit: product.currency })}</td>
   </tr>
 }
 
 export default function Products() {
-  const { products: productService, settings, unifiedWorkspace } = useServices()
-  const navigate = useNavigate()
+  const { products: productService } = useServices()
   const [searchParams] = useSearchParams()
-  const queryWorkspaceId = searchParams.get('workspace')?.trim() ?? ''
   const querySearch = searchParams.get('q')?.trim() ?? ''
-  const generation = useRef(0)
-  const catalogBootstrap = useRef<Promise<UnifiedWorkspaceResource> | null>(null)
-  const [attempt, setAttempt] = useState(0)
-  const [ignoreExisting, setIgnoreExisting] = useState(false)
-  const [workspace, setWorkspace] = useState<UnifiedWorkspaceResource | null>(null)
+  const [items, setItems] = useState<Product[]>([])
+  const [configured, setConfigured] = useState<boolean | undefined>(undefined)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [catalogScopeEmpty, setCatalogScopeEmpty] = useState(false)
-  const [cachedProducts, setCachedProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [catalogConfigured, setCatalogConfigured] = useState<boolean | undefined>(undefined)
-  const [catalogLoading, setCatalogLoading] = useState(false)
-  const [displayProfile, setDisplayProfile] = useState<{ currency: string; unit: string } | null>(null)
-  const categoryOptions = useMemo(
-    () => categories.map(category => ({ value: category.name, label: category.name })),
-    [categories],
-  )
+  const [listError, setListError] = useState<string | null>(null)
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let active = true
-    productService.getCategories?.()
-      .then(result => { if (active) setCategories(result) })
-      .catch(() => { if (active) setCategories([]) })
-    return () => { active = false }
-  }, [productService])
-
-  useEffect(() => {
-    let active = true
-    const request = settings.getSettings?.()
-    if (!request) return () => { active = false }
-    request.then(result => {
-      const currency = result.currency?.trim().toUpperCase()
-      const unit = result.currencyUnit?.trim().toUpperCase()
-      if (active && currency && unit) setDisplayProfile({ currency, unit })
-    }).catch(() => {
-      // The grid remains truthful using its native field unit when the optional
-      // presentation preference cannot be loaded.
-    })
-    return () => { active = false }
-  }, [settings])
-
-  useEffect(() => {
-    if (!error) return
-    let active = true
-    setCatalogLoading(true)
-    productService.getProducts({ search: querySearch, status: 'all', page: 1, pageSize: FALLBACK_PAGE_SIZE })
+    setLoading(true)
+    setListError(null)
+    productService.getProducts({ search: querySearch, status: 'all', page: 1, pageSize: PAGE_SIZE })
       .then(result => {
         if (!active) return
-        setCachedProducts(result.items)
-        setCatalogConfigured(result.configured)
+        setItems(result.items)
+        setConfigured(result.configured)
       })
-      .catch(() => { if (active) setCachedProducts([]) })
-      .finally(() => { if (active) setCatalogLoading(false) })
+      .catch((cause: unknown) => { if (active) { setItems([]); setListError(describeError(cause, 'products:products.unableToLoadProducts')) } })
+      .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [error, productService, querySearch])
+  }, [productService, querySearch, attempt])
 
-  const bootstrap = useCallback(async () => {
-    const requestGeneration = ++generation.current
-    setLoading(true)
-    setError(null)
-    setCatalogScopeEmpty(false)
-    setWorkspace(null)
-    try {
-      if (!unifiedWorkspace) throw new Error('catalog_workspace_unavailable')
-      const existingId = ignoreExisting ? '' : queryWorkspaceId || storedWorkspaceId()
-      const result = existingId
-        ? await unifiedWorkspace.getWorkspace(existingId)
-        : unifiedWorkspace.createCatalog
-          ? await (() => {
-              if (!catalogBootstrap.current) {
-                const request = unifiedWorkspace.createCatalog!(translate('products:products.pricingWorkspace'))
-                catalogBootstrap.current = request
-                void request.finally(() => { if (catalogBootstrap.current === request) catalogBootstrap.current = null }).catch(() => {})
-              }
-              return catalogBootstrap.current
-            })()
-          : (() => { throw new Error('catalog_workspace_unavailable') })()
-      if (result.entryPoint !== 'manual' && result.entryPoint !== 'source') {
-        throw new Error('catalog_workspace_invalid_entry_point')
-      }
-      if (requestGeneration !== generation.current) return
-      // A legacy /workspace/:id redirect is a one-time compatibility handoff.
-      // It must not replace the catalog-wide Products session for later visits.
-      if (!queryWorkspaceId) rememberWorkspaceId(result.id)
-      setWorkspace(result)
-    } catch (cause) {
-      if (requestGeneration !== generation.current) return
-      forgetWorkspaceId()
-      setCatalogScopeEmpty(cause instanceof ApiError && cause.code === 'CATALOG_SCOPE_EMPTY')
-      setError(bootstrapFailure(cause))
-    } finally {
-      if (requestGeneration === generation.current) setLoading(false)
-    }
-  }, [ignoreExisting, queryWorkspaceId, unifiedWorkspace])
+  const header = <div className="fh-page-header">
+    <div>
+      <h1 className="fh-page-title">{translate('products:products.products')}</h1>
+      <p className="fh-page-subtitle">{translate('products:products.manualChannelEditorSubtitle')}</p>
+    </div>
+  </div>
 
-  useEffect(() => { void bootstrap(); return () => { generation.current += 1 } }, [bootstrap, attempt])
-
-  const retry = () => {
-    forgetWorkspaceId()
-    setCachedProducts([])
-    setCatalogConfigured(undefined)
-    setIgnoreExisting(true)
-    setAttempt(value => value + 1)
-  }
-
-  if (workspace && unifiedWorkspace) {
+  if (selectedProductId) {
     return <PageShell>
-      <Suspense fallback={<PricingWorkspaceStartup />}>
-        <DensePricingWorkspace
-          workspace={workspace}
-          service={unifiedWorkspace}
-          embedded
-          categoryOptions={categoryOptions}
-          initialSearch={querySearch}
-          displayProfile={displayProfile}
-        />
-      </Suspense>
+      {header}
+      <ProductChannelEditor
+        productId={selectedProductId}
+        service={productService}
+        onClose={() => setSelectedProductId(null)}
+      />
     </PageShell>
   }
 
-  if (!catalogLoading && catalogConfigured === false) {
-    return <PageShell><div><h1 className="fh-page-title">{translate('products:products.products')}</h1><p className="fh-page-subtitle">{translate('products:products.productCatalog')}</p></div><div className="fh-card"><Empty title={translate('products:products.noProductConnectorConfigured')} description={translate('products:products.connectAProductSourceFromSourcesTo')} action={{ label: translate('products:products.openSources'), onClick: () => navigate('/sources') }} /></div></PageShell>
-  }
-
-  if (!catalogLoading && catalogScopeEmpty && catalogConfigured === true && cachedProducts.length === 0) {
-    return <PageShell><div><h1 className="fh-page-title">{translate('products:products.products')}</h1><p className="fh-page-subtitle">{translate('products:products.productCatalog')}</p></div><div className="fh-card"><Empty title={translate('products:products.noCachedProductsForInlinePricing')} description={translate('products:products.refreshProductCacheInChannels')} action={{ label: translate('products:products.openChannels'), onClick: () => navigate('/channels') }} /></div></PageShell>
-  }
-
-  if (loading && !error) {
-    return <PageShell><PricingWorkspaceStartup /></PageShell>
+  if (!loading && configured === false) {
+    return <PageShell>{header}<div className="fh-card"><Empty
+      title={translate('products:products.noProductConnectorConfigured')}
+      description={translate('products:products.connectAProductSourceFromSourcesTo')}
+    /></div></PageShell>
   }
 
   return <PageShell>
-    <div className="fh-page-header"><div><h1 className="fh-page-title">{translate('products:products.products')}</h1><p className="fh-page-subtitle">{translate('products:products.cachedProductsReadOnly')}</p></div>{catalogScopeEmpty ? <button type="button" className="fh-button-secondary" onClick={() => navigate('/channels')}>{translate('products:products.openChannels')}</button> : <button type="button" className="fh-button-secondary" onClick={retry}><Icon name="refresh" /> {translate('products:products.retryInlinePricing')}</button>}</div>
-    <div className="fh-alert fh-alert-warning" role="alert"><Icon name="alert" /><span>{error ?? translate('products:products.inlinePricingUnavailable')}</span></div>
-    <div className="fh-card mt-3 overflow-hidden">
-      <div className="overflow-x-auto"><table className="fh-table min-w-[760px]"><thead><tr><th>{translate('products:column.product')}</th><th>{translate('products:column.sku')}</th><th>{translate('products:column.type')}</th><th>{translate('products:column.categories')}</th><th className="text-end">{translate('products:column.current')}</th></tr></thead><tbody>{cachedProducts.length ? cachedProducts.map(product => <CachedProductRow key={`${product.connectorId ?? ''}:${product.id}`} product={product} />) : <tr><td colSpan={5}><Empty title={translate('products:products.noProductsFound')} description={translate('products:products.retryInlinePricing')} /></td></tr>}</tbody></table></div>
-    </div>
+    {header}
+    {listError && <div className="fh-alert fh-alert-warning" role="alert">
+      <Icon name="alert" /><span>{listError}</span>
+      <button type="button" className="fh-button-secondary" onClick={() => setAttempt(value => value + 1)}>
+        <Icon name="refresh" /> {translate('products:products.tryAgain')}
+      </button>
+    </div>}
+    {loading ? <Spinner /> : <div className="fh-card mt-3 overflow-hidden">
+      <div className="overflow-x-auto"><table className="fh-table min-w-[760px]">
+        <thead><tr>
+          <th>{translate('products:column.product')}</th>
+          <th>{translate('products:column.sku')}</th>
+          <th>{translate('products:column.type')}</th>
+          <th>{translate('products:column.categories')}</th>
+          <th className="text-end">{translate('products:column.current')}</th>
+        </tr></thead>
+        <tbody>{items.length
+          ? items.map(product => <ProductRow key={`${product.connectorId ?? ''}:${product.id}`} product={product} onSelect={() => setSelectedProductId(product.id)} />)
+          : <tr><td colSpan={5}><Empty title={translate('products:products.noProductsFound')} /></td></tr>}
+        </tbody>
+      </table></div>
+    </div>}
   </PageShell>
+}
+
+// -- Manual Channel Editor -------------------------------------------------
+
+type EditorPhase = 'edit' | 'operation'
+
+const VALIDATION_BADGE: Record<ChannelPriceValidationState, BadgeVariant> = {
+  valid: 'success',
+  error: 'danger',
+  read_only: 'neutral',
+  disconnected: 'neutral',
+}
+
+function ProductChannelEditor({ productId, service, onClose }: {
+  productId: string
+  service: ProductService
+  onClose: () => void
+}) {
+  const [state, setState] = useState<ProductChannelPriceStateSet | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [stale, setStale] = useState(false)
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  const [phase, setPhase] = useState<EditorPhase>('edit')
+  const [operation, setOperation] = useState<ProductChannelPriceOperation | null>(null)
+  const [operationError, setOperationError] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    setError(null)
+    setStale(false)
+    return service.getChannelPrices(productId)
+      .then(result => { setState(result); setDraft({}) })
+      .catch((cause: unknown) => setError(describeError(cause, 'products:products.unableToLoadChannelPrices')))
+      .finally(() => setLoading(false))
+  }, [productId, service])
+
+  useEffect(() => { void load() }, [load])
+
+  const edited = useMemo(() => {
+    if (!state) return []
+    return state.channels.filter(channel => {
+      const raw = draft[channel.channelId]
+      if (raw === undefined) return false
+      const parsed = Number(raw)
+      return Number.isFinite(parsed) && parsed !== channel.currentValue
+    })
+  }, [state, draft])
+
+  const buildChanges = useCallback((): ProductChannelPriceChange[] => edited.map(channel => ({
+    channelId: channel.channelId,
+    proposedValue: Number(draft[channel.channelId]),
+    unit: channel.unit,
+    staleToken: channel.staleToken,
+  })), [edited, draft])
+
+  const preview = useCallback(async () => {
+    if (!state || edited.length === 0) return
+    setBusy(true)
+    setOperationError(null)
+    try {
+      setState(await service.validateChannelPrices(productId, { version: state.version, changes: buildChanges() }))
+    } catch (cause) {
+      if (isStaleConflict(cause)) setStale(true)
+      else setOperationError(describeError(cause, 'products:products.unableToValidateChannelPrices'))
+    } finally {
+      setBusy(false)
+    }
+  }, [buildChanges, edited.length, productId, service, state])
+
+  const createDryRun = useCallback(async () => {
+    if (!state || edited.length === 0) return
+    setBusy(true)
+    setOperationError(null)
+    try {
+      setOperation(await service.createChannelPriceDryRun(productId, { version: state.version, changes: buildChanges() }))
+      setPhase('operation')
+    } catch (cause) {
+      if (isStaleConflict(cause)) setStale(true)
+      else setOperationError(describeError(cause, 'products:products.unableToCreateDryRun'))
+    } finally {
+      setBusy(false)
+    }
+  }, [buildChanges, edited.length, productId, service, state])
+
+  const approve = useCallback(async () => {
+    if (!operation) return
+    setBusy(true)
+    setOperationError(null)
+    try {
+      setOperation(await service.approveChannelPriceOperation(operation.id))
+    } catch (cause) {
+      setOperationError(describeError(cause, 'products:products.unableToApproveDryRun'))
+    } finally {
+      setBusy(false)
+    }
+  }, [operation, service])
+
+  const apply = useCallback(async () => {
+    if (!operation) return
+    setBusy(true)
+    setOperationError(null)
+    try {
+      setOperation(await service.applyChannelPriceOperation(operation.id))
+    } catch (cause) {
+      setOperationError(describeError(cause, 'products:products.unableToApplyChannelPrices'))
+    } finally {
+      setBusy(false)
+    }
+  }, [operation, service])
+
+  const startOver = useCallback(() => {
+    setPhase('edit')
+    setOperation(null)
+    setOperationError(null)
+    void load()
+  }, [load])
+
+  if (loading) return <div className="fh-card mt-3"><Spinner /></div>
+  if (error || !state) {
+    return <div className="fh-card mt-3"><Empty
+      title={translate('products:products.unableToLoadChannelPrices')}
+      description={error ?? undefined}
+      action={{ label: translate('products:products.tryAgain'), onClick: () => void load() }}
+    /></div>
+  }
+
+  return <div className="fh-card mt-3" data-channel-editor={productId}>
+    <div className="fh-page-header">
+      <div>
+        <h2 className="fh-page-title">{translate('products:products.multiChannelPriceEditor')}</h2>
+        <p className="fh-page-subtitle">
+          <LocalizedText text={state.product.name} />{state.product.sku ? ` · ${state.product.sku}` : ''}
+        </p>
+      </div>
+      <button type="button" className="fh-button-secondary" onClick={onClose} aria-label={translate('products:products.closeChannelPriceEditor')}>
+        <Icon name="previous" /> {translate('products:products.products')}
+      </button>
+    </div>
+
+    {state.canonical.value !== null && <p className="fh-text-caption">
+      {translate('products:products.canonicalBusinessPrice')}: {formatMoney(state.canonical.value, { unit: state.canonical.unit })}
+    </p>}
+
+    {stale && <div className="fh-alert fh-alert-warning" role="alert">
+      <Icon name="alert" /><span>{translate('products:products.unableToLoadChannelPrices')}</span>
+      <button type="button" className="fh-button-secondary" onClick={() => void load()}>
+        <Icon name="refresh" /> {translate('products:products.tryAgain')}
+      </button>
+    </div>}
+    {operationError && <div className="fh-alert fh-alert-warning" role="alert"><Icon name="alert" /><span>{operationError}</span></div>}
+
+    {phase === 'edit'
+      ? <ChannelEditForm
+          channels={state.channels}
+          draft={draft}
+          setDraft={setDraft}
+          editedCount={edited.length}
+          busy={busy}
+          onPreview={() => void preview()}
+          onCreateDryRun={() => void createDryRun()}
+        />
+      : operation && <OperationPanel
+          operation={operation}
+          busy={busy}
+          onApprove={() => void approve()}
+          onApply={() => void apply()}
+          onStartOver={startOver}
+        />}
+  </div>
+}
+
+function ChannelEditForm({ channels, draft, setDraft, editedCount, busy, onPreview, onCreateDryRun }: {
+  channels: readonly ProductChannelPriceState[]
+  draft: Record<string, string>
+  setDraft: (updater: (current: Record<string, string>) => Record<string, string>) => void
+  editedCount: number
+  busy: boolean
+  onPreview: () => void
+  onCreateDryRun: () => void
+}) {
+  return <div>
+    <table className="fh-table">
+      <thead><tr>
+        <th>{translate('products:column.channel')}</th>
+        <th>{translate('products:column.state')}</th>
+        <th className="text-end">{translate('products:column.current')}</th>
+        <th className="text-end">{translate('products:column.proposed')}</th>
+        <th>{translate('products:column.validation')}</th>
+      </tr></thead>
+      <tbody>{channels.map(channel => {
+        const raw = draft[channel.channelId] ?? (channel.proposedValue ?? channel.currentValue ?? '').toString()
+        const name = channelDisplayName(channel)
+        return <tr key={channel.channelId} data-channel-row={channel.channelId}>
+          <td>{name}</td>
+          <td><Badge variant={channel.canWrite ? 'success' : 'neutral'}>
+            {channel.canWrite ? translate('products:products.readWrite') : translate('products:products.readOnly')}
+          </Badge></td>
+          <td className="fh-text-mono text-end">{formatMoney(channel.currentValue, { unit: channel.unit })}</td>
+          <td className="text-end">
+            {channel.canWrite
+              ? <input
+                  type="text"
+                  inputMode="decimal"
+                  className="fh-input fh-text-mono text-end"
+                  aria-label={translate('products:products.proposedPrice', { channel: name })}
+                  value={raw}
+                  disabled={busy}
+                  onChange={event => {
+                    const next = event.target.value
+                    setDraft(current => ({ ...current, [channel.channelId]: next }))
+                  }}
+                />
+              : <span className="fh-text-mono">{formatMoney(channel.currentValue, { unit: channel.unit })}</span>}
+          </td>
+          <td>{channel.validationMessage && <Badge variant={VALIDATION_BADGE[channel.validationState]}>{channel.validationMessage}</Badge>}</td>
+        </tr>
+      })}</tbody>
+    </table>
+    <div className="fh-page-header mt-3">
+      <span className="fh-text-caption">{translate('products:products.pendingEdits')}: {editedCount}</span>
+      <div className="flex gap-2">
+        <button type="button" className="fh-button-secondary" disabled={busy || editedCount === 0} onClick={onPreview}>
+          {translate('products:products.validate')}
+        </button>
+        <button type="button" className="fh-button-primary" disabled={busy || editedCount === 0} onClick={onCreateDryRun}>
+          {translate('products:products.dryRun')}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+function OperationPanel({ operation, busy, onApprove, onApply, onStartOver }: {
+  operation: ProductChannelPriceOperation
+  busy: boolean
+  onApprove: () => void
+  onApply: () => void
+  onStartOver: () => void
+}) {
+  return <div>
+    <div className="fh-page-header">
+      <h3 className="fh-page-title">{translate('products:products.operation')}</h3>
+      <Badge variant={operationStatusVariant(operation.status)}>{operation.status}</Badge>
+    </div>
+    <p className="fh-text-caption">
+      {translate('products:products.total')}: {operation.summary.total} ·{' '}
+      {translate('products:products.success2')}: {operation.summary.success} ·{' '}
+      {translate('products:products.failed2')}: {operation.summary.failed}
+    </p>
+    <table className="fh-table">
+      <thead><tr>
+        <th>{translate('products:column.channel')}</th>
+        <th className="text-end">{translate('products:column.current')}</th>
+        <th className="text-end">{translate('products:column.proposed')}</th>
+        <th>{translate('products:column.result')}</th>
+      </tr></thead>
+      <tbody>{operation.items.map(item => <tr key={item.id} data-operation-item={item.channelId}>
+        <td>{CHANNEL_NAME_KEY[item.channelId] ? translate(CHANNEL_NAME_KEY[item.channelId]) : item.channelId}</td>
+        <td className="fh-text-mono text-end">{formatMoney(item.currentValue, { unit: item.unit })}</td>
+        <td className="fh-text-mono text-end">{formatMoney(item.proposedValue, { unit: item.unit })}</td>
+        <td><Badge variant={itemStatusVariant(item.status)}>{item.errorMessage ?? item.status}</Badge></td>
+      </tr>)}</tbody>
+    </table>
+    <div className="fh-page-header mt-3">
+      <button type="button" className="fh-button-secondary" onClick={onStartOver} disabled={busy}>
+        {translate('products:products.products')}
+      </button>
+      <div className="flex gap-2">
+        {operation.status === 'dry_run_ready' && <button type="button" className="fh-button-primary" disabled={busy} onClick={onApprove}>
+          {translate('products:products.approve')}
+        </button>}
+        {(operation.status === 'approved' || operation.status === 'reconciliation_required') && <button type="button" className="fh-button-primary" disabled={busy} onClick={onApply}>
+          {translate('products:products.apply')}
+        </button>}
+      </div>
+    </div>
+  </div>
+}
+
+function operationStatusVariant(status: ProductChannelPriceOperation['status']): BadgeVariant {
+  switch (status) {
+    case 'applied': return 'success'
+    case 'failed': return 'danger'
+    case 'partially_failed': return 'warning'
+    case 'reconciliation_required': return 'warning'
+    case 'approved': return 'info'
+    default: return 'neutral'
+  }
+}
+
+function itemStatusVariant(status: string): BadgeVariant {
+  if (status === 'applied') return 'success'
+  if (status === 'failed') return 'danger'
+  if (status === 'reconciliation_required') return 'warning'
+  return 'neutral'
 }

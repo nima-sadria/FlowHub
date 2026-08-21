@@ -12,9 +12,9 @@ import Workspace from './Workspace'
 vi.mock('../features/sourceWorkspace/DensePricingWorkspace', async () => {
   const React = await import('react')
   return {
-    default: ({ workspace, initialSearch }: { workspace: UnifiedWorkspaceResource; initialSearch?: string }) => React.createElement(
+    default: ({ workspace, initialSearch, categoryOptions }: { workspace: UnifiedWorkspaceResource; initialSearch?: string; categoryOptions?: readonly { value: string; label: string }[] }) => React.createElement(
       'section',
-      { 'data-workspace-engine': workspace.id, 'data-initial-search': initialSearch },
+      { 'data-workspace-engine': workspace.id, 'data-initial-search': initialSearch, 'data-category-options': (categoryOptions ?? []).map(option => option.value).join(',') },
       `Automated reconciliation ${workspace.id}`,
     ),
   }
@@ -74,6 +74,16 @@ describe('Workspace automated reconciliation entry', () => {
     expect(createCatalog).not.toHaveBeenCalled()
   })
 
+  it('loads and passes Source-listing category filter options to the reconciliation engine', async () => {
+    const createCatalog = vi.fn(async () => WORKSPACE)
+    const getCategories = vi.fn(async () => [{ id: 1, name: 'Accessories', parent: 0 }, { id: 2, name: 'Cables', parent: 0 }])
+    await renderWorkspace(servicesFor({ createCatalog, getCategories }))
+    await waitFor(() => container.querySelector('[data-workspace-engine="reconciliation-workspace"]') !== null)
+    await waitFor(() => container.querySelector('[data-workspace-engine="reconciliation-workspace"]')?.getAttribute('data-category-options') === 'Accessories,Cables')
+
+    expect(getCategories).toHaveBeenCalled()
+  })
+
   it('passes q through to the reconciliation engine search', async () => {
     const getWorkspace = vi.fn(async () => WORKSPACE)
     await renderWorkspace(
@@ -123,9 +133,10 @@ async function renderWorkspace(services: Services, initialPath = '/workspace') {
 function servicesFor(overrides: {
   createCatalog?: ReturnType<typeof vi.fn>
   getWorkspace?: ReturnType<typeof vi.fn>
+  getCategories?: ReturnType<typeof vi.fn>
 } = {}): Services {
   return {
-    products: { getProducts: vi.fn(), async getCategories() { return [] }, async getProduct() { return null } },
+    products: { getProducts: vi.fn(), getCategories: overrides.getCategories ?? vi.fn(async () => []), async getProduct() { return null } },
     unifiedWorkspace: {
       createManual: vi.fn(),
       createCatalog: overrides.createCatalog ?? vi.fn(async () => WORKSPACE),

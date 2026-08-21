@@ -3,8 +3,62 @@
 Status: P0-1 (Workspace route/product architecture) received an explicit
 Owner decision on 2026-08-22 — see the Reconciliation Audit R-1 and
 Canonical Spec §9. That decision authorizes implementation of P0-1's
-phased plan below. P2 items (P2-1 through P2-4) remain planning-only
-pending Owner priority/timing confirmation, as originally scoped.
+phased plan below.
+
+P0-1 progress: **Phase 1 complete** (`/workspace` renders the real
+automated-reconciliation engine, PR #22, merged to `main` at `4b39611`).
+**Phase 2 complete** (`/products` rebuilt as the Manual Channel Editor
+against the existing `ProductPricingService`/`ApiProductService` backend,
+fully detached from `unified_workspace`/`DensePricingWorkspace.tsx`).
+Phase 2 also surfaced a scope correction: `ProductPricingService` only
+ever covered **Price**, for exactly 3 hardcoded channels
+(`woocommerce:primary`/`snappshop:main`/`tapsishop:main`) — not the full
+Owner field list (Stock QTY, Stock Status, Name, SKU, Description) and not
+a general, configured-channel-driven registry. The new `/products` is
+honest about this: it only exposes editing for fields the backend can
+actually write, and does not claim broader coverage. Extending backend
+field/channel coverage is tracked as new item **P1-1** below (promoted
+from a P2-implied assumption once the real gap was discovered).
+Phase 3 (delete the dead Handsontable `/workspace/:workspaceId` surface)
+and Phase 4 (docs/permissions/e2e) remain outstanding. P2 items (P2-1
+through P2-4) remain planning-only pending Owner priority/timing
+confirmation, as originally scoped.
+
+**e2e note (found during Phase 1/2 verification, 2026-08-22):** the CI
+`frontend` job only runs the `@browser-benchmark`-tagged e2e test by
+default; the broader Playwright suite (`e2e/source-centric-workspace.spec.ts`,
+`e2e/source-channel-ordering.spec.ts`, `e2e/unified-workspace-apply-visual.spec.ts`,
+`e2e/unified-workspace-performance.spec.ts`) is not CI-gated. All four
+files contained stale `page.goto('/workspace/<id>')` navigations that
+depended on the now-removed `LegacyWorkspaceRedirect` bounce to
+`/products?workspace=<id>`; these were updated to navigate directly to
+`/workspace?workspace=<id>`, matching the real Phase 1 page, and the
+CI-gating `@browser-benchmark` test plus 4 other previously-broken-by-this-
+work tests were verified passing locally after the fix. Beyond that,
+**8 pre-existing failures were found and confirmed unrelated to this
+work** via direct comparison against `origin/main` at `1f04c90` (the
+commit immediately before this entire reconciliation engagement began,
+reproduced in an isolated `git worktree`):
+- 5 tests across `source-centric-workspace.spec.ts` (2) and
+  `unified-workspace-apply-visual.spec.ts` (3) fail on
+  `getByRole('dialog'/'heading', { name: 'Review Changes' })` never
+  appearing after a Save click — reproduced identically at `1f04c90`,
+  before any Products/Workspace work in this engagement.
+- 1 test (`source-centric-workspace.spec.ts`) expects a Source
+  configuration tab literally named "Worksheet rules"; the live page
+  renders "Worksheet discovery" and "Choose participating worksheets"
+  instead — a stale label, unrelated to routing.
+- 2 tests (`source-channel-ordering.spec.ts`) fail on a Channel
+  "connected" resource-section grouping assertion, at a point in the test
+  before any Workspace/Products navigation occurs.
+
+None of these were introduced by this reconciliation; left untouched as
+genuinely out of scope, consistent with this project's existing practice
+of investigating and disclosing pre-existing failures rather than masking
+or silently fixing them inline (see `WORKSPACE_GAP_ANALYSIS.md`'s
+pre-existing-failures section for the same pattern applied to the backend
+suite). Recommend a dedicated e2e-suite maintenance pass, separate from
+Workspace/Products architecture work.
 
 Based on `WORKSPACE_RECONCILIATION_AUDIT_2026-08-22.md`.
 
@@ -80,9 +134,62 @@ Phase 3/4 can follow.
 
 ---
 
-## P1 — none identified
+## P1 — discovered during P0-1 Phase 2 implementation
 
-No item in the reconciliation audit rose to P1. R-2 requires no action.
+### P1-1: Extend the Manual Channel Editor backend beyond Price/3 channels
+
+**Discovered, not yet implemented.** The Owner's field list for `/products`
+is Price, Stock QTY, Stock Status, Name, SKU, Description, "other
+supported editable Channel fields" — for whatever Channels are actually
+configured. `ProductPricingService`
+(`app/flowhub/product_pricing/service.py`) and its
+`ProductPriceOperation`/`ProductPriceOperationItem` models are built
+specifically around a single numeric `price` field (unit/currency
+conversion, `.proposed_value: float`, TapsiShop rial-divisible-by-10
+validation, etc.) for exactly the 3 channels hardcoded in its `CHANNELS`
+tuple. There is no `field` column on the operation-item model — the whole
+shape assumes "price" is the only editable concept.
+
+The current `/products` UI (shipped in Phase 2) is truthful about this: it
+only renders Price editing for the 3 supported channels and does not
+present controls for fields that don't work.
+
+Steps to close the gap:
+1. Generalize channel discovery: replace the hardcoded `CHANNELS` tuple
+   with the actual configured/enabled Channel registry
+   (`IntegrationConnectorInstance` + `default_marketplace_registry()`),
+   so any real Channel — not just 3 named ones — is editable.
+2. Add Stock QTY and Stock Status as a second and third editable field
+   type. These are numeric/enum, not price, so they don't need
+   currency/unit conversion but do need their own validation rules
+   (non-negative integer QTY; canonical `IN_STOCK`/`OUT_OF_STOCK` status —
+   note this is a *different, simpler* rule than the Workspace engine's
+   Source-precedence Stock Status logic in
+   `unified_workspace/domain.py`; Products has no Source, so there is no
+   precedence to compute, only a direct write).
+3. Add Name/SKU/Description as text-field edits. These have no numeric
+   validation, currency, or stale-token-per-value-magnitude concerns, but
+   still need the same stale-conflict/audit ceremony.
+4. Decide the data model: either (a) generalize
+   `ProductPriceOperation`/`ProductPriceOperationItem` into a
+   field-parameterized `ProductChannelFieldOperation`, or (b) introduce
+   parallel operation types per field family. Given the existing model's
+   validation logic is deeply price-specific (currency/unit, TapsiShop
+   divisibility), (a) likely means significant refactoring; (b) risks
+   duplicating the dry-run/approve/apply ceremony. This decision needs its
+   own design pass, not a decision made inline while implementing.
+5. Extend `WritePipelineService.execute_product_pricing_item` (or add a
+   sibling method) to dispatch non-price fields through the same
+   `execute_workspace` engine with correct per-field payload shaping.
+6. Extend `app/flowhub/api/v2/products.py` and `ApiProductService.ts`/
+   `services/types.ts` accordingly; extend the `/products` UI to render
+   the new fields once the backend supports them.
+
+Risk: **MEDIUM-HIGH** — touches a real write path (channel field writes),
+though scoped away from Workspace's automation/precedence logic entirely.
+Recommend scoping as its own dedicated pass per field family (QTY/Status
+first, since they reuse simpler validation than free-text Name/SKU/
+Description), not one large change.
 
 ---
 
