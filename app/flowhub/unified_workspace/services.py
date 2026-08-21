@@ -1903,6 +1903,12 @@ class UnifiedWorkspaceService:
             }
         )
         eligible_count = sum(1 for item in prepared if item["eligible"])
+        # A row-safety count distinct from eligible_count: eligible_count
+        # requires "not unchanged" (it is an actionability/selection gate,
+        # see item["eligible"] above), so an all-unchanged Draft -- nothing
+        # unsafe, simply nothing to do -- must not make the whole Review
+        # BLOCKED. Only a genuine error makes a Review unsafe to open.
+        safe_count = sum(1 for item in prepared if not item["errors"])
         review = Review(
             id=_id(),
             workspace_id=workspace.id,
@@ -1911,7 +1917,7 @@ class UnifiedWorkspaceService:
             created_by_user_id=user.id,
             # Blocked items are excluded from selection; they do not prevent
             # unrelated, eligible Listings from proceeding through Review.
-            status=ReviewState.READY if eligible_count else ReviewState.BLOCKED,
+            status=ReviewState.READY if safe_count else ReviewState.BLOCKED,
             ruleset_version=VALIDATION_VERSION,
             capability_digest=capability_digest,
             currency_digest=currency_digest,
@@ -3836,11 +3842,20 @@ class UnifiedWorkspaceService:
     def _cache_payload(self, row: DlProductCache, listing_id: str) -> dict[str, Any]:
         capabilities = self._capabilities(str(row.connector_id))
         price = row.regular_price or row.price or row.last_price
+        # row.status is provider publication state (publish/draft/private);
+        # row.stock_status is provider-neutral availability (instock/
+        # outofstock/onbackorder). ChannelCache.status is read downstream as
+        # canonical availability (see _current_value, apply_selected's
+        # accepted_status write-back), so it must never fall back to
+        # publication state -- doing so previously made every published
+        # product's cached status a value the availability precedence engine
+        # could never recognize, silently suppressing every stock-status
+        # Manifest operation.
         payload = {
             "listing": listing_id,
             "price": price,
             "stock": row.stock_qty,
-            "status": row.status or row.stock_status,
+            "status": row.stock_status,
             "manage_stock": row.manage_stock,
             "record_hash": row.record_hash,
             "fetched": str(row.last_successful_read or row.last_fetched_at),
@@ -3850,7 +3865,7 @@ class UnifiedWorkspaceService:
             "price_currency": capabilities.currency,
             "price_unit": capabilities.unit,
             "stock_quantity": row.stock_qty,
-            "status": row.status or row.stock_status,
+            "status": row.stock_status,
             "manage_stock": row.manage_stock,
             "checksum": checksum(payload),
             "connector_version": capabilities.version,

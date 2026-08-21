@@ -658,8 +658,6 @@ export default function DensePricingWorkspace({
     />}
     {reviewOpen && review && <ReviewDialog
       review={review}
-      grid={grid}
-      channelById={channelById}
       canApply={review.status === 'ready' && reviewContext !== null && busy === null}
       dryRun={reviewContext?.dryRun ?? dryRunSummary}
       onApply={() => setConfirming(true)}
@@ -1273,6 +1271,16 @@ function DryRunStatus({ dryRun }: { dryRun: DryRunResource }) {
   </section>
 }
 
+// A field is unsafe (Blocked) only when it actually has errors. `eligible`
+// is an actionability gate (safe AND changed), so an unchanged field is
+// `eligible: false` even though nothing is wrong with it -- treat
+// `validationState === 'unchanged'` as safe/eligible for display so an
+// unchanged row never shows as Blocked (see WORKSPACE_PHASE_B_CHANGE_BADGES_PLAN.md
+// section 10: "An unchanged row may be ELIGIBLE but has no actionable change").
+function isItemSafe(item: ReviewItemResource): boolean {
+  return item.eligible || item.validationState === 'unchanged'
+}
+
 export function ReviewScopePresentation({ review }: { review: ReviewResource }) {
   const groups = new Map<string, ReviewItemResource[]>()
   for (const item of review.items) groups.set(item.listingId, [...(groups.get(item.listingId) ?? []), item])
@@ -1280,8 +1288,8 @@ export function ReviewScopePresentation({ review }: { review: ReviewResource }) 
     const first = items[0]
     return <section key={first.listingId} className="rounded border border-border p-3" data-review-listing={first.listingId}>
       <div className="flex flex-wrap items-center gap-2"><strong dir="ltr">{first.externalPrimaryId ?? first.listingId}</strong><span className="fh-text-caption" dir="ltr">{first.canonicalProductId}</span>
-        {items.map(item => <Badge key={item.id} variant={item.eligible ? 'success' : 'danger'}>{formatField(item.field)}: {formatOperationValue({ ...item, currency: null, unit: null }, true)}</Badge>)}
-        <Badge variant={items.every(item => item.eligible) ? 'success' : 'danger'}>{items.every(item => item.eligible) ? translate('workspace:unifiedWorkspace.eligible') : translate('workspace:unifiedWorkspace.blocked')}</Badge>
+        {items.map(item => <Badge key={item.id} variant={isItemSafe(item) ? 'success' : 'danger'}>{formatField(item.field)}: {formatOperationValue({ ...item, currency: null, unit: null }, true)}</Badge>)}
+        <Badge variant={items.every(isItemSafe) ? 'success' : 'danger'}>{items.every(isItemSafe) ? translate('workspace:unifiedWorkspace.eligible') : translate('workspace:unifiedWorkspace.blocked')}</Badge>
         <Badge variant={items.every(item => item.selected) ? 'success' : 'neutral'}>{items.every(item => item.selected) ? '✓' : '—'}</Badge>
       </div>
       {items.flatMap(item => item.warnings).map((warning, index) => <Badge key={`warning-${index}`} variant="warning">{formatStatus(warning)}</Badge>)}
@@ -1290,10 +1298,8 @@ export function ReviewScopePresentation({ review }: { review: ReviewResource }) 
   })}</div>
 }
 
-function ReviewDialog({ review, grid, channelById, canApply, dryRun, onApply, onClose }: { review: ReviewResource; grid: GroupedWorkspacePage; channelById: ReadonlyMap<string, SourceChannel>; canApply: boolean; dryRun: DryRunResource | null; onApply: () => void; onClose: () => void }) {
-  const presentation = dryRun ? dryRunPresentation(dryRun) : { verifiedCount: 0, noOpCount: 0, blockerCount: 0, blocker: undefined }
+function ReviewDialog({ review, canApply, dryRun, onApply, onClose }: { review: ReviewResource; canApply: boolean; dryRun: DryRunResource | null; onApply: () => void; onClose: () => void }) {
   return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p>{dryRun && <DryRunStatus dryRun={dryRun} />}</div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><ReviewScopePresentation review={review} /><div className="fh-panel-footer"><button className="fh-button-secondary" type="button" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button><button className="fh-button-primary" type="button" data-pricing-apply disabled={!canApply} onClick={onApply}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')}</button></div></div></div>
-  return <div className="fh-pricing-dialog fixed inset-0 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={translate('workspace:unifiedWorkspace.reviewChanges')}><div className="fh-card max-h-[88vh] w-full max-w-6xl overflow-auto"><div className="fh-panel-header"><div><h2 className="fh-page-title">{translate('workspace:unifiedWorkspace.reviewChanges')}</h2><p className="fh-text-caption">{translate('workspace:densePricing.reviewSummary', { total: review.summary.total, selected: review.items.filter(item => item.selected).length, blocked: review.summary.blocked })}</p>{presentation && <p className="fh-text-caption mt-1" data-dry-run-summary>{translate('workspace:sourceCentricWorkspace.dryRunVerifiedCount', { count: presentation.verifiedCount })} · {translate('workspace:sourceCentricWorkspace.dryRunNoOpCount', { count: presentation.noOpCount })} · {translate('workspace:sourceCentricWorkspace.dryRunBlockerCount', { count: presentation.blockerCount })}</p>}</div><button className="fh-button-secondary fh-button-sm" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button></div><div className="overflow-x-auto"><table className="fh-table min-w-[900px]"><thead><tr><th>{translate('workspace:gridModel.product')}</th><th>{translate('workspace:unifiedWorkspace.channel')}</th><th>{translate('workspace:densePricing.field')}</th><th>{translate('workspace:densePricing.previousValue')}</th><th>{translate('workspace:gridModel.targetField', { field: '' })}</th><th>{translate('workspace:sourceCentricWorkspace.selected')}</th></tr></thead><tbody>{review.items.map(item => { const product = grid.items.find(row => row.children.some(child => child.listingId === item.listingId)); return <tr key={item.id}><td>{product?.name ?? item.canonicalProductId}</td><td>{sourceChannelDisplayName(item.channelId, channelById)}</td><td>{formatField(item.field)}</td><td>{item.current ?? '—'}</td><td>{item.target}</td><td>{item.selected ? '✓' : '—'}</td></tr> })}</tbody></table></div><div className="fh-panel-footer"><button className="fh-button-secondary" type="button" onClick={onClose}>{translate('workspace:densePricing.backToGrid')}</button><button className="fh-button-primary" type="button" data-pricing-apply disabled={!canApply} onClick={onApply}><Icon name="apply" /> {translate('workspace:sourceCentricWorkspace.apply')}</button></div></div></div>
 }
 
 function ApplyResults({ result, channelById }: { result: ApplyResource; channelById: ReadonlyMap<string, SourceChannel> }) {

@@ -210,9 +210,12 @@ def normalize_direct_price(
     monetary_precision: int | None,
     fix_zero_decimal_prices: bool | None = None,
     raw_scale_authoritative: bool = True,
+    mapped: bool = True,
 ) -> NormalizedSourceField:
     """Apply the approved direct mapped Price contract without float coercion."""
 
+    if not mapped:
+        return NormalizedSourceField(SourceInstruction.NO_INSTRUCTION, None)
     raw_lexeme = None if raw is None else str(raw).strip()
     if raw is None or raw_lexeme == "":
         return NormalizedSourceField(
@@ -362,7 +365,12 @@ def utcnow() -> datetime:
 
 
 def canonical_text(value: object) -> str:
-    text = unicodedata.normalize("NFKC", str(value or ""))
+    # `value or ""` previously collapsed any falsy-but-present value -- most
+    # importantly numeric identifier/quantity zero -- to blank, identical to
+    # a truly absent value. Identity, price, and stock zero are meaningful
+    # business values (see the Product Identity Authority ADR and the
+    # Stock Quantity rules), so only None is treated as blank here.
+    text = unicodedata.normalize("NFKC", "" if value is None else str(value))
     return " ".join(text.strip().split())
 
 
