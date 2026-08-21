@@ -926,7 +926,7 @@ function ChangeBadges({ classification }: { classification: GroupedListing['chan
   else if (status.state === 'UNCHANGED_OUT_OF_STOCK') labels.push({ key: 'status', text: 'Out of stock', variant: 'neutral' })
   for (const warning of classification.warnings) labels.push({ key: `warning-${warning.code}`, text: `Warning · ${warning.code.replace(/_/g, ' ')}`, variant: 'warning' })
   labels.push({ key: 'eligibility', text: classification.eligibility === 'ELIGIBLE' ? 'Eligible' : 'Blocked', variant: classification.eligibility === 'ELIGIBLE' ? 'success' : 'danger' })
-  return <div className="mt-1 flex flex-wrap gap-1" data-change-badges aria-label="Change classification">
+  return <div className="mt-1 flex flex-wrap gap-1" data-change-badges aria-label={translate('products:products.status')}>
     {labels.map(badge => <Badge key={badge.key} variant={badge.variant} className="text-[10px]">{badge.text}</Badge>)}
   </div>
 }
