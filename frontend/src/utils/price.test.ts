@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMoney, formatMoneyInput, normalizeMoneyInteger, parseMoneyInput } from './price'
+import { formatMoney, formatMoneyInput, formatPercentageDelta, normalizeMoneyInteger, parseMoneyInput } from './price'
 
 describe('money formatting', () => {
   it.each([
@@ -31,5 +31,27 @@ describe('money formatting', () => {
     expect(parseMoneyInput('1,250,000')).toBe(1250000)
     expect(parseMoneyInput('1,250.50')).toBeNull()
     expect(formatMoneyInput('001250000')).toBe('1,250,000')
+  })
+})
+
+describe('percentage delta formatting', () => {
+  it('rounds to two decimals and trims trailing zeros', () => {
+    expect(formatPercentageDelta('25.00')).toBe('25')
+    expect(formatPercentageDelta('-4.9285714285714')).toBe('4.93')
+    expect(formatPercentageDelta('0.25')).toBe('0.25')
+  })
+
+  it('never shows a misleading 0% for a nonzero magnitude', () => {
+    expect(formatPercentageDelta('0.001')).toBe('<0.01')
+    expect(formatPercentageDelta('-0.004')).toBe('<0.01')
+  })
+
+  it('shows an exact 0 only for a genuine zero delta', () => {
+    expect(formatPercentageDelta('0')).toBe('0')
+  })
+
+  it('returns null when there is no numeric percentage (comparison from a zero base)', () => {
+    expect(formatPercentageDelta(null)).toBeNull()
+    expect(formatPercentageDelta(undefined)).toBeNull()
   })
 })
