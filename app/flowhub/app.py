@@ -21,8 +21,6 @@ Active routes:
   POST /api/v2/products/channel-price-operations/{id}/approve - approve a price Dry Run
   POST /api/v2/products/channel-price-operations/{id}/apply   - apply approved channel price writes
   GET  /api/v2/sources                         - configured data sources
-  GET  /api/v2/workspace/state                 - workspace state
-  POST /api/v2/workspace/preview               - compute preview (stateless)
   POST /api/v2/write-pipeline/dry-run          - create approved-safety preview for WooCommerce price update
   POST /api/v2/write-pipeline/batches/{id}/approve - approve a dry run without executing
   POST /api/v2/write-pipeline/batches/{id}/execute - apply approved WooCommerce price update
@@ -99,7 +97,6 @@ from app.flowhub.api.v2.sources import router as sources_router
 from app.flowhub.api.v2.unified_workspace import router as unified_workspace_router
 from app.flowhub.api.v2.users import router as users_router
 from app.flowhub.api.v2.webhooks import router as webhooks_router
-from app.flowhub.api.v2.workspace import router as workspace_router
 from app.flowhub.api.v2.write_pipeline import router as write_pipeline_router
 from app.flowhub.auth.router import router as auth_router
 from app.flowhub.integrations.errors import IntegrationError
@@ -267,7 +264,6 @@ app.include_router(users_router, prefix="/api/v2")
 app.include_router(products_router, prefix="/api/v2")
 app.include_router(pricing_matrix_router, prefix="/api/v2")
 app.include_router(sources_router, prefix="/api/v2")
-app.include_router(workspace_router, prefix="/api/v2")
 app.include_router(write_pipeline_router, prefix="/api/v2")
 app.include_router(settings_router, prefix="/api/v2")
 app.include_router(commerce_router, prefix="/api/v2")

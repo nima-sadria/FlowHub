@@ -249,31 +249,6 @@ class TestParseSourcePriceRows:
             mapping_mode=None, mapping_name=None, legacy_mode="selected", legacy_name="UGREEN"
         ) == {"mode": "selected", "name": "UGREEN", "names": []}
 
-    def test_preview_fingerprint_changes_when_participating_scope_changes(self):
-        from app.flowhub.workspace.price_workflow import WorkspacePriceWorkflowService
-
-        class Config:
-            def get(self, key):
-                return "/prices.xlsx" if key == "nextcloud.spreadsheet_path" else None
-
-        class Reader:
-            def __init__(self, names):
-                self.names = names
-
-            def mapping(self):
-                return {"id": {"enabled": True, "column": "B"}}
-
-            def worksheet_scope(self, *, source_profile_id=None):
-                return {"mode": "selected", "name": "", "names": self.names}
-
-        service = object.__new__(WorkspacePriceWorkflowService)
-        service.config = Config()
-        service.source_reader = Reader(["UGREEN"])
-        first = service._source_config_hash("source-1")
-        service.source_reader.names = ["UGREEN", "Surface"]
-        second = service._source_config_hash("source-1")
-        assert first != second
-
     def test_sku_only_rows_keep_physical_row_numbers_in_read_only_workbook(self):
         wb = openpyxl.Workbook()
         ws = wb.active

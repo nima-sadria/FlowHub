@@ -50,8 +50,6 @@ from app.flowhub.integration_platform.contracts import (
     ConnectorTelemetryResponse,
     ConnectorTelemetryShape,
     IntegrationSettingsSummary,
-    WorkspaceIntegrationSummary,
-    WorkspacePreviewResponse,
 )
 from app.flowhub.integration_platform.models import (
     IntegrationConnectorDiagnostic,
@@ -729,20 +727,6 @@ class IntegrationPlatformService:
                 )
             )
         return ConnectorSourceListResponse(items=items)
-
-    def workspace_summary(self) -> WorkspaceIntegrationSummary:
-        self.bootstrap_from_app_config()
-        return WorkspaceIntegrationSummary(
-            source_count=len(self.list_sources().items),
-            product_count=self.db.query(DlProductCache).count(),
-            connector_count=self.db.query(IntegrationConnectorInstance).count(),
-        )
-
-    def workspace_preview(self) -> WorkspacePreviewResponse:
-        raise HTTPException(
-            status.HTTP_410_GONE,
-            "Workspace preview must use WorkspacePriceWorkflowService.preview_from_nextcloud().",
-        )
 
     def settings_summary(self) -> list[IntegrationSettingsSummary]:
         return [

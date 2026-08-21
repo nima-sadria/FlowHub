@@ -562,20 +562,6 @@ def test_sources_route_keeps_multiple_generated_nextcloud_connectors_distinct(cl
     assert {"nextcloud:generated-a", "nextcloud:generated-b"}.issubset(ids)
 
 
-def test_workspace_routes_are_read_only(client, auth_headers, db):
-    response = client.get("/api/v2/workspace", headers=auth_headers)
-    assert response.status_code == 200
-    summary = response.json()
-    assert summary["runtime_write_blocked"] is True
-    assert summary["apply_available"] is False
-    assert summary["scheduler_available"] is False
-    assert summary["pricing_automation_available"] is False
-
-    preview = client.post("/api/v2/workspace/preview", headers=auth_headers)
-    assert preview.status_code == 422
-    assert "Missing required setting" in preview.text
-
-
 def test_diagnostics_run_uses_records_only(client, auth_headers, db):
     response = client.post("/api/v2/diagnostics/run", headers=auth_headers, json={"target": "woocommerce"})
     assert response.status_code == 200
@@ -609,7 +595,7 @@ def test_settings_secret_masking_and_telemetry(client, auth_headers):
 
 def test_write_safety_no_execution_routes(client, auth_headers):
     paths = [route.path.lower() for route in client.app.routes if hasattr(route, "path")]
-    joined = " ".join(path for path in paths if "/api/v2/integrations" in path or "/api/v2/workspace" in path)
+    joined = " ".join(path for path in paths if "/api/v2/integrations" in path)
     assert "apply" not in joined
     assert "scheduler" not in joined
     assert "pricing" not in joined
