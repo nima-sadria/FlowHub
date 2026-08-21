@@ -387,6 +387,17 @@ def save_review_selection(
     )
 
 
+@router.post("/{workspace_id}/reviews/{review_id}/dry-run")
+async def run_dry_run(
+    workspace_id: str,
+    review_id: str,
+    user: FlowHubUser = Depends(require_workspace_permission("review.generate")),
+    service: UnifiedWorkspaceService = Depends(_service),
+    correlation_id: str = Depends(_correlation),
+) -> dict[str, Any]:
+    return await service.run_dry_run(workspace_id, review_id, user, correlation_id)
+
+
 @router.get("/{workspace_id}/reviews/{review_id}/manifest/{manifest_id}")
 def get_apply_manifest(
     workspace_id: str,

@@ -331,6 +331,12 @@ export default function DensePricingWorkspace({
       const selectedIds = resolveAutomaticReviewSelection(created.items, pricingStateRef.current)
       if (!selectedIds.length) throw new Error(translate('workspace:densePricing.noEligibleSelectedChanges'))
       const selection = await service.saveSelection(workspace.id, created.id, selectedIds)
+      if (!service.runDryRun) throw new Error('Live Dry Run is unavailable in this Workspace client.')
+      const dryRun = await service.runDryRun(workspace.id, created.id)
+      if (dryRun.status !== 'passed' || !dryRun.manifestId || !dryRun.manifestChecksum || !dryRun.operations || !dryRun.affectedChannelIds) {
+        notify.error({ title: translate('workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted'), description: translate('workspace:sourceCentricWorkspace.generateAFreshReview') })
+        return
+      }
       if (pricingStateRef.current.revision !== requestedRevision) {
         notify.error({ title: translate('workspace:sourceCentricWorkspace.reviewCouldNotBeCompleted'), description: translate('workspace:sourceCentricWorkspace.generateAFreshReview') })
         return
@@ -342,10 +348,10 @@ export default function DensePricingWorkspace({
         revisionId: revision.id,
         selectionChecksum: selection.selectionChecksum,
         selectedCount: selectedIds.length,
-        manifestId: selection.manifestId,
-        manifestChecksum: selection.manifestChecksum,
-        operations: selection.operations,
-        affectedChannelIds: selection.affectedChannelIds,
+        manifestId: dryRun.manifestId,
+        manifestChecksum: dryRun.manifestChecksum,
+        operations: dryRun.operations,
+        affectedChannelIds: dryRun.affectedChannelIds,
       })
       setReviewOpen(true)
       notify.success({ title: translate('workspace:sourceCentricWorkspace.reviewAndDryRunComplete'), description: translate('workspace:densePricing.selectionBoundToReview', { count: selectedIds.length }) })

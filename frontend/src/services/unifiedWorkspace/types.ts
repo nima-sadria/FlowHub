@@ -165,10 +165,26 @@ export interface ReviewSelectionResource {
   selectedItemIds: string[]
   selectionChecksum: string
   selectionVersion: number
-  manifestId: string
-  manifestChecksum: string
-  operations: ManifestOperationResource[]
-  affectedChannelIds: string[]
+  dryRunStatus?: 'idle'
+  /** Compatibility-only: cache-era callers must not treat these as applyable. */
+  manifestId?: string
+  manifestChecksum?: string
+  operations?: ManifestOperationResource[]
+  affectedChannelIds?: string[]
+}
+
+export interface DryRunResource {
+  id: string
+  status: 'passed' | 'blocked' | 'error' | 'invalidated'
+  reviewedCount: number
+  writeCount: number
+  blockerCount: number
+  evidenceChecksum: string
+  scopes: Array<{ reviewItemId: string; disposition: 'write' | 'no_op' | 'blocked'; reason: string | null }>
+  manifestId?: string
+  manifestChecksum?: string
+  operations?: ManifestOperationResource[]
+  affectedChannelIds?: string[]
 }
 
 export interface WorkspaceGridQuery {

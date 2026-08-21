@@ -2,6 +2,7 @@ import type {
   ApplyResource,
   DraftChangeInput,
   DraftRevisionResource,
+  DryRunResource,
   ReviewResource,
   ReviewSelectionResource,
   UnifiedWorkspaceResource,
@@ -18,6 +19,7 @@ export interface UnifiedWorkspaceService {
   saveDraft(id: string, version: number, changes: DraftChangeInput[], mode?: DraftSaveMode): Promise<DraftRevisionResource>
   createReview(id: string, revisionId: string): Promise<ReviewResource>
   saveSelection(id: string, reviewId: string, itemIds: string[]): Promise<ReviewSelectionResource>
+  runDryRun?: (id: string, reviewId: string) => Promise<DryRunResource>
   applySelected(
     id: string,
     reviewId: string,

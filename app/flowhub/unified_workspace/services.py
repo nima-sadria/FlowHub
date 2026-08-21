@@ -8,6 +8,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from datetime import timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any, cast
 
 from fastapi import HTTPException, status
@@ -25,7 +26,7 @@ from app.flowhub.pricing_authority.contracts import PricingAuthority, PricingOri
 from app.flowhub.product_media import normalize_product_media, primary_image_url
 from app.flowhub.product_pricing.service import ProductPricingService
 from app.flowhub.setup.service import AppConfigService
-from app.flowhub.source_workspace.models import SourceDataQualityIssue
+from app.flowhub.source_workspace.models import SourceDataQualityIssue, SourceMappingRevision, SourceProfile
 from app.flowhub.source_workspace.service import SourceWorkspaceService
 from app.flowhub.channels.gateway import WorkspaceConnectorFactory
 from app.flowhub.unified_workspace.authorization import has_workspace_permission
@@ -67,6 +68,8 @@ from app.flowhub.unified_workspace.models import (
     Draft,
     DraftRevision,
     DraftRevisionChange,
+    DryRun,
+    DryRunScope,
     Listing,
     MappingRevision,
     Review,
@@ -117,6 +120,21 @@ logger = logging.getLogger("flowhub.unified_workspace")
 
 def _id() -> str:
     return str(uuid.uuid4())
+
+
+def _canonical_live_evidence(value: Any) -> Any:
+    """Make connector observations durable without losing decimal semantics."""
+    if isinstance(value, Decimal):
+        return format(value, "f")
+    if isinstance(value, float):
+        # Connectors may still expose legacy float values.  Convert once at
+        # the Channel boundary; Workspace comparisons then use Decimal.
+        return format(Decimal(str(value)), "f")
+    if isinstance(value, dict):
+        return {str(key): _canonical_live_evidence(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_canonical_live_evidence(item) for item in value]
+    return value
 
 
 class UnifiedWorkspaceService:
@@ -2036,7 +2054,12 @@ class UnifiedWorkspaceService:
         selection_document = self._selection_document(review, items)
         selection_checksum = checksum(selection_document)
         review.selection_checksum = selection_checksum
-        manifest, manifest_operations = self._generate_apply_manifest(review, items, user)
+        # A selection is the authorization scope.  Prior live evidence remains
+        # historical but cannot authorize the new scope.
+        self.db.query(DryRun).filter(
+            DryRun.review_id == review.id,
+            DryRun.status.in_(["running", "passed"]),
+        ).update({DryRun.status: "invalidated"}, synchronize_session=False)
         self._audit(
             "review_selection_saved",
             user,
@@ -2050,8 +2073,7 @@ class UnifiedWorkspaceService:
                 "selection_checksum": selection_checksum,
                 "selection_version": review.selection_version,
                 "canonical_selection": selection_document,
-                "apply_manifest_id": manifest.id,
-                "manifest_checksum": manifest.manifest_checksum,
+                "dry_run_invalidated": True,
             },
         )
         self.db.commit()
@@ -2060,8 +2082,168 @@ class UnifiedWorkspaceService:
             "selectedItemIds": unique_ids,
             "selectionChecksum": selection_checksum,
             "selectionVersion": review.selection_version,
-            **self._manifest_shape(manifest, manifest_operations),
+            "dryRunStatus": "idle",
         }
+
+    async def run_dry_run(
+        self, workspace_id: str, review_id: str, user: FlowHubUser, correlation_id: str
+    ) -> dict[str, Any]:
+        """Targeted, authoritative, no-write verification of the selected scope.
+
+        Connector `verify_updates` is intentionally reused only as a current
+        state read: its proposed values are the Review's expected *before*
+        values, so it cannot mutate a Channel.  Workspace core interprets the
+        provider-neutral observation evidence and compares prices with Decimal.
+        """
+        workspace = self._workspace_for_user(workspace_id, user, edit=True)
+        review = self.reviews.get(review_id)
+        snapshot = self.workspaces.snapshot(workspace.id)
+        if review is None or snapshot is None or review.workspace_id != workspace.id:
+            raise self._not_found("REVIEW_NOT_FOUND", "Review not found.")
+        if workspace.entry_point == EntryPoint.SOURCE:
+            binding = self.db.get(WorkspaceSourceBinding, workspace.id)
+            source_id = snapshot.source_metadata_json.get("source_id")
+            mapped_id = snapshot.source_metadata_json.get("mapping_revision_id")
+            mapped_checksum = snapshot.source_metadata_json.get("mapping_checksum")
+            source = self.db.get(SourceProfile, source_id) if source_id else None
+            mapping = self.db.get(SourceMappingRevision, mapped_id) if mapped_id else None
+            if binding is None or source is None:
+                raise self._conflict("SOURCE_STATE_UNVERIFIABLE", "Unable to prove Source evidence; fetch a fresh Preview.")
+            if source.version != binding.source_version or source.version != snapshot.source_metadata_json.get("source_version"):
+                raise self._conflict("SOURCE_CHANGED", "Source changed since Preview; fetch a fresh Preview.")
+            if mapping is None or mapping.source_id != source.id or mapping.checksum != mapped_checksum:
+                raise self._conflict("SOURCE_MAPPING_CHANGED", "Source mapping changed; fetch a fresh Preview.")
+        selected_ids = sorted(row.review_item_id for row in self.reviews.selections(review.id))
+        if not selected_ids:
+            raise self._unprocessable("DRY_RUN_SELECTION_REQUIRED", "Select one or more Review items before Dry Run.")
+        items = self.db.query(ReviewItem).filter(ReviewItem.review_id == review.id, ReviewItem.id.in_(selected_ids)).all()
+        selection_checksum = checksum(self._selection_document(review, items))
+        if selection_checksum != review.selection_checksum:
+            raise self._conflict("SELECTION_STALE", "Selection changed; save it again before Dry Run.")
+        try:
+            self._assert_review_fresh(review, user, correlation_id)
+        except HTTPException as exc:
+            # Preserve business-specific stale categories for the Dry Run API.
+            raise self._conflict("POLICY_CHANGED" if "pricing:" in str(exc.detail) else "SOURCE_MAPPING_CHANGED", "Review dependencies changed; fetch a fresh Preview.") from exc
+        grouped: dict[str, list[ReviewItem]] = defaultdict(list)
+        for item in items:
+            grouped[item.listing_id].append(item)
+        scopes: list[dict[str, Any]] = []
+        for listing_id, group in sorted(grouped.items()):
+            listing = self.db.get(Listing, listing_id)
+            cache = self.db.query(ChannelCache).filter_by(listing_id=listing_id).first()
+            product = self.db.get(CanonicalProduct, listing.canonical_product_id) if listing else None
+            if listing is None or cache is None or product is None:
+                for item in group:
+                    scopes.append(self._dry_run_block(item, "CHANNEL_STATE_UNVERIFIABLE", {}))
+                continue
+            parent_external_id = None
+            if product.parent_id:
+                parent = self.db.query(Listing).filter_by(canonical_product_id=product.parent_id, channel_id=listing.channel_id).first()
+                parent_external_id = parent.external_primary_id if parent else None
+            # ``verify_updates`` is the existing provider-neutral targeted
+            # read capability.  It receives the Preview's expected-before
+            # values only to construct an exact entity read; Dry Run never
+            # invokes its mutation counterpart.  Decimal comparison happens
+            # below at the Workspace boundary.
+            expected = SimpleNamespace(
+                listing_id=listing.id, channel_id=listing.channel_id,
+                external_primary_id=listing.external_primary_id, sku=listing.sku,
+                product_type=product.product_type, parent_external_id=parent_external_id,
+                current_price=cache.price_raw,
+                current_stock=cache.stock_quantity,
+                current_status=cache.status,
+                target_price=cache.price_raw,
+                target_stock=cache.stock_quantity,
+                target_status=cache.status, currency=cache.price_currency, unit=cache.price_unit,
+                mapping_version=listing.mapping_version, cache_version=cache.cache_version,
+                cache_checksum=cache.checksum, capability_version=self._capabilities(listing.channel_id).version,
+                currency_digest=review.currency_digest, idempotency_key="dry-run", payload_hash="dry-run",
+            )
+            connector = WorkspaceConnectorFactory(ProductPricingService(self.db), CommerceHubService(self.db)).get(listing.channel_id)
+            try:
+                result = (await connector.verify_updates([expected], requested_by=user.username))[0]
+                verification = dict(result.response.get("verification") or {})
+                observed = _canonical_live_evidence(verification.get("observed")) if isinstance(verification.get("observed"), dict) else {}
+                error = verification.get("error")
+            except Exception:
+                observed, error = {}, {"category": "transport"}
+            for item in group:
+                expected_before = {"price": item.current_value, "listing": listing.external_primary_id, "parent": parent_external_id, "productType": product.product_type}
+                if error or not observed or str(observed.get("external_id")) != str(listing.external_primary_id) or (parent_external_id is not None and str(observed.get("parent_external_id")) != str(parent_external_id)):
+                    scopes.append(self._dry_run_block(item, "CHANNEL_STATE_UNVERIFIABLE", observed, expected_before))
+                elif values_equal(item.field, observed.get(item.field), item.target_value):
+                    scopes.append({"item": item, "disposition": "no_op", "reason": "ALREADY_CURRENT", "observed": observed, "expected": expected_before})
+                elif not values_equal(item.field, observed.get(item.field), item.current_value):
+                    scopes.append(self._dry_run_block(item, "CHANNEL_DRIFT", observed, expected_before))
+                else:
+                    scopes.append({"item": item, "disposition": "write", "reason": None, "observed": observed, "expected": expected_before})
+        blockers = [scope for scope in scopes if scope["disposition"] == "blocked"]
+        writes = [scope for scope in scopes if scope["disposition"] == "write"]
+        status_value = "blocked" if blockers else "passed"
+        evidence = [{"item": scope["item"].id, "disposition": scope["disposition"], "reason": scope["reason"], "observed": scope["observed"], "expected": scope["expected"]} for scope in scopes]
+        dry_run = DryRun(id=_id(), workspace_id=workspace.id, snapshot_id=snapshot.id, review_id=review.id, selection_version=review.selection_version, selection_checksum=selection_checksum, status=status_value, evidence_checksum=checksum(evidence), reviewed_count=len(scopes), write_count=len(writes), blocker_count=len(blockers), created_by_user_id=user.id)
+        self.db.add(dry_run)
+        for scope in scopes:
+            self.db.add(DryRunScope(id=_id(), dry_run_id=dry_run.id, review_item_id=scope["item"].id, listing_id=scope["item"].listing_id, channel_id=scope["item"].channel_id, disposition=scope["disposition"], reason_code=scope["reason"], expected_before_json=scope["expected"], observed_live_json=scope["observed"], live_fingerprint=checksum(scope["observed"]) if scope["observed"] else None))
+        manifest = None
+        operations: list[ApplyManifestOperation] = []
+        if status_value == "passed" and writes:
+            manifest, operations = self._generate_apply_manifest(review, [scope["item"] for scope in writes], user, dry_run_id=dry_run.id, live_evidence_checksum=dry_run.evidence_checksum)
+        self._audit("dry_run_completed", user, correlation_id, workspace_id=workspace.id, snapshot_id=snapshot.id, review_id=review.id, review_result=status_value, metadata={"reviewed": len(scopes), "writes": len(writes), "blockers": len(blockers), "zero_provider_writes": True})
+        self.db.commit()
+        result: dict[str, Any] = {"id": dry_run.id, "status": status_value, "reviewedCount": len(scopes), "writeCount": len(writes), "blockerCount": len(blockers), "evidenceChecksum": dry_run.evidence_checksum, "scopes": [{"reviewItemId": scope["item"].id, "disposition": scope["disposition"], "reason": scope["reason"]} for scope in scopes]}
+        if manifest is not None:
+            result.update(self._manifest_shape(manifest, operations))
+        return result
+
+    @staticmethod
+    def _dry_run_block(item: ReviewItem, reason: str, observed: dict[str, Any], expected: dict[str, Any] | None = None) -> dict[str, Any]:
+        return {"item": item, "disposition": "blocked", "reason": reason, "observed": observed, "expected": expected or {"price": item.current_value}}
+
+    async def _reverify_dry_run_live(self, dry_run: DryRun, items: list[ReviewItem], user: FlowHubUser) -> None:
+        """Final targeted read-back before dispatch; this function never writes."""
+        scopes = {row.review_item_id: row for row in self.db.query(DryRunScope).filter_by(dry_run_id=dry_run.id).all()}
+        for item in items:
+            scope = scopes.get(item.id)
+            listing = self.db.get(Listing, item.listing_id)
+            cache = self.db.query(ChannelCache).filter_by(listing_id=item.listing_id).first()
+            product = self.db.get(CanonicalProduct, listing.canonical_product_id) if listing else None
+            if scope is None or listing is None or cache is None or product is None:
+                raise self._conflict("CHANNEL_STATE_UNVERIFIABLE", "Unable to verify current Channel state; run Dry Run again.")
+            expected = scope.expected_before_json
+            probe = SimpleNamespace(
+                listing_id=listing.id,
+                channel_id=listing.channel_id,
+                external_primary_id=listing.external_primary_id,
+                sku=listing.sku,
+                product_type=expected.get("productType") or product.product_type,
+                parent_external_id=expected.get("parent"),
+                current_price=(scope.observed_live_json or {}).get("price"),
+                current_stock=(scope.observed_live_json or {}).get("stock"),
+                current_status=(scope.observed_live_json or {}).get("status"),
+                target_price=(scope.observed_live_json or {}).get("price"),
+                target_stock=(scope.observed_live_json or {}).get("stock"),
+                target_status=(scope.observed_live_json or {}).get("status"),
+                currency=cache.price_currency,
+                unit=cache.price_unit,
+                mapping_version=listing.mapping_version,
+                cache_version=cache.cache_version,
+                cache_checksum=cache.checksum,
+                capability_version=self._capabilities(listing.channel_id).version,
+                currency_digest="",
+                idempotency_key="apply-live-recheck",
+                payload_hash="apply-live-recheck",
+            )
+            try:
+                result = (await WorkspaceConnectorFactory(ProductPricingService(self.db), CommerceHubService(self.db)).get(listing.channel_id).verify_updates([probe], requested_by=user.username))[0]
+                observed = _canonical_live_evidence(dict((result.response.get("verification") or {}).get("observed") or {}))
+            except Exception:
+                observed = {}
+            if not observed:
+                raise self._conflict("CHANNEL_STATE_UNVERIFIABLE", "Unable to verify current Channel state; restore connectivity and run Dry Run again.")
+            if checksum(observed) != scope.live_fingerprint:
+                raise self._conflict("CHANNEL_DRIFT", "Channel changed since Dry Run; run Preview/Dry Run again.")
 
     def review_shape(self, review_id: str, user: FlowHubUser) -> dict[str, Any]:
         review = self.reviews.get(review_id)
@@ -2197,6 +2379,17 @@ class UnifiedWorkspaceService:
             raise self._not_found(
                 "APPLY_MANIFEST_NOT_FOUND", "Apply manifest not found."
             )
+        if not manifest.dry_run_id:
+            raise self._conflict("MANIFEST_STALE", "This cache-only manifest predates live verification; run Dry Run again.")
+        dry_run = self.db.get(DryRun, manifest.dry_run_id)
+        if (
+            dry_run is None
+            or dry_run.status != "passed"
+            or dry_run.review_id != review.id
+            or dry_run.selection_checksum != selection_checksum
+            or dry_run.selection_version != review.selection_version
+        ):
+            raise self._conflict("MANIFEST_STALE", "Dry Run evidence is no longer valid; run Dry Run again.")
         expected_manifest = canonical_text(expected_manifest_checksum)
         if not expected_manifest or expected_manifest != manifest.manifest_checksum:
             raise self._conflict(
@@ -2212,7 +2405,11 @@ class UnifiedWorkspaceService:
                 "The Review selection changed since this manifest was generated; "
                 "save the selection again to get a fresh manifest.",
             )
-        fresh_document, _ = self._manifest_document(review, review_items)
+        manifest_item_ids = [row.review_item_id for row in self.db.query(ApplyManifestOperation).filter_by(manifest_id=manifest.id).all()]
+        review_items = self.db.query(ReviewItem).filter(ReviewItem.review_id == review.id, ReviewItem.id.in_(manifest_item_ids)).all()
+        if not review_items:
+            raise self._conflict("MANIFEST_STALE", "Dry Run produced no verified writes; nothing can be applied.")
+        fresh_document, _ = self._manifest_document(review, review_items, dry_run_id=dry_run.id, live_evidence_checksum=dry_run.evidence_checksum)
         if checksum(fresh_document) != manifest.manifest_checksum:
             raise self._conflict(
                 "STALE_APPLY_MANIFEST",
@@ -2393,7 +2590,12 @@ class UnifiedWorkspaceService:
                 )
                 self.db.commit()
                 return self.apply_shape(job.id, user)
-            post_lock_document, _ = self._manifest_document(review, review_items)
+            # The evidence lease bounds approval latency; it never replaces the
+            # final zero-write Channel read after our database locks are held.
+            if dry_run.created_at < utcnow() - timedelta(minutes=STALE_APPLY_MINUTES):
+                raise self._conflict("MANIFEST_STALE", "Live Dry Run evidence expired; run Dry Run again.")
+            await self._reverify_dry_run_live(dry_run, review_items, user)
+            post_lock_document, _ = self._manifest_document(review, review_items, dry_run_id=dry_run.id, live_evidence_checksum=dry_run.evidence_checksum)
             if checksum(post_lock_document) != job.manifest_checksum:
                 review.status = ReviewState.STALE
                 review.invalidated_at = utcnow()
@@ -3610,7 +3812,7 @@ class UnifiedWorkspaceService:
         }
 
     def _manifest_document(
-        self, review: Review, items: list[ReviewItem]
+        self, review: Review, items: list[ReviewItem], *, dry_run_id: str | None = None, live_evidence_checksum: str | None = None
     ) -> tuple[dict[str, object], dict[str, dict[str, Any]]]:
         """Build the canonical, checksummable statement of what selected Review
         items would actually write, plus the per-listing payload each
@@ -3640,7 +3842,7 @@ class UnifiedWorkspaceService:
             items, key=lambda item: (item.channel_id, item.listing_id, item.field, item.id)
         )
         document: dict[str, object] = {
-            "manifest_version": "uw-manifest-op-v1",
+            "manifest_version": "uw-manifest-op-v2",
             "workspace_id": review.workspace_id,
             "snapshot_id": review.snapshot_id,
             "draft_revision_id": review.draft_revision_id,
@@ -3648,6 +3850,8 @@ class UnifiedWorkspaceService:
             "review_checksum": review.checksum,
             "selection_version": review.selection_version,
             "selection_checksum": review.selection_checksum,
+            "dry_run_id": dry_run_id,
+            "live_evidence_checksum": live_evidence_checksum,
             "operations": [
                 {
                     "review_item_id": item.id,
@@ -3662,15 +3866,16 @@ class UnifiedWorkspaceService:
         return document, listing_payloads
 
     def _generate_apply_manifest(
-        self, review: Review, review_items: list[ReviewItem], user: FlowHubUser
+        self, review: Review, review_items: list[ReviewItem], user: FlowHubUser, *, dry_run_id: str, live_evidence_checksum: str
     ) -> tuple[ApplyManifest, list[ApplyManifestOperation]]:
-        document, listing_payloads = self._manifest_document(review, review_items)
+        document, listing_payloads = self._manifest_document(review, review_items, dry_run_id=dry_run_id, live_evidence_checksum=live_evidence_checksum)
         manifest = ApplyManifest(
             id=_id(),
             workspace_id=review.workspace_id,
             snapshot_id=review.snapshot_id,
             draft_revision_id=review.draft_revision_id,
             review_id=review.id,
+            dry_run_id=dry_run_id,
             selection_version=review.selection_version,
             selection_checksum=review.selection_checksum or "",
             manifest_checksum=checksum(document),

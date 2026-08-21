@@ -157,19 +157,24 @@ export function useUnifiedWorkspaceController(workspaceId: string, service: Unif
     const generation = ++reviewGeneration.current
     try {
       const selection = await service.saveSelection(workspace.id, review.id, selectedItemIds)
+      if (!service.runDryRun) throw new Error('Live Dry Run is unavailable in this Workspace client.')
+      const dryRun = await service.runDryRun(workspace.id, review.id)
+      if (dryRun.status !== 'passed' || !dryRun.manifestId || !dryRun.manifestChecksum) {
+        throw new Error('Dry Run did not produce an applyable manifest.')
+      }
       const idempotencyKey = await workspaceApplyIdempotencyKey(
         workspace.id,
         review.id,
         review.draftRevisionId,
         selection.selectionChecksum,
-        selection.manifestChecksum,
+        dryRun.manifestChecksum,
       )
       const applied = await service.applySelected(
         workspace.id,
         review.id,
         selection.selectionChecksum,
-        selection.manifestId,
-        selection.manifestChecksum,
+        dryRun.manifestId,
+        dryRun.manifestChecksum,
         idempotencyKey,
       )
       const refreshed = await service.getGrid(workspace.id, page, 500, gridQuery)

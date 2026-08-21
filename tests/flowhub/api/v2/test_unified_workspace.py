@@ -94,6 +94,43 @@ def auth_headers(admin):
     return {"Authorization": f"Bearer {create_access_token(admin.id, admin.username, admin.role)}"}
 
 
+@pytest.fixture(autouse=True)
+def authoritative_workspace_live_read(monkeypatch):
+    """Default test Channel boundary: an exact targeted, no-write read.
+
+    Tests that exercise drift or provider failure replace this connector method
+    explicitly.  Apply tests receive the same evidence on their post-lock
+    read, which models an unchanged Channel without bypassing Dry Run.
+    """
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    async def verified(_self, updates, *, requested_by):
+        del requested_by
+        return [
+            ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                response={"verification": {"observed": {
+                    "provider": "woocommerce",
+                    "external_id": str(update.external_primary_id),
+                    "parent_external_id": update.parent_external_id,
+                    "price": update.current_price,
+                    "stock": update.current_stock,
+                    "status": update.current_status,
+                    "currency": update.currency,
+                    "unit": update.unit,
+                }}},
+            )
+            for update in updates
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.verify_updates",
+        verified,
+    )
+
+
 def _seed(db, *, product_type: str = "simple", currency: str = "EUR", unit: str = "EUR") -> None:
     from app.flowhub.data_layer.models import DlProductCache
     from app.flowhub.setup.service import AppConfigService
@@ -566,12 +603,7 @@ def test_apply_manifest_is_immutable(client, auth_headers, db):
 
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    selection = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [item["id"]]},
-    )
-    assert selection.status_code == 200
+    selection = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
     manifest = db.get(ApplyManifest, selection.json()["manifestId"])
     manifest.operation_count = 999
     with pytest.raises(ImmutableRecordError):
@@ -696,6 +728,30 @@ def _saved_review(
     )
     assert review_response.status_code == 201
     return workspace, review_response.json()
+
+
+def _run_dry_run(client, auth_headers, workspace, review, selection):
+    """Advance an explicitly saved selection through the canonical boundary."""
+    assert "manifestId" not in selection
+    response = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200, response.text
+    dry_run = response.json()
+    assert dry_run["status"] == "passed", dry_run
+    assert dry_run["reviewedCount"] >= dry_run["writeCount"]
+    return SimpleNamespace(status_code=200, text="", json=lambda: {**selection, **dry_run})
+
+
+def _select_and_dry_run(client, auth_headers, workspace, review, item_ids):
+    selection = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": item_ids},
+    )
+    assert selection.status_code == 200, selection.text
+    return _run_dry_run(client, auth_headers, workspace, review, selection.json())
 
 
 def test_replace_draft_mode_drops_changes_omitted_from_the_new_revision(
@@ -962,12 +1018,7 @@ def test_apply_is_selected_only_idempotent_and_patches_verified_cache(
 
     workspace, review = _saved_review(client, auth_headers, db, second_product=True)
     selected = review["items"][0]
-    selection = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [selected["id"]]},
-    )
-    assert selection.status_code == 200
+    selection = _select_and_dry_run(client, auth_headers, workspace, review, [selected["id"]])
 
     async def fake_apply(_self, updates, *, requested_by):
         assert requested_by
@@ -1035,12 +1086,7 @@ def test_apply_manifest_payload_matches_live_listing_and_cache_state_used_by_wri
 
     workspace, review = _saved_review(client, auth_headers, db)
     selected = review["items"][0]
-    selection = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [selected["id"]]},
-    )
-    assert selection.status_code == 200
+    selection = _select_and_dry_run(client, auth_headers, workspace, review, [selected["id"]])
     listing = db.get(Listing, selected["listingId"])
     cache_version_at_manifest_time = (
         db.query(ChannelCache).filter_by(listing_id=selected["listingId"]).one().cache_version
@@ -1098,12 +1144,7 @@ def test_select_review_items_generates_apply_manifest_with_payload_bound_checksu
 ):
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    first = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [item["id"]]},
-    )
-    assert first.status_code == 200
+    first = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
     body = first.json()
     assert body["manifestId"]
     assert body["manifestChecksum"]
@@ -1146,12 +1187,7 @@ def test_select_review_items_generates_apply_manifest_with_payload_bound_checksu
     assert reviewed.status_code == 201, reviewed.text
     new_review = reviewed.json()
     new_item = new_review["items"][0]
-    second = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{new_review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [new_item["id"]]},
-    )
-    assert second.status_code == 200
+    second = _select_and_dry_run(client, auth_headers, workspace, new_review, [new_item["id"]])
     assert second.json()["manifestChecksum"] != body["manifestChecksum"]
 
 
@@ -1162,12 +1198,7 @@ def test_apply_rejects_when_selection_changed_after_manifest_generated(
 
     workspace, review = _saved_review(client, auth_headers, db, second_product=True)
     first, second = review["items"]
-    original = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [first["id"]]},
-    )
-    assert original.status_code == 200
+    original = _select_and_dry_run(client, auth_headers, workspace, review, [first["id"]])
     manifest_id = original.json()["manifestId"]
     manifest_checksum = original.json()["manifestChecksum"]
     selection_checksum = original.json()["selectionChecksum"]
@@ -1207,12 +1238,7 @@ def test_apply_rejects_when_manifest_checksum_submitted_does_not_match_manifest_
 
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    selection = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [item["id"]]},
-    )
-    assert selection.status_code == 200
+    selection = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
     response = client.post(
         f"/api/v2/unified-workspaces/{workspace['id']}/apply",
         headers={**auth_headers, "Idempotency-Key": "tampered-manifest-checksum"},
@@ -1237,22 +1263,12 @@ def test_apply_after_stale_manifest_rejection_can_retry_with_fresh_manifest(
 
     workspace, review = _saved_review(client, auth_headers, db, second_product=True)
     first, second = review["items"]
-    stale = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [first["id"]]},
-    )
-    assert stale.status_code == 200
+    stale = _select_and_dry_run(client, auth_headers, workspace, review, [first["id"]])
     stale_manifest_id = stale.json()["manifestId"]
     stale_manifest_checksum = stale.json()["manifestChecksum"]
     stale_selection_checksum = stale.json()["selectionChecksum"]
 
-    fresh = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [second["id"]]},
-    )
-    assert fresh.status_code == 200
+    fresh = _select_and_dry_run(client, auth_headers, workspace, review, [second["id"]])
 
     rejected = client.post(
         f"/api/v2/unified-workspaces/{workspace['id']}/apply",
@@ -1303,12 +1319,7 @@ def test_cache_change_marks_review_stale_and_blocks_apply(client, auth_headers, 
 
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    selection = client.put(
-            f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-            headers=auth_headers,
-            json={"review_item_ids": [item["id"]]},
-    )
-    assert selection.status_code == 200
+    selection = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
     cache = db.query(ChannelCache).filter_by(listing_id=item["listingId"]).one()
     cache.cache_version += 1
     cache.checksum = "changed-after-review"
@@ -1345,12 +1356,7 @@ def test_pricing_activation_change_marks_review_stale_before_apply(
 ):
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    confirmed = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [item["id"]]},
-    )
-    assert confirmed.status_code == 200
+    confirmed = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
     _activate_replacement_policy(db)
 
     async def forbidden(*_args, **_kwargs):
@@ -1380,12 +1386,7 @@ def test_pricing_channel_config_change_marks_review_stale_before_apply(
 ):
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    confirmed = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [item["id"]]},
-    )
-    assert confirmed.status_code == 200
+    confirmed = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
 
     from app.flowhub.auth.models import FlowHubUser
     from app.flowhub.pricing_matrix.service import PricingMatrixService
@@ -1450,12 +1451,7 @@ def test_pricing_binding_race_blocks_before_write_pipeline(
 ):
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    confirmed = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [item["id"]]},
-    )
-    assert confirmed.status_code == 200
+    confirmed = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
 
     from app.flowhub.auth.models import FlowHubUser
     from app.flowhub.pricing_matrix.models import ChannelPricingPolicyHead
@@ -1600,12 +1596,7 @@ def test_disabled_listing_or_channel_after_review_blocks_apply_before_provider(
 
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    confirmed = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [item["id"]]},
-    )
-    assert confirmed.status_code == 200, confirmed.text
+    confirmed = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
 
     from app.flowhub.unified_workspace.services import UnifiedWorkspaceService
 
@@ -1910,12 +1901,7 @@ def test_apply_partial_failure_is_auditable_and_retry_safe(client, auth_headers,
 
     workspace, review = _saved_review(client, auth_headers, db, second_product=True)
     item_ids = [item["id"] for item in review["items"]]
-    selected = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": item_ids},
-    )
-    assert selected.status_code == 200
+    selected = _select_and_dry_run(client, auth_headers, workspace, review, item_ids)
 
     async def partial(_self, updates, *, requested_by):
         from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
@@ -1973,21 +1959,11 @@ def test_shared_write_pipeline_authority_and_selection_checksum_conflict(
 
     workspace, review = _saved_review(client, auth_headers, db, second_product=True)
     first, second = review["items"]
-    confirmed = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [first["id"]]},
-    )
-    assert confirmed.status_code == 200
+    confirmed = _select_and_dry_run(client, auth_headers, workspace, review, [first["id"]])
     checksum_a = confirmed.json()["selectionChecksum"]
     manifest_id_a = confirmed.json()["manifestId"]
     manifest_checksum_a = confirmed.json()["manifestChecksum"]
-    replaced = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [second["id"]]},
-    )
-    assert replaced.status_code == 200
+    replaced = _select_and_dry_run(client, auth_headers, workspace, review, [second["id"]])
     calls = []
 
     async def pipeline(_self, command, _user, *, reconcile_only=False):
@@ -2052,12 +2028,7 @@ def test_ruleset_and_cache_max_age_block_apply_before_dispatch(
 
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    confirmed = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [item["id"]]},
-    )
-    assert confirmed.status_code == 200
+    confirmed = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
     if stale_dependency == "ruleset":
         db.get(Review, review["id"]).ruleset_version = "retired-ruleset"
     else:
@@ -2099,11 +2070,7 @@ def test_reconciliation_required_is_durable_and_never_marks_success(
 
     workspace, review = _saved_review(client, auth_headers, db)
     item = review["items"][0]
-    confirmed = client.put(
-        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [item["id"]]},
-    )
+    confirmed = _select_and_dry_run(client, auth_headers, workspace, review, [item["id"]])
     before = db.query(ChannelCache).filter_by(listing_id=item["listingId"]).one().price_raw
 
     async def uncertain(_self, updates, *, requested_by):
@@ -2167,11 +2134,7 @@ def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
 
     first_workspace, first_review = _saved_review(client, auth_headers, db)
     first_item = first_review["items"][0]
-    first_selection = client.put(
-        f"/api/v2/unified-workspaces/{first_workspace['id']}/reviews/{first_review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [first_item["id"]]},
-    ).json()
+    first_selection = _select_and_dry_run(client, auth_headers, first_workspace, first_review, [first_item["id"]]).json()
 
     async def uncertain(_self, updates, *, requested_by):
         return [
@@ -2249,11 +2212,7 @@ def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
         headers=auth_headers,
         json={"draft_revision_id": revision["id"]},
     ).json()
-    second_selection = client.put(
-        f"/api/v2/unified-workspaces/{second_workspace['id']}/reviews/{second_review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [second_review["items"][0]["id"]]},
-    ).json()
+    second_selection = _select_and_dry_run(client, auth_headers, second_workspace, second_review, [second_review["items"][0]["id"]]).json()
     blocked = client.post(
         f"/api/v2/unified-workspaces/{second_workspace['id']}/apply",
         headers={**auth_headers, "Idempotency-Key": "global-lock-second"},
@@ -2271,11 +2230,7 @@ def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
     lock = db.query(WorkspaceLock).filter_by(listing_id=second_row["listingId"]).one()
     lock.expires_at = utcnow() - timedelta(seconds=1)
     db.commit()
-    expired_uncertain_selection = client.put(
-        f"/api/v2/unified-workspaces/{second_workspace['id']}/reviews/{second_review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [second_review["items"][0]["id"]]},
-    ).json()
+    expired_uncertain_selection = _select_and_dry_run(client, auth_headers, second_workspace, second_review, [second_review["items"][0]["id"]]).json()
     expired_uncertain = client.post(
         f"/api/v2/unified-workspaces/{second_workspace['id']}/apply",
         headers={**auth_headers, "Idempotency-Key": "global-lock-expired-uncertain"},
@@ -2300,11 +2255,7 @@ def test_apply_global_listing_lock_mapping_conflict_and_expired_reclaim(
     lock.apply_job_id = terminal_job.id
     lock.workspace_id = second_workspace["id"]
     db.commit()
-    reconfirmed = client.put(
-        f"/api/v2/unified-workspaces/{second_workspace['id']}/reviews/{second_review['id']}/selection",
-        headers=auth_headers,
-        json={"review_item_ids": [second_review["items"][0]["id"]]},
-    ).json()
+    reconfirmed = _select_and_dry_run(client, auth_headers, second_workspace, second_review, [second_review["items"][0]["id"]]).json()
 
     async def verified(_self, updates, *, requested_by):
         return [
@@ -2702,3 +2653,84 @@ def test_grouped_grid_changed_view_is_not_empty_before_any_draft_revision_exists
     body = response.json()
     assert body["total"] == 1
     assert body["items"][0]["name"] == "Canonical Test Product"
+
+
+def test_dry_run_uses_targeted_read_creates_manifest_only_after_live_evidence(
+    client, auth_headers, db, monkeypatch
+):
+    """Phase-B contract: selection writes no provider data; Dry Run reads once,
+    records its full scope, and only verified writes enter the manifest."""
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    selected = review["items"][0]
+    selection = client.put(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection",
+        headers=auth_headers,
+        json={"review_item_ids": [selected["id"]]},
+    )
+    assert selection.status_code == 200
+    assert "manifestId" not in selection.json()
+
+    reads: list[str] = []
+
+    async def observed(_self, updates, *, requested_by):
+        reads.extend(update.listing_id for update in updates)
+        return [
+            ListingUpdateResult(
+                listing_id=update.listing_id,
+                outcome=WriteOutcome.VERIFIED_APPLIED,
+                response={"verification": {"observed": {"external_id": update.external_primary_id, "parent_external_id": update.parent_external_id, "price": 100.0}}},
+            )
+            for update in updates
+        ]
+
+    monkeypatch.setattr(
+        "app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.verify_updates",
+        observed,
+    )
+    dry_run = client.post(
+        f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run",
+        headers=auth_headers,
+    )
+    assert dry_run.status_code == 200, dry_run.text
+    body = dry_run.json()
+    assert body["status"] == "passed"
+    assert body["reviewedCount"] == 1
+    assert body["writeCount"] == 1
+    assert body["blockerCount"] == 0
+    assert body["manifestId"]
+    assert reads == [selected["listingId"]]
+
+
+@pytest.mark.parametrize(
+    ("observed", "expected_status", "expected_writes", "expected_reason"),
+    [
+        ({"external_id": "101", "parent_external_id": None, "price": 150.0}, "passed", 0, "ALREADY_CURRENT"),
+        ({"external_id": "101", "parent_external_id": None, "price": 99.0}, "blocked", 0, "CHANNEL_DRIFT"),
+        ({}, "blocked", 0, "CHANNEL_STATE_UNVERIFIABLE"),
+    ],
+)
+def test_dry_run_preserves_noops_and_distinguishes_drift_from_unverifiable(
+    client, auth_headers, db, monkeypatch, observed, expected_status, expected_writes, expected_reason
+):
+    from app.flowhub.unified_workspace.connectors import ListingUpdateResult
+    from app.flowhub.write_pipeline.workspace_contracts import WriteOutcome
+
+    workspace, review = _saved_review(client, auth_headers, db)
+    selected = review["items"][0]
+    assert client.put(f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/selection", headers=auth_headers, json={"review_item_ids": [selected["id"]]}).status_code == 200
+
+    async def current(_self, updates, *, requested_by):
+        return [ListingUpdateResult(listing_id=update.listing_id, outcome=WriteOutcome.RECONCILIATION_REQUIRED, response={"verification": {"observed": observed}}) for update in updates]
+
+    monkeypatch.setattr("app.flowhub.unified_workspace.connectors.WooCommerceWorkspaceConnector.verify_updates", current)
+    response = client.post(f"/api/v2/unified-workspaces/{workspace['id']}/reviews/{review['id']}/dry-run", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == expected_status
+    assert body["reviewedCount"] == 1
+    assert body["writeCount"] == expected_writes
+    assert body["scopes"][0]["reason"] == expected_reason
+    assert "manifestId" not in body
