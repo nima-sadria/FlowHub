@@ -641,6 +641,7 @@ class UnifiedWorkspaceService:
                 "mapping_version": candidate["mappingVersion"],
                 "cache_version": candidate["cacheVersion"],
                 "targets": candidate["targets"],
+                "change_classification": candidate.get("classification"),
             }
             snapshot_document.append(immutable)
             staged_rows.append(

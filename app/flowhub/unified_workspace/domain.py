@@ -88,6 +88,255 @@ class CellStatus(StrEnum):
     STALE_REVIEW = "stale_review"
 
 
+class AvailabilitySignal(StrEnum):
+    """Provider-neutral availability evidence contributed by one Source field."""
+
+    IN_STOCK = "IN_STOCK"
+    OUT_OF_STOCK = "OUT_OF_STOCK"
+
+
+class SourceInstruction(StrEnum):
+    """Keep Source meanings distinct; ``None`` is not a business contract."""
+
+    SET = "SET"
+    NO_INSTRUCTION = "NO_INSTRUCTION"
+    UNAVAILABLE = "UNAVAILABLE"
+    UNUSABLE = "UNUSABLE"
+    INVALID = "INVALID"
+
+
+class PriceChangeState(StrEnum):
+    UNCHANGED = "UNCHANGED"
+    INCREASE = "INCREASE"
+    DECREASE = "DECREASE"
+    NO_VALID_PRICE = "NO_VALID_PRICE"
+    NOT_EVALUATED = "NOT_EVALUATED"
+
+
+class QuantityChangeState(StrEnum):
+    UNMANAGED = "UNMANAGED"
+    UNCHANGED = "UNCHANGED"
+    INCREASE = "INCREASE"
+    DECREASE = "DECREASE"
+    NOT_EVALUATED = "NOT_EVALUATED"
+
+
+class StockStatusChangeState(StrEnum):
+    UNCHANGED_IN_STOCK = "UNCHANGED_IN_STOCK"
+    UNCHANGED_OUT_OF_STOCK = "UNCHANGED_OUT_OF_STOCK"
+    BECOMES_IN_STOCK = "BECOMES_IN_STOCK"
+    BECOMES_OUT_OF_STOCK = "BECOMES_OUT_OF_STOCK"
+    NOT_EVALUATED = "NOT_EVALUATED"
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedSourceField:
+    """Exact, immutable business meaning of one observed Source cell.
+
+    This intentionally sits below Workspace persistence.  It gives Source
+    acquisition, Preview, and focused tests one canonical interpretation while
+    retaining the raw lexeme as evidence.
+    """
+
+    instruction: SourceInstruction
+    raw_lexeme: str | None
+    target: str | None = None
+    availability_signal: AvailabilitySignal | None = None
+    reason_code: str | None = None
+    warning_code: str | None = None
+    blocker_code: str | None = None
+    fix_applied: bool = False
+
+
+def _decimal_text(value: Decimal) -> str:
+    """Serialize exact canonical Decimal without exponent or redundant scale."""
+
+    return format(value.normalize(), "f") if value != 0 else "0"
+
+
+def _numeric_lexeme(raw: object) -> tuple[str | None, str | None]:
+    """Return normalized ASCII numeric text or a precise lexical failure code.
+
+    The accepted grammar is deliberately smaller than ``Decimal``: no signs,
+    exponent, units, currency glyphs, or partially repaired text.  Persian and
+    Arabic-Indic digits and their documented separators are normalized first.
+    """
+
+    if raw is None:
+        return None, None
+    if isinstance(raw, bool):
+        return None, "BOOLEAN_NOT_NUMERIC"
+    text = str(raw).strip()
+    if not text:
+        return None, None
+    translation = str.maketrans(
+        "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩٫",
+        "01234567890123456789.",
+    )
+    text = text.translate(translation)
+    if text.count(".") > 1 or ("." in text and "," in text and text.rfind(",") > text.rfind(".")):
+        return None, "PRICE_MALFORMED"
+    integer, separator, fraction = text.partition(".")
+    if "," in integer:
+        groups = integer.split(",")
+        if not groups[0] or len(groups[0]) > 3 or any(
+            len(group) != 3 or not group.isdigit() for group in groups[1:]
+        ):
+            return None, "PRICE_MALFORMED"
+        integer = "".join(groups)
+    if "," in fraction or not integer.isdigit() or (separator and (not fraction or not fraction.isdigit())):
+        return None, "PRICE_MALFORMED"
+    return integer + ("." + fraction if separator else ""), None
+
+
+def _decimal_from_lexeme(raw: object) -> tuple[str | None, Decimal | None, str | None]:
+    lexeme, failure = _numeric_lexeme(raw)
+    if lexeme is None:
+        return lexeme, None, failure
+    try:
+        value = Decimal(lexeme)
+    except InvalidOperation:
+        return lexeme, None, "PRICE_MALFORMED"
+    if not value.is_finite():
+        return lexeme, None, "PRICE_NON_FINITE"
+    return lexeme, value, None
+
+
+def normalize_direct_price(
+    raw: object,
+    *,
+    currency: str | None,
+    unit: str | None,
+    monetary_precision: int | None,
+    fix_zero_decimal_prices: bool | None = None,
+    raw_scale_authoritative: bool = True,
+) -> NormalizedSourceField:
+    """Apply the approved direct mapped Price contract without float coercion."""
+
+    raw_lexeme = None if raw is None else str(raw).strip()
+    if raw is None or raw_lexeme == "":
+        return NormalizedSourceField(
+            SourceInstruction.UNAVAILABLE, raw_lexeme, availability_signal=AvailabilitySignal.OUT_OF_STOCK,
+            reason_code="PRICE_UNAVAILABLE_BLANK",
+        )
+    if raw_lexeme.casefold() == "x":
+        return NormalizedSourceField(
+            SourceInstruction.UNAVAILABLE, raw_lexeme, availability_signal=AvailabilitySignal.OUT_OF_STOCK,
+            reason_code="PRICE_UNAVAILABLE_X",
+        )
+    lexeme, value, failure = _decimal_from_lexeme(raw)
+    if failure or value is None:
+        return NormalizedSourceField(
+            SourceInstruction.UNUSABLE, raw_lexeme, availability_signal=AvailabilitySignal.OUT_OF_STOCK,
+            reason_code=failure or "PRICE_NOT_NUMERIC", warning_code="UNUSABLE_MAPPED_PRICE",
+        )
+    if value == 0:
+        return NormalizedSourceField(
+            SourceInstruction.UNAVAILABLE, raw_lexeme, availability_signal=AvailabilitySignal.OUT_OF_STOCK,
+            reason_code="PRICE_UNAVAILABLE_ZERO",
+        )
+    if value < 0:
+        return NormalizedSourceField(
+            SourceInstruction.UNUSABLE, raw_lexeme, availability_signal=AvailabilitySignal.OUT_OF_STOCK,
+            reason_code="PRICE_NEGATIVE", warning_code="UNUSABLE_MAPPED_PRICE",
+        )
+    currency_value, unit_value = canonical_text(currency).upper(), canonical_text(unit).upper()
+    if not currency_value or not unit_value or monetary_precision is None or monetary_precision < 0:
+        return NormalizedSourceField(
+            SourceInstruction.INVALID, raw_lexeme, reason_code="MONETARY_PRECISION_CONTRACT_MISSING",
+            blocker_code="MONETARY_PRECISION_CONTRACT_MISSING",
+        )
+    is_rial_or_toman = currency_value == "IRR" and unit_value in {"RIAL", "TOMAN"}
+    if is_rial_or_toman:
+        effective_fix = True if fix_zero_decimal_prices is None else fix_zero_decimal_prices
+        has_decimal_form = "." in (lexeme or "")
+        if not effective_fix and has_decimal_form and not raw_scale_authoritative:
+            return NormalizedSourceField(
+                SourceInstruction.INVALID, raw_lexeme, reason_code="SOURCE_PRICE_LEXEME_UNVERIFIABLE",
+                blocker_code="SOURCE_PRICE_LEXEME_UNVERIFIABLE",
+            )
+        if value != value.to_integral_value():
+            return NormalizedSourceField(
+                SourceInstruction.UNUSABLE, raw_lexeme, availability_signal=AvailabilitySignal.OUT_OF_STOCK,
+                reason_code="PRICE_FRACTION_NOT_ALLOWED", warning_code="UNUSABLE_MAPPED_PRICE",
+            )
+        if has_decimal_form and not effective_fix:
+            return NormalizedSourceField(
+                SourceInstruction.UNUSABLE, raw_lexeme, availability_signal=AvailabilitySignal.OUT_OF_STOCK,
+                reason_code="PRICE_DECIMAL_LEXEME_NOT_ALLOWED", warning_code="UNUSABLE_MAPPED_PRICE",
+            )
+        return NormalizedSourceField(
+            SourceInstruction.SET, raw_lexeme, target=_decimal_text(value),
+            availability_signal=AvailabilitySignal.IN_STOCK,
+            reason_code="PRICE_ZERO_DECIMAL_FIXED" if has_decimal_form else None,
+            fix_applied=has_decimal_form,
+        )
+    scale_factor = Decimal(10) ** monetary_precision
+    if value * scale_factor != (value * scale_factor).to_integral_value():
+        return NormalizedSourceField(
+            SourceInstruction.UNUSABLE, raw_lexeme, availability_signal=AvailabilitySignal.OUT_OF_STOCK,
+            reason_code="PRICE_PRECISION_NOT_ALLOWED", warning_code="UNUSABLE_MAPPED_PRICE",
+        )
+    return NormalizedSourceField(
+        SourceInstruction.SET, raw_lexeme, target=_decimal_text(value),
+        availability_signal=AvailabilitySignal.IN_STOCK,
+    )
+
+
+def normalize_quantity(raw: object, *, mapped: bool = True) -> NormalizedSourceField:
+    if not mapped:
+        return NormalizedSourceField(SourceInstruction.NO_INSTRUCTION, None)
+    raw_lexeme = None if raw is None else str(raw).strip()
+    if raw is None or raw_lexeme == "":
+        return NormalizedSourceField(
+            SourceInstruction.NO_INSTRUCTION, raw_lexeme,
+            availability_signal=AvailabilitySignal.IN_STOCK,
+        )
+    _, value, failure = _decimal_from_lexeme(raw)
+    if failure or value is None or value < 0 or value != value.to_integral_value():
+        return NormalizedSourceField(
+            SourceInstruction.INVALID, raw_lexeme, reason_code="INVALID_QUANTITY",
+            blocker_code="INVALID_QUANTITY",
+        )
+    return NormalizedSourceField(
+        SourceInstruction.SET, raw_lexeme, target=_decimal_text(value),
+        availability_signal=(AvailabilitySignal.OUT_OF_STOCK if value == 0 else AvailabilitySignal.IN_STOCK),
+    )
+
+
+def normalize_stock_status(raw: object, *, mapped: bool = True) -> NormalizedSourceField:
+    if not mapped:
+        return NormalizedSourceField(SourceInstruction.NO_INSTRUCTION, None)
+    raw_lexeme = None if raw is None else str(raw).strip()
+    if raw is None or raw_lexeme == "":
+        return NormalizedSourceField(
+            SourceInstruction.SET, raw_lexeme, target=AvailabilitySignal.IN_STOCK.value,
+            availability_signal=AvailabilitySignal.IN_STOCK,
+        )
+    # Status intentionally rejects grouped values even though Price accepts them.
+    if "," in raw_lexeme or isinstance(raw, bool):
+        return NormalizedSourceField(SourceInstruction.INVALID, raw_lexeme, reason_code="INVALID_STOCK_STATUS", blocker_code="INVALID_STOCK_STATUS")
+    _, value, failure = _decimal_from_lexeme(raw)
+    if failure or value not in {Decimal(0), Decimal(1)}:
+        return NormalizedSourceField(SourceInstruction.INVALID, raw_lexeme, reason_code="INVALID_STOCK_STATUS", blocker_code="INVALID_STOCK_STATUS")
+    signal = AvailabilitySignal.OUT_OF_STOCK if value == 0 else AvailabilitySignal.IN_STOCK
+    return NormalizedSourceField(SourceInstruction.SET, raw_lexeme, target=signal.value, availability_signal=signal)
+
+
+def resolve_availability(*fields: NormalizedSourceField) -> tuple[AvailabilitySignal | None, tuple[str, ...]]:
+    """Apply the approved blocker → OOS → IN → no-instruction precedence."""
+
+    blockers = tuple(field.blocker_code for field in fields if field.blocker_code)
+    if blockers:
+        return None, blockers
+    signals = {field.availability_signal for field in fields}
+    if AvailabilitySignal.OUT_OF_STOCK in signals:
+        return AvailabilitySignal.OUT_OF_STOCK, ()
+    if AvailabilitySignal.IN_STOCK in signals:
+        return AvailabilitySignal.IN_STOCK, ()
+    return None, ()
+
+
 class WorkspaceDomainError(ValueError):
     code = "WORKSPACE_DOMAIN_ERROR"
 
