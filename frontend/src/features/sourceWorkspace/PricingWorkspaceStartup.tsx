@@ -9,32 +9,33 @@ interface PricingWorkspaceStartupProps {
 }
 
 /**
- * Lightweight first paint for Products, shaped like the approved header,
- * toolbar, and table so the real content does not shift on load.
+ * Lightweight first paint for the Workspace automation surface, shaped like
+ * DensePricingWorkspace's own header, toolbar, and table so the real content
+ * does not shift on load.
  */
 function PricingWorkspaceStartup({ blockedMessage }: PricingWorkspaceStartupProps) {
   return (
-    <div className="fh-products-screen" data-products-critical-controls aria-busy="true">
+    <div className="fh-workspace-screen" data-workspace-critical-controls aria-busy="true">
       <div className="fh-page-header">
-        <h1 className="fh-page-title truncate">{translate('products:products.products')}</h1>
+        <h1 className="fh-page-title truncate">{translate('workspace:workspace.workspace')}</h1>
         <div className="flex items-center gap-2.5">
-          <button type="button" className="fh-button-primary fh-button-sm" disabled>{translate('products:products.saveChanges')}</button>
-          <button type="button" className="fh-button-secondary fh-button-sm" disabled>{translate('products:products.bulkEdit')}</button>
+          <button type="button" className="fh-button-primary fh-button-sm" disabled>{translate('workspace:densePricing.saveChanges')}</button>
+          <button type="button" className="fh-button-secondary fh-button-sm" disabled>{translate('workspace:densePricing.bulkEdit')}</button>
         </div>
       </div>
 
-      <div className="fh-products-toolbar">
-        <div className="fh-products-search">
-          <Icon name="search" size="sm" className="fh-products-search-icon" />
-          <input className="fh-products-search-input" type="search" disabled aria-label={translate('products:products.searchProducts')} {...inputHint(translate('products:products.searchProducts'))} />
+      <div className="fh-workspace-toolbar">
+        <div className="fh-workspace-search">
+          <Icon name="search" size="sm" className="fh-workspace-search-icon" />
+          <input className="fh-workspace-search-input" type="search" disabled aria-label={translate('workspace:densePricing.searchProducts')} {...inputHint(translate('workspace:densePricing.searchProducts'))} />
         </div>
-        <LoadingSelect label={translate('products:products.allStatuses')} />
-        <LoadingSelect label={translate('products:products.allChannels')} />
-        <LoadingSelect label={translate('products:products.savedViews')} />
-        <button type="button" className="fh-chip" disabled><Icon name="filter" size="sm" /> {translate('products:products.filters')}</button>
+        <LoadingSelect label={translate('workspace:densePricing.allStatuses')} />
+        <LoadingSelect label={translate('workspace:densePricing.allChannels')} />
+        <LoadingSelect label={translate('workspace:densePricing.savedViews')} />
+        <button type="button" className="fh-chip" disabled><Icon name="filter" size="sm" /> {translate('workspace:densePricing.filters')}</button>
       </div>
 
-      <div className="fh-products-card" role={blockedMessage ? undefined : 'status'}>
+      <div className="fh-workspace-card" role={blockedMessage ? undefined : 'status'}>
         {blockedMessage
           ? <div className="fh-alert fh-alert-danger m-3"><Icon name="alert" /><span>{blockedMessage}</span></div>
           : <div className="grid gap-3 p-4">

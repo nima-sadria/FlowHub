@@ -31,6 +31,8 @@ async function installMockApi(page: Page) {
     if (url.pathname === '/api/auth/me') return json({ username: 'visual-owner', role: 'admin', is_admin: true, is_super_admin: false, permissions: { can_access_site: true, can_fetch: true, can_view_logs: true, can_view_settings: true }, maintenance: { enabled: false, message: '' } })
     if (url.pathname === '/api/health') return json({ status: 'ok' })
     if (url.pathname === '/api/v2/exchange-rates/me') return json({ selections: [], rates: [] })
+    if (url.pathname === '/api/v2/products/categories') return json({ items: [] })
+    if (url.pathname === '/api/v2/settings') return json({ currency: 'IRR', currencyUnit: 'TOMAN' })
     if (url.pathname === '/api/v2/commerce/sources') return json({
       relationship_map: { nodes: ['Source', 'FlowHub / Data Layer', 'Channel'], example: ['Nextcloud', 'Data Layer', 'WooCommerce'], runtime_write_blocked: true, read_only: true },
       items: [{ id: 'nextcloud:primary', provider: 'nextcloud', name: 'Nextcloud', type: 'Source', status: 'configured', implemented: true, placeholder: false, credential_status: 'configured', last_health_check: '2026-07-15T08:00:00Z', data_role: 'Spreadsheet price input', action_label: 'Manage', action_href: '', health: { status: 'healthy', message: 'Connected', latency_ms: 18, error_code: null }, read_policy: { enabled: true, max_reads_per_24h: 10, manual_read_allowed: true, reads_used_last_24h: 2, reads_remaining: 8, reset_at: null, last_read_at: '2026-07-15T07:30:00Z' }, read_status: { enabled: true, max_reads_per_24h: 10, manual_read_allowed: true, reads_used_last_24h: 2, reads_remaining: 8, reset_at: null, last_read_at: '2026-07-15T07:30:00Z', last_read_status: 'completed', last_row_count: 10000, last_warning_count: 0, last_error_count: 0 }, read_only: true, runtime_write_blocked: true, settings_available: true }],
@@ -114,20 +116,20 @@ test('source-centric daily Workspace is understandable and responsive with isola
     await page.goto('/workspace?workspace=source-visual-workspace')
     await expect(page).toHaveURL(/\/workspace\?workspace=source-visual-workspace$/)
     await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
-    await expect(page.locator('[data-products-table]')).toBeVisible()
+    await expect(page.locator('[data-workspace-table]')).toBeVisible()
     await expect(page.locator('[data-product-group]')).toHaveCount(1)
     await expect(page.locator('[data-pricing-row]')).toHaveCount(4)
     await expect(page.locator('input[data-listing-id="wc-cable"][data-target-field="price"]')).toHaveAttribute('data-cell-status', 'edited')
     await expect(page.locator('input[data-listing-id="snap-white"][data-target-field="price"]')).toHaveAttribute('data-cell-status', 'edited')
     await expect(page.locator('input[data-listing-id="snap-black"][data-target-field="price"]')).toHaveAttribute('data-cell-status', 'blocked')
-    await expect(page.locator('[data-products-count]')).toContainText('10,000')
-    await expect(page.locator('[data-products-save]')).toBeEnabled()
+    await expect(page.locator('[data-workspace-count]')).toContainText('10,000')
+    await expect(page.locator('[data-workspace-save]')).toBeEnabled()
     await page.screenshot({ path: path.join(screenshotRoot, `workspace-${viewport.width}x${viewport.height}.png`), fullPage: true })
   }
   await page.locator('[data-row-menu-trigger][data-listing-id="snap-white"]').click()
   await page.locator('[data-row-menu-action="toggle-selection"]').click()
   const selectionRequest = page.waitForRequest(request => request.method() === 'PUT' && new URL(request.url()).pathname.endsWith('/reviews/review-source/selection'))
-  await page.locator('[data-products-save]').click()
+  await page.locator('[data-workspace-save]').click()
   const selectionPayload = JSON.parse((await selectionRequest).postData() ?? '{}') as { review_item_ids?: string[] }
   expect(selectionPayload.review_item_ids).toEqual(['review-wc'])
   await expect(page.getByRole('dialog', { name: 'Review Changes' })).toBeVisible()
@@ -143,9 +145,9 @@ test('both manual and source Workspace entry points render directly at /workspac
     await page.goto(`/workspace?workspace=${workspaceId}`)
     await expect(page).toHaveURL(new RegExp(`/workspace\\?workspace=${workspaceId}$`))
     await expect(page.getByText('iPhone Cable', { exact: true }).first()).toBeVisible()
-    await expect(page.locator('[data-products-table]')).toBeVisible()
+    await expect(page.locator('[data-workspace-table]')).toBeVisible()
     await expect(page.locator('[data-pricing-row]')).toHaveCount(4)
-    await expect(page.locator('[data-products-save]')).toBeEnabled()
+    await expect(page.locator('[data-workspace-save]')).toBeEnabled()
   }
 })
 
@@ -256,10 +258,55 @@ test('English LTR and complete Persian RTL pages remain usable and preserve busi
   const sidebarBox = await sidebar.boundingBox()
   expect(sidebarBox).not.toBeNull()
   expect(sidebarBox!.x).toBeGreaterThan(1000)
-  await expect(page.locator('[data-products-save]')).toHaveText('ذخیره تغییرات')
-  await page.locator('[data-products-save]').click()
+  await expect(page.locator('[data-workspace-save]')).toHaveText('ذخیره تغییرات')
+  await page.locator('[data-workspace-save]').click()
   await expect(page.getByRole('dialog', { name: 'بازبینی تغییرات' })).toBeVisible()
   await page.locator('[data-pricing-apply]').click()
   await expect(page.getByRole('dialog', { name: 'تأیید اعمال تغییرات' })).toBeVisible()
   await page.screenshot({ path: path.join(i18nScreenshotRoot, 'rtl-apply-confirmation.png'), fullPage: true })
+})
+
+test('Workspace and Products stay visibly and behaviorally distinct in dark mode, EN and FA, with no console errors and no cross-surface API calls', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()) })
+  page.on('pageerror', error => consoleErrors.push(error.message))
+
+  const workspaceRequests: string[] = []
+  const productsRequests: string[] = []
+  page.on('request', request => {
+    const pathname = new URL(request.url()).pathname
+    if (pathname.startsWith('/api/v2/unified-workspaces')) workspaceRequests.push(pathname)
+    if (pathname.startsWith('/api/v2/products')) productsRequests.push(pathname)
+  })
+
+  await installMockApi(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/login')
+  await page.evaluate(() => localStorage.setItem('wp_theme', 'dark'))
+
+  for (const locale of ['en', 'fa'] as const) {
+    await page.evaluate(loc => localStorage.setItem('flowhub.locale', loc), locale)
+
+    await page.goto('/workspace?workspace=source-visual-workspace')
+    await expect(page.locator('html')).toHaveClass(/dark/)
+    await expect(page.locator('html')).toHaveAttribute('dir', locale === 'fa' ? 'rtl' : 'ltr')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(locale === 'fa' ? 'فضای کاری' : 'Workspace')
+    await expect(page.locator('[data-workspace-table]')).toBeVisible()
+    await expect(page.locator('[class*="fh-products-"]')).toHaveCount(0)
+    await expect(page.locator('[data-products-critical-controls], [data-products-save], [data-products-table]')).toHaveCount(0)
+    await page.screenshot({ path: path.join(i18nScreenshotRoot, `dark-${locale}-workspace.png`), fullPage: true })
+
+    await page.goto('/products')
+    await expect(page.locator('html')).toHaveClass(/dark/)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(locale === 'fa' ? 'محصولات' : 'Products')
+    await expect(page.locator('[class*="fh-workspace-"]')).toHaveCount(0)
+    await expect(page.locator('[data-workspace-critical-controls], [data-workspace-save], [data-workspace-table], [data-workspace-selection-summary]')).toHaveCount(0)
+    await page.screenshot({ path: path.join(i18nScreenshotRoot, `dark-${locale}-products.png`), fullPage: true })
+  }
+
+  expect(consoleErrors, 'No console errors on either surface in any theme/locale combination').toEqual([])
+  expect(workspaceRequests.some(p => p.includes('/grouped-grid') || p.endsWith('/source-visual-workspace')), 'Workspace must call unified-workspace endpoints').toBe(true)
+  expect(productsRequests.some(request => request === '/api/v2/products'), 'Products must call the products endpoint').toBe(true)
+  // Neither surface's own API family leaks into the other's session.
+  expect(workspaceRequests.some(p => p.startsWith('/api/v2/products/') && p.includes('channel-prices'))).toBe(false)
 })
