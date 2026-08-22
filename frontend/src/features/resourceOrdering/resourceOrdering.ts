@@ -383,7 +383,7 @@ export function productChannelSignals(channel: ProductChannelPriceState): Resour
     displayName: channel.channelName,
     status: channel.connectionState,
     healthStatus: channel.healthStatus,
-    activityStatuses: [channel.validationState],
+    activityStatuses: Object.values(channel.fields).map(field => field.validationState),
     configured: ['configured', 'connected'].includes(connectionState)
       ? true
       : connectionState === 'not_configured'

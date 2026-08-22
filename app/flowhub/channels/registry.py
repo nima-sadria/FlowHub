@@ -58,9 +58,17 @@ def default_marketplace_registry() -> MarketplaceConnectorRegistry:
             connector_type="woocommerce",
             channel_id="woocommerce:primary",
             name="WooCommerce",
+            # WooCommerceConnector.update_fields() (app/connectors/destinations/
+            # woocommerce/connector.py) genuinely writes price, stock_quantity,
+            # and stock_status via the WooCommerce REST API, matching the
+            # Workspace engine's own WooCommerceWorkspaceConnector.capabilities()
+            # (write_price=write_stock=write_status=True). This registry
+            # previously under-declared stock/status support.
             capabilities=frozenset({
                 ChannelCapability.PRODUCTS_READ,
                 ChannelCapability.PRODUCTS_WRITE_PRICE,
+                ChannelCapability.PRODUCTS_WRITE_STOCK,
+                ChannelCapability.PRODUCTS_WRITE_STATUS,
                 ChannelCapability.PRODUCTS_WEBHOOK_RECEIVE,
                 ChannelCapability.ORDERS_READ,
                 ChannelCapability.ORDERS_EVENTS_POLL,

@@ -15,6 +15,8 @@ import type { ProductService } from '../services/products/ProductService'
 import type {
   ChannelPriceValidationState,
   Product,
+  ProductChannelField,
+  ProductChannelFieldState,
   ProductChannelPriceChange,
   ProductChannelPriceOperation,
   ProductChannelPriceState,
@@ -151,11 +153,36 @@ export default function Products() {
 
 type EditorPhase = 'edit' | 'operation'
 
+const FIELD_KEYS: readonly ProductChannelField[] = ['price', 'stock', 'status']
+const STATUS_OPTIONS: readonly ['instock', 'outofstock'] = ['instock', 'outofstock']
+
 const VALIDATION_BADGE: Record<ChannelPriceValidationState, BadgeVariant> = {
   valid: 'success',
   error: 'danger',
   read_only: 'neutral',
   disconnected: 'neutral',
+}
+
+function draftKey(channelId: string, field: ProductChannelField): string {
+  return `${channelId}:${field}`
+}
+
+function fieldLabel(field: ProductChannelField): string {
+  if (field === 'price') return translate('products:column.price')
+  if (field === 'stock') return translate('products:products.stockQuantity')
+  return translate('products:products.stockStatus')
+}
+
+function statusLabel(value: string | number | null): string {
+  if (value === 'instock') return translate('products:products.inStock')
+  if (value === 'outofstock') return translate('products:products.outOfStock')
+  return '—'
+}
+
+function formatFieldValue(field: ProductChannelField, unit: string, value: number | string | null): string {
+  if (field === 'status') return statusLabel(value)
+  if (field === 'stock') return value === null ? '—' : String(value)
+  return formatMoney(value, { unit })
 }
 
 function ProductChannelEditor({ productId, service, onClose }: {
@@ -187,20 +214,30 @@ function ProductChannelEditor({ productId, service, onClose }: {
 
   const edited = useMemo(() => {
     if (!state) return []
-    return state.channels.filter(channel => {
-      const raw = draft[channel.channelId]
-      if (raw === undefined) return false
-      const parsed = Number(raw)
-      return Number.isFinite(parsed) && parsed !== channel.currentValue
-    })
+    const result: { channel: ProductChannelPriceState; field: ProductChannelField; fieldState: ProductChannelFieldState; raw: string }[] = []
+    for (const channel of state.channels) {
+      for (const field of FIELD_KEYS) {
+        const raw = draft[draftKey(channel.channelId, field)]
+        if (raw === undefined) continue
+        const fieldState = channel.fields[field]
+        if (field === 'status') {
+          if (raw !== fieldState.currentValue) result.push({ channel, field, fieldState, raw })
+          continue
+        }
+        const parsed = Number(raw)
+        if (Number.isFinite(parsed) && parsed !== fieldState.currentValue) result.push({ channel, field, fieldState, raw })
+      }
+    }
+    return result
   }, [state, draft])
 
-  const buildChanges = useCallback((): ProductChannelPriceChange[] => edited.map(channel => ({
+  const buildChanges = useCallback((): ProductChannelPriceChange[] => edited.map(({ channel, field, fieldState, raw }) => ({
     channelId: channel.channelId,
-    proposedValue: Number(draft[channel.channelId]),
-    unit: channel.unit,
+    field,
+    proposedValue: field === 'status' ? raw : Number(raw),
+    unit: fieldState.unit,
     staleToken: channel.staleToken,
-  })), [edited, draft])
+  })), [edited])
 
   const preview = useCallback(async () => {
     if (!state || edited.length === 0) return
@@ -332,36 +369,28 @@ function ChannelEditForm({ channels, draft, setDraft, editedCount, busy, onPrevi
       <thead><tr>
         <th>{translate('products:column.channel')}</th>
         <th>{translate('products:column.state')}</th>
-        <th className="text-end">{translate('products:column.current')}</th>
-        <th className="text-end">{translate('products:column.proposed')}</th>
-        <th>{translate('products:column.validation')}</th>
+        <th>{translate('products:column.price')}</th>
+        <th>{translate('products:products.stockQuantity')}</th>
+        <th>{translate('products:products.stockStatus')}</th>
       </tr></thead>
       <tbody>{channels.map(channel => {
-        const raw = draft[channel.channelId] ?? (channel.proposedValue ?? channel.currentValue ?? '').toString()
         const name = channelDisplayName(channel)
         return <tr key={channel.channelId} data-channel-row={channel.channelId}>
           <td>{name}</td>
-          <td><Badge variant={channel.canWrite ? 'success' : 'neutral'}>
-            {channel.canWrite ? translate('products:products.readWrite') : translate('products:products.readOnly')}
+          <td><Badge variant={FIELD_KEYS.some(field => channel.fields[field].canWrite) ? 'success' : 'neutral'}>
+            {channel.connectionState}
           </Badge></td>
-          <td className="fh-text-mono text-end">{formatMoney(channel.currentValue, { unit: channel.unit })}</td>
-          <td className="text-end">
-            {channel.canWrite
-              ? <input
-                  type="text"
-                  inputMode="decimal"
-                  className="fh-input fh-text-mono text-end"
-                  aria-label={translate('products:products.proposedPrice', { channel: name })}
-                  value={raw}
-                  disabled={busy}
-                  onChange={event => {
-                    const next = event.target.value
-                    setDraft(current => ({ ...current, [channel.channelId]: next }))
-                  }}
-                />
-              : <span className="fh-text-mono">{formatMoney(channel.currentValue, { unit: channel.unit })}</span>}
-          </td>
-          <td>{channel.validationMessage && <Badge variant={VALIDATION_BADGE[channel.validationState]}>{channel.validationMessage}</Badge>}</td>
+          {FIELD_KEYS.map(field => <td key={field} data-field-cell={field}>
+            <FieldEditCell
+              channel={channel}
+              field={field}
+              fieldState={channel.fields[field]}
+              draft={draft}
+              setDraft={setDraft}
+              busy={busy}
+              channelName={name}
+            />
+          </td>)}
         </tr>
       })}</tbody>
     </table>
@@ -376,6 +405,57 @@ function ChannelEditForm({ channels, draft, setDraft, editedCount, busy, onPrevi
         </button>
       </div>
     </div>
+  </div>
+}
+
+function FieldEditCell({ channel, field, fieldState, draft, setDraft, busy, channelName }: {
+  channel: ProductChannelPriceState
+  field: ProductChannelField
+  fieldState: ProductChannelFieldState
+  draft: Record<string, string>
+  setDraft: (updater: (current: Record<string, string>) => Record<string, string>) => void
+  busy: boolean
+  channelName: string
+}) {
+  const key = draftKey(channel.channelId, field)
+  const raw = draft[key] ?? (fieldState.currentValue ?? '').toString()
+  const label = translate('products:products.proposedPrice', { channel: `${channelName} ${fieldLabel(field)}` })
+
+  if (!fieldState.canWrite) {
+    return <div>
+      <span className="fh-text-mono">{formatFieldValue(field, fieldState.unit, fieldState.currentValue)}</span>
+      {fieldState.validationMessage && <p className="fh-text-caption">{fieldState.validationMessage}</p>}
+    </div>
+  }
+
+  return <div>
+    <span className="fh-text-caption">{formatFieldValue(field, fieldState.unit, fieldState.currentValue)}</span>
+    {field === 'status'
+      ? <select
+          className="fh-input"
+          aria-label={label}
+          value={STATUS_OPTIONS.includes(raw as typeof STATUS_OPTIONS[number]) ? raw : String(fieldState.currentValue ?? '')}
+          disabled={busy}
+          onChange={event => {
+            const next = event.target.value
+            setDraft(current => ({ ...current, [key]: next }))
+          }}
+        >
+          {STATUS_OPTIONS.map(option => <option key={option} value={option}>{statusLabel(option)}</option>)}
+        </select>
+      : <input
+          type="text"
+          inputMode="decimal"
+          className="fh-input fh-text-mono"
+          aria-label={label}
+          value={raw}
+          disabled={busy}
+          onChange={event => {
+            const next = event.target.value
+            setDraft(current => ({ ...current, [key]: next }))
+          }}
+        />}
+    {fieldState.validationMessage && <Badge variant={VALIDATION_BADGE[fieldState.validationState]}>{fieldState.validationMessage}</Badge>}
   </div>
 }
 
@@ -399,14 +479,16 @@ function OperationPanel({ operation, busy, onApprove, onApply, onStartOver }: {
     <table className="fh-table">
       <thead><tr>
         <th>{translate('products:column.channel')}</th>
+        <th>{translate('products:products.field')}</th>
         <th className="text-end">{translate('products:column.current')}</th>
         <th className="text-end">{translate('products:column.proposed')}</th>
         <th>{translate('products:column.result')}</th>
       </tr></thead>
-      <tbody>{operation.items.map(item => <tr key={item.id} data-operation-item={item.channelId}>
+      <tbody>{operation.items.map(item => <tr key={item.id} data-operation-item={item.channelId} data-operation-field={item.field}>
         <td>{CHANNEL_NAME_KEY[item.channelId] ? translate(CHANNEL_NAME_KEY[item.channelId]) : item.channelId}</td>
-        <td className="fh-text-mono text-end">{formatMoney(item.currentValue, { unit: item.unit })}</td>
-        <td className="fh-text-mono text-end">{formatMoney(item.proposedValue, { unit: item.unit })}</td>
+        <td>{fieldLabel(item.field)}</td>
+        <td className="fh-text-mono text-end">{formatFieldValue(item.field, item.unit, item.currentValue)}</td>
+        <td className="fh-text-mono text-end">{formatFieldValue(item.field, item.unit, item.proposedValue)}</td>
         <td><Badge variant={itemStatusVariant(item.status)}>{item.errorMessage ?? item.status}</Badge></td>
       </tr>)}</tbody>
     </table>

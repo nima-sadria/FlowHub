@@ -201,12 +201,13 @@ describe('resource signal adapters', () => {
   })
 
   it('recognizes configured product channels without overriding other connection states', () => {
+    const validField = { canWrite: true, validationState: 'valid', validationMessage: null, currentValue: null, proposedValue: null, currency: '', unit: '', outboundValue: null, outboundUnit: '', pendingChange: false }
     const base = {
       channelId: 'woocommerce:primary',
       channelName: 'WooCommerce',
       connectionState: 'configured',
       healthStatus: 'healthy',
-      validationState: 'valid',
+      fields: { price: validField, stock: validField, status: validField },
     } as ProductChannelPriceState
 
     expect(productChannelSignals(base).configured).toBe(true)

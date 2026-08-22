@@ -10,19 +10,16 @@ automated-reconciliation engine, PR #22, merged to `main` at `4b39611`).
 **Phase 2 complete** (`/products` rebuilt as the Manual Channel Editor
 against the existing `ProductPricingService`/`ApiProductService` backend,
 fully detached from `unified_workspace`/`DensePricingWorkspace.tsx`).
-Phase 2 also surfaced a scope correction: `ProductPricingService` only
-ever covered **Price**, for exactly 3 hardcoded channels
-(`woocommerce:primary`/`snappshop:main`/`tapsishop:main`) — not the full
-Owner field list (Stock QTY, Stock Status, Name, SKU, Description) and not
-a general, configured-channel-driven registry. The new `/products` is
-honest about this: it only exposes editing for fields the backend can
-actually write, and does not claim broader coverage. Extending backend
-field/channel coverage is tracked as new item **P1-1** below (promoted
-from a P2-implied assumption once the real gap was discovered).
-Phase 3 (delete the dead Handsontable `/workspace/:workspaceId` surface)
-and Phase 4 (docs/permissions/e2e) remain outstanding. P2 items (P2-1
-through P2-4) remain planning-only pending Owner priority/timing
-confirmation, as originally scoped.
+**P1-1 closed** (2026-08-22, PR #24): `ProductPricingService` no longer
+hardcodes 3 channels or Price-only — see §P1-1 below for the full
+before/after and evidence. Products now covers Price, Stock QTY, and Stock
+Status, driven by the real marketplace capability registry, across all 4
+real implemented Channels (WooCommerce, SnappShop, TapsiShop, Technolife —
+Technolife was never one of the historically-hardcoded three). Name/SKU/
+Description remain genuinely unsupported (no connector in this codebase
+implements a write path for them) and are explicitly not presented as
+working; see §P1-1 for the evidence trail. **Phase 3 and Phase 4 in
+progress below.**
 
 **e2e note (found during Phase 1/2 verification, 2026-08-22):** the CI
 `frontend` job only runs the `@browser-benchmark`-tagged e2e test by
@@ -134,62 +131,98 @@ Phase 3/4 can follow.
 
 ---
 
-## P1 — discovered during P0-1 Phase 2 implementation
+## P1-1 — CLOSED 2026-08-22 (PR #24): Manual Channel Editor generalized beyond Price/3 channels
 
-### P1-1: Extend the Manual Channel Editor backend beyond Price/3 channels
+**Resolution: implemented, tested, merged.** `ProductPricingService`
+(`app/flowhub/product_pricing/service.py`) no longer hardcodes a 3-channel
+tuple or a single `price` field.
 
-**Discovered, not yet implemented.** The Owner's field list for `/products`
-is Price, Stock QTY, Stock Status, Name, SKU, Description, "other
-supported editable Channel fields" — for whatever Channels are actually
-configured. `ProductPricingService`
-(`app/flowhub/product_pricing/service.py`) and its
-`ProductPriceOperation`/`ProductPriceOperationItem` models are built
-specifically around a single numeric `price` field (unit/currency
-conversion, `.proposed_value: float`, TapsiShop rial-divisible-by-10
-validation, etc.) for exactly the 3 channels hardcoded in its `CHANNELS`
-tuple. There is no `field` column on the operation-item model — the whole
-shape assumes "price" is the only editable concept.
+**Channel enumeration** now comes from `default_marketplace_registry()`
+(`app/flowhub/channels/registry.py`) — every `implemented=True` definition
+declaring `PRODUCTS_READ` is offered, filtered to what's actually
+configured via `IntegrationConnectorInstance`. This included Technolife
+(never one of the historically-hardcoded three) and correctly excludes
+Digikala (no `PRODUCTS_READ` declared). Investigated and deliberately
+rejected reusing `unified_workspace.connectors.*.capabilities()` (the
+Workspace engine's own richer capability source) for this: calling it
+constructs/health-checks a real live provider connector as a side effect
+(confirmed by a pre-existing test assertion in the multi-channel-pricing
+test module's `fail_connector`/"dry run must not construct connector
+writes" check), so it is unsafe to call on every read of a page. The
+static registry is pure data
+and safe for that.
 
-The current `/products` UI (shipped in Phase 2) is truthful about this: it
-only renders Price editing for the 3 supported channels and does not
-present controls for fields that don't work.
+**Field/channel capability accuracy**: `channels/registry.py`'s WooCommerce
+entry previously under-declared its real capability (`PRODUCTS_WRITE_PRICE`
+only). Traced the actual connector
+(`app/connectors/destinations/woocommerce/connector.py`'s `update_fields()`
+→ `rest_client.py`'s `update_product_fields()`) and confirmed it genuinely
+writes `price`, `stock_quantity`, and `stock_status` via the WooCommerce
+REST API — matching the Workspace engine's own
+`WooCommerceWorkspaceConnector.capabilities()` (`write_price=write_stock=
+write_status=True`). Corrected the registry to match reality (added
+`PRODUCTS_WRITE_STOCK` and a new `PRODUCTS_WRITE_STATUS` capability
+constant) and updated the characterization test that had pinned the old,
+inaccurate "WooCommerce price only" behavior
+(`tests/flowhub/test_marketplace_connectors.py`). SnappShop/TapsiShop/
+Technolife's shared write contract (`ChannelProductUpdate` in
+`channels/contracts.py`) has no stock-status field at all — genuinely
+unsupported for those three, matching the Workspace engine's own
+`write_status=False` for them, and **not** offered as writable in the UI.
 
-Steps to close the gap:
-1. Generalize channel discovery: replace the hardcoded `CHANNELS` tuple
-   with the actual configured/enabled Channel registry
-   (`IntegrationConnectorInstance` + `default_marketplace_registry()`),
-   so any real Channel — not just 3 named ones — is editable.
-2. Add Stock QTY and Stock Status as a second and third editable field
-   type. These are numeric/enum, not price, so they don't need
-   currency/unit conversion but do need their own validation rules
-   (non-negative integer QTY; canonical `IN_STOCK`/`OUT_OF_STOCK` status —
-   note this is a *different, simpler* rule than the Workspace engine's
-   Source-precedence Stock Status logic in
-   `unified_workspace/domain.py`; Products has no Source, so there is no
-   precedence to compute, only a direct write).
-3. Add Name/SKU/Description as text-field edits. These have no numeric
-   validation, currency, or stale-token-per-value-magnitude concerns, but
-   still need the same stale-conflict/audit ceremony.
-4. Decide the data model: either (a) generalize
-   `ProductPriceOperation`/`ProductPriceOperationItem` into a
-   field-parameterized `ProductChannelFieldOperation`, or (b) introduce
-   parallel operation types per field family. Given the existing model's
-   validation logic is deeply price-specific (currency/unit, TapsiShop
-   divisibility), (a) likely means significant refactoring; (b) risks
-   duplicating the dry-run/approve/apply ceremony. This decision needs its
-   own design pass, not a decision made inline while implementing.
-5. Extend `WritePipelineService.execute_product_pricing_item` (or add a
-   sibling method) to dispatch non-price fields through the same
-   `execute_workspace` engine with correct per-field payload shaping.
-6. Extend `app/flowhub/api/v2/products.py` and `ApiProductService.ts`/
-   `services/types.ts` accordingly; extend the `/products` UI to render
-   the new fields once the backend supports them.
+**Name/SKU/Description: investigated, confirmed genuinely unsupported,
+correctly not built.** No connector in this codebase (WooCommerce's
+`update_fields`, or the generic `ChannelProductUpdate`/`update_products`
+path used by SnappShop/TapsiShop/Technolife) implements a write path for
+product name, SKU, or description — this was verified by reading every
+connector's actual write method, not assumed. Per the Owner's explicit
+instruction not to present unsupported fields as editable, these are not
+exposed in `/products`. If a future connector adds real write support for one of
+these, extending the (now-generalized) field model to include it is a
+small, additive change — the architecture no longer assumes Price is the
+only field, so this is not blocked on another redesign.
 
-Risk: **MEDIUM-HIGH** — touches a real write path (channel field writes),
-though scoped away from Workspace's automation/precedence logic entirely.
-Recommend scoping as its own dedicated pass per field family (QTY/Status
-first, since they reuse simpler validation than free-text Name/SKU/
-Description), not one large change.
+**Data model**: `ProductPriceOperationItem` gained a `field` column
+(`"price" | "stock" | "status"`, default `"price"` for backward
+compatibility) plus nullable `current_status_value`/`proposed_status_value`
+text columns for Stock Status (Price/Stock QTY keep the existing numeric
+columns, now nullable). Migration `FLOWHUB_045`
+(`alembic_flowhub/versions/flowhub_045_product_pricing_field_generalization.py`),
+verified upgrade+downgrade clean on SQLite locally; a `@pytest.mark.postgres`
+test (`tests/flowhub/migration/test_product_pricing_field_generalization_045.py`)
+covers the real-Postgres path in CI, following this repo's existing
+migration-test pattern.
+
+**Dispatch**: `WritePipelineService.execute_product_pricing_item`
+(`app/flowhub/write_pipeline/service.py`) now sets `target_price`/
+`target_stock`/`target_status` based on the operation item's `field`
+(only the written field's target is set; the others stay `None`), reusing
+the exact same `WorkspaceWriteIntent`/`_governed_fields()` field-scoping
+mechanism the Workspace engine's own selective writes already rely on —
+traced and confirmed this None-based inference is the real, existing
+mechanism (`app/flowhub/unified_workspace/connectors.py::_governed_fields`),
+not new plumbing.
+
+**Tests**: the multi-channel-pricing test module was rewritten (16 tests,
+up from 9) covering real-channel enumeration, per-channel/per-field
+capability differences, Stock QTY and Stock Status Dry Run, rejection of
+Stock Status edits on channels that don't support it, invalid status
+values, negative quantities, and the restored currency/unit-mismatch
+check (a regression caught and fixed during this same pass — the initial
+rewrite silently dropped the unit-mismatch validation the old code had;
+caught by re-deriving the check from the original code before treating
+the rewrite as complete, then added a dedicated regression test for it).
+Full backend suite: 3890 passed, the same 12 pre-existing failures as
+before (confirmed unrelated, documented in `WORKSPACE_GAP_ANALYSIS.md`).
+Frontend: 774 passed.
+
+**Products remains independent from Workspace business automation**: no
+Source comparison, no auto-selection, no precedence logic was added to
+Products' Stock Status handling — it is a direct two-value write
+(`instock`/`outofstock`), not the Workspace engine's multi-signal
+precedence algorithm. The two subsystems now share only genuinely shared
+infrastructure (the marketplace capability registry, the low-level
+`execute_workspace` dispatch engine) — not a duplicated business engine.
 
 ---
 
