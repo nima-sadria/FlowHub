@@ -245,6 +245,29 @@ describe('Products manual Channel editor', () => {
     await renderProducts(servicesFor({ getProducts }))
     await waitFor(() => container.textContent?.includes('No product connector configured') === true)
   })
+
+  it('renders the Products identity and never exposes the Workspace automation surface', async () => {
+    const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
+    const getChannelPrices = vi.fn(async () => CHANNEL_STATE)
+    await renderProducts(servicesFor({ getProducts, getChannelPrices }))
+    await waitFor(() => container.textContent?.includes('Cached Product') === true)
+
+    expect(container.querySelector('h1')?.textContent).toBe('Products')
+    // No Workspace automation DOM markers -- Source comparison, auto-selection,
+    // Review/Dry Run scope counters, or Apply Manifest -- exist on this page.
+    expect(container.querySelector('[class*="fh-workspace-"]')).toBeNull()
+    expect(container.querySelector(
+      '[data-workspace-critical-controls], [data-workspace-save], [data-workspace-table], '
+      + '[data-workspace-selection-summary], [data-select-all-eligible], [data-deselect-all], '
+      + '[data-change-badges], [data-pricing-apply]',
+    )).toBeNull()
+
+    await click('Cached Product')
+    await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
+    // The opened editor is the Manual Channel Editor, not a Review/Dry-Run-scope dialog.
+    expect(container.querySelector('h2')?.textContent).toBe('Multi-channel price editor')
+    expect(container.querySelector('[class*="fh-workspace-"]')).toBeNull()
+  })
 })
 
 async function renderProducts(services: Services, initialPath = '/products') {

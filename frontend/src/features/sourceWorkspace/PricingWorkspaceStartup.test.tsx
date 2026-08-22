@@ -19,10 +19,10 @@ afterEach(() => {
 })
 
 describe('PricingWorkspaceStartup', () => {
-  it('uses the Products title on first paint and keeps every loading filter labeled', () => {
+  it('uses the Workspace title on first paint and keeps every loading filter labeled', () => {
     act(() => root.render(<PricingWorkspaceStartup />))
 
-    expect(container.querySelector('h1')?.textContent).toBe('Products')
+    expect(container.querySelector('h1')?.textContent).toBe('Workspace')
     expect(container.querySelectorAll('.fh-chip-select-skeleton')).toHaveLength(0)
     expect([...container.querySelectorAll<HTMLSelectElement>('.fh-chip-select select')].map(select => select.value)).toEqual([
       'All statuses',

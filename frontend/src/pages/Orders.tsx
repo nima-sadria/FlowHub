@@ -497,7 +497,7 @@ export default function Orders() {
                 {!hiddenColumns.has('total') && <th>{translate('orders:orders.total')}</th>}
                 {!hiddenColumns.has('created') && <th>{translate('orders:orders.created')}</th>}
                 {!hiddenColumns.has('sync') && <th>{translate('orders:orders.sync')}</th>}
-                <th className="fh-products-actions-cell">{translate('orders:orders.actions')}</th>
+                <th className="fh-actions-cell">{translate('orders:orders.actions')}</th>
               </tr></thead>
               <tbody>{visibleItems.map(order => <tr key={order.internalId} data-orders-row data-order-id={order.internalId}>
                 <td className="sticky left-0 z-10 bg-bg-card"><button className="font-medium text-accent hover:underline" onClick={() => void openDetail(order)}>{order.orderNumber || order.providerOrderId}</button></td>
@@ -513,7 +513,7 @@ export default function Orders() {
                     ? <button type="button" className="fh-inline-status fh-inline-status-danger" onClick={() => void retryRowSync(order)}><span aria-hidden="true" className="fh-status-dot fh-status-dot-danger" />{translate('common:action.retry')}</button>
                     : <InlineStatus tone={syncTone(order)}>{syncTone(order) === 'success' ? translate('orders:orders.synced') : formatStatus(order.synchronizationState)}</InlineStatus>}
                 </td>}
-                <td className="fh-products-actions-cell">
+                <td className="fh-actions-cell">
                   <div className="fh-row-actions" data-row-actions>
                     <button type="button" className="fh-row-actions-trigger" data-row-menu-trigger aria-haspopup="menu" aria-expanded={rowMenuFor === order.internalId} onClick={() => setRowMenuFor(current => current === order.internalId ? null : order.internalId)}>
                       <Icon name="more" size="sm" />

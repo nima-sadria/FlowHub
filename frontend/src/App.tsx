@@ -132,8 +132,10 @@ function RouteLoading() {
 
 /** The dead Handsontable /workspace/:workspaceId grid was removed (Phase 3
  * of the Owner's Products/Workspace split); redirect any bookmarked deep
- * link to the real Workspace page's own resume mechanism. */
-function LegacyWorkspaceIdRedirect() {
+ * link to the real Workspace page's own resume mechanism. Exported for
+ * direct route-identity regression coverage: this must keep resolving to
+ * /workspace, never to /products (see App.routing.test.tsx). */
+export function LegacyWorkspaceIdRedirect() {
   const { workspaceId = '' } = useParams()
   const location = useLocation()
   return (

@@ -156,17 +156,17 @@ describe('SourceCentricWorkspace Channel ordering', () => {
 
     const menu = document.querySelector('[data-row-actions-portal]')
     expect(menu).toBeTruthy()
-    // .fh-products-card clips overflow-y; the menu must not be its descendant.
+    // .fh-workspace-card clips overflow-y; the menu must not be its descendant.
     expect(container.querySelector('[data-row-actions-portal]')).toBeNull()
-    expect(menu?.closest('[data-products-table]')).toBeNull()
+    expect(menu?.closest('[data-workspace-table]')).toBeNull()
     expect((menu as HTMLElement).style.position).toBe('fixed')
   })
 
-  it('omits its PageShell when embedded in the Products page', async () => {
+  it('omits its PageShell when embedded in the Workspace page', async () => {
     await renderWorkspace(container, root, service, true)
 
     expect(container.querySelector('[data-pricing-workspace]')).toBeTruthy()
-    expect(container.querySelector('[data-products-critical-controls]')).toBeTruthy()
+    expect(container.querySelector('[data-workspace-critical-controls]')).toBeTruthy()
     expect(container.querySelector('.fh-page')).toBeNull()
   })
 
@@ -207,7 +207,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       setInputValue(targetPrice!, '125')
       targetPrice?.blur()
     })
-    const saveButton = container.querySelector<HTMLButtonElement>('[data-products-save]')
+    const saveButton = container.querySelector<HTMLButtonElement>('[data-workspace-save]')
     expect(saveButton).toBeTruthy()
     expect(saveButton?.disabled).toBe(false)
     await act(async () => {
@@ -242,7 +242,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       await Promise.resolve()
     })
 
-    const saveButton = container.querySelector<HTMLButtonElement>('[data-products-save]')!
+    const saveButton = container.querySelector<HTMLButtonElement>('[data-workspace-save]')!
     await act(async () => {
       saveButton.click()
       await Promise.resolve()
@@ -269,7 +269,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       targetPrice.blur()
     })
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-products-save]')?.click()
+      container.querySelector<HTMLButtonElement>('[data-workspace-save]')?.click()
       await Promise.resolve()
     })
 
@@ -310,7 +310,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       trigger?.click()
       await Promise.resolve()
     })
-    // The row-actions menu portals to document.body to escape the products
+    // The row-actions menu portals to document.body to escape the workspace
     // table's clipping ancestor -- it is a sibling of container, not a
     // descendant, so it must be queried from the document.
     const excludeAction = document.querySelector<HTMLButtonElement>('[data-row-menu-action="toggle-selection"]')
@@ -321,7 +321,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
       await Promise.resolve()
     })
 
-    const saveButton = container.querySelector<HTMLButtonElement>('[data-products-save]')
+    const saveButton = container.querySelector<HTMLButtonElement>('[data-workspace-save]')
     await act(async () => {
       saveButton?.click()
       await Promise.resolve()
@@ -357,7 +357,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     service.createReview = vi.fn().mockReturnValueOnce(pendingReview).mockResolvedValue(emptyReview)
     await renderWorkspace(container, root, service)
 
-    const saveButton = container.querySelector<HTMLButtonElement>('[data-products-save]')!
+    const saveButton = container.querySelector<HTMLButtonElement>('[data-workspace-save]')!
     await act(async () => {
       saveButton.click()
       await Promise.resolve()
@@ -406,7 +406,7 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     expect(service.runDryRun).toHaveBeenCalledWith(WORKSPACE.id, currentReview.id)
     expect(container.querySelector('[role="status"]')?.textContent).toContain('Verifying current Channel state')
     expect(container.querySelector('[data-pricing-apply]')).toBeNull()
-    expect(container.querySelector('[data-products-save]')).toHaveProperty('disabled', true)
+    expect(container.querySelector('[data-workspace-save]')).toHaveProperty('disabled', true)
     expect(container.textContent).not.toContain('Confirm selected Apply')
   })
 
@@ -471,7 +471,25 @@ describe('SourceCentricWorkspace Channel ordering', () => {
     expect(container.querySelector('[data-pricing-apply]')).toBeNull()
     expect(container.textContent).not.toContain('Confirm selected Apply')
     expect(container.querySelector('[data-dry-run-status]')).toBeNull()
-    expect(container.querySelector<HTMLButtonElement>('[data-products-save]')?.disabled).toBe(false)
+    expect(container.querySelector<HTMLButtonElement>('[data-workspace-save]')?.disabled).toBe(false)
+  })
+
+  it('renders the Workspace identity and never exposes the Products Manual Editor surface', async () => {
+    await renderWorkspace(container, root, service)
+
+    expect(container.querySelector('h1')?.textContent).toBe('Workspace')
+    expect(container.querySelector('.fh-workspace-screen')).not.toBeNull()
+    // No Products Manual Editor DOM markers -- its page/toolbar/table identity,
+    // or its channel-price-editor dialog -- exist on the automation surface.
+    expect(container.querySelector('[class*="fh-products-"]')).toBeNull()
+    expect(container.querySelector(
+      '[data-products-critical-controls], [data-products-save], [data-products-table], '
+      + '[data-channel-editor], [data-open-channel-editor]',
+    )).toBeNull()
+    // The automation lifecycle's own markers are present instead.
+    expect(container.querySelector('[data-workspace-selection-summary]')).not.toBeNull()
+    expect(container.querySelector('[data-select-all-eligible]')).not.toBeNull()
+    expect(container.querySelector('[data-deselect-all]')).not.toBeNull()
   })
 
   it.each([
@@ -625,7 +643,7 @@ function passedDryRun(overrides: Partial<DryRunResource> = {}): DryRunResource {
 
 async function startOwnerFlow(container: HTMLElement) {
   await act(async () => {
-    container.querySelector<HTMLButtonElement>('[data-products-save]')?.click()
+    container.querySelector<HTMLButtonElement>('[data-workspace-save]')?.click()
     await Promise.resolve()
     await Promise.resolve()
     await Promise.resolve()

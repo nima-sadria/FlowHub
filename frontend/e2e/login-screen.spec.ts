@@ -216,7 +216,7 @@ test('the Design System keeps every editable mobile control at 16px in LTR, RTL,
         <input data-ds-control class="fh-input" type="text">
         <input data-ds-control class="fh-input" type="email">
         <input data-ds-control class="fh-input" type="password">
-        <input data-ds-control class="fh-products-search-input" type="search">
+        <input data-ds-control class="fh-workspace-search-input" type="search">
         <input data-ds-control class="fh-cell-input" type="number">
         <input data-ds-control class="fh-sheet-cell" type="date">
         <input data-ds-control class="fh-sheet-column-name" type="time">
