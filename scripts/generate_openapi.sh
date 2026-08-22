@@ -10,5 +10,5 @@
 set -euo pipefail
 
 echo "scripts/generate_openapi.sh - UNAVAILABLE. Implementation begins in B5."
-echo "See: docs/platform/DEVELOPMENT_GUIDE.md"
+echo "See: docs/archive/legacy-compatibility/platform/DEVELOPMENT_GUIDE.md"
 exit 1

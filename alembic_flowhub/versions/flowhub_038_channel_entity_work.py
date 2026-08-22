@@ -4,7 +4,7 @@ Independent lease scope from dl_refresh_jobs: dl_refresh_jobs stays
 (connector_id, entity_type)-scoped for FULL/DEEP channel-wide work;
 dl_channel_entity_work is (connector_id, entity_type, entity_id)-scoped for
 LIGHT/PRODUCT targeted work, claimed by workers via SELECT ... FOR UPDATE
-SKIP LOCKED. See docs/architecture/ADR_CHANNEL_READ_ARCHITECTURE.md.
+SKIP LOCKED. See docs/evidence/architecture/ADR_CHANNEL_READ_ARCHITECTURE.md.
 
 Revision ID: FLOWHUB_038
 Revises: FLOWHUB_037

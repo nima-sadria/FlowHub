@@ -5,11 +5,11 @@ import BrandIcon from '../components/BrandIcon'
 import Icon from '../components/Icon'
 import PageShell from '../components/PageShell'
 import { translate } from '../i18n'
-import snappshopMarkdown from '../../../docs/api/channel/snappshop-api-doc.md?raw'
-import tapsishopMarkdown from '../../../docs/api/channel/tapsishop-api-doc.md?raw'
-import technolifeMarkdown from '../../../docs/api/channel/technolife-api.md?raw'
-import woocommerceMarkdown from '../../../docs/api/channel/woocommerce-api.md?raw'
-import digikalaMarkdown from '../../../docs/api/channel/digikala-api.md?raw'
+import snappshopMarkdown from '../../../docs/reference/channel-api/snappshop-api-doc.md?raw'
+import tapsishopMarkdown from '../../../docs/reference/channel-api/tapsishop-api-doc.md?raw'
+import technolifeMarkdown from '../../../docs/reference/channel-api/technolife-api.md?raw'
+import woocommerceMarkdown from '../../../docs/reference/channel-api/woocommerce-api.md?raw'
+import digikalaMarkdown from '../../../docs/reference/channel-api/digikala-api.md?raw'
 
 type ChannelDocument = {
   id: string

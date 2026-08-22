@@ -20,9 +20,9 @@ import type { UnitDeclaration, UnitScope } from '../features/pricingMatrix/types
 
 /**
  * Global scope is intentionally NOT offered: the current UI has no
- * authoritative scope reference for it, and FRONTEND_CONTRACT.md does not
+ * authoritative scope reference for it, and docs/development/contracts/FRONTEND_CONTRACT.md does not
  * document one. See PRICING_UI_CONTRACT.md Open Question PM-8 and
- * UI_RESUME.md. Only Source and Channel are supported here.
+ * docs/archive/handoffs/UI_RESUME.md. Only Source and Channel are supported here.
  */
 const EDITABLE_SCOPES: readonly Exclude<UnitScope, 'global'>[] = ['source', 'channel']
 

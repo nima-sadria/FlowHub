@@ -19,7 +19,7 @@ SKIP_PREFIXES = (
     "frontend/node_modules/",
     "frontend/e2e/",
     "tests/",
-    "docs/architecture/",
+    "docs/evidence/architecture/",
 )
 SKIP_SUFFIXES = (
     ".css",
@@ -41,17 +41,17 @@ LEGACY_COMPATIBILITY_REFERENCE_FILES = {
 ALLOWED_RELEASE_TERM_PATHS = {
     # Owner-approved release registration. The exemption is path-exact and
     # does not permit release terms in application paths.
-    "docs/releases/FLOWHUB_V1.3_BETA.md",
+    "docs/releases/history/FLOWHUB_V1.3_BETA.md",
 }
 INTERNAL_TERM_PATTERNS = {
-    "RESUME.md": (r"placeholder", r"beta"),
+    "docs/archive/handoffs/RESUME.md": (r"placeholder", r"beta"),
     # ARCHITECTURE_STATE.md's Dormant Subsystems note quotes the pre-rename
     # project name from git history ("WooPrice Beta -> FlowHub"). This is a
     # historical citation, not a release-state label.
-    "ARCHITECTURE_STATE.md": (r"WooPrice Beta",),
+    "docs/evidence/architecture/ARCHITECTURE_STATE.md": (r"WooPrice Beta",),
     # UI_RESUME.md records verified test and local-development evidence. These
     # exact phrases do not permit mock routes or production placeholders.
-    "UI_RESUME.md": (
+    "docs/archive/handoffs/UI_RESUME.md": (
         r"\bNo mocks, no",
         r"\bplaceholder credentials\b",
         r"mocked non-admin `AuthContext`",
@@ -61,11 +61,11 @@ INTERNAL_TERM_PATTERNS = {
     ),
     "CHANGELOG.md": (r"FlowHub v1\.3 Beta",),
     "README.md": (r"v1\.3 Beta", r"FLOWHUB_V1\.3_BETA"),
-    "docs/i18n/INTERNATIONALIZATION.md": (r"placeholders?",),
-    "docs/i18n/TRANSLATOR_GUIDE.md": (r"placeholder",),
-    "docs/exchange-rates.md": (r"Automated tests use fake adapters",),
-    "docs/releases/FLOWHUB_V1.3_BETA.md": (r"Beta",),
-    "docs/roadmap/NEXT.md": (r"FlowHub v1\.3 Beta",),
+    "docs/development/i18n/INTERNATIONALIZATION.md": (r"placeholders?",),
+    "docs/development/i18n/TRANSLATOR_GUIDE.md": (r"placeholder",),
+    "docs/development/reference/exchange-rates.md": (r"Automated tests use fake adapters",),
+    "docs/releases/history/FLOWHUB_V1.3_BETA.md": (r"Beta",),
+    "docs/archive/roadmaps/NEXT.md": (r"FlowHub v1\.3 Beta",),
     # These architecture diagrams document real, evidence-based findings —
     # dead/unmounted stub API routers (dryrun.py, changesets.py, etc.) and the
     # stub app/flowhub/audit/logger.py module — per CAPABILITY_REGISTRY.md's

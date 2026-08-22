@@ -6,7 +6,7 @@ ISO-8601 -- too fragile to fence a provider-neutral write path on. This
 adds a typed, parsed DateTime column every read path (FULL batch upsert,
 LIGHT targeted upsert) writes through, so a slow FULL page can never
 overwrite a newer targeted observation. last_modified and its one existing
-reader are untouched. See docs/architecture/ADR_CHANNEL_READ_ARCHITECTURE.md.
+reader are untouched. See docs/evidence/architecture/ADR_CHANNEL_READ_ARCHITECTURE.md.
 
 Revision ID: FLOWHUB_039
 Revises: FLOWHUB_038

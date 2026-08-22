@@ -54,7 +54,7 @@ import type { GroupedListing, GroupedProduct, GroupedWorkspacePage, SourceChanne
 // bulk transformation workflow. Visual design reuses the approved Figma
 // Screen/Products component library, but this is the separate,
 // non-manual-editor Workspace product surface -- see OD-008 in
-// docs/workspace-adoption/WORKSPACE_OWNER_DECISIONS.md.
+// docs/evidence/workspace-adoption/WORKSPACE_OWNER_DECISIONS.md.
 
 type View = 'changed' | 'ready' | 'blocked' | 'unchanged' | 'all'
 type PricingField = 'price' | 'stock' | 'status'

@@ -28,7 +28,7 @@ import type {
 // Apply Manifest business rules. Normal technical/security controls still
 // apply: permissions, connector capability, provider validation, safe
 // write execution (validate -> Dry Run -> Approve -> Apply), verification,
-// and audit. See docs/workspace-adoption/WORKSPACE_CANONICAL_OWNER_SPEC_2026-08-22.md
+// and audit. See docs/evidence/workspace-adoption/WORKSPACE_CANONICAL_OWNER_SPEC_2026-08-22.md
 // section 9. The automated Source-to-Channel reconciliation engine lives
 // at /workspace (frontend/src/pages/Workspace.tsx), not here.
 

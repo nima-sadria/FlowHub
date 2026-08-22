@@ -4,7 +4,7 @@ Logs and acknowledges all change sets without applying them.
 Use this as a starting point for custom channel adapter plugins.
 
 Full plugin system implementation begins in B12.
-See: docs/platform/PLUGIN_ARCHITECTURE.md
+See: docs/archive/legacy-compatibility/platform/PLUGIN_ARCHITECTURE.md
 """
 
 

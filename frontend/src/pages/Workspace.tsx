@@ -11,7 +11,7 @@ import type { UnifiedWorkspaceResource } from '../services/unifiedWorkspace/type
 // Automated Source-to-Channel pricing reconciliation: Normalize -> Preview ->
 // Auto-selection -> Review -> Dry Run -> Verified Write Set -> Apply Manifest
 // -> Apply -> Verify -> Audit/Reconcile. This is the canonical Workspace
-// business engine (see docs/workspace-adoption/WORKSPACE_CANONICAL_OWNER_SPEC_2026-08-22.md
+// business engine (see docs/evidence/workspace-adoption/WORKSPACE_CANONICAL_OWNER_SPEC_2026-08-22.md
 // section 9). Products (/products) is the separate, non-automated Manual
 // Channel Editor and does not use this pipeline.
 

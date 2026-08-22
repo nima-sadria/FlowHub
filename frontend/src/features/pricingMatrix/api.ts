@@ -28,11 +28,11 @@ const json = (method: 'POST' | 'PUT', body: unknown): RequestInit => ({
 
 /**
  * Thin client for the currently callable Pricing Matrix backend contract
- * (FRONTEND_CONTRACT.md). Every method maps 1:1 to a documented, implemented
+ * (docs/development/contracts/FRONTEND_CONTRACT.md). Every method maps 1:1 to a documented, implemented
  * route — none is a mock or a placeholder. Future evidence endpoints
  * (preview, apply, diagnostics, source acquisition) are intentionally absent;
- * see `docs/architecture/PRICING_UI_CONTRACT.md` and do not add clients for
- * routes that are not yet in FRONTEND_CONTRACT.md.
+ * see `docs/evidence/architecture/PRICING_UI_CONTRACT.md` and do not add clients for
+ * routes that are not yet in docs/development/contracts/FRONTEND_CONTRACT.md.
  */
 export const pricingMatrixApi = {
   // Policy revisions

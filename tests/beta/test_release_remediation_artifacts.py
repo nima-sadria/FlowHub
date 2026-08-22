@@ -8,9 +8,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_release_docs_reference_current_migration_head_and_runner() -> None:
-    release_notes = (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")
-    migration_status = (ROOT / "docs" / "MIGRATION_STATUS.md").read_text(encoding="utf-8")
-    order_sync = (ROOT / "docs" / "architecture" / "ORDER_SYNCHRONIZATION.md").read_text(encoding="utf-8")
+    release_notes = (ROOT / "docs" / "releases" / "history" / "RELEASE_NOTES.md").read_text(encoding="utf-8")
+    migration_status = (ROOT / "docs" / "operations" / "MIGRATION_STATUS.md").read_text(encoding="utf-8")
+    order_sync = (ROOT / "docs" / "evidence" / "architecture" / "ORDER_SYNCHRONIZATION.md").read_text(encoding="utf-8")
 
     assert "FLOWHUB_019" in release_notes
     assert "FLOWHUB_013`" not in release_notes
@@ -21,9 +21,9 @@ def test_release_docs_reference_current_migration_head_and_runner() -> None:
 
 def test_postgres_lease_test_path_and_current_capability_docs() -> None:
     compose = (ROOT / "docker-compose.test.yml").read_text(encoding="utf-8")
-    order_sync = (ROOT / "docs" / "architecture" / "ORDER_SYNCHRONIZATION.md").read_text(encoding="utf-8")
-    integrations = (ROOT / "docs" / "architecture" / "BU5_INTEGRATIONS.md").read_text(encoding="utf-8")
-    data_layer = (ROOT / "docs" / "architecture" / "DATA_LAYER_ARCHITECTURE.md").read_text(encoding="utf-8")
+    order_sync = (ROOT / "docs" / "evidence" / "architecture" / "ORDER_SYNCHRONIZATION.md").read_text(encoding="utf-8")
+    integrations = (ROOT / "docs" / "evidence" / "architecture" / "BU5_INTEGRATIONS.md").read_text(encoding="utf-8")
+    data_layer = (ROOT / "docs" / "evidence" / "architecture" / "DATA_LAYER_ARCHITECTURE.md").read_text(encoding="utf-8")
 
     assert "postgres-test:" in compose
     assert "FLOWHUB_TEST_POSTGRES_URL" in order_sync
@@ -34,8 +34,8 @@ def test_postgres_lease_test_path_and_current_capability_docs() -> None:
 
 def test_security_and_integration_docs_match_atomic_marketplace_runtime() -> None:
     security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
-    integration = (ROOT / "docs" / "architecture" / "INTEGRATION_PLATFORM.md").read_text(encoding="utf-8")
-    order_sync = (ROOT / "docs" / "architecture" / "ORDER_SYNCHRONIZATION.md").read_text(encoding="utf-8")
+    integration = (ROOT / "docs" / "evidence" / "architecture" / "INTEGRATION_PLATFORM.md").read_text(encoding="utf-8")
+    order_sync = (ROOT / "docs" / "evidence" / "architecture" / "ORDER_SYNCHRONIZATION.md").read_text(encoding="utf-8")
 
     assert "additional marketplace writes remain disabled or deferred" not in security
     assert "planned read-only Channel placeholders" not in integration

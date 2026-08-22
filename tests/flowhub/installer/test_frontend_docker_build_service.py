@@ -32,6 +32,6 @@ def test_frontend_docker_stage_includes_raw_channel_document_imports():
     frontend, _runtime = dockerfile.split("# -- Stage 2: Python application", maxsplit=1)
 
     # ChannelDocs.tsx imports the repository contracts through
-    # ../../../docs/api/channel/*.md?raw.  The Docker stage runs from
+    # ../../../docs/reference/channel-api/*.md?raw.  The Docker stage runs from
     # /frontend, so the build context must create that sibling directory.
-    assert "COPY docs/api/channel/*.md /docs/api/channel/" in frontend
+    assert "COPY docs/reference/channel-api/*.md /docs/reference/channel-api/" in frontend

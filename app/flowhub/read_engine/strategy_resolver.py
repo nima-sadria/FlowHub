@@ -5,7 +5,7 @@ Workspace expresses intent as a provider-neutral ``ChannelReadRequest``
 what decides *how* to fulfill that intent -- which concrete execution
 mechanism to run -- based on connector capabilities, scope, and cache state.
 Workspace never chooses a mechanism directly. See
-docs/architecture/ADR_CHANNEL_READ_ARCHITECTURE.md.
+docs/evidence/architecture/ADR_CHANNEL_READ_ARCHITECTURE.md.
 
 This module is purely additive: it does not replace or call
 ``IncrementalReadEngine.determine_strategy()``, which keeps serving the

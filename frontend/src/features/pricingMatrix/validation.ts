@@ -1,14 +1,14 @@
 /**
  * Pricing Matrix — client-side validation for the editable configuration
  * surfaces (UI Stage 3). Pure logic, no React. Mirrors documented contract
- * constraints only (FRONTEND_CONTRACT.md); never invents a rule the backend
+ * constraints only (docs/development/contracts/FRONTEND_CONTRACT.md); never invents a rule the backend
  * does not state. Server-side domain validation (422) remains authoritative —
  * these checks exist to give fast feedback and cannot replace it.
  */
 
 import type { PolicyRuleInput } from './types'
 
-/** Integer string per FRONTEND_CONTRACT.md (`-?(0|[1-9][0-9]*)`), PM-4 safe. */
+/** Integer string per docs/development/contracts/FRONTEND_CONTRACT.md (`-?(0|[1-9][0-9]*)`), PM-4 safe. */
 const EXACT_INTEGER_PATTERN = /^-?(0|[1-9][0-9]*)$/
 
 export function isValidExactIntegerInput(value: string, { allowNegative = false }: { allowNegative?: boolean } = {}): boolean {
@@ -17,7 +17,7 @@ export function isValidExactIntegerInput(value: string, { allowNegative = false 
   return true
 }
 
-/** Supported non-IRR currency/unit pairs, verbatim from FRONTEND_CONTRACT.md. */
+/** Supported non-IRR currency/unit pairs, verbatim from docs/development/contracts/FRONTEND_CONTRACT.md. */
 export const SUPPORTED_NON_IRR_PAIRS: ReadonlyArray<{ currency: string; unit: string }> = [
   { currency: 'USD', unit: 'USD' },
   { currency: 'EUR', unit: 'EUR' },

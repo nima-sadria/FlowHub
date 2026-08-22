@@ -3,7 +3,7 @@
 Purely additive, alongside the existing freshness column (fresh|stale|
 error), which is left completely untouched -- Observation Confidence is a
 distinct axis, not a replacement. See
-docs/architecture/ADR_CHANNEL_READ_ARCHITECTURE.md.
+docs/evidence/architecture/ADR_CHANNEL_READ_ARCHITECTURE.md.
 
 Revision ID: FLOWHUB_040
 Revises: FLOWHUB_039

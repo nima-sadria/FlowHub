@@ -1,17 +1,17 @@
 /**
  * Pricing Matrix — frontend types for the CURRENTLY CALLABLE backend contract.
  *
- * Source of truth: FRONTEND_CONTRACT.md (repository root) — "Pricing Matrix
+ * Source of truth: docs/development/contracts/FRONTEND_CONTRACT.md (development contract) — "Pricing Matrix
  * Backend Contract", version `v1-draft`, base path `/api/v2/pricing-matrix`.
  *
  * Scope (UI Phase 1): maps ONLY the endpoints documented as implemented today —
  * policy revisions, product-group revisions, unit declarations, and the channel
  * policy lifecycle. The future evidence model in
- * `docs/architecture/PRICING_UI_CONTRACT.md` (Source Acquisition, Diagnostics,
+ * `docs/evidence/architecture/PRICING_UI_CONTRACT.md` (Source Acquisition, Diagnostics,
  * Workspace Preview, Apply Result, `allowed_actions`, the `contract_version`
  * envelope) is intentionally NOT represented here and is NOT callable.
  *
- * Conventions confirmed by FRONTEND_CONTRACT.md "Claude UI Phase 1 Decisions"
+ * Conventions confirmed by docs/development/contracts/FRONTEND_CONTRACT.md "Claude UI Phase 1 Decisions"
  * (PM-1 … PM-7), synchronized from main:
  * - No response envelope or `contract_version` on the callable endpoints; the
  *   documented object shapes are authoritative (PM-1).

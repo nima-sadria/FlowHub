@@ -114,7 +114,7 @@ sudo ./installer/install.sh
 
 For the canonical Ubuntu deployment server, do not use an installer-created
 `/opt/FlowHub` checkout. `/home/nima/Projects/FlowHub` is the only canonical
-checkout there; use the [Operations Runbook](OPERATIONS_RUNBOOK.md) for its
+checkout there; use the [Operations Runbook](docs/operations/OPERATIONS_RUNBOOK.md) for its
 update and runtime-identity procedure.
 
 See the [Installation Guide](docs/INSTALLATION.md) for prerequisites, existing
@@ -203,7 +203,7 @@ For an integrated local runtime, use the Docker Compose procedure above.
 On the canonical Ubuntu deployment server, `/home/nima/Projects/FlowHub` is
 the only FlowHub checkout. `/opt/FlowHub` is retired: do not use it, do not
 use `sudo git`, and do not create an alternate deployment checkout. Follow the
-[Operations Runbook](OPERATIONS_RUNBOOK.md):
+[Operations Runbook](docs/operations/OPERATIONS_RUNBOOK.md):
 
 ```bash
 cd /home/nima/Projects/FlowHub
@@ -254,7 +254,7 @@ npm test
 ```
 
 PostgreSQL integration/concurrency tests use the isolated stack and commands in
-[Order Synchronization](docs/architecture/ORDER_SYNCHRONIZATION.md).
+[Order Synchronization](docs/evidence/architecture/ORDER_SYNCHRONIZATION.md).
 
 ## Repository layout
 
@@ -275,17 +275,17 @@ modules and historical phase documents are not the current architecture.
 
 ## Documentation
 
-- [Integration Platform](docs/architecture/INTEGRATION_PLATFORM.md)
-- [Unified Multi-Channel Workspace](docs/architecture/UNIFIED_MULTI_CHANNEL_WORKSPACE.md)
-- [Order Synchronization](docs/architecture/ORDER_SYNCHRONIZATION.md)
-- [Source Workspace API](docs/api/SOURCE_WORKSPACE_API.md)
-- [Unified Workspace API](docs/api/UNIFIED_WORKSPACE_API.md)
-- [Internationalization](docs/i18n/INTERNATIONALIZATION.md)
-- [Frontend Design System](docs/DESIGN_SYSTEM.md)
+- [Integration Platform](docs/evidence/architecture/INTEGRATION_PLATFORM.md)
+- [Unified Multi-Channel Workspace](docs/evidence/architecture/UNIFIED_MULTI_CHANNEL_WORKSPACE.md)
+- [Order Synchronization](docs/evidence/architecture/ORDER_SYNCHRONIZATION.md)
+- [Source Workspace API](docs/development/api/SOURCE_WORKSPACE_API.md)
+- [Unified Workspace API](docs/development/api/UNIFIED_WORKSPACE_API.md)
+- [Internationalization](docs/development/i18n/INTERNATIONALIZATION.md)
+- [Frontend Design System](docs/development/design/DESIGN_SYSTEM.md)
 - [Installation](docs/INSTALLATION.md)
-- [Upgrade](docs/UPGRADE.md)
+- [Upgrade](docs/operations/UPGRADE.md)
 - [Backup and Restore](docs/BACKUP_RESTORE.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Troubleshooting](docs/operations/TROUBLESHOOTING.md)
 - [Security](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)
 - [Support](SUPPORT.md)

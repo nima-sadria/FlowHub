@@ -2,7 +2,7 @@
  * Pricing Matrix — pure presentation & validation helpers for the read-only
  * surfaces (UI Stage 2). No React, no fetch: unit-testable logic only.
  *
- * Everything here is driven by the callable contract (FRONTEND_CONTRACT.md) and
+ * Everything here is driven by the callable contract (docs/development/contracts/FRONTEND_CONTRACT.md) and
  * its "Claude UI Phase 1 Decisions" (PM-1 … PM-7). Unknown enum values and
  * malformed shapes fail closed via {@link ContractMismatchError} rather than
  * being coerced into a healthy/valid state.
@@ -247,7 +247,7 @@ export function validateUnitDeclaration(value: unknown): UnitDeclaration {
     return { scope: value.scope, scopeReference, status: 'unresolved', currency: null, unit: null }
   }
   // UI Stage 6 browser evidence: the real backend's resolved response omits
-  // `status` entirely (only the unresolved example in FRONTEND_CONTRACT.md
+  // `status` entirely (only the unresolved example in docs/development/contracts/FRONTEND_CONTRACT.md
   // carries `status: "unresolved"`). Detect "resolved" by the absence of the
   // unresolved marker rather than requiring a literal `status: "resolved"`
   // the backend never sends. An explicit, unrecognized status still fails

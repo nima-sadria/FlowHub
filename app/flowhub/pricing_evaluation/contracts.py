@@ -61,7 +61,7 @@ class DerivedOperator(StrEnum):
     """Closed set of typed derived operators.
 
     Every member is directly evidenced by
-    ``docs/architecture/APPENDIX_A_FORMULA_CLASSIFICATION.md`` (the
+    ``docs/evidence/architecture/APPENDIX_A_FORMULA_CLASSIFICATION.md`` (the
     authoritative production-workbook formula-shape inventory). No operator
     exists here that is not required by that evidence:
 
