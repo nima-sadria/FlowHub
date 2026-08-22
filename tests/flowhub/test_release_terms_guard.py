@@ -16,10 +16,14 @@ TERMS = [
 ]
 TEST_ONLY_ALLOWED = {"mo" + "ck"}
 SKIP_PREFIXES = (
+    # Historical evidence, archives, and cleanup-review diagrams preserve
+    # repository history; they are not production assets.
+    "docs/archive/",
+    "docs/documentation-cleanup/",
+    "docs/evidence/",
     "frontend/node_modules/",
     "frontend/e2e/",
     "tests/",
-    "docs/evidence/architecture/",
 )
 SKIP_SUFFIXES = (
     ".css",
