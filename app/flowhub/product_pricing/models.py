@@ -59,11 +59,18 @@ class ProductPriceOperationItem(FlowHubBase):
     connector_type: Mapped[str] = mapped_column(String(80), nullable=False)
     channel_product_id: Mapped[str] = mapped_column(String(255), nullable=False)
     sku: Mapped[str] = mapped_column(String(160), nullable=False, default="")
-    current_value: Mapped[float] = mapped_column(Float, nullable=False)
-    proposed_value: Mapped[float] = mapped_column(Float, nullable=False)
+    # "price" (default, backward compatible) | "stock" | "status". Price and
+    # Stock QTY are numeric and use current_value/proposed_value/outbound_value;
+    # Stock Status is a canonical instock/outofstock string and uses
+    # current_status_value/proposed_status_value instead.
+    field: Mapped[str] = mapped_column(String(20), nullable=False, default="price")
+    current_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    proposed_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    current_status_value: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    proposed_status_value: Mapped[str | None] = mapped_column(String(40), nullable=True)
     currency: Mapped[str] = mapped_column(String(12), nullable=False, default="")
     unit: Mapped[str] = mapped_column(String(24), nullable=False, default="")
-    outbound_value: Mapped[float] = mapped_column(Float, nullable=False)
+    outbound_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     outbound_unit: Mapped[str] = mapped_column(String(24), nullable=False, default="")
     stale_token: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(40), nullable=False, default="pending", index=True)

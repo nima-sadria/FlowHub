@@ -8,6 +8,7 @@ import { NotificationProvider } from '../notifications/NotificationProvider'
 import { ServiceProvider, type Services } from '../services/ServiceContext'
 import type {
   Product,
+  ProductChannelFieldState,
   ProductChannelPriceOperation,
   ProductChannelPriceStateSet,
 } from '../services/types'
@@ -27,6 +28,15 @@ const PRODUCT: Product = {
   categoryNames: ['Default'], productType: 'simple', connectorId: 'woocommerce:primary',
 }
 
+function field(overrides: Partial<ProductChannelFieldState> = {}): ProductChannelFieldState {
+  return {
+    canWrite: true, validationState: 'valid', validationMessage: null,
+    currentValue: null, proposedValue: null, currency: '', unit: '',
+    outboundValue: null, outboundUnit: '', pendingChange: false,
+    ...overrides,
+  }
+}
+
 const CHANNEL_STATE: ProductChannelPriceStateSet = {
   product: { id: '101', name: 'Cached Product', sku: 'SKU-101', productType: 'simple' },
   version: 'v1',
@@ -35,18 +45,22 @@ const CHANNEL_STATE: ProductChannelPriceStateSet = {
     {
       channelId: 'woocommerce:primary', channelName: 'WooCommerce', connectorType: 'woocommerce',
       channelProductId: 'wc-101', sku: 'SKU-101', connectionState: 'connected', healthStatus: 'ok',
-      canRead: true, canWrite: true, readOnly: false, writeCapability: 'products.write_price',
-      currentValue: 100, proposedValue: 100, currency: 'EUR', unit: 'EUR', normalizedValue: 100,
-      normalizedCurrency: 'EUR', normalizedUnit: 'EUR', freshness: 'fresh', lastSyncedAt: null,
-      validationState: 'valid', validationMessage: null, pendingChange: false, staleToken: 'wc-token-1',
+      freshness: 'fresh', lastSyncedAt: null, staleToken: 'wc-token-1',
+      fields: {
+        price: field({ currentValue: 100, proposedValue: 100, currency: 'EUR', unit: 'EUR' }),
+        stock: field({ currentValue: 5, proposedValue: 5, unit: 'units' }),
+        status: field({ currentValue: 'instock', proposedValue: 'instock' }),
+      },
     },
     {
       channelId: 'snappshop:main', channelName: 'Snapp Shop', connectorType: 'snappshop',
       channelProductId: '', sku: '', connectionState: 'disconnected', healthStatus: 'unknown',
-      canRead: true, canWrite: false, readOnly: true, writeCapability: 'products.write_price',
-      currentValue: null, proposedValue: null, currency: 'IRR', unit: 'toman', normalizedValue: null,
-      normalizedCurrency: 'IRR', normalizedUnit: 'rial', freshness: 'missing', lastSyncedAt: null,
-      validationState: 'disconnected', validationMessage: 'Channel has no synchronized product row.', pendingChange: false, staleToken: 'missing',
+      freshness: 'missing', lastSyncedAt: null, staleToken: 'missing',
+      fields: {
+        price: field({ canWrite: false, validationState: 'disconnected', validationMessage: 'Channel has no synchronized product row.', currency: 'IRR', unit: 'TOMAN' }),
+        stock: field({ canWrite: false, validationState: 'disconnected', validationMessage: 'Channel has no synchronized product row.', unit: 'units' }),
+        status: field({ canWrite: false, validationState: 'read_only', validationMessage: 'Channel does not support writing this field.' }),
+      },
     },
   ],
   dryRunRequired: true,
@@ -60,8 +74,8 @@ const OPERATION: ProductChannelPriceOperation = {
   summary: { total: 1, pending: 1, success: 0, failed: 0, external_write_performed: false },
   items: [{
     id: 1, channelId: 'woocommerce:primary', connectorType: 'woocommerce', channelProductId: 'wc-101',
-    sku: 'SKU-101', currentValue: 100, proposedValue: 120, currency: 'EUR', unit: 'EUR',
-    outboundValue: 120, outboundUnit: 'store currency', staleToken: 'wc-token-1', status: 'pending',
+    sku: 'SKU-101', field: 'price', currentValue: 100, proposedValue: 120, currency: 'EUR', unit: 'EUR',
+    outboundValue: 120, outboundUnit: 'EUR', staleToken: 'wc-token-1', status: 'pending',
     validationState: 'valid', errorMessage: null, result: {},
   }],
   externalWritePerformed: false, applyRequiresApproval: true,
@@ -91,7 +105,7 @@ describe('Products manual Channel editor', () => {
     expect(getProducts).toHaveBeenCalledWith({ search: '', status: 'all', page: 1, pageSize: 50 })
   })
 
-  it('opens the manual channel editor for a selected product without running Source comparison or auto-selection', async () => {
+  it('opens the manual channel editor for a selected product with Price, Stock QTY, and Stock Status per channel, without running Source comparison or auto-selection', async () => {
     const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
     const getChannelPrices = vi.fn(async () => CHANNEL_STATE)
     await renderProducts(servicesFor({ getProducts, getChannelPrices }))
@@ -100,11 +114,28 @@ describe('Products manual Channel editor', () => {
     await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
 
     expect(getChannelPrices).toHaveBeenCalledWith('101')
-    expect(container.querySelector('[data-channel-row="woocommerce:primary"]')).not.toBeNull()
+    const wooRow = container.querySelector('[data-channel-row="woocommerce:primary"]')
+    expect(wooRow).not.toBeNull()
+    expect(wooRow?.querySelector('[data-field-cell="price"] input')).not.toBeNull()
+    expect(wooRow?.querySelector('[data-field-cell="stock"] input')).not.toBeNull()
+    expect(wooRow?.querySelector('[data-field-cell="status"] select')).not.toBeNull()
     expect(container.querySelector('[data-channel-row="snappshop:main"]')).not.toBeNull()
   })
 
-  it('runs validate -> Dry Run -> Approve -> Apply as an explicit safe-write sequence', async () => {
+  it('never renders write controls for a field the channel genuinely cannot write (SnappShop has no Stock Status capability)', async () => {
+    const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
+    const getChannelPrices = vi.fn(async () => CHANNEL_STATE)
+    await renderProducts(servicesFor({ getProducts, getChannelPrices }))
+    await waitFor(() => container.querySelector('[data-open-channel-editor="101"]') !== null)
+    await click('Cached Product')
+    await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
+
+    const snappRow = container.querySelector('[data-channel-row="snappshop:main"]')
+    expect(snappRow?.querySelector('[data-field-cell="status"] select')).toBeNull()
+    expect(snappRow?.querySelector('[data-field-cell="status"]')?.textContent).toContain('does not support')
+  })
+
+  it('runs validate -> Dry Run -> Approve -> Apply as an explicit safe-write sequence for a Price edit', async () => {
     const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
     const getChannelPrices = vi.fn(async () => CHANNEL_STATE)
     const validateChannelPrices = vi.fn(async () => CHANNEL_STATE)
@@ -119,20 +150,20 @@ describe('Products manual Channel editor', () => {
     await click('Cached Product')
     await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
 
-    const input = container.querySelector('[data-channel-row="woocommerce:primary"] input') as HTMLInputElement
+    const input = container.querySelector('[data-channel-row="woocommerce:primary"] [data-field-cell="price"] input') as HTMLInputElement
     expect(input).not.toBeNull()
     await act(async () => { setInputValue(input, '120'); await Promise.resolve() })
 
     await click('Validate')
     expect(validateChannelPrices).toHaveBeenCalledWith('101', {
       version: 'v1',
-      changes: [{ channelId: 'woocommerce:primary', proposedValue: 120, unit: 'EUR', staleToken: 'wc-token-1' }],
+      changes: [{ channelId: 'woocommerce:primary', field: 'price', proposedValue: 120, unit: 'EUR', staleToken: 'wc-token-1' }],
     })
 
     await click('Dry Run')
     expect(createChannelPriceDryRun).toHaveBeenCalledWith('101', {
       version: 'v1',
-      changes: [{ channelId: 'woocommerce:primary', proposedValue: 120, unit: 'EUR', staleToken: 'wc-token-1' }],
+      changes: [{ channelId: 'woocommerce:primary', field: 'price', proposedValue: 120, unit: 'EUR', staleToken: 'wc-token-1' }],
     })
     await waitFor(() => container.textContent?.includes('dry_run_ready') === true)
 
@@ -143,6 +174,48 @@ describe('Products manual Channel editor', () => {
     await click('Apply')
     expect(applyChannelPriceOperation).toHaveBeenCalledWith('mcp_1')
     await waitFor(() => container.textContent?.includes('applied') === true)
+  })
+
+  it('submits a Stock QTY edit with field "stock" and a numeric value', async () => {
+    const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
+    const getChannelPrices = vi.fn(async () => CHANNEL_STATE)
+    const createChannelPriceDryRun = vi.fn(async () => OPERATION)
+    await renderProducts(servicesFor({ getProducts, getChannelPrices, createChannelPriceDryRun }))
+    await waitFor(() => container.querySelector('[data-open-channel-editor="101"]') !== null)
+    await click('Cached Product')
+    await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
+
+    const input = container.querySelector('[data-channel-row="woocommerce:primary"] [data-field-cell="stock"] input') as HTMLInputElement
+    await act(async () => { setInputValue(input, '12'); await Promise.resolve() })
+    await click('Dry Run')
+
+    expect(createChannelPriceDryRun).toHaveBeenCalledWith('101', {
+      version: 'v1',
+      changes: [{ channelId: 'woocommerce:primary', field: 'stock', proposedValue: 12, unit: 'units', staleToken: 'wc-token-1' }],
+    })
+  })
+
+  it('submits a Stock Status edit with field "status" and a canonical string value', async () => {
+    const getProducts = vi.fn(async () => ({ items: [PRODUCT], total: 1, page: 1, pageSize: 50, configured: true }))
+    const getChannelPrices = vi.fn(async () => CHANNEL_STATE)
+    const createChannelPriceDryRun = vi.fn(async () => OPERATION)
+    await renderProducts(servicesFor({ getProducts, getChannelPrices, createChannelPriceDryRun }))
+    await waitFor(() => container.querySelector('[data-open-channel-editor="101"]') !== null)
+    await click('Cached Product')
+    await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
+
+    const select = container.querySelector('[data-channel-row="woocommerce:primary"] [data-field-cell="status"] select') as HTMLSelectElement
+    await act(async () => {
+      select.value = 'outofstock'
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+      await Promise.resolve()
+    })
+    await click('Dry Run')
+
+    expect(createChannelPriceDryRun).toHaveBeenCalledWith('101', {
+      version: 'v1',
+      changes: [{ channelId: 'woocommerce:primary', field: 'status', proposedValue: 'outofstock', unit: '', staleToken: 'wc-token-1' }],
+    })
   })
 
   it('surfaces a stale-conflict as a distinct, reloadable state instead of a generic error', async () => {
@@ -156,7 +229,7 @@ describe('Products manual Channel editor', () => {
     await click('Cached Product')
     await waitFor(() => container.querySelector('[data-channel-editor="101"]') !== null)
 
-    const input = container.querySelector('[data-channel-row="woocommerce:primary"] input') as HTMLInputElement
+    const input = container.querySelector('[data-channel-row="woocommerce:primary"] [data-field-cell="price"] input') as HTMLInputElement
     await act(async () => { setInputValue(input, '120'); await Promise.resolve() })
     await click('Dry Run')
     await waitFor(() => container.textContent?.includes('Try again') === true)

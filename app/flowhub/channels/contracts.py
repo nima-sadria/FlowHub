@@ -17,6 +17,7 @@ class ChannelCapability(str, Enum):
     PRODUCTS_READ = "products.read"
     PRODUCTS_WRITE_PRICE = "products.write_price"
     PRODUCTS_WRITE_STOCK = "products.write_stock"
+    PRODUCTS_WRITE_STATUS = "products.write_status"
     PRODUCTS_WRITE_DISCOUNT = "products.write_discount"
     PRODUCTS_WRITE_CAPACITY = "products.write_capacity"
     ORDERS_READ = "orders.read"

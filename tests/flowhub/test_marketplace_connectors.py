@@ -127,12 +127,24 @@ def test_unsupported_capability_is_structured_and_not_retryable():
     assert error.retry.safe_to_retry is False
 
 
-def test_default_registry_keeps_marketplace_capabilities_explicit_and_woocommerce_price_only():
+def test_default_registry_keeps_marketplace_capabilities_explicit_and_verified():
     registry = default_marketplace_registry()
 
     assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_READ) is True
     assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_WRITE_PRICE) is True
-    assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_WRITE_STOCK) is False
+    # WooCommerceConnector.update_fields() genuinely writes stock_quantity and
+    # stock_status via the REST API (verified against the connector and
+    # against the Workspace engine's own WooCommerceWorkspaceConnector,
+    # which declares write_stock=write_status=True) -- not a hardcoded/
+    # price-only channel.
+    assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_WRITE_STOCK) is True
+    assert registry.supports("woocommerce:primary", ChannelCapability.PRODUCTS_WRITE_STATUS) is True
+    # SnappShop/TapsiShop/Technolife's shared ChannelProductUpdate contract
+    # has no stock-status field at all, matching the Workspace engine's
+    # write_status=False for all three -- genuinely unsupported, not omitted.
+    assert registry.supports("snappshop:main", ChannelCapability.PRODUCTS_WRITE_STATUS) is False
+    assert registry.supports("tapsishop:main", ChannelCapability.PRODUCTS_WRITE_STATUS) is False
+    assert registry.supports("technolife:main", ChannelCapability.PRODUCTS_WRITE_STATUS) is False
     assert registry.get_definition("snappshop:main").implemented is True
     assert registry.supports("snappshop:main", ChannelCapability.PRODUCTS_WRITE_STOCK) is True
     assert registry.get_definition("tapsishop:main").implemented is True

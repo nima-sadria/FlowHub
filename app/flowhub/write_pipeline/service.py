@@ -891,6 +891,19 @@ class WritePipelineService:
         typed_cache = cache
         identity = f"{item.channel_id}:{item.channel_product_id}"
         listing_id = listing.id if listing is not None else identity
+        field = getattr(item, "field", None) or "price"
+        from app.flowhub.product_pricing.service import _price as _cache_price
+
+        current_price_value = _cache_price(typed_cache)
+        current_stock_value = (
+            float(typed_cache.stock_qty)
+            if typed_cache is not None and typed_cache.stock_qty is not None
+            else None
+        )
+        current_status_value = typed_cache.stock_status if typed_cache is not None else None
+        target_price = item.outbound_value if field == "price" else None
+        target_stock = item.outbound_value if field == "stock" else None
+        target_status = item.proposed_status_value if field == "status" else None
         payload = {
             "operation_id": item.operation_id,
             "source_workflow": "product_pricing",
@@ -898,9 +911,11 @@ class WritePipelineService:
             "listing_id": listing_id,
             "external_primary_id": item.channel_product_id,
             "sku": item.sku or None,
-            "field_changes": {"price": item.proposed_value},
+            "field_changes": {
+                field: item.proposed_status_value if field == "status" else item.proposed_value
+            },
             "normalized_target": {
-                "price": item.outbound_value,
+                field: item.outbound_value if field != "status" else item.proposed_status_value,
                 "currency": item.currency,
                 "unit": item.outbound_unit,
             },
@@ -929,16 +944,12 @@ class WritePipelineService:
             sku=item.sku or None,
             product_type="simple",
             parent_external_id=None,
-            current_price=item.current_value,
-            current_stock=(
-                float(typed_cache.stock_qty)
-                if typed_cache is not None and typed_cache.stock_qty is not None
-                else None
-            ),
-            current_status=typed_cache.stock_status if typed_cache is not None else None,
-            target_price=item.outbound_value,
-            target_stock=None,
-            target_status=None,
+            current_price=current_price_value,
+            current_stock=current_stock_value,
+            current_status=current_status_value,
+            target_price=target_price,
+            target_stock=target_stock,
+            target_status=target_status,
             currency=item.currency,
             unit=item.outbound_unit,
             mapping_version=0,

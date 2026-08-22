@@ -224,6 +224,25 @@ export interface PaginatedResult<T> {
 
 export type ChannelPriceValidationState = 'valid' | 'error' | 'read_only' | 'disconnected'
 export type ChannelPriceOperationStatus = 'dry_run_ready' | 'approved' | 'applied' | 'partially_failed' | 'failed' | 'reconciliation_required'
+export type ProductChannelField = 'price' | 'stock' | 'status'
+
+export interface ProductChannelFieldState {
+  canWrite: boolean
+  validationState: ChannelPriceValidationState
+  validationMessage: string | null
+  currentValue: number | string | null
+  proposedValue: number | string | null
+  currency: string
+  unit: string
+  outboundValue: number | string | null
+  outboundUnit: string
+  pendingChange: boolean
+  // Price only: cross-currency comparison aid (e.g. SnappShop TOMAN -> RIAL).
+  // Never authoritative for comparison, checksum, or write.
+  normalizedValue?: number | null
+  normalizedCurrency?: string
+  normalizedUnit?: string
+}
 
 export interface ProductChannelPriceState {
   channelId: string
@@ -233,25 +252,10 @@ export interface ProductChannelPriceState {
   sku: string
   connectionState: string
   healthStatus: string
-  canRead: boolean
-  canWrite: boolean
-  readOnly: boolean
-  writeCapability: string
-  currentValue: number | null
-  proposedValue: number | null
-  currency: string
-  unit: string
-  normalizedValue: number | null
-  normalizedCurrency: string
-  normalizedUnit: string
   freshness: string
   lastSyncedAt: string | null
-  outboundValue?: number | null
-  outboundUnit?: string
-  validationState: ChannelPriceValidationState
-  validationMessage: string | null
-  pendingChange: boolean
   staleToken: string
+  fields: Record<ProductChannelField, ProductChannelFieldState>
 }
 
 export interface ProductChannelPriceStateSet {
@@ -280,8 +284,9 @@ export interface ProductChannelPriceStateSet {
 
 export interface ProductChannelPriceChange {
   channelId: string
-  proposedValue: number
-  unit: string
+  field: ProductChannelField
+  proposedValue: number | string
+  unit?: string
   staleToken: string
   specialPrice?: number | null
 }
@@ -297,11 +302,12 @@ export interface ProductChannelPriceOperationItem {
   connectorType: string
   channelProductId: string
   sku: string
-  currentValue: number
-  proposedValue: number
+  field: ProductChannelField
+  currentValue: number | string | null
+  proposedValue: number | string | null
   currency: string
   unit: string
-  outboundValue: number
+  outboundValue: number | string | null
   outboundUnit: string
   staleToken: string
   status: string
