@@ -68,6 +68,15 @@ above — `/workspace/:workspaceId` (`frontend/src/pages/UnifiedWorkspace.tsx`)
 and its Handsontable grid — is untouched by this change and remains a
 separate, not-yet-resolved cleanup.
 
+**Superseded by OD-008 (2026-08-22):** the `/workspace` → `/products`
+redirect described immediately above was itself later found to conflict
+with an explicit, repeated Owner architecture rule and was reverted as
+part of OD-008's Products/Workspace product split. `/products` is no
+longer "the canonical Unified Workspace UI" — see OD-008 for the current,
+final architecture. This entry is kept for its historical record of the
+legacy `app/flowhub/api/v2/workspace.py`/`price_workflow.py` removal,
+which remains correct and unaffected by OD-008.
+
 ### OD-005: Unified Apply confirmation and operation evidence
 
 The unified UI currently saves selected Review items and immediately submits
@@ -98,6 +107,74 @@ re-verified fresh by the server both before Apply job creation and again
 immediately before dispatch. `POST /{workspace_id}/apply` requires
 `manifest_id` and `expected_manifest_checksum` in addition to the existing
 `expected_selection_checksum`.
+
+### OD-008: Products/Workspace product split (final architecture)
+
+A 2026-08-22 reconciliation review found that OD-004's "Unified Workspace
+is canonical, reachable at `/products`" framing — and the subsequent
+`/workspace` → `/products` redirect it led to — directly contradicted an
+explicit, repeated Owner instruction: Workspace must remain a first-class,
+independent product concept, and must never be reduced to `/products` or
+a redirect to it.
+
+**Decision:** `/products` and `/workspace` are two separate product
+surfaces with two separate business responsibilities, not one UI reused
+two ways:
+
+- **`/products` — Manual Channel Editor.** The Owner directly edits
+  supported Channel fields (Price, Stock QTY, Stock Status; Name/SKU/
+  Description are not currently supported by any connector's write path,
+  and are correctly not exposed rather than presented as working). No Source comparison,
+  no auto-selection, no Workspace warnings/blockers, no Dry Run, no Apply
+  Manifest. Still gated by full technical/security controls: auth,
+  permission, connector capability, provider validation, confirmation,
+  safe write, verification, audit.
+- **`/workspace` — Automated Source-to-Channel Pricing Reconciliation.**
+  The full canonical pipeline: Normalize → Preview → Auto-selection →
+  Review → Dry Run → Verified Write Set → Apply Manifest → Apply →
+  Verify → Audit/Reconcile. This is where every Workspace business rule
+  (identity matching, Change Badge classification, Price/Quantity/Status
+  precedence, warnings/blockers, eligibility/actionability) applies. None
+  of it applies to `/products`.
+- **Shared infrastructure, not shared UI or business logic**: Channel
+  Listings, Channel cache/current-state data, connectors, identity
+  resolution, permissions, write pipeline primitives, verification, and
+  audit/reconciliation infrastructure may be reused by both surfaces.
+  There is exactly one canonical Workspace business engine
+  (`app/flowhub/unified_workspace/`); it is not duplicated.
+
+**Implementation consequence:**
+- Phase 1 (PR #22): `/workspace` renders a real page
+  (`frontend/src/pages/Workspace.tsx`) mounting the existing canonical
+  automation engine (`DensePricingWorkspace.tsx` + the
+  `unified_workspace` backend) — no redirect.
+- Phase 2 (PR #23): `/products` (`frontend/src/pages/Products.tsx`)
+  rebuilt as the Manual Channel Editor against the pre-existing,
+  previously-orphaned `ProductPricingService`/`ApiProductService`
+  backend, fully detached from `unified_workspace`.
+- P1-1 (PR #24): `ProductPricingService` generalized from a
+  Price-only/3-hardcoded-channel service to real channel enumeration
+  (via the marketplace capability registry) and Price/Stock QTY/Stock
+  Status, with field/channel capability accuracy verified against each
+  connector's actual write method, not assumed.
+- Phase 3: the dead Handsontable `/workspace/:workspaceId` grid
+  (`frontend/src/pages/UnifiedWorkspace.tsx` and its page-only supporting
+  modules) removed — see `WORKSPACE_GAP_ANALYSIS.md` CLS-015/WS-001 and
+  `WORKSPACE_IMPLEMENTATION_PHASES.md` Phase 3 for the disposition.
+
+**Migration requirement:** None — this is a routing/UI-composition change
+plus the additive `FLOWHUB_045` migration already covered under P1-1;
+no schema change was required for the route split itself.
+
+**Test and rollout gate:** Existing PR-level CI (`architecture-guard`,
+`frontend`, `postgres-safety`) for each phase; full detail and evidence
+in `docs/workspace-adoption/WORKSPACE_CANONICAL_OWNER_SPEC_2026-08-22.md`,
+`WORKSPACE_RECONCILIATION_AUDIT_2026-08-22.md`, and
+`WORKSPACE_CORRECTION_PLAN_2026-08-22.md`.
+
+**Provider writes:** Unaffected — remain gated by existing Apply safety
+checks in both `/products` and `/workspace`; this decision is routing/UI
+architecture only, not a change to write safety.
 
 ### OD-007: Reference specification publication
 
@@ -133,12 +210,15 @@ New decisions must identify:
 ## Audit Disposition
 
 The authorization contract and all small/medium integration findings are
-resolved. OD-004, OD-005, and OD-007 are approved; the Apply Manifest
-feature (OD-005) is implemented against the canonical Unified Workspace
-surface identified under OD-004, and the legacy `/workspace` backend and
-frontend surface OD-004 left as a separate future decision is now removed
-(the `/workspace/:workspaceId` dead Handsontable grid remains a separate,
-still-open item). Until OD-006 is decided:
+resolved. OD-004, OD-005, OD-007, and OD-008 are approved. OD-004's
+original "Unified Workspace canonical at `/products`" framing is
+superseded by OD-008's Products/Workspace split (see OD-004's "Superseded
+by OD-008" note); the Apply Manifest feature (OD-005) is unaffected by
+that split and remains implemented against the one canonical Workspace
+engine. The legacy `/workspace` backend/frontend surface OD-004 removed is
+still correctly removed; the `/workspace/:workspaceId` dead Handsontable
+grid — OD-004's other named leftover — is now also removed under OD-008
+Phase 3. Until OD-006 is decided:
 
 - keep legacy permission aliases in `/api/auth/me`;
 - do not remove `can_fetch`/`can_apply`/related aliases.

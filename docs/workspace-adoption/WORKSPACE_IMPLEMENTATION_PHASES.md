@@ -94,8 +94,10 @@ Validation:
 ## Phase 3: Canonical Workspace UX
 
 **Status:** Apply Manifest feature complete (PR #12, `5277706`); Phase B
-badge-completeness and legacy-route removal complete (see below). OD-004 and
-OD-005 are approved and both implemented.
+badge-completeness and legacy-route removal complete (see below). OD-004,
+OD-005, and OD-008 are approved and implemented. OD-008's Products/Workspace
+product split (2026-08-22) resolves the dead Handsontable grid this
+section previously listed as open.
 
 **Apply Manifest feature** — an immutable, checksummed
 `ApplyManifest`/`ApplyManifestOperation` pair generated when a Review
@@ -125,17 +127,48 @@ follow-ups.
 backend router (`app/flowhub/api/v2/workspace.py`), its service
 (`price_workflow.py`), the dead frontend page and its dedicated client
 service, and the now-orphaned `IntegrationPlatformService` summary/preview
-methods are deleted. `/workspace` still redirects to `/products` for
-bookmarked URLs (`d49d0e4`, unchanged).
+methods are deleted (`d49d0e4`/`e16e7e9`). `/workspace` no longer redirects
+to `/products` — see the Products/Workspace product split below (OD-008),
+which superseded that redirect.
+
+**Products/Workspace product split (OD-008, 2026-08-22)** — a
+reconciliation review found the `/workspace` → `/products` redirect above
+directly contradicted an explicit, repeated Owner architecture rule:
+Workspace must remain a first-class, independent product, never reduced
+to `/products` or a redirect to it. Resolved by making `/products` and
+`/workspace` two genuinely separate surfaces — `/products` the Manual
+Channel Editor (no Workspace automation), `/workspace` the automated
+Source-to-Channel reconciliation engine (the full canonical pipeline) —
+sharing only low-level infrastructure, never business logic. Delivered in
+four steps: Phase 1 gave `/workspace` its own real page mounting the
+existing automation engine (PR #22); Phase 2 rebuilt `/products` against
+the pre-existing, previously-orphaned `ProductPricingService` backend,
+fully detached from `unified_workspace` (PR #23); a P1 item generalized
+that backend from Price-only/3-hardcoded-channels to real channel
+enumeration and Price/Stock QTY/Stock Status (PR #24); Phase 3 removed
+the dead Handsontable `/workspace/:workspaceId` grid
+(`frontend/src/pages/UnifiedWorkspace.tsx` and its page-only supporting
+modules — `gridModel`, `handsontableIdentity`, `handsontableLicense`,
+`statusDisplay`, `useUnifiedWorkspaceController`), the *other* dead
+surface OD-004 had left open. `/workspace/:workspaceId` now redirects to
+`/workspace?workspace=:id` for bookmarked links, resolved by the real
+page's own resume mechanism. Full detail:
+`docs/workspace-adoption/WORKSPACE_OWNER_DECISIONS.md` OD-008,
+`WORKSPACE_CANONICAL_OWNER_SPEC_2026-08-22.md`,
+`WORKSPACE_RECONCILIATION_AUDIT_2026-08-22.md`, and
+`WORKSPACE_CORRECTION_PLAN_2026-08-22.md`.
 
 Remaining potential work after this item:
 
-- `/workspace/:workspaceId`'s dead `UnifiedWorkspace.tsx` Handsontable grid
-  (the *other* surface named in OD-004) is untouched and remains open.
 - Align stale, cancelled, blocked, partial, and reconciliation state naming
   across entry points (WS-004).
 - The deferred Phase B badge-completeness gaps above (CLS-006 through
   CLS-013).
+- Orphaned `unifiedWorkspace.*`-prefixed i18n keys (translation copy for
+  the now-deleted Handsontable grid) were left in place — the i18n
+  validator does not flag unused keys, and pruning them individually was
+  judged lower-value than the architecture work itself; noted here rather
+  than silently left undocumented.
 
 Safety gate:
 

@@ -39,7 +39,7 @@ import {
 } from '../pricingWorkspace'
 import { channelIdentitySignals, prepareResourceCollection, sourceChannelSignals } from '../resourceOrdering/resourceOrdering'
 import { formatSourceChannelDisplayName } from '../unifiedWorkspace/channelDisplayName'
-import { workspaceApplyIdempotencyKey } from '../unifiedWorkspace/useUnifiedWorkspaceController'
+import { workspaceApplyIdempotencyKey } from '../unifiedWorkspace/applyIdempotencyKey'
 import { inputHint } from '../../utils/inputHint'
 import { formatMoney, formatPercentageDelta } from '../../utils/price'
 import { sourceWorkspaceApi } from './api'

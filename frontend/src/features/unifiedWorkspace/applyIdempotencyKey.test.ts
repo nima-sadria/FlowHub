@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { workspaceApplyIdempotencyKey } from './useUnifiedWorkspaceController'
+import { workspaceApplyIdempotencyKey } from './applyIdempotencyKey'
 
 describe('bounded Apply identity', () => {
   it.each([1, 6, 500, 10_000])('stays fixed length for %i selected items', async count => {
