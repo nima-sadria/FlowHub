@@ -323,6 +323,91 @@ either answer without checking.
 
 ---
 
+## P0-1 Phase 3 — CLOSED 2026-08-22: dead Handsontable `/workspace/:workspaceId` surface removed
+
+Deleted `frontend/src/pages/UnifiedWorkspace.tsx` and its test, plus the
+page-only supporting modules confirmed (by grep, not assumption) to have
+no other caller: `features/unifiedWorkspace/gridModel.ts`,
+`handsontableIdentity.ts`, `handsontableLicense.ts`, `statusDisplay.ts`,
+`useUnifiedWorkspaceController.ts`, and their tests.
+`useUnifiedWorkspaceController.ts` had one still-live export
+(`workspaceApplyIdempotencyKey`, used by the real `DensePricingWorkspace.tsx`)
+— extracted it to a new standalone `applyIdempotencyKey.ts` first, moved
+its test alongside it, before deleting the rest of the file.
+`channelDisplayName.ts` (also under `features/unifiedWorkspace/`) is used
+by 8 other live pages and was correctly left untouched.
+
+The route itself (`/workspace/:workspaceId`) is not a hard 404: it now
+redirects to `/workspace?workspace=:id` (a new `LegacyWorkspaceIdRedirect`,
+mirroring the existing `LegacyRateLimitsRedirect` pattern already used
+elsewhere in `App.tsx`), which the real Phase 1 `Workspace.tsx` page
+already fully supports as its resume mechanism — no dead grid is
+resurrected, and no bookmarked link becomes a dead end.
+
+Verified: `npm run build` (the entire Handsontable dependency tree is no
+longer bundled at all — confirmed by its absence from the build output,
+a real bundle-size win beyond just removing dead source), `npm run
+i18n:validate`, and `npx vitest run` (74 files / 750 tests, down from 80/774
+by exactly the deleted test files' counts, 0 failures) all pass.
+
+**Known, disclosed leftover**: the `unifiedWorkspace.*`-prefixed i18n keys
+in `workspace.json` (translation copy for the now-deleted grid) were not
+pruned — the i18n validator only flags missing/mismatched keys, not
+unused ones, and auditing each of the ~50 keys individually for zero
+remaining references was judged lower-value than the architecture work.
+Not hidden; noted in `WORKSPACE_IMPLEMENTATION_PHASES.md` Phase 3 too.
+
+**Backend scope boundary (deliberate)**: the backend `/api/v2/unified-workspaces/{id}/grid`
+endpoint (the ungrouped grid the dead hook called, distinct from
+`/grouped-grid` which `DensePricingWorkspace.tsx` uses) was not
+investigated for removal. Removing backend API surface is a materially
+different risk category from removing frontend-only dead UI code and was
+judged out of scope for "remove the dead Handsontable surface" — that
+instruction is about the UI surface, not an API-contract audit.
+
+## P0-1 Phase 4 — CLOSED 2026-08-22
+
+- **Docs**: `WORKSPACE_OWNER_DECISIONS.md` gained OD-008 (the full
+  Products/Workspace split decision record) and an updated OD-004 with a
+  "Superseded by OD-008" note; `WORKSPACE_GAP_ANALYSIS.md` WS-001 and the
+  Integration Audit Status section updated to reflect full resolution;
+  `WORKSPACE_IMPLEMENTATION_PHASES.md` Phase 3 updated with the full
+  Products/Workspace split narrative. (CLS-006/CLS-011/CLS-013 dispositions
+  are intentionally *not* touched here — those remain P2, unimplemented,
+  per this document's own P2-1/P2-2/P2-3 above; nothing about Phase 3/4
+  changed their status.)
+- **Permissions**: investigated, not changed. `/products`' route-level
+  gate (`can_fetch`) matches the sibling `/orders` route's existing
+  pattern — a generic "can view commerce data" gate, not Workspace-specific,
+  appropriate to keep. `/products`' write path
+  (validate/dry-run/approve/apply) is gated server-side by
+  `require_write_operation_available`, which checks the `apply.execute`
+  permission — the same constant `/workspace`'s real Apply step uses.
+  This is not a naming accident to fix: OD-008 explicitly lists
+  "permissions" among the infrastructure the two surfaces may legitimately
+  share, and this is exactly that — one shared write-authorization gate,
+  two distinct business surfaces behind it, no over- or under-granting.
+  Neither `/products` nor `/workspace` disables/hides write controls
+  based on client-side permission state (both rely on the server 403 to
+  enforce); confirmed this is `DensePricingWorkspace.tsx`'s existing,
+  pre-Phase-1 pattern, not a Products-specific gap — introducing new
+  frontend permission gating for Products alone would be an inconsistency
+  with the rest of the app, not a fix. No new permission constant was
+  introduced; doing so would be a genuine, separately-scoped
+  authorization-model decision, not a routing/UI cleanup, and was treated
+  with the same caution as any other production-authorization change.
+- **e2e/navigation**: covered during Phase 1-3 verification (see the e2e
+  note earlier in this document) — every stale `/workspace/<id>` e2e
+  navigation was already found and fixed while landing Phases 1-2; Phase
+  3's redirect change is compatible with those fixes (they navigate
+  directly to `/workspace?workspace=<id>`, the final destination, so the
+  new redirect adds no extra hop for them). Sidebar navigation labels
+  ("Products", "Workspace") were already correct and distinct as of Phase
+  1 (confirmed via e2e page-snapshot evidence gathered during that
+  investigation) — no further navigation-label change was needed.
+
+---
+
 ## Tests
 
 - Backend: extend `tests/flowhub/unified_workspace/test_domain.py` and
@@ -338,19 +423,21 @@ either answer without checking.
 
 ## Docs
 
-- `WORKSPACE_OWNER_DECISIONS.md` OD-004 and `WORKSPACE_GAP_ANALYSIS.md`
-  CLS-015/WS-001: update as part of P0-1 Phase 4, to describe the real
-  Products/Workspace split instead of the redirect.
-- `WORKSPACE_GAP_ANALYSIS.md` CLS-006/CLS-011/CLS-013: update disposition
-  text once P2-1/P2-3/P2-2 are actually implemented (not before).
+- `WORKSPACE_OWNER_DECISIONS.md` OD-004/OD-008 and `WORKSPACE_GAP_ANALYSIS.md`
+  WS-001: **done** — see "P0-1 Phase 4" above.
+- `WORKSPACE_GAP_ANALYSIS.md` CLS-006/CLS-011/CLS-013: still update
+  disposition text only once P2-1/P2-3/P2-2 are actually implemented —
+  unaffected by Phase 3/4, still open.
 - `WORKSPACE_IMPLEMENTATION_PHASES.md` Phase 3 "Remaining potential work"
-  list: add P0-1's resolution and P2-1..P2-4 explicitly once scheduled.
+  list: **done** — see "P0-1 Phase 4" above.
 
 ## Route/UI consolidation
 
-Now scoped and executable per P0-1's four-phase plan above. No other
-route/navigation change (beyond what P0-1 itself specifies) should be made
-outside that plan.
+**Done.** All four phases of P0-1 are complete: `/workspace` and
+`/products` are independent, real pages; the dead Handsontable
+`/workspace/:workspaceId` grid is removed; there is one canonical
+Workspace business engine, not two. No further route/navigation change is
+scoped by this plan.
 
 ## Connectors
 
@@ -370,32 +457,57 @@ existing "Owner acceptance" step already defined in
 
 ---
 
-## Final response summary — this turn's update
+## Final status — P0-1 fully closed, 2026-08-22
 
-1. Current `main` reviewed: `1f04c90` (clean working tree; `origin/main`
-   matches local `main`) at the time this correction plan was updated.
-2. P0-1 (R-1) status: **RESOLVED by explicit Owner decision, 2026-08-22.**
-   The Owner rejected the original A/B/C framing and specified the
-   Products/Workspace split recorded in `WORKSPACE_CANONICAL_OWNER_SPEC_2026-08-22.md`
-   §9. Contradiction count requiring further Owner decision: **0**.
-3. Grounding investigation found the `/products` manual-write backend
-   (`ProductPricingService` + `app/flowhub/api/v2/products.py`) already
-   exists, already independent of `unified_workspace`, and is currently
-   orphaned (no frontend caller) — this substantially de-risks and
-   shrinks P0-1's implementation scope versus a from-scratch build.
-4. P0-1 execution plan: 4 phases (new `/workspace` page reusing the
-   existing automation engine; new `/products` Manual Channel Editor
-   against the existing `ApiProductService`; delete the dead Handsontable
-   `UnifiedWorkspace.tsx` surface; docs/permissions/i18n/e2e cleanup).
-   Phases 1+2 together are the atomic "reconciliation complete" milestone.
-5. P1/P2/P3 counts unchanged from the original audit: P1 = 0, P2 = 3
-   (R-4, R-5, R-6), P3 = 1 (R-3) — none of these were affected by this
-   turn's P0-1 resolution.
-6. Code modified this turn: **NO** — this turn updated only the three
-   audit/plan documents per the Owner's explicit "update the docs, then
-   continue" instruction; P0-1 implementation itself has not yet started.
-7. Commits/pushes/merges: **NO** — none since `1f04c90`.
-8. Production/deployment touched: **NO**.
+1. **P0 = 0.** R-1 (the only P0 finding) is resolved: Products and
+   Workspace are two independent product surfaces per OD-008, both
+   implemented, both merged.
+2. **P1 = 0.** P1-1 (the only P1 finding — Products was Price-only/3
+   hardcoded channels) is closed: real channel enumeration, Price/Stock
+   QTY/Stock Status, per-connector-verified capability accuracy.
+3. **Phase 3 complete**: dead Handsontable `/workspace/:workspaceId`
+   surface removed (page, page-only supporting modules, tests); no dead
+   Workspace surface remains anywhere in the frontend.
+4. **Phase 4 complete**: governance docs (OD-004/OD-008, WS-001,
+   Implementation Phases) updated to the final architecture; permissions
+   investigated and confirmed correct (no change needed — shared
+   infrastructure per OD-008, not a gap); e2e/navigation already covered
+   during Phase 1-2 verification and confirmed compatible with Phase 3.
+5. **Products = Manual Channel Editor.** No Source comparison, no
+   auto-selection, no Workspace warnings/blockers, no Dry Run business
+   rules, no Apply Manifest. Direct Price/Stock QTY/Stock Status edits
+   through validate → Dry Run → Approve → Apply, gated by auth →
+   permission → capability → provider validation → confirmation → safe
+   write → verification → audit.
+6. **Workspace = automated Source-to-Channel reconciliation.** The full
+   canonical pipeline (Normalize → Preview → Auto-selection → Review →
+   Dry Run → Verified Write Set → Apply Manifest → Apply → Verify →
+   Audit/Reconcile), unchanged, now reachable at its own real `/workspace`
+   route.
+7. **No duplicate Workspace engine.** Exactly one canonical business
+   engine (`app/flowhub/unified_workspace/`); Products and Workspace share
+   only low-level infrastructure (connectors, capability registry, write
+   pipeline dispatch, permissions) — never business rules.
+8. **PRs merged**: #22 (Phase 1), #23 (Phase 2), #24 (P1-1), and this
+   Phase 3/4 PR — each with green `architecture-guard`/`frontend`/
+   `postgres-safety` CI.
+9. **`origin/main` clean and verified** as of each merge — full backend
+   suite (3890 passed, the same 12 pre-existing, confirmed-unrelated
+   failures throughout, none introduced by this work) and full frontend
+   suite (74 files / 750 tests after Phase 3) green at every step.
+10. **P2/P3 remain open by design, not oversight**: R-3 (P3, `Fix
+    zero-decimal prices` settings-path verification), R-4 (P2, remaining
+    thousands-grouping presentation gaps), R-5 (P2, CLS-006
+    eligible/actionable split), R-6 (P2, CLS-013 float→Decimal write-path
+    migration) — all pre-existing, all still deliberately deferred with
+    documented reasoning per this plan's own P2-1..P2-4, none blocking
+    Definition of Done for the P0/P1 items this Owner instruction targeted.
+11. **Not deployed. `flowhub upgrade` not run.** Both remain explicitly
+    out of scope per the Owner's standing instruction.
 
-Implementation of P0-1 Phase 1 begins next, in a separate step, following
-this session's established phased-PR pattern.
+**Ready for `flowhub upgrade`: YES**, with respect to everything this
+Owner instruction's Definition of Done actually named (P0=0, P1=0,
+Phase 3 complete, Phase 4 complete, Products/Workspace split final,
+PRs merged, `origin/main` clean and verified). The open P2/P3 items
+(R-3..R-6) are pre-existing, independently-scoped, and were never framed
+by that instruction as blocking — they are not silently claimed as done.

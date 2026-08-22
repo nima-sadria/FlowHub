@@ -21,7 +21,7 @@
 
 | ID | Severity | Current behavior | Target behavior | Disposition |
 | --- | --- | --- | --- | --- |
-| WS-001 | P1 | Legacy `/workspace` and unified `/workspace/:id` coexist as separate user workflows | One canonical Workspace entry and lifecycle | Owner decided (OD-004): Unified Workspace is canonical. **Partially resolved in `e16e7e9`**: the legacy `/workspace` backend router/service and dead frontend page are removed entirely (see CLS-015); `/workspace/:id`'s dead `UnifiedWorkspace.tsx` Handsontable grid is untouched and remains open. |
+| WS-001 | P1 | Legacy `/workspace` and unified `/workspace/:id` coexist as separate user workflows | One canonical Workspace entry and lifecycle, per OD-008's Products/Workspace split | **Resolved.** The legacy `/workspace` backend router/service and dead frontend page were removed in `e16e7e9` (see CLS-015). OD-004's original "canonical Unified Workspace is reachable at `/products`" framing was superseded by OD-008 (2026-08-22): `/workspace` now renders its own real page (`frontend/src/pages/Workspace.tsx`, Phase 1) mounting the canonical automation engine directly — no redirect. `/workspace/:id`'s dead `UnifiedWorkspace.tsx` Handsontable grid (the other leftover this row named) is now also removed (Phase 3): the page, its page-only supporting modules (`gridModel`, `handsontableIdentity`, `handsontableLicense`, `statusDisplay`, `useUnifiedWorkspaceController`), and their tests are deleted; `workspaceApplyIdempotencyKey` (the one still-live export) was extracted to `applyIdempotencyKey.ts` first. `/workspace/:workspaceId` now redirects to `/workspace?workspace=:id` for bookmarked deep links, resolved by the real page's own resume mechanism, not a resurrected grid. |
 | WS-002 | P0 | Unified Apply button saves selection and immediately sends `confirmed: true` | Separate confirmation bound to exact approved Review/operation scope | Resolved in PR #12 (`5277706`, `0c652a8`, `724ff7a`): `apply_selected` requires `manifest_id` and `expected_manifest_checksum` (in addition to `expected_selection_checksum`), loads the persisted `ApplyManifest`/`ApplyManifestOperation` rows, and re-verifies the checksum before any write; the confirmation dialog displays and enforces it. Verified still present in current `main` (`git merge-base --is-ancestor` confirmed). |
 | WS-003 | P1 | Unified Review is the approval boundary, but no presentation contract identifies an exact operation manifest for confirmation | Persist or expose exact intended operations and checksum before confirmation | Resolved by the same Apply Manifest feature as WS-002. |
 | WS-004 | P1 | Legacy Workspace uses a separate Preview/Dry Run/Approval/Write Pipeline facade | Canonical state names and recovery behavior across entry points | Owner decision required |
@@ -127,10 +127,13 @@ turned 7 previously crashing/failing tests green.
 
 The authorization-contract HOLD is resolved. The page-by-page audit is
 complete and all non-architectural findings above are committed. WS-001
-through WS-003 are no longer HOLD: OD-004/OD-005 record the Owner's
-architecture decisions, WS-002/WS-003 are resolved (Apply Manifest feature,
-PR #12), and WS-001's legacy-route removal is resolved (CLS-015); the
-`/workspace/:id` dead Handsontable grid named in OD-004 remains untouched.
-WS-004 and WS-005 remain open (WS-004 explicitly needs an Owner decision on
-canonical state naming across entry points; WS-005 needs evidence on
-whether presentation preferences need a dedicated permission).
+through WS-003 are no longer HOLD: OD-004/OD-005/OD-008 record the
+Owner's architecture decisions, WS-002/WS-003 are resolved (Apply Manifest
+feature, PR #12), and WS-001 is now fully resolved: the legacy `/workspace`
+route removal (CLS-015) and the `/workspace/:id` dead Handsontable grid
+removal (OD-008 Phase 3) are both complete — no dead Workspace surface
+remains, and `/workspace` is a real, independent page (not a redirect to
+`/products`) per OD-008. WS-004 and WS-005 remain open (WS-004 explicitly
+needs an Owner decision on canonical state naming across entry points;
+WS-005 needs evidence on whether presentation preferences need a
+dedicated permission).

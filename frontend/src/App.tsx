@@ -1,7 +1,7 @@
 import { translate } from './i18n'
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router'
 import { AuthProvider, RequirePermission, AccessState, useAuth } from './auth'
 import { DirectionProvider } from './direction'
 import { ThemeProvider } from './theme/ThemeProvider'
@@ -48,7 +48,6 @@ const UserManagement = lazy(() => import('./pages/UserManagement'))
 const SourceCenter = lazy(() => import('./pages/SourceCenter'))
 const SourceConfiguration = lazy(() => import('./pages/SourceConfiguration'))
 const SourceImportWizard = lazy(() => import('./pages/SourceImportWizard'))
-const UnifiedWorkspace = lazy(() => import('./pages/UnifiedWorkspace'))
 const Workspace = lazy(() => import('./pages/Workspace'))
 import type { SetupStatus } from './api/types'
 
@@ -131,6 +130,24 @@ function RouteLoading() {
   )
 }
 
+/** The dead Handsontable /workspace/:workspaceId grid was removed (Phase 3
+ * of the Owner's Products/Workspace split); redirect any bookmarked deep
+ * link to the real Workspace page's own resume mechanism. */
+function LegacyWorkspaceIdRedirect() {
+  const { workspaceId = '' } = useParams()
+  const location = useLocation()
+  return (
+    <Navigate
+      replace
+      to={{
+        pathname: '/workspace',
+        search: `?workspace=${encodeURIComponent(workspaceId)}`,
+        hash: location.hash,
+      }}
+    />
+  )
+}
+
 function LegacyRateLimitsRedirect() {
   const location = useLocation()
   return (
@@ -204,7 +221,7 @@ function SetupGate() {
           <Route path="/docs/channels/:channelId" element={<RequirePermission permission="can_access_site"><ChannelDocs /></RequirePermission>} />
           <Route path="/commerce" element={<RequirePermission permission="can_access_site"><CommerceHub /></RequirePermission>} />
           <Route path="/workspace" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><Workspace /></RequirePermission>} />
-          <Route path="/workspace/:workspaceId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><UnifiedWorkspace /></RequirePermission>} />
+          <Route path="/workspace/:workspaceId" element={<RequirePermission permission={WORKSPACE_PERMISSION.read}><LegacyWorkspaceIdRedirect /></RequirePermission>} />
           <Route path="/activity" element={<RequirePermission permission={WORKSPACE_PERMISSION.readAudit}><Activity /></RequirePermission>} />
           <Route path="/diagnostics" element={<RequirePermission permission="can_view_settings"><Diagnostics /></RequirePermission>} />
           <Route path="/rate-limits" element={<LegacyRateLimitsRedirect />} />
